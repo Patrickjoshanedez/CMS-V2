@@ -320,24 +320,91 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(drawer).toBeTruthy();
 
       // Legend Strip checks
-      expect(drawer.textContent).toContain('Visual Tiers & Context Signals');
-      expect(drawer.textContent).toContain('Paraphrase');
-      expect(drawer.textContent).toContain('Verbatim');
+      expect(drawer.textContent).toContain('Highlight Color Guide');
+      expect(drawer.textContent).toContain('Rephrased');
+      expect(drawer.textContent).toContain('Exact Match');
 
       // Match Overview & Authentic Sources check
       expect(drawer.textContent).toContain('Match Overview');
       expect(drawer.textContent).toContain('BukSU Institutional IoT Research Archive');
 
-      // Check context signal badge (VERBATIM / PARAPHRASE / MIXED)
-      expect(drawer.textContent).toContain('PARAPHRASE');
+      // Check context signal badge (EXACT MATCH / REPHRASED / PARTIAL MATCH)
+      expect(drawer.textContent).toContain('REPHRASED');
 
       // Check dual bars
-      expect(drawer.textContent).toContain('Exact Overlap (Winnowing)');
-      expect(drawer.textContent).toContain('Semantic Overlap (Embedding Cosine)');
+      expect(drawer.textContent).toContain('Word-for-Word Match');
+      expect(drawer.textContent).toContain('Similar Meaning');
 
       // Check action buttons in row
       expect(drawer.textContent).toContain('Jump to Paper');
       expect(drawer.textContent).toContain('Open Source');
+    });
+
+    it('decomposes abstract conflicts into sentence-level spans and includes candidate titles for title conflicts', async () => {
+      api.get.mockResolvedValueOnce({
+        data: new Blob(['%PDF-1.4 mock content'], { type: 'application/pdf' }),
+      });
+
+      const mockProjectWithConflicts = {
+        ...mockProject,
+        manuscriptUrl: '/projects/archived-doc-101/manuscript',
+        title: 'Elevation Aware Domain Adaptation For Semantic Segm',
+        abstract:
+          'Recent advancements in Earth observation technologies have accelerated remote sensing data acquisition. Yet cross-domain semantic segmentation remains challenged by domain shifts.',
+        originalityScore: 10,
+        similarityScore: 90,
+        archiveMetadata: {
+          similarityAudit: {
+            titleConflicts: [
+              {
+                projectId: 'conflict-proj-1',
+                title:
+                  'Elevation-Aware Domain Adaptation for Semantic Segmentation of Aerial Images',
+                similarityPct: 95,
+              },
+            ],
+            abstractConflicts: [
+              {
+                projectId: 'conflict-proj-2',
+                title: 'Cross-Domain Semantic Segmentation of Remote Sensing Data',
+                similarityPct: 88,
+              },
+            ],
+          },
+        },
+      };
+
+      await renderViewer(mockProjectWithConflicts);
+
+      // Open drawer
+      const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('90%'),
+      );
+      await act(async () => {
+        badgeBtn.click();
+      });
+
+      const drawer = container.querySelector('aside[aria-label="Originality Report Details"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.textContent).toContain(
+        'Elevation-Aware Domain Adaptation for Semantic Segmentation of Aerial Images',
+      );
+      expect(drawer.textContent).toContain(
+        'Cross-Domain Semantic Segmentation of Remote Sensing Data',
+      );
+
+      // Switch to Integrity Highlights mode to check plagiarismMatches count
+      const integrityBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Integrity Highlights'),
+      );
+      await act(async () => {
+        integrityBtn.click();
+      });
+
+      const workspace = container.querySelector('[data-testid="pdf-viewer-workspace"]');
+      expect(workspace).toBeTruthy();
+      // 1 title conflict span + 2 abstract sentence spans = 3 total matches passed to workspace
+      expect(Number(workspace.getAttribute('data-matches'))).toBe(3);
     });
 
     it('allows selecting an authentic source to inspect active source detail with 3-bar breakdown and jump to paper', async () => {

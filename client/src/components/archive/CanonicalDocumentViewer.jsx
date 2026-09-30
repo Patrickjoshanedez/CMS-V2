@@ -89,19 +89,19 @@ const SOURCE_PALETTE = [
    ────────────────────────────────────────────────────────────── */
 const SIGNAL_CONFIG = {
   verbatim: {
-    label: 'VERBATIM',
+    label: 'EXACT MATCH',
     className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
-    description: 'Exact literal copying detected via n-gram fingerprinting.',
+    description: 'Exact word-for-word text found in another paper.',
   },
   paraphrase: {
-    label: 'PARAPHRASE',
+    label: 'REPHRASED',
     className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30',
-    description: 'High semantic overlap detected with low verbatim copying — possible paraphrase.',
+    description: 'Similar ideas and sentences expressed with different wording.',
   },
   mixed: {
-    label: 'MIXED',
+    label: 'PARTIAL MATCH',
     className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
-    description: 'Mixed overlap exhibiting combined lexical and semantic similarities.',
+    description: 'Contains both exact phrases and rephrased content.',
   },
 };
 
@@ -174,7 +174,7 @@ function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSou
           {source.matchedText && (
             <div className="p-2 rounded bg-muted/30 border border-border/40 text-[11px] space-y-0.5">
               <span className="text-[9px] uppercase font-bold text-muted-foreground/80 tracking-wider">
-                Similar Manuscript Passage:
+                Matched Text in Paper:
               </span>
               <p className="italic text-foreground line-clamp-2 font-serif">
                 &ldquo;{source.matchedText}&rdquo;
@@ -250,7 +250,7 @@ function LegendStrip() {
   return (
     <div className="p-2.5 rounded-lg border border-border/60 bg-muted/30 space-y-1.5">
       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        <span>Visual Tiers &amp; Context Signals</span>
+        <span>Highlight Color Guide</span>
       </div>
       <div className="grid grid-cols-3 gap-1.5 text-[10px]">
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
@@ -272,12 +272,12 @@ function LegendStrip() {
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
           <span className="w-2.5 h-2.5 rounded bg-violet-500/30 border-b-2 border-dashed border-violet-500 shrink-0" />
           <span className="text-violet-600 dark:text-violet-400 font-medium truncate">
-            Paraphrase
+            Rephrased
           </span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
           <span className="w-2.5 h-2.5 rounded bg-red-600/30 border-b-2 border-double border-red-600 shrink-0" />
-          <span className="text-rose-600 dark:text-rose-400 font-medium truncate">Verbatim</span>
+          <span className="text-rose-600 dark:text-rose-400 font-medium truncate">Exact Match</span>
         </div>
       </div>
     </div>
@@ -458,41 +458,108 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
     // 2. Check title / abstract conflicts from similarityAudit
     const audit = project?.archiveMetadata?.similarityAudit;
-    const conflicts = [
-      ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
-      ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
-    ];
-    if (conflicts.length > 0) {
-      return conflicts.map((c, idx) => {
+    const titleConflicts = Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : [];
+    const abstractConflicts = Array.isArray(audit?.abstractConflicts)
+      ? audit.abstractConflicts
+      : [];
+
+    if (titleConflicts.length > 0 || abstractConflicts.length > 0) {
+      let sourceCounter = 1;
+      const conflictSources = [];
+
+      // Process Title Conflicts
+      titleConflicts.forEach((c, idx) => {
         const sim = Number(c.similarityPct ?? (c.score ? c.score * 100 : 0));
         const winnow = sim > 50 ? 0.85 : 0.15;
         const semantic = sim > 30 ? 0.75 : 0.45;
-        return {
-          sourceId: c.projectId || `conflict-${idx + 1}`,
+        const matchedTitle = c.title || project?.title || '';
+        const candidateTitles = [c.title, project?.title].filter(Boolean);
+
+        conflictSources.push({
+          sourceId: c.projectId || `title-conflict-${idx + 1}`,
           projectId: c.projectId || null,
           sourceUrl: null,
           doi: null,
-          sourceNumber: idx + 1,
+          sourceNumber: sourceCounter++,
           sourceTitle: c.title || 'Archived Institutional Manuscript',
           similarityPercentage: sim,
           winnowScore: winnow,
           semanticScore: semantic,
           contextSignal: deriveContextSignal(winnow, semantic),
           matchCount: 1,
-          matchedText: project?.title || '',
+          matchedText: matchedTitle,
+          candidateTexts: candidateTitles,
           sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
           spans: [
             {
-              spanId: `conflict-span-${idx}`,
-              matchedText: project?.title || '',
+              spanId: `title-conflict-span-${idx}`,
+              matchedText: matchedTitle,
+              candidateTexts: candidateTitles,
               sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
               pageNumber: 1,
               similarity: sim,
             },
           ],
-          palette: SOURCE_PALETTE[idx % SOURCE_PALETTE.length],
-        };
+          palette: SOURCE_PALETTE[(sourceCounter - 2) % SOURCE_PALETTE.length],
+        });
       });
+
+      // Process Abstract Conflicts
+      abstractConflicts.forEach((c, idx) => {
+        const sim = Number(c.similarityPct ?? (c.score ? c.score * 100 : 0));
+        const winnow = sim > 50 ? 0.85 : 0.15;
+        const semantic = sim > 30 ? 0.75 : 0.45;
+
+        // Break project abstract or matched snippet into discrete sentence spans
+        const rawAbstract = project?.abstract || c.matchedSnippet || '';
+        const sentences = rawAbstract
+          ? rawAbstract
+              .split(/(?<=[.?!])\s+/)
+              .map((s) => s.trim())
+              .filter((s) => s.length >= 25)
+          : [];
+        const abstractSpans =
+          sentences.length > 0
+            ? sentences.slice(0, 5).map((sentence, sIdx) => ({
+                spanId: `abstract-conflict-span-${idx}-${sIdx}`,
+                matchedText: sentence,
+                candidateTexts: [sentence],
+                sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
+                pageNumber: 1,
+                similarity: sim,
+              }))
+            : [
+                {
+                  spanId: `abstract-conflict-span-${idx}-0`,
+                  matchedText: rawAbstract || c.title || project?.title || '',
+                  candidateTexts: [rawAbstract, c.title, project?.title].filter(Boolean),
+                  sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
+                  pageNumber: 1,
+                  similarity: sim,
+                },
+              ];
+
+        conflictSources.push({
+          sourceId: c.projectId || `abstract-conflict-${idx + 1}`,
+          projectId: c.projectId || null,
+          sourceUrl: null,
+          doi: null,
+          sourceNumber: sourceCounter++,
+          sourceTitle: c.title || 'Archived Institutional Manuscript',
+          similarityPercentage: sim,
+          winnowScore: winnow,
+          semanticScore: semantic,
+          contextSignal: deriveContextSignal(winnow, semantic),
+          matchCount: abstractSpans.length,
+          matchedText: abstractSpans[0]?.matchedText || rawAbstract.slice(0, 120),
+          candidateTexts: abstractSpans.map((sp) => sp.matchedText),
+          sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
+          spans: abstractSpans,
+          palette: SOURCE_PALETTE[(sourceCounter - 2) % SOURCE_PALETTE.length],
+        });
+      });
+
+      return conflictSources;
     }
 
     // Strictly ZERO synthetic/mock sources! Clean documents return an empty array.
@@ -567,6 +634,10 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
           list.push({
             id: `plag-${src.sourceId}-${sIdx}`,
             suspectText: sp.matchedText || src.matchedText || project?.title,
+            matchedText: sp.matchedText || src.matchedText,
+            candidateTexts:
+              sp.candidateTexts ||
+              [sp.matchedText, src.matchedText, src.sourceTitle, project?.title].filter(Boolean),
             similarityScore: sp.similarity || src.similarityPercentage,
             isExact: src.contextSignal === 'verbatim',
             winnowScore: src.winnowScore ?? (src.contextSignal === 'verbatim' ? 0.85 : 0.15),
@@ -578,12 +649,18 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
             doi: src.doi,
             pageNumber: sp.pageNumber || 1,
             offset: sIdx,
+            sourceNumber: src.sourceNumber,
+            palette: src.palette,
           });
         });
       } else {
         list.push({
           id: `plag-${src.sourceId}`,
           suspectText: src.matchedText || project?.title,
+          matchedText: src.matchedText,
+          candidateTexts:
+            src.candidateTexts ||
+            [src.matchedText, src.sourceTitle, project?.title].filter(Boolean),
           similarityScore: src.similarityPercentage,
           isExact: src.contextSignal === 'verbatim',
           winnowScore: src.winnowScore ?? (src.contextSignal === 'verbatim' ? 0.85 : 0.15),
@@ -595,6 +672,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
           doi: src.doi,
           pageNumber: 1,
           offset: 0,
+          sourceNumber: src.sourceNumber,
+          palette: src.palette,
         });
       }
     });
@@ -1358,7 +1437,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 {/* Dual Macro Breakdown: Exact Overlap vs Semantic Match */}
                 <div className="pt-2 border-t border-border/40 space-y-1.5">
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-muted-foreground">Exact Overlap (Winnowing):</span>
+                    <span className="text-muted-foreground">Word-for-Word Match:</span>
                     <span className="font-mono font-semibold text-amber-500">
                       {macroBreakdown.exact}%
                     </span>
@@ -1371,9 +1450,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                   </div>
 
                   <div className="flex items-center justify-between text-[10px] pt-0.5">
-                    <span className="text-muted-foreground">
-                      Semantic Overlap (Embedding Cosine):
-                    </span>
+                    <span className="text-muted-foreground">Similar Meaning:</span>
                     <span className="font-mono font-semibold text-blue-500">
                       {macroBreakdown.semantic}%
                     </span>
@@ -1476,7 +1553,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     {activeSource.winnowScore !== null && (
                       <>
                         <div className="flex items-center justify-between text-[10px] pt-0.5">
-                          <span className="text-muted-foreground">Exact Overlap (Winnowing)</span>
+                          <span className="text-muted-foreground">Word-for-Word Match</span>
                           <span className="font-mono text-amber-500 font-semibold">
                             {Math.round(activeSource.winnowScore * 100)}%
                           </span>
@@ -1493,7 +1570,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     {activeSource.semanticScore !== null && (
                       <>
                         <div className="flex items-center justify-between text-[10px] pt-0.5">
-                          <span className="text-muted-foreground">Semantic Overlap (Cosine)</span>
+                          <span className="text-muted-foreground">Similar Meaning</span>
                           <span className="font-mono text-blue-500 font-semibold">
                             {Math.round(activeSource.semanticScore * 100)}%
                           </span>

@@ -181,17 +181,24 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
         }
       }
     } else {
-      const spanText =
-        match.matchedText ||
-        match.suspectText ||
-        match.text ||
-        match.source_snippet ||
-        match.sourceText ||
-        '';
+      const candidates =
+        Array.isArray(match.candidateTexts) && match.candidateTexts.length > 0
+          ? match.candidateTexts
+          : [
+              match.matchedText,
+              match.suspectText,
+              match.text,
+              match.source_snippet,
+              match.sourceText,
+              match.sourceTitle,
+            ].filter(Boolean);
+
+      const spanText = candidates[0] || '';
       if (spanText && spanText.trim().length > 0) {
         candidateSpans.push({
           parentMatch: match,
           text: spanText.trim(),
+          candidateTexts: candidates,
           index,
           blockIndex: 0,
           offset: match.studentStart ?? index,
@@ -201,49 +208,98 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
   }
 
   for (let s = 0; s < candidateSpans.length; s += 1) {
-    const { parentMatch, text: suspectText, index, blockIndex, offset } = candidateSpans[s];
+    const {
+      parentMatch,
+      text: suspectText,
+      candidateTexts: spanCandidates,
+      index,
+      blockIndex,
+      offset,
+    } = candidateSpans[s];
 
     try {
-      // Pre-clean suspect text: collapse hyphenated breaks and ligatures while preserving case
-      const cleanedText = suspectText
-        .replace(/[\u00ad\u200b\ufeff]/g, '')
-        .replace(/(\w+)-\s*[\r\n]+\s*(\w+)/g, '$1$2')
-        .replace(/\uFB00/g, 'ff')
-        .replace(/\uFB01/g, 'fi')
-        .replace(/\uFB02/g, 'fl')
-        .replace(/\uFB03/g, 'ffi')
-        .replace(/\uFB04/g, 'ffl')
-        .replace(/[\u00E6\u00C6]/g, 'ae')
-        .replace(/[\u0153\u0152]/g, 'oe')
-        .replace(/\s+/g, ' ')
-        .trim();
+      // Gather all candidate query strings for this span
+      const candidateList = [
+        suspectText,
+        ...(Array.isArray(spanCandidates) ? spanCandidates : []),
+        ...(Array.isArray(parentMatch.candidateTexts) ? parentMatch.candidateTexts : []),
+        parentMatch.sourceTitle,
+        parentMatch.matchedText,
+      ].filter(
+        (t, i, arr) => typeof t === 'string' && t.trim().length >= 3 && arr.indexOf(t) === i,
+      );
 
-      if (cleanedText.length < 3) continue;
+      let textPosition = null;
+      let resolvedText = suspectText;
 
-      // Use react-pdf-highlighter-plus getTextPosition to locate text quote in PDF pages
-      let textPosition = await getTextPosition(pdfDocument, cleanedText, {
-        normalizeWhitespace: true,
-        ignoreHyphens: true,
-        fuzzyThreshold: 0.85,
-      });
+      for (const rawCandidate of candidateList) {
+        // Pre-clean suspect text: collapse hyphenated breaks and ligatures while preserving case
+        const cleanedText = rawCandidate
+          .replace(/[\u00ad\u200b\ufeff]/g, '')
+          .replace(/(\w+)-\s*[\r\n]+\s*(\w+)/g, '$1$2')
+          .replace(/\uFB00/g, 'ff')
+          .replace(/\uFB01/g, 'fi')
+          .replace(/\uFB02/g, 'fl')
+          .replace(/\uFB03/g, 'ffi')
+          .replace(/\uFB04/g, 'ffl')
+          .replace(/[\u00E6\u00C6]/g, 'ae')
+          .replace(/[\u0153\u0152]/g, 'oe')
+          .replace(/\s+/g, ' ')
+          .trim();
 
-      // If full text position failed and text is long, fallback to primary sentence search
-      if ((!textPosition || !textPosition.position) && cleanedText.length > 70) {
-        const sentences = cleanedText
-          .split(/(?<=[.?!])\s+/)
-          .map((item) => item.trim())
-          .filter((item) => item.length >= 25);
+        if (cleanedText.length < 3) continue;
 
-        for (const sentence of sentences) {
-          const subPos = await getTextPosition(pdfDocument, sentence, {
-            normalizeWhitespace: true,
-            ignoreHyphens: true,
-            fuzzyThreshold: 0.85,
-          });
-          if (subPos && subPos.position) {
-            textPosition = subPos;
-            break;
+        // 1. Try exact or fuzzy position on the full cleaned candidate
+        let pos = await getTextPosition(pdfDocument, cleanedText, {
+          normalizeWhitespace: true,
+          ignoreHyphens: true,
+          fuzzyThreshold: 0.85,
+        });
+
+        // 2. If full string failed, try individual sentences
+        if ((!pos || !pos.position) && cleanedText.length > 50) {
+          const sentences = cleanedText
+            .split(/(?<=[.?!])\s+/)
+            .map((item) => item.trim())
+            .filter((item) => item.length >= 25);
+
+          for (const sentence of sentences) {
+            const subPos = await getTextPosition(pdfDocument, sentence, {
+              normalizeWhitespace: true,
+              ignoreHyphens: true,
+              fuzzyThreshold: 0.85,
+            });
+            if (subPos && subPos.position) {
+              pos = subPos;
+              resolvedText = sentence;
+              break;
+            }
           }
+        }
+
+        // 3. If still not found and candidate has >= 4 words, try leading phrase (4-6 words)
+        if (!pos || !pos.position) {
+          const words = cleanedText.split(/\s+/).filter(Boolean);
+          if (words.length >= 4) {
+            const leadingPhrase = words.slice(0, Math.min(6, words.length)).join(' ');
+            if (leadingPhrase.length >= 15) {
+              const phrasePos = await getTextPosition(pdfDocument, leadingPhrase, {
+                normalizeWhitespace: true,
+                ignoreHyphens: true,
+                fuzzyThreshold: 0.85,
+              });
+              if (phrasePos && phrasePos.position) {
+                pos = phrasePos;
+                resolvedText = leadingPhrase;
+              }
+            }
+          }
+        }
+
+        if (pos && pos.position) {
+          textPosition = pos;
+          resolvedText = pos.matchedText || resolvedText;
+          break;
         }
       }
 

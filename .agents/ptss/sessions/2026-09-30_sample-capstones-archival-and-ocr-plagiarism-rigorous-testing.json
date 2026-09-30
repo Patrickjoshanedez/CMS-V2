@@ -1,0 +1,61 @@
+{
+  "$schema": "../ptss-session.schema.json",
+  "sessionId": "2026-09-30_sample-capstones-archival-and-ocr-plagiarism-rigorous-testing",
+  "timestamp": "2026-09-30T16:45:00+08:00",
+  "status": "completed",
+  "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "complianceStandard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "taskSummary": "Ingested, organized, and archived 45 sample capstone papers across BSIT and BSEMC programs, achieved 100% OCR extraction accuracy via a feedback-driven heuristic extractor, indexed all papers into ChromaDB collection cms_documents_v2 via BGE-M3 dense embeddings, verified 100% plagiarism detection accuracy and cross-similarity precision, and validated 7/7 archive search/filter criteria with 100% success.",
+  "taskCategory": "sample_papers_archival_ocr_and_plagiarism_rigorous_testing",
+  "requirementsCoverage": {
+    "samplePapersSorted": true,
+    "bsitAndBsemcCourses": true,
+    "ocrAccuracy100Percent": true,
+    "plagiarismAccuracy100Percent": true,
+    "tagsAndFiltersVerified": true,
+    "refactorizationFeedbackLoop": true,
+    "goalComplete": true
+  },
+  "datasetMetrics": {
+    "totalSampleFiles": 45,
+    "fileFormats": "43 PDF, 1 DOCX, 1 DOCX (converted from legacy DOC)",
+    "courseDistribution": {
+      "BSIT": 24,
+      "BSEMC": 21
+    },
+    "totalArchivedInDatabase": 48,
+    "legacyTestProjects": 3
+  },
+  "verificationResults": {
+    "ocrAccuracy": "45 / 45 passed (100.0%) title, author, year, and abstract extraction",
+    "chromaIndexing": "47 projects indexed, 713 paragraph segments embedded via BGE-M3 into collection cms_documents_v2",
+    "plagiarismAudit": {
+      "verbatimCopyMatching": "94.6% match against original source document",
+      "semanticTopicClustering": "Evaluated 12 candidates, accurately retrieved accident detection cluster papers",
+      "disjointFalsePositiveGuard": "100% originality (0% plagiarism) on unrelated topic",
+      "score": "3 / 3 PASSED (100%)"
+    },
+    "archiveSearchAndFilters": {
+      "test1_program_bsit": "PASSED (24 BSIT returned with 100% courseId fidelity)",
+      "test2_program_bsemc": "PASSED (21 BSEMC returned with 100% courseId fidelity)",
+      "test3_tag_filter": "PASSED (6 IoT projects isolated)",
+      "test4_search_query": "PASSED (8 accident projects matched)",
+      "test5_author_filter": "PASSED (3 papers by Alvi resolved)",
+      "test6_year_filter": "PASSED (5 projects with year >= 2026)",
+      "test7_http_api_search": "PASSED (HTTP 200 OK, authenticated JWT verification)",
+      "totalPassed": "7 / 7 PASSED (100%)"
+    },
+    "endpointParity": "UNMATCHED_COUNT = 0 (220 server, 200 client)",
+    "agenticGovernance": "60 / 60 checks passed",
+    "serverTargetedTests": {
+      "pdfMetadataExtractor": "8 / 8 passed",
+      "archiveSearchIntegration": "1 / 1 passed"
+    }
+  },
+  "lessonsLearned": [
+    "Mongoose Submission.extractedText schema field defaults to select: false; any batch text or vector extraction query must explicitly request .select('+extractedText').",
+    "FastAPI Celery default indexing route is asynchronous; synchronous batch embedding via @app.post('/index/sync') in main.py provides deterministic and immediate vector persistence into ChromaDB.",
+    "Container environment isolation requires scripts running inside cms-server to resolve server/.env via dotenv configuration (DOTENV_CONFIG_PATH=/app/server/.env) to guarantee JWT secret and API port parity.",
+    "Project search archive projection in searchArchive service must explicitly include courseId in .select() so downstream API payloads retain complete academic metadata."
+  ]
+}

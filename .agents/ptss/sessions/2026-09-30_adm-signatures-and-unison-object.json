@@ -1,0 +1,58 @@
+{
+  "session_id": "2026-09-30_adm-signatures-and-unison-object",
+  "date": "2026-09-30T13:15:00.000Z",
+  "task_description": "Resolve ADM signature rendering failures, store team ADM milestones (v1-v3) into one unison object to prevent state fragmentation, ensure all project stakeholders (students, adviser, secretary, panelists, chair, instructor) can view signatures, endorsement gate, and matrix text, and render the identical Form RU-F-033 ADM format inside Secretary Review Studio. Verify with TDD and Playwright browser visual proof of exact rendered signatory components.",
+  "task_category": "adm_unison_object_and_signature_rendering",
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "anti-regression-and-ci-governance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "changes_made": [
+    {
+      "file": "server/modules/projects/project.model.js",
+      "summary": "Added projectSchema.methods.getUnisonADM() consolidating v1, v2, v3 milestone partitions and added virtual unisonADM. Patched row milestone fallback in getMilestoneData to fallback to activeMilestone: (r.milestone || activeMilestone) === milestoneKey."
+    },
+    {
+      "file": "server/modules/projects/project.controller.js",
+      "summary": "Exported invalidateProjectCache(projectId) deleting project:meta:${id} and project:detail:${id}. Wired cache invalidation into broadcastADMUpdate, signTieredADM, endorseADMBySecretary, and seedInstitutionalADM. Attached unisonADM to getActionDoneMatrix, signTieredADM, and endorseADMBySecretary. Fixed StrictPopulateError in getActionDoneMatrix on teamId.sectionId.instructorId (removed invalid instructorId from sectionId, populated leaderId.instructorId instead). Patched seedInstitutionalADM to tag rows with target milestone and preserve existing rows from other milestones."
+    },
+    {
+      "file": "server/modules/projects/project.service.js",
+      "summary": "Updated getProject to compute unisonADM and attach it to projectPayload before saving into Redis cache."
+    },
+    {
+      "file": "server/modules/submissions/secretary.controller.js",
+      "summary": "Wired invalidateProjectCache(project._id) in saveSecretaryMinutes."
+    },
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.jsx",
+      "summary": "Added reactive state signaturesState and milestoneSignatures syncing with socket events and API mutation returns. Added isSecretary: isSecretaryProp = false to props and incorporated into isUserSecretary. Updated displayedRows to fall back to defaultMilestone: rows.filter((r) => (r.milestone || defaultMilestone) === selectedMilestone). Replaced brittle index-based panelist lookups with userId/name matching. Enhanced SignatoryCard isSigned check: Boolean(signatureState?.signed || signatureState?.signatureDataUrl || signatureState?.signedAt). Added data-testid='adm-signatories-board'. Rendered Committee Secretary's digital signature image inside Secretary Compliance Verification Gate banner when endorsed."
+    },
+    {
+      "file": "client/src/pages/projects/SecretaryReviewPage.jsx",
+      "summary": "Replaced disparate 7-column table with canonical Form RU-F-033 ActionDoneMatrixTab component with isSecretary=true, isFaculty=true. Patched useEffect to preserve searchParams (tab=adm) during project selection."
+    }
+  ],
+  "verification_evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=220, CLIENT_ENDPOINT_COUNT=200, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "client_vitest_suites": "32/32 tests passed (ActionDoneMatrixTab.signatures.test.jsx: 4/4, ActionDoneMatrixTab.test.jsx: 24/24, SecretaryReviewPage.test.jsx: 4/4)",
+    "server_vitest_suites": "2/2 tests passed (project.unison-adm.test.js)",
+    "playwright_visual_proofs": [
+      "proof_secretary_signatories_board.png",
+      "proof_secretary_adm_ru_f_033_sheet.png",
+      "proof_student_signatories_board_desktop_light.png",
+      "proof_student_signatories_board_desktop_dark.png",
+      "proof_student_adm_desktop_light.png",
+      "proof_student_adm_desktop_dark.png",
+      "proof_student_adm_mobile_light.png",
+      "proof_student_adm_mobile_dark.png"
+    ]
+  }
+}

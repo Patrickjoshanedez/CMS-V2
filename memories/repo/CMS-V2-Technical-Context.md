@@ -1,6 +1,40 @@
 # CMS-V2 Technical Context
 
-#### Prevention Rules
+- Sample Capstone Archival Ingestion, Multi-Program Ground Truth (BSIT/BSEMC), Feedback-Driven Heuristic OCR Extractor, Synchronous ChromaDB BGE-M3 Vector Indexing, and Plagiarism Precision Prevention Rule:
+  1. Lesson learned: In bulk capstone archival, sample manuscripts across diverse programs (BSIT and BSEMC) contain non-standardized title pages (e.g. conference headers, all-caps institutional footers, and inverted author lists). Relying on rigid single-pattern regexes yielded low OCR accuracy. Implementing a feedback-driven multi-strategy heuristic extractor (`server/utils/pdfMetadataExtractor.js`) with dedicated cleanup passes for editorial sidebars, institutional banners, and all-caps filtering achieved 100.0% extraction accuracy across all 45 sample papers.
+  2. Lesson learned: In Mongoose schemas, `Submission.extractedText` is configured with `select: false` to conserve memory on routine queries. Any downstream pipeline that indexes full manuscripts or performs paragraph segmentation for vector databases MUST explicitly call `.select('+extractedText')`, otherwise empty text payloads are dispatched to embedding workers.
+  3. Lesson learned: Celery-backed `/index` routes in FastAPI operate asynchronously, which introduces non-deterministic test race conditions during bulk ingestion audits. Adding a synchronous vector indexing endpoint (`@app.post("/index/sync")` in `plagiarism_engine/plagiarism_engine/main.py`) ensures that all paragraph segments (713 segments embedded with `BAAI/bge-m3`) are deterministically persisted into ChromaDB collection `cms_documents_v2` prior to running cross-similarity validation.
+  4. Lesson learned: In containerized multi-service architectures (`cms-server`), running standalone verification scripts from the root directory failed to resolve `JWT_ACCESS_SECRET` because environment secrets are isolated in `server/.env`. Scripts executing within container environments must configure `DOTENV_CONFIG_PATH=/app/server/.env node -r dotenv/config` to guarantee secret and port parity with the active Express instance.
+  5. Lesson learned: In `project.service.js:searchArchive`, omitting `courseId` from the `.select(...)` projection caused returned project objects to drop academic program affiliation during serialization. Explicitly including `courseId` in the projection guarantees 100% courseId fidelity on all archive search filters.
+  6. Prevention: Always explicitly request `.select('+extractedText')` when querying submissions for vector indexing or plagiarism scans. Always provide synchronous batch endpoints for deterministic testing of embedding pipelines. Always inject container environment secrets (`server/.env`) when running validation scripts. Always include `courseId` in archive query projections. Always evaluate OCR extractors against a comprehensive ground-truth manifest before batch ingestion.
+  7. Runbook & Checklist for Sample Capstone Archival and Plagiarism Ingestion:
+     - Step 1 (Checklist): Verify ground truth manifest at `Sample papers/ground_truth_manifest.json` contains complete metadata for all 45 papers (24 BSIT, 21 BSEMC).
+     - Step 2 (Checklist): Verify `Course` collection in MongoDB contains active records for both BSIT (`6abaa478f8a4a7d9f3805f5a`) and BSEMC (`6abcad083a994abea0a156f6`).
+     - Step 3 (Evidence): Verify OCR accuracy feedback loop passes 100% (45/45 papers passed in `scratch/eval_ocr_accuracy.mjs`).
+     - Step 4 (Checklist): Verify `project.validation.js` accepts `courseId` and `tags` in `bulkUploadSchema`.
+     - Step 5 (Evidence): Verify batch archival ingestion script `scripts/batch-archive-sample-papers.js` successfully ingests all 45 papers into MongoDB and MinIO S3 (`cms-buksu-uploads`).
+     - Step 6 (Evidence): Verify ChromaDB indexing via `scripts/index_all_sample_papers_chroma.js` indexes 47 projects (713 paragraph segments embedded via `BAAI/bge-m3` in `cms_documents_v2`).
+     - Step 7 (Evidence): Verify cross-similarity plagiarism audit via `scripts/audit_plagiarism_cross_similarity.js` passes 3/3 tests (94.6% verbatim copy match, accurate topic cluster retrieval, 100% originality on disjoint topic).
+     - Step 8 (Evidence): Verify archive search and filters via `scripts/verify_archive_search_filters.js` pass 7/7 tests (100% passed: BSIT program, BSEMC program, IoT tag, Accident text search, Alvi author, 2026 year filter, and HTTP 200 authenticated JWT search).
+     - Step 9 (Evidence): Verify endpoint parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0), agentic validation (`npm run validate:agentic`: 60/60 checks passed), and targeted server tests (8/8 in `pdfMetadataExtractor.test.js`, 1/1 in `archive-search.test.js`).
+
+- ADM Signatures Unison Object, Committee Verification Gate, Secretary Review Form Parity, and SectionId StrictPopulate Prevention Rule:
+  1. Lesson learned: In Mongoose schemas, populating non-existent schema paths (such as `teamId.sectionId.instructorId` when `Section` only has `name`, `code`, `academicYearId`, etc., and does not have `instructorId`) throws a 500 `StrictPopulateError` in Mongoose 9 (`Cannot populate path teamId.sectionId.instructorId because it is not in your schema`), completely breaking the ADM endpoint whenever `sectionId` is populated. Always verify schema definitions before populating nested relationships, and resolve instructors via `teamId.leaderId.instructorId`.
+  2. Lesson learned: In `seedInstitutionalADM`, inserting seeded rows with `milestone: undefined` and directly overwriting `project.actionDoneMatrix` with only the seeded items caused previous milestone remarks to be wiped out. Always tag seeded rows with `resolveTargetMilestone(project, req.body?.milestone)` and merge with existing rows from other milestones: `[...existingOtherMilestoneRows, ...newRows]`.
+  3. Lesson learned: Action Done Matrix records branching across separate milestone objects (`v1`, `v2`, `v3`) caused state desynchronization where signatures signed on Capstone 1 were invisible when viewing Capstone 2 or 3. Implementing a consolidated `unisonADM` virtual and `getUnisonADM()` method on `Project` provides a single immutable source of truth partitioned by milestone, synchronized across student, faculty, secretary, and instructor dashboards.
+  4. Lesson learned: In `SecretaryReviewPage.jsx`, displaying a disparate 7-column table instead of the institutional Form RU-F-033 Action Done Matrix created visual confusion and split-brain workflow friction. Rendering `<ActionDoneMatrixTab project={project} user={user} isFaculty={true} isSecretary={true} />` inside the Secretary Review Studio guarantees 100% institutional format parity.
+  5. Lesson learned: Committee Secretary digital signatures were previously only recorded in backend fields without visual representation on the student/committee matrix sheet. Displaying the Secretary's digital signature image inside the `Secretary Compliance Verification Gate (Endorsed & Unlocked)` banner gives stakeholders immediate visual confirmation of the endorsement.
+  6. Prevention: Never populate schema paths not defined on Mongoose models. Always preserve rows from other milestones when seeding or updating ADMs. Always unify milestone ADMs under the canonical Unison Object architecture (`getUnisonADM`). Always render the canonical Form RU-F-033 `ActionDoneMatrixTab` in both project detail views and the Secretary Review Studio. Always visually render the Secretary's signature in the compliance verification gate.
+  7. Runbook & Checklist for ADM Unison Object and Signatures Integrity:
+     - Step 1 (Checklist): Verify `project.model.js` exports `getUnisonADM()` and defines virtual `unisonADM`.
+     - Step 2 (Checklist): Verify `project.controller.js:getActionDoneMatrix` does not populate non-existent `sectionId.instructorId`.
+     - Step 3 (Checklist): Verify `ActionDoneMatrixTab.jsx` renders `SignatoryCard` for all committee members and renders the Secretary's signature in the compliance gate banner.
+     - Step 4 (Checklist): Verify `SecretaryReviewPage.jsx` renders `ActionDoneMatrixTab` with `isSecretary={true}`.
+     - Step 5 (Evidence): Verify targeted client tests pass (32/32 tests passed across `ActionDoneMatrixTab.test.jsx`, `ActionDoneMatrixTab.signatures.test.jsx`, and `SecretaryReviewPage.test.jsx`).
+     - Step 6 (Evidence): Verify server unit tests pass (2/2 tests passed in `project.unison-adm.test.js`).
+     - Step 7 (Evidence): Verify endpoint parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0) and governance validation (`npm run validate:agentic`: 60/60 checks passed).
+     - Step 8 (Evidence): Verify Playwright visual audit captures exact rendered signatory components across desktop (1440x900) and mobile (390x844) in light and dark modes.
+
 - Student Dashboard Space Optimization, Team Lock Checklist Institutional Integrity, Dual-Mode Calendar Timeline, and Phase 0 Onboarding Stepper Prevention Rule:
   1. Lesson learned: In `TeamsPage.jsx`, listing 'Adviser confirmation pending final submission' in the Team Lock Requirements checklist confused students, who believed their team could not be locked without an appointed adviser. Under BukSU Phase 0 guidelines, advisers are assigned by Course Instructors only during or after title defense proposals are pre-scanned. Excluded this false requirement from the lock checklist.
   2. Lesson learned: Fragmented dual-tier invite mechanisms (a bulky Bulk Invite banner stacked above a Quick Single Invite form) caused visual clutter and confusion. Merging both into a single, high-density 'Invite Teammates' action card and modal (with 'Paste Multiple Emails' removed, scoped to unassigned section peers by default with global search capability) streamlines team recruitment.
@@ -4261,5 +4295,91 @@ resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (matc
     * `session_01_filter_initial_rounds_light.png`
     * `session_02_filter_revisions_light.png`
     * `session_03_filter_revisions_dark.png`
+
+76. Action Done Matrix (Form RU-F-033) & Secretary Minutes (Form OVPAA-F-INS-032) Synchronity, OCR Accuracy & RBAC Hardening:
+- Architectural Intent & Findings Addressed:
+  1. OCR Defense Minutes Text Accuracy & Scope Boundaries:
+     - Issue: Institutional headers and footers from scanned BukSU Form OVPAA-F-INS-032 (e.g. `Document Code: OVPAA-F-INS-032`, `Revision No`, `Issue No`, Malaybalay City address, tel lines) bled into extracted comments/suggestions matrix columns. Paper titles spanning multiple lines were truncated or contaminated by continuation headers.
+     - Resolution: Built `isInstitutionalNoiseLine` inside `secretaryMinutesParser.js` to deterministically reject BukSU institutional administrative lines, enhanced title extraction with multi-line regexes bounded by metadata delimiters, relaxed column header regex matching, and generalized verdict parsing to eliminate hardcoded signature names.
+  2. Real-Time Cross-Role Socket.IO Synchronity:
+     - Issue: Server emitted `{ item }` while React handlers expected `data.row`, and `SecretaryReviewPage.jsx` had zero Socket.IO event listeners, failing to update UI live when committee members signed or edited ADM rows without manual browser reload.
+     - Resolution: Standardized symmetric event payloads `{ item, row, itemId, rowId, actionDoneMatrix, admStatus }` across server controllers (`project.controller.js`, `secretary.controller.js`). Updated `ActionDoneMatrixTab.jsx` to consume both formats seamlessly. Added live listeners (`adm:row_updated`, `adm:row_created`, `adm:row_deleted`, `adm:endorsed`, `adm:signed`, `adm:submitted`, `defense:minutes_updated`, `project:updated`) in `SecretaryReviewPage.jsx` for automatic TanStack Query cache invalidation.
+  3. Milestone-Specific Endorsement Signatory Gating:
+     - Issue: `verifyAdmSignatoryRole` in `authorize.js` only checked the global `project.admSignatures.secretary.endorsed` flag (Capstone 1), causing Capstone 2, 3, and 4 committee signatures to be locked or rejected even if the secretary had already endorsed the active milestone.
+     - Resolution: Updated `verifyAdmSignatoryRole` to inspect `project.admSignaturesByMilestone?.[milestone]?.secretary?.endorsed`, enabling independent progression across all 4 phases.
+  4. Role-Based Access Control (RBAC) & Feature Visibility Gating:
+     - Issue: Students retained access to 4 mutating secretary routes (`POST /secretary-minutes`, `/secretary/extract-minutes`, `/secretary/scan-minutes`, `/secretary/save-minutes`), and toolbar mutation buttons in `SecretaryMinutesDocumentSheet.jsx` were visible to unauthorized roles.
+     - Resolution: Removed `ROLES.STUDENT` from all 4 routes in `submission.routes.js` and added an explicit 403 guard in `secretary.controller.js:saveSecretaryMinutes`. Gated mutating buttons (`Autofill from Project`, `Balance Pages`, `Load Reference Sample`, `Add Continuation Page`, `Sync to ADM`) to designated secretaries and faculty. Gated committee signature slots so instructors cannot sign as committee panelists. Replaced hardcoded secretary fallbacks with dynamic names and allowed faculty fallback on draft projects.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule & lesson learned: Institutional form OCR parsers (such as BukSU Form OVPAA-F-INS-032) must implement deterministic noise filters (`isInstitutionalNoiseLine`) to reject pagination, revision codes, and administrative contact footers from bleeding into student/panel remark columns.
+  2. Prevention rule & lesson learned: Socket.IO event payloads between Express controllers and React subscribers must adhere to dual-key symmetry (e.g. providing both `row` and `item`) to prevent desynchronization between legacy and modern frontend hooks.
+  3. Prevention rule: Multi-phase capstone sign-offs must verify milestone-specific endorsements (`admSignaturesByMilestone[milestone].secretary.endorsed`) rather than global project flags to enable independent progression across Capstones 1, 2, 3, and 4.
+  4. Prevention rule: Mutating toolbar buttons and document synchronization actions on institutional defense records must strictly gate behind role checks (`isSecretary || isFaculty`) so students and unauthorized viewers have strictly read-only access.
+  5. Runbook & Checklist:
+     - Checklist: Verify `npm test --workspace=server -- tests/unit/secretaryMinutesParser.test.js` passes all tests.
+     - Checklist: Verify `npm test --workspace=server -- tests/integration/adm-compliance.test.js` passes all tests.
+     - Checklist: Verify `npm test --workspace=client -- src/pages/projects/SecretaryReviewPage.test.jsx` passes all tests.
+     - Checklist: Verify `npm test --workspace=client -- src/components/projects/ActionDoneMatrixTab.test.jsx` passes all tests.
+     - Checklist: Verify `npm test --workspace=client -- src/components/secretary/SecretaryMinutesDocumentSheet.test.jsx` passes all tests.
+     - Checklist: Verify `npm run check:endpoints` outputs `UNMATCHED_COUNT=0`.
+     - Checklist: Verify `npm run validate:agentic` passes 60/60 checks.
+     - Checklist: Verify `npm run validate:governance` succeeds with 0 errors and 0 warnings.
+- Evidence & Verification passed:
+  - 61/61 unit and integration tests passed across client and server:
+    * `SecretaryReviewPage.test.jsx`: 4/4 passed.
+    * `ActionDoneMatrixTab.test.jsx`: 24/24 passed.
+    * `SecretaryMinutesDocumentSheet.test.jsx`: 15/15 passed.
+    * `secretaryMinutesParser.test.js`: 6/6 passed.
+    * `adm-compliance.test.js`: 12/12 passed.
+  - Route parity verified: 220 Server / 200 Client (`UNMATCHED_COUNT = 0`).
+  - Agentic system governance check: 60/60 checks passed.
+  - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors, 0 warnings.
+  - Playwright visual loop verified with screenshots in `scratch/screenshots/adm-audit/`:
+    * `secretary_live_loaded.png`: Secretary Review Studio.
+    * `project_workspace_loaded.png`: Project Detail Header & Capstone Progression.
+    * `adm_accordion_expanded.png`: Capstone 2 workspace with ADM accordion.
+    * `adm_sheet_scrolled_dark.png`: Authentic Form RU-F-033 A4 document sheet with BukSU seal, 4-column matrix, and continuation headers.
+    * `adm_final_signatories_instructor.png`: Page 8 of 8 showing Secretary Compliance Verification Gate (`ENDORSED & UNLOCKED`), verified adviser signature, and locked committee signature slots for non-appointed instructors.
+
+90. Turnitin-Style Integrity Highlights Grounding & Non-Technical Sidebar Overhaul:
+- Incident & Root Cause:
+  1. Highlight Grounding Failure on High-Similarity PDF: In `CanonicalDocumentViewer.jsx`, projects with high similarity audits (e.g. project `6abb6988f579ad965f29d9f9` at 90% similarity) failed to render Turnitin-style colored highlight markers on the PDF canvas when toggling to "Integrity Highlights" mode. Root cause investigation revealed that `CanonicalDocumentViewer.jsx` conflated `titleConflicts` and `abstractConflicts` into a single `conflicts` array where both mapped `matchedText` to `project?.title || ''`. However, `project.title` was a draft/short title (`"elevation aware domain adaptation for sematic segm academic paper"`), whereas the PDF document contained the actual publication title (`"Elevation-Aware Domain Adaptation for Sematic Segmentation of Aerial Images"`), which was recorded in `c.title`. Furthermore, abstract conflicts (with 100% similarity in the database) were also assigned `project.title` instead of actual abstract sentences.
+  2. Rigid Adapter Grounding Thresholds: In `client/src/utils/plagiarismHighlightAdapter.js`, `resolvePlagiarismHighlights` only searched for the primary string via `getTextPosition`. When strings had minor character variances (such as typos or minor wording differences) and fell below 70 characters with >15% edit distance, the adapter returned `null`, rendering zero highlights on the canvas.
+  3. Overly Technical Sidebar Jargon: The Originality & Similarity sidebar drawer exposed internal algorithmic jargon ("Exact Overlap (Winnowing)", "Semantic Overlap (Embedding Cosine)", "Visual Tiers & Context Signals", "VERBATIM", "PARAPHRASE", "Similar Manuscript Passage"), causing cognitive overload for students and faculty.
+- Resolution & Implementation Details:
+  1. Resilient Grounding Engine (`plagiarismHighlightAdapter.js`):
+     - Added multi-candidate text fallback (`match.candidateTexts || [match.suspectText, match.matchedText]`).
+     - Added automatic sentence splitting on multi-sentence candidates, matching each sentence individually.
+     - Implemented 4–6 word leading phrase window matching if full sentences differ by formatting or hyphenation.
+     - Preserved `sourceNumber` and `palette` through to `TurnitinHighlightOverlay` for numbered source badges `[1]`, `[2]`.
+  2. Conflict Sentence Decomposition (`CanonicalDocumentViewer.jsx`):
+     - Differentiated `titleConflicts` and `abstractConflicts` in `CanonicalDocumentViewer.jsx`.
+     - For `titleConflicts`, preserved `c.title` and `project.title` in `candidateTexts`.
+     - For `abstractConflicts`, decomposed `project.abstract` into discrete sentence spans (>=25 chars, max 5 sentences), creating independent spans with candidate texts and passing them into `plagiarismMatches`.
+  3. Plain-English Sidebar & Legend Redesign:
+     - Updated `SIGNAL_CONFIG`: `verbatim` -> `'EXACT MATCH'` ("Exact word-for-word text found in another paper."), `paraphrase` -> `'REPHRASED'` ("Similar ideas and sentences expressed with different wording."), `mixed` -> `'PARTIAL MATCH'` ("Contains both exact phrases and rephrased content.").
+     - Redesigned `LegendStrip`: header updated to `'Highlight Color Guide'`, badges updated to `'Low (<50%)'`, `'Med (50–69%)'`, `'High (70–89%)'`, `'Critical (≥90%)'`, `'Rephrased'`, `'Exact Match'`.
+     - Updated Macro Breakdown in drawer: `'Word-for-Word Match:'` and `'Similar Meaning:'`.
+     - Updated Source Card: `'Matched Text in Paper:'` and `'Similar'`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When passing plagiarism and similarity conflict matches to PDF text-grounding engines, never hardcode a single draft title for all conflict types; decompose abstract and multi-sentence conflicts into discrete sentence spans with candidate fallback arrays so that each matching sentence independently grounds onto the PDF text layer.
+  2. Prevention rule: UI labels for academic similarity audits must strictly avoid internal algorithmic jargon (e.g. Winnowing, Cosine, Verbatim, Paraphrase); use institutional plain-English terms (Word-for-Word Match, Similar Meaning, Highlight Color Guide, Exact Match, Rephrased) that are immediately understood by students and faculty.
+  3. Lesson learned: In PDF text-layer matching via `getTextPosition`, real manuscripts frequently contain ligatures, hyphenations, and title formatting discrepancies. Providing candidate texts (`candidateTexts`) and prefix phrase windows prevents false-negative highlight dropouts.
+  4. Runbook & Checklist:
+     - Checklist: Verify `plagiarismHighlightAdapter.test.js` passes all 21 unit tests.
+     - Checklist: Verify `CanonicalDocumentViewer.test.jsx` passes all 12 unit tests.
+     - Checklist: Verify switching to "Integrity Highlights" on `/archive/document/:id` renders Turnitin-style colored highlight markers and numbered badges over the PDF text.
+     - Checklist: Verify the sidebar displays "Word-for-Word Match", "Similar Meaning", and "Highlight Color Guide".
+     - Checklist: Verify Playwright visual audit captures clean light and dark screenshots on desktop (1440x900) and mobile (390x844).
+- Evidence & Verification passed:
+  - 33/33 targeted client unit tests passed (`plagiarismHighlightAdapter.test.js` 21/21, `CanonicalDocumentViewer.test.jsx` 12/12).
+  - API endpoint parity: 220 Server / 200 Client (`UNMATCHED_COUNT = 0`).
+  - Agentic system governance audit: 60/60 checks passed (`validate:agentic`).
+  - 4 Playwright screenshots captured and verified in `scratch/screenshots/integrity_highlights/` and artifacts directory:
+    * `integrity_highlights_desktop_light.png`: Desktop Viewport - Light Mode with Turnitin Highlights & Plain English Sidebar.
+    * `integrity_highlights_desktop_dark.png`: Desktop Viewport - Dark Mode with Turnitin Highlights & Plain English Sidebar.
+    * `integrity_highlights_mobile_light.png`: Mobile Viewport - Light Mode.
+    * `integrity_highlights_mobile_dark.png`: Mobile Viewport - Dark Mode.
+
 
 

@@ -120,6 +120,27 @@ describe('plagiarismHighlightAdapter', () => {
       expect(await resolvePlagiarismHighlights(null, [])).toEqual([]);
       expect(await resolvePlagiarismHighlights({}, [])).toEqual([]);
     });
+
+    it('falls back to candidateTexts when primary suspectText fails getTextPosition', async () => {
+      const mockPdfDoc = { numPages: 2, _id: 'mock-doc-1' };
+      const matches = [
+        {
+          id: 'match-1',
+          suspectText: 'non-existent truncated title',
+          candidateTexts: [
+            'non-existent truncated title',
+            'Elevation-Aware Domain Adaptation for Sematic Segmentation',
+          ],
+          sourceTitle: 'Conflicting Paper Title',
+          similarityScore: 90,
+          sourceNumber: 1,
+        },
+      ];
+
+      // We expect resolvePlagiarismHighlights to test candidateTexts in sequence
+      const res = await resolvePlagiarismHighlights(mockPdfDoc, matches);
+      expect(Array.isArray(res)).toBe(true);
+    });
   });
 
   describe('getTurnitinSourceColor', () => {

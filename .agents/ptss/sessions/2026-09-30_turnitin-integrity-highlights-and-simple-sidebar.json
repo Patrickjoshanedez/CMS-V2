@@ -1,0 +1,33 @@
+{
+  "sessionId": "2026-09-30_turnitin-integrity-highlights-and-simple-sidebar",
+  "timestamp": "2026-09-30T17:46:00+08:00",
+  "task": "Turnitin-Style Integrity Highlights Grounding & Non-Technical Sidebar Overhaul",
+  "status": "completed",
+  "userRequirements": [
+    "On high-similarity manuscript reader (90% similarity project 6abb6988f579ad965f29d9f9), display Turnitin-style colored highlight markers on the PDF canvas for similar text in Integrity Highlights mode",
+    "Replace technical sidebar jargon (Winnowing, Embedding Cosine, Visual Tiers & Context Signals, VERBATIM, PARAPHRASE) with simple, everyday language understood by students and faculty"
+  ],
+  "rootCause": [
+    "Conflation of titleConflicts and abstractConflicts into a single conflicts array hardcoded with matchedText = project.title",
+    "Rigid string equality and high edit-distance rejection in plagiarismHighlightAdapter.js failing when strings had minor typos or length mismatch",
+    "Algorithm-centric jargon directly exposed in UI components (SIGNAL_CONFIG, LegendStrip, macroBreakdown)"
+  ],
+  "changes": [
+    "client/src/utils/plagiarismHighlightAdapter.js: Multi-candidate text iteration, sentence splitting fallback, leading phrase matching",
+    "client/src/utils/plagiarismHighlightAdapter.test.js: 21 unit tests passing",
+    "client/src/components/archive/CanonicalDocumentViewer.jsx: Differentiated title and abstract conflict mapping, sentence-level span generation, plain-language labels ('Word-for-Word Match', 'Similar Meaning', 'Highlight Color Guide', 'EXACT MATCH', 'REPHRASED', 'PARTIAL MATCH', 'Matched Text in Paper')",
+    "client/src/components/archive/CanonicalDocumentViewer.test.jsx: 12 unit tests passing",
+    "scratch/visual_audit_integrity_highlights.mjs: Playwright visual verification across light/dark desktop (1440x900) and mobile (390x844)"
+  ],
+  "verification": {
+    "targetedClientTests": "33 / 33 passed (plagiarismHighlightAdapter.test.js + CanonicalDocumentViewer.test.jsx)",
+    "endpointParity": "UNMATCHED_COUNT = 0 (220 server / 200 client)",
+    "agenticGovernance": "60 / 60 passed",
+    "playwrightEvidence": [
+      "integrity_highlights_desktop_light.png",
+      "integrity_highlights_desktop_dark.png",
+      "integrity_highlights_mobile_light.png",
+      "integrity_highlights_mobile_dark.png"
+    ]
+  }
+}
