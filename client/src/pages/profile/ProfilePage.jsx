@@ -479,7 +479,7 @@ export default function ProfilePage() {
                 <div>
                   <CardTitle className="text-lg">Academic Info</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Your section and assigned instructor.
+                    Your year & section and assigned instructor.
                   </p>
                 </div>
               </div>
@@ -487,7 +487,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               {/* Section */}
               <div className="space-y-2">
-                <Label htmlFor="profile-section">Section *</Label>
+                <Label htmlFor="profile-section">Year and Section *</Label>
                 <select
                   id="profile-section"
                   className="h-10 w-full rounded-md border border-slate-700 dark:border-slate-700 bg-background px-3 text-sm disabled:opacity-50"
@@ -496,7 +496,9 @@ export default function ProfilePage() {
                   disabled={sectionsLoading || isSavingAcademic}
                 >
                   <option value="">
-                    {sectionsLoading || sectionsFetching ? 'Loading...' : 'Select your section'}
+                    {sectionsLoading || sectionsFetching
+                      ? 'Loading...'
+                      : 'Select your year and section'}
                   </option>
                   {sections.map((s) => (
                     <option key={s._id} value={s._id}>
@@ -531,8 +533,8 @@ export default function ProfilePage() {
                   !sectionsFetching &&
                   sections.length === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      No active sections are available. Ask an instructor to create or activate a
-                      section.
+                      No active year and sections are available. Ask an instructor to create or
+                      activate a section.
                     </p>
                   )}
               </div>

@@ -183,4 +183,27 @@ describe('ProfilePage academic info dropdowns', () => {
 
     view.unmount();
   });
+
+  it('renders Year and Section label, placeholder option, and academic info description', () => {
+    const view = renderProfilePage();
+
+    expect(view.container.textContent).toContain('Your year & section and assigned instructor.');
+
+    const sectionLabel = Array.from(view.container.querySelectorAll('label')).find(
+      (label) => label.getAttribute('for') === 'profile-section',
+    );
+    expect(sectionLabel).not.toBeNull();
+    expect(sectionLabel?.textContent?.trim()).toBe('Year and Section *');
+
+    const select = view.container.querySelector('#profile-section');
+    expect(select).not.toBeNull();
+    const defaultOption = select?.querySelector('option[value=""]');
+    expect(defaultOption?.textContent?.trim()).toBe('Select your year and section');
+
+    expect(view.container.textContent).toContain(
+      'No active year and sections are available. Ask an instructor to create or activate a section.',
+    );
+
+    view.unmount();
+  });
 });
