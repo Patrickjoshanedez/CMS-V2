@@ -34,8 +34,10 @@ vi.mock('sonner', () => ({
   },
 }));
 
+let mockSearchParams = new URLSearchParams();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [mockSearchParams, vi.fn()],
 }));
 
 vi.mock('@/stores/authStore', () => ({
@@ -178,6 +180,7 @@ describe('DefenseSchedulingPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
     queryClient.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -803,5 +806,59 @@ describe('DefenseSchedulingPage', () => {
     expect(canvas).toBeTruthy();
     expect(canvas.width).toBe(1);
     expect(canvas.height).toBe(1);
+  });
+
+  it('deep-links with scheduled project: jumps selectedDate to scheduled date', async () => {
+    mockSearchParams = new URLSearchParams({ projectId: 'proj-2' });
+    await act(async () => {
+      renderComponent();
+    });
+
+    // proj-2 is scheduled for 2026-09-20; the calendar view should jump to that week
+    expect(container.textContent).toContain('Sep');
+    expect(container.textContent).toContain('2026');
+    // Ensure ScheduleDefenseModal was NOT opened for an already-scheduled project
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
+  });
+
+  it('deep-links with unscheduled project: opens ScheduleDefenseModal', async () => {
+    mockSearchParams = new URLSearchParams({ projectId: 'proj-1' });
+    await act(async () => {
+      renderComponent();
+    });
+
+    // proj-1 is pending_scheduling (unscheduled), so modal should open for it
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeTruthy();
+    expect(container.textContent).toContain('Modal for AgroSense AI Smart Agriculture');
+  });
+
+  it('deep-links when projects list updates to include target project: processes deep link once project is available', async () => {
+    mockSearchParams = new URLSearchParams({ projectId: 'proj-1' });
+    mockUseProjects.mockReturnValue({
+      data: { projects: [sampleProjects[1]] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
+
+    mockUseProjects.mockReturnValue({
+      data: { projects: sampleProjects },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeTruthy();
+    expect(container.textContent).toContain('Modal for AgroSense AI Smart Agriculture');
   });
 });

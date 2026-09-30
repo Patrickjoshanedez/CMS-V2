@@ -40,7 +40,6 @@ const EvaluationPanel = lazy(() => import('@/components/projects/EvaluationPanel
 const ProjectAuditTrail = lazy(() => import('@/components/projects/ProjectAuditTrail'));
 const ActionDoneMatrixTab = lazy(() => import('@/components/projects/ActionDoneMatrixTab'));
 const ConsultationLogWidget = lazy(() => import('@/components/projects/ConsultationLogWidget'));
-const ScheduleDefenseModal = lazy(() => import('@/components/defense/ScheduleDefenseModal'));
 const LiveDefenseMinutesModal = lazy(() => import('@/components/defense/LiveDefenseMinutesModal'));
 const CompileProposalModal = lazy(() => import('@/components/submissions/CompileProposalModal'));
 
@@ -174,8 +173,7 @@ export default function ProjectDetailPage() {
     { enabled: !!projectId },
   );
 
-  // Defense scheduling & live minutes modals state (Hooks placed unconditionally at top)
-  const [isScheduleDefenseOpen, setIsScheduleDefenseOpen] = useState(false);
+  // Defense live minutes & compile proposal modals state (Hooks placed unconditionally at top)
   const [isLiveMinutesOpen, setIsLiveMinutesOpen] = useState(false);
   const [isCompileProposalOpen, setIsCompileProposalOpen] = useState(false);
 
@@ -302,7 +300,11 @@ export default function ProjectDetailPage() {
             project={project}
             onStepClick={handleStepClick}
             isStudent={isStudent}
-            onScheduleDefense={isInstructor ? () => setIsScheduleDefenseOpen(true) : undefined}
+            onScheduleDefense={
+              isInstructor
+                ? () => navigate(`/defense-scheduling?projectId=${project._id}`)
+                : undefined
+            }
             canManageCommittee={isInstructor}
             canManageArchive={isInstructor && !isArchived}
             onRefresh={() => refetch()}
@@ -316,7 +318,7 @@ export default function ProjectDetailPage() {
                   <BookOpen className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-card-foreground">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-foreground">
                     Archived Capstone Record — Read-Only Mode
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -414,10 +416,12 @@ export default function ProjectDetailPage() {
             </TabsContent>
 
             <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
-              <div className="rounded-2xl border border-border bg-card shadow-lg p-6">
-                <div className="flex items-center gap-2 mb-6">
+              <div className="rounded-xl border border-border/60 bg-card shadow-xs p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-5">
                   <History className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-base font-semibold text-foreground">Audit Trail</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-foreground">
+                    Audit Trail
+                  </h3>
                   <span className="text-xs text-muted-foreground ml-1">
                     — full activity history for this project
                   </span>
@@ -436,18 +440,6 @@ export default function ProjectDetailPage() {
           </Tabs>
         </div>
       </div>
-
-      {/* Schedule Defense Modal for Instructor */}
-      {isScheduleDefenseOpen && (
-        <Suspense fallback={null}>
-          <ScheduleDefenseModal
-            isOpen={isScheduleDefenseOpen}
-            onClose={() => setIsScheduleDefenseOpen(false)}
-            project={project}
-            onScheduled={() => refetch()}
-          />
-        </Suspense>
-      )}
 
       {/* Live Defense Minutes Modal (BukSU Form OVPAA-F-INS-032) */}
       {isLiveMinutesOpen && (

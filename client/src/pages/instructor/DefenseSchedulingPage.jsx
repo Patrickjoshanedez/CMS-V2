@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -295,6 +295,9 @@ export function getTransparentDragImage() {
  */
 export default function DefenseSchedulingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const paramProjectId = searchParams.get('projectId');
+  const handledDeepLinkRef = useRef(null);
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -390,6 +393,7 @@ export default function DefenseSchedulingPage() {
           ...(project.defenseSchedule || {}),
           time: newTimeSlot,
         });
+        queryClient.invalidateQueries({ queryKey: projectKeys.all });
         toast.success(
           `Duration updated for "${project.teamId?.name || project.title}" to ${formatDurationLabel(currentDuration)} (${newTimeSlot}).`,
         );
@@ -405,7 +409,7 @@ export default function DefenseSchedulingPage() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizingState, refetchProjects]);
+  }, [resizingState, refetchProjects, queryClient]);
 
   // Fetch sections for filtering
   const { data: sectionsData } = useQuery({
@@ -751,6 +755,25 @@ export default function DefenseSchedulingPage() {
     setIsScheduleModalOpen(true);
   };
 
+  useEffect(() => {
+    if (!paramProjectId || allProjects.length === 0) return;
+    if (handledDeepLinkRef.current === paramProjectId) return;
+
+    const targetProj = allProjects.find((p) => String(p._id) === String(paramProjectId));
+    if (!targetProj) return;
+
+    handledDeepLinkRef.current = paramProjectId;
+
+    if (targetProj.defenseSchedule?.date && targetProj.defenseSchedule?.status === 'scheduled') {
+      const schedDate = new Date(targetProj.defenseSchedule.date);
+      if (!isNaN(schedDate.getTime())) {
+        setSelectedDate(schedDate);
+      }
+    } else {
+      handleOpenScheduleModal(targetProj);
+    }
+  }, [paramProjectId, allProjects]);
+
   const handleColumnDragOver = (dateStr, e) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -852,6 +875,7 @@ export default function DefenseSchedulingPage() {
 
     try {
       await projectService.scheduleDefense(proj._id, updatedSchedule);
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
       const dayLabel = new Date(dateStr).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -943,6 +967,7 @@ export default function DefenseSchedulingPage() {
         date: null,
         time: normalizedTime,
       });
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
       const teamName = proj.teamId?.name || proj.title;
       toast.success(
         `Defense hearing for "${teamName}" returned to Awaiting Scheduling (${formatDurationLabel(defaultDefenseDuration)} duration).`,
@@ -963,6 +988,7 @@ export default function DefenseSchedulingPage() {
   };
 
   const handleScheduledSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: projectKeys.all });
     refetchProjects();
   };
 
