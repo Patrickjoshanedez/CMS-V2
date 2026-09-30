@@ -2382,6 +2382,7 @@ class ProjectService {
     let updatedProject = project;
 
     for (const targetProject of targetProjects) {
+      if (!targetProject.deadlines) targetProject.deadlines = {};
       dateFields.forEach((key) => {
         if (data[key] !== undefined) targetProject.deadlines[key] = data[key];
       });
@@ -4669,6 +4670,10 @@ class ProjectService {
           : null
         : project.defenseSchedule?.date;
 
+    const previousSchedule = project.defenseSchedule
+      ? { ...(project.defenseSchedule.toObject?.() || project.defenseSchedule) }
+      : null;
+
     project.defenseSchedule = {
       date: scheduledDate,
       time: isClearingSchedule ? '' : time || project.defenseSchedule?.time || '',
@@ -4737,29 +4742,44 @@ class ProjectService {
       }
 
       const uniqueRecipients = [...new Set(recipients.map((r) => String(r?._id || r)))];
-      const dateStr = scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'TBA';
+      if (isClearingSchedule) {
+        const unscheduledNotifs = uniqueRecipients.map((uid) => ({
+          userId: uid,
+          type: 'defense_unscheduled',
+          title: 'Capstone Defense Hearing Postponed / Unscheduled',
+          message: `The defense hearing schedule for "${project.title}" has been removed.`,
+          metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
+        }));
 
-      const notifs = uniqueRecipients.map((uid) => ({
-        userId: uid,
-        type: 'defense_scheduled',
-        title: 'Capstone 2 Defense Scheduled',
-        message: `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
-        metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
-      }));
+        if (unscheduledNotifs.length > 0) {
+          const createdNotifs = await Notification.insertMany(unscheduledNotifs);
+          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        }
+      } else {
+        const dateStr = scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'TBA';
 
-      // Idempotency check: skip sending duplicate notifications if already scheduled with identical details
-      const isExactSameSchedule =
-        project.defenseSchedule?.status === 'scheduled' &&
-        project.defenseSchedule?.date &&
-        scheduledDate &&
-        new Date(project.defenseSchedule.date).toISOString().split('T')[0] ===
-          new Date(scheduledDate).toISOString().split('T')[0] &&
-        project.defenseSchedule?.time === project.defenseSchedule.time &&
-        project.defenseSchedule?.venue === project.defenseSchedule.venue;
+        const notifs = uniqueRecipients.map((uid) => ({
+          userId: uid,
+          type: 'defense_scheduled',
+          title: 'Capstone 2 Defense Scheduled',
+          message: `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
+          metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
+        }));
 
-      if (!isExactSameSchedule && notifs.length > 0) {
-        const createdNotifs = await Notification.insertMany(notifs);
-        createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        // Idempotency check: skip sending duplicate notifications if already scheduled with identical details
+        const isExactSameSchedule =
+          previousSchedule?.status === 'scheduled' &&
+          previousSchedule?.date &&
+          scheduledDate &&
+          new Date(previousSchedule.date).toISOString().split('T')[0] ===
+            new Date(scheduledDate).toISOString().split('T')[0] &&
+          previousSchedule?.time === project.defenseSchedule.time &&
+          previousSchedule?.venue === project.defenseSchedule.venue;
+
+        if (!isExactSameSchedule && notifs.length > 0) {
+          const createdNotifs = await Notification.insertMany(notifs);
+          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        }
       }
     } catch {
       // Non-blocking

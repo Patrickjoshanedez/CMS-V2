@@ -685,7 +685,7 @@ export default function TeamCommitteeAssignmentsView() {
                             {getInitials(formatFullName(assignedAdviser))}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-foreground truncate">
+                            <p className="text-xs font-semibold text-foreground truncate">
                               {formatFullName(assignedAdviser)}
                             </p>
                             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
@@ -742,7 +742,7 @@ export default function TeamCommitteeAssignmentsView() {
                             {getInitials(formatFullName(assignedSecretary))}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-900 dark:text-foreground truncate">
+                            <p className="text-xs font-semibold text-foreground truncate">
                               {formatFullName(assignedSecretary)}
                             </p>
                             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
@@ -821,7 +821,7 @@ export default function TeamCommitteeAssignmentsView() {
                               {getInitials(panName)}
                             </div>
                             <div className="space-y-0.5 min-w-0">
-                              <p className="font-semibold text-slate-900 dark:text-foreground leading-none truncate">
+                              <p className="font-semibold text-foreground leading-none truncate">
                                 {panName}
                               </p>
                               <p className="text-[10px] text-muted-foreground truncate">

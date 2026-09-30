@@ -100,7 +100,15 @@ const defenseScheduleSchema = new mongoose.Schema(
     verdict: { type: String, default: null },
     status: {
       type: String,
-      enum: ['pending_scheduling', 'scheduled', 'completed', 'cancelled', 'redefense', 'overdue'],
+      enum: [
+        'pending_scheduling',
+        'scheduled',
+        'completed',
+        'cancelled',
+        'redefense',
+        'overdue',
+        'unscheduled',
+      ],
       default: 'pending_scheduling',
     },
   },
@@ -944,6 +952,73 @@ projectSchema.pre('save', function () {
       'adm_v1',
     ];
   }
+});
+
+/**
+ * Unison Team ADM Object:
+ * Consolidates all Team Action Done Matrix data across milestones (v1 = Capstone 1, v2 = Capstone 2, v3 = Capstone 3)
+ * into a single unified structure to prevent uncontrolled branching.
+ */
+projectSchema.methods.getUnisonADM = function () {
+  const phase = Number(this.capstonePhase ?? 1);
+  const activeMilestone = phase >= 3 ? 'CAPSTONE_3' : phase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_1';
+
+  const allRows = Array.isArray(this.actionDoneMatrix) ? this.actionDoneMatrix : [];
+
+  const getMilestoneData = (milestoneKey, versionLabel, defaultTitle) => {
+    const rows = allRows.filter((r) => (r.milestone || activeMilestone) === milestoneKey);
+    const signatures =
+      this.admSignaturesByMilestone?.[milestoneKey] ||
+      (milestoneKey === activeMilestone && this.admSignatures ? this.admSignatures : {}) ||
+      {};
+    const reviewType =
+      this.admReviewTypeByMilestone?.[milestoneKey] ||
+      (milestoneKey === activeMilestone && this.admReviewType ? this.admReviewType : 'internal') ||
+      'internal';
+    const secretaryMinutes =
+      this.secretaryMinutesByMilestone?.[milestoneKey] ||
+      (milestoneKey === activeMilestone && this.secretaryMinutes ? this.secretaryMinutes : {}) ||
+      {};
+    const status =
+      milestoneKey === activeMilestone
+        ? this.admStatus || 'not_started'
+        : phase > (milestoneKey === 'CAPSTONE_1' ? 1 : milestoneKey === 'CAPSTONE_2' ? 2 : 3)
+          ? 'approved'
+          : 'not_started';
+
+    return {
+      milestone: milestoneKey,
+      milestoneLabel: versionLabel,
+      defaultTitle,
+      status,
+      reviewType,
+      signatures,
+      rows,
+      secretaryMinutes,
+      totalRows: rows.length,
+      addressedRows: rows.filter((r) => r.status === 'addressed' || r.status === 'verified').length,
+      verifiedRows: rows.filter((r) => r.status === 'verified').length,
+    };
+  };
+
+  return {
+    v1: getMilestoneData('CAPSTONE_1', 'Capstone 1 (Title Defense / Proposal)', 'ADM v1'),
+    v2: getMilestoneData('CAPSTONE_2', 'Capstone 2 (Midterm Defense / Chapters 1–3)', 'ADM v2'),
+    v3: getMilestoneData(
+      'CAPSTONE_3',
+      'Capstone 3 (Progress & Final Defense / Chapters 4–5)',
+      'ADM v3',
+    ),
+    activeMilestone,
+    activeVersion:
+      activeMilestone === 'CAPSTONE_3' ? 'v3' : activeMilestone === 'CAPSTONE_2' ? 'v2' : 'v1',
+    capstonePhase: phase,
+    teamId: this.teamId,
+  };
+};
+
+projectSchema.virtual('unisonADM').get(function () {
+  return this.getUnisonADM();
 });
 
 // --- Indexes ---
