@@ -116,4 +116,36 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.innerHTML).toBe('');
   });
+
+  it('returns null when defenseSchedule status is unscheduled', () => {
+    act(() => {
+      root.render(<DefenseScheduleBadge defenseSchedule={{ status: 'unscheduled', date: null }} />);
+    });
+    expect(container.innerHTML).toBe('');
+    expect(resolveDefenseScheduleState({ status: 'unscheduled', date: null })).toBeNull();
+  });
+
+  it('returns null when defenseSchedule status is cancelled', () => {
+    act(() => {
+      root.render(
+        <DefenseScheduleBadge defenseSchedule={{ status: 'cancelled', date: '2026-10-10' }} />,
+      );
+    });
+    expect(container.innerHTML).toBe('');
+    expect(resolveDefenseScheduleState({ status: 'cancelled', date: '2026-10-10' })).toBeNull();
+  });
+
+  it('returns null when date is null or empty and status is not pending_scheduling', () => {
+    act(() => {
+      root.render(<DefenseScheduleBadge defenseSchedule={{ status: 'scheduled', date: null }} />);
+    });
+    expect(container.innerHTML).toBe('');
+    expect(resolveDefenseScheduleState({ status: 'scheduled', date: null })).toBeNull();
+
+    act(() => {
+      root.render(<DefenseScheduleBadge defenseSchedule={{ status: 'scheduled', date: '' }} />);
+    });
+    expect(container.innerHTML).toBe('');
+    expect(resolveDefenseScheduleState({ status: 'scheduled', date: '' })).toBeNull();
+  });
 });

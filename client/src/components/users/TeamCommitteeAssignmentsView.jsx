@@ -33,6 +33,7 @@ import { useProject, useSetDeadlines } from '@/hooks/useProjects';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLES } from '@cms/shared';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
+import FacultySearchCombobox from '@/components/teams/FacultySearchCombobox';
 import { toast } from 'sonner';
 
 /**
@@ -303,7 +304,7 @@ export default function TeamCommitteeAssignmentsView() {
     }
     const payload = { projectId: selectedProjectId };
     Object.entries(deadlineDraft).forEach(([key, val]) => {
-      if (val) payload[key] = val;
+      payload[key] = val || null;
     });
     setDeadlines.mutate(payload);
   };
@@ -327,6 +328,25 @@ export default function TeamCommitteeAssignmentsView() {
         !selectedPanelistIds.includes(f._id),
     );
   }, [eligibleFaculty, selectedAdviserId, selectedSecretaryId, selectedPanelistIds]);
+
+  // Conflict maps: prevent choosing the same faculty member for adviser and secretary or panelist
+  const adviserConflictMap = useMemo(() => {
+    const map = {};
+    if (selectedSecretaryId) map[selectedSecretaryId] = 'Committee Secretary';
+    selectedPanelistIds.forEach((pId, idx) => {
+      map[pId] = idx === 0 ? 'Lead / Chair' : `Panel Member ${idx}`;
+    });
+    return map;
+  }, [selectedSecretaryId, selectedPanelistIds]);
+
+  const secretaryConflictMap = useMemo(() => {
+    const map = {};
+    if (selectedAdviserId) map[selectedAdviserId] = 'Capstone Adviser';
+    selectedPanelistIds.forEach((pId, idx) => {
+      map[pId] = idx === 0 ? 'Lead / Chair' : `Panel Member ${idx}`;
+    });
+    return map;
+  }, [selectedAdviserId, selectedPanelistIds]);
 
   const totalAppointed =
     selectedPanelistIds.length + (selectedAdviserId ? 1 : 0) + (selectedSecretaryId ? 1 : 0);
@@ -646,44 +666,40 @@ export default function TeamCommitteeAssignmentsView() {
                       </Badge>
                     </div>
 
-                    <select
+                    <FacultySearchCombobox
+                      id="adviser-assignment-combobox"
                       value={selectedAdviserId}
-                      onChange={(e) => setSelectedAdviserId(e.target.value)}
+                      onChange={(val) => setSelectedAdviserId(val)}
+                      facultyList={eligibleFaculty}
+                      workloadMap={facultyWorkload}
+                      conflictMap={adviserConflictMap}
+                      placeholder="-- Search & assign adviser --"
                       disabled={isFacultyLoading || !hasApprovedProject}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="">-- Search & assign adviser --</option>
-                      {eligibleFaculty.map((fac) => {
-                        const count = facultyWorkload[fac._id] || 0;
-                        return (
-                          <option key={fac._id} value={fac._id}>
-                            {formatFullName(fac)} ({fac.email}) · {count} active teams
-                          </option>
-                        );
-                      })}
-                    </select>
+                    />
 
                     {/* Assigned Adviser Slot Preview */}
                     {assignedAdviser && (
-                      <div className="flex items-center justify-between p-2 rounded-md border border-border/50 bg-background mt-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                      <div className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-background mt-1 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/70">
                             {getInitials(formatFullName(assignedAdviser))}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-foreground truncate">
                               {formatFullName(assignedAdviser)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {assignedAdviser.email}
-                            </p>
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
+                              <span className="truncate">{assignedAdviser.email}</span>
+                              <span>·</span>
+                              <span>{facultyWorkload[assignedAdviser._id] || 0} active teams</span>
+                            </div>
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedAdviserId('')}
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
                           title="Clear Adviser"
                         >
                           <X className="h-3 w-3" />
@@ -707,44 +723,42 @@ export default function TeamCommitteeAssignmentsView() {
                       </Badge>
                     </div>
 
-                    <select
+                    <FacultySearchCombobox
+                      id="secretary-assignment-combobox"
                       value={selectedSecretaryId}
-                      onChange={(e) => setSelectedSecretaryId(e.target.value)}
+                      onChange={(val) => setSelectedSecretaryId(val)}
+                      facultyList={eligibleFaculty}
+                      workloadMap={facultyWorkload}
+                      conflictMap={secretaryConflictMap}
+                      placeholder="-- Search & assign secretary --"
                       disabled={isFacultyLoading || !hasApprovedProject}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="">-- Search & assign secretary --</option>
-                      {eligibleFaculty.map((fac) => {
-                        const count = facultyWorkload[fac._id] || 0;
-                        return (
-                          <option key={fac._id} value={fac._id}>
-                            {formatFullName(fac)} ({fac.email}) · {count} active teams
-                          </option>
-                        );
-                      })}
-                    </select>
+                    />
 
                     {/* Assigned Secretary Slot Preview */}
                     {assignedSecretary && (
-                      <div className="flex items-center justify-between p-2 rounded-md border border-border/50 bg-background mt-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                      <div className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-background mt-1 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/70">
                             {getInitials(formatFullName(assignedSecretary))}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">
+                            <p className="text-xs font-semibold text-slate-900 dark:text-foreground truncate">
                               {formatFullName(assignedSecretary)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {assignedSecretary.email}
-                            </p>
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
+                              <span className="truncate">{assignedSecretary.email}</span>
+                              <span>·</span>
+                              <span>
+                                {facultyWorkload[assignedSecretary._id] || 0} active teams
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedSecretaryId('')}
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
                           title="Clear Secretary"
                         >
                           <X className="h-3 w-3" />
@@ -776,22 +790,18 @@ export default function TeamCommitteeAssignmentsView() {
 
                   {/* Quick Add Dropdown */}
                   {selectedPanelistIds.length < 3 && (
-                    <select
+                    <FacultySearchCombobox
+                      id="panelist-add-combobox"
                       value=""
-                      onChange={(e) => handleAddPanelist(e.target.value)}
+                      onChange={(val) => {
+                        if (val) handleAddPanelist(val);
+                      }}
+                      facultyList={availablePanelistCandidates}
+                      workloadMap={facultyWorkload}
+                      placeholder="+ Add faculty member as panelist..."
+                      emptyLabel={null}
                       disabled={isFacultyLoading || !hasApprovedProject}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="">+ Add faculty member as panelist...</option>
-                      {availablePanelistCandidates.map((fac) => {
-                        const count = facultyWorkload[fac._id] || 0;
-                        return (
-                          <option key={fac._id} value={fac._id}>
-                            {formatFullName(fac)} ({fac.email}) · {count} active teams
-                          </option>
-                        );
-                      })}
-                    </select>
+                    />
                   )}
 
                   {/* Selected Panelist Chips / Cards */}
@@ -804,29 +814,34 @@ export default function TeamCommitteeAssignmentsView() {
                       return (
                         <div
                           key={panId}
-                          className="flex items-center justify-between p-2.5 rounded-md border border-border/70 bg-card text-xs shadow-2xs"
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 bg-card text-xs shadow-2xs"
                         >
-                          <div className="space-y-0.5 min-w-0 pr-1">
-                            <p className="font-semibold text-foreground leading-none truncate">
-                              {panName}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {index === 0 ? (
-                                <span className="text-primary font-medium">Lead / Chair</span>
-                              ) : index === 1 ? (
-                                'Panel Member 1'
-                              ) : (
-                                'Panel Member 2'
-                              )}
-                              {' · '}
-                              <span className="text-muted-foreground">{workload} teams</span>
-                            </p>
+                          <div className="flex items-center gap-2 min-w-0 pr-1">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/60">
+                              {getInitials(panName)}
+                            </div>
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="font-semibold text-slate-900 dark:text-foreground leading-none truncate">
+                                {panName}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {index === 0 ? (
+                                  <span className="text-primary font-medium">Lead / Chair</span>
+                                ) : index === 1 ? (
+                                  'Panel Member 1'
+                                ) : (
+                                  'Panel Member 2'
+                                )}
+                                {' · '}
+                                <span className="text-muted-foreground">{workload} teams</span>
+                              </p>
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleRemovePanelist(panId)}
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
                             title="Remove Panelist"
                           >
                             <X className="h-3.5 w-3.5" />

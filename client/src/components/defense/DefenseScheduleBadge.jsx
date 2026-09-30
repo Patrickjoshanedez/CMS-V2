@@ -34,7 +34,8 @@ export function resolveDefenseScheduleState(schedule) {
   const round = schedule.round;
 
   if (!status && !rawDate) return null;
-  if (status === 'none') return null;
+  if (status === 'none' || status === 'unscheduled' || status === 'cancelled') return null;
+  if (!rawDate && status !== 'pending_scheduling') return null;
 
   // 1. Redefense check:
   // Triggered if status is explicitly 'redefense', or consensus verdict was rejected/major revisions redefense,

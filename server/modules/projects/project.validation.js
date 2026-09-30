@@ -253,13 +253,13 @@ export const assignSecretarySchema = z.object({
 /* ───── Set deadlines (instructor/adviser action) ───── */
 
 export const setDeadlinesSchema = z.object({
-  chapter1: z.coerce.date().optional(),
-  chapter2: z.coerce.date().optional(),
-  chapter3: z.coerce.date().optional(),
-  proposal: z.coerce.date().optional(),
-  chapter4: z.coerce.date().optional(),
-  chapter5: z.coerce.date().optional(),
-  defense: z.coerce.date().optional(),
+  chapter1: z.coerce.date().nullable().optional(),
+  chapter2: z.coerce.date().nullable().optional(),
+  chapter3: z.coerce.date().nullable().optional(),
+  proposal: z.coerce.date().nullable().optional(),
+  chapter4: z.coerce.date().nullable().optional(),
+  chapter5: z.coerce.date().nullable().optional(),
+  defense: z.coerce.date().nullable().optional(),
   applyToSection: z.boolean().optional(),
   tba: z
     .array(
@@ -455,6 +455,23 @@ export const bulkUploadSchema = z
       const parsed = Number(val);
       return Number.isFinite(parsed) ? parsed : undefined;
     }, z.number().min(0).max(100).optional()),
+    courseId: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() ? val.trim() : undefined),
+      z
+        .string()
+        .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Course ObjectId')
+        .optional(),
+    ),
+    tags: z.preprocess(
+      (val) =>
+        typeof val === 'string'
+          ? val
+              .split(',')
+              .map((k) => k.trim())
+              .filter(Boolean)
+          : val,
+      z.array(z.string().trim().min(1).max(100)).max(20).optional().default([]),
+    ),
   })
   .transform((data) => {
     if (!data.academicYear) {

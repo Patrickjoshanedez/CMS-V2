@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { projectService } from '@/services/authService';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { projectKeys } from '@/hooks/useProjects';
 
 const VENUE_PRESETS = [
   'COT Conference Room',
@@ -64,6 +66,7 @@ export default function ScheduleDefenseModal({
   initialDate,
   initialTime,
 }) {
+  const queryClient = useQueryClient();
   const [date, setDate] = useState(initialDate || '');
   const [time, setTime] = useState(initialTime || '09:00 AM - 09:30 AM');
   const [venue, setVenue] = useState('COT Conference Room');
@@ -71,6 +74,26 @@ export default function ScheduleDefenseModal({
   const [defenseType, setDefenseType] = useState('progress');
   const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleUnschedule = async () => {
+    if (!project?._id) return;
+    setIsSubmitting(true);
+    try {
+      await projectService.scheduleDefense(project._id, {
+        status: 'unscheduled',
+        date: null,
+        time: '',
+      });
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      toast.success(`Defense schedule removed for ${project.teamId?.name || project.title}.`);
+      if (onScheduled) onScheduled();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove defense schedule.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (initialDate) {
@@ -144,6 +167,7 @@ export default function ScheduleDefenseModal({
       };
 
       await projectService.scheduleDefense(project._id, payload);
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
       toast.success(
         `Defense scheduled for ${project.teamId?.name || project.title} on ${date} at ${time}.`,
       );
@@ -389,35 +413,53 @@ export default function ScheduleDefenseModal({
         </form>
 
         {/* Pinned Action Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-border bg-muted/30 shrink-0">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            className="text-xs h-8 px-3"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="text-xs h-8 px-3.5 font-semibold gap-1.5 shadow-xs"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Scheduling...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Confirm &amp; Notify Hearing Committee
-              </>
+        <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-t border-border bg-muted/30 shrink-0">
+          <div>
+            {Boolean(
+              project?.defenseSchedule?.date || project?.defenseSchedule?.status === 'scheduled',
+            ) && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleUnschedule}
+                disabled={isSubmitting}
+                className="text-xs h-8 px-3"
+              >
+                Remove Schedule
+              </Button>
             )}
-          </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="text-xs h-8 px-3"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="text-xs h-8 px-3.5 font-semibold gap-1.5 shadow-xs"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Confirm &amp; Notify Hearing Committee
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

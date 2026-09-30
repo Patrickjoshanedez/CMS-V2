@@ -760,6 +760,13 @@ class ProjectService {
       submissions: archivedSubmissions,
     };
 
+    try {
+      const pDoc = new Project(project);
+      projectPayload.unisonADM = pDoc.getUnisonADM();
+    } catch {
+      // Non-blocking
+    }
+
     // Cache metadata for 120 seconds
     await cacheService.set(cacheKey, projectPayload, 120);
 
@@ -2379,6 +2386,15 @@ class ProjectService {
         if (data[key] !== undefined) targetProject.deadlines[key] = data[key];
       });
 
+      if (data.defense === null || data.defense === '') {
+        if (targetProject.defenseSchedule) {
+          targetProject.defenseSchedule.date = null;
+          if (targetProject.defenseSchedule.status === 'scheduled') {
+            targetProject.defenseSchedule.status = 'unscheduled';
+          }
+        }
+      }
+
       // Sync TBA flags — fields marked TBA have their date cleared.
       if (data.tba !== undefined) {
         targetProject.deadlines.tba = data.tba;
@@ -2935,7 +2951,7 @@ class ProjectService {
         .populate('teamId', 'name members githubLink')
         .populate('adviserId', 'firstName middleName lastName')
         .select(
-          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey githubRepoUrl prototypes',
+          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey githubRepoUrl prototypes courseId',
         ),
       Project.countDocuments(filter),
     ]);
@@ -4138,6 +4154,17 @@ class ProjectService {
           ? `${resolvedPublicationYear}-${resolvedPublicationYear + 1}`
           : `${currentYear}-${currentYear + 1}`);
 
+      const resolvedCourseId = data?.courseId
+        ? new mongoose.Types.ObjectId(data.courseId)
+        : new mongoose.Types.ObjectId();
+
+      const mergedKeywords = Array.from(
+        new Set([
+          ...resolvedKeywords,
+          ...(Array.isArray(data?.tags) ? data.tags.map((t) => t?.trim()).filter(Boolean) : []),
+        ]),
+      );
+
       // Create an internal placeholder team to satisfy project schema invariants.
       archiveTeam = await Team.create({
         name: `Archive ${Date.now()}`,
@@ -4145,6 +4172,7 @@ class ProjectService {
         members: [instructorObjectId],
         isLocked: true,
         academicYear: resolvedAcademicYear,
+        courseId: data?.courseId ? resolvedCourseId : null,
       });
 
       project = await Project.create({
@@ -4158,7 +4186,7 @@ class ProjectService {
           normalizedTitle,
         ],
         abstract: normalizedAbstract,
-        keywords: resolvedKeywords,
+        keywords: mergedKeywords,
         archiveMetadata: {
           authors: resolvedAuthors,
           publicationYear: resolvedPublicationYear,
@@ -4169,7 +4197,7 @@ class ProjectService {
           similarityAudit,
         },
         academicYear: resolvedAcademicYear,
-        courseId: new mongoose.Types.ObjectId(),
+        courseId: resolvedCourseId,
         sectionId: new mongoose.Types.ObjectId(),
         memberRoleAssignments: [
           {
@@ -4624,9 +4652,15 @@ class ProjectService {
       status === 'pending_scheduling' ||
       status === 'unscheduled' ||
       status === 'cancelled' ||
-      (date === null && (!time || time === ''));
+      (date === null && (!time || time === '')) ||
+      (date === '' && (!time || time === ''));
 
-    const targetStatus = status || (isClearingSchedule ? 'pending_scheduling' : 'scheduled');
+    const targetStatus = isClearingSchedule
+      ? status === 'pending_scheduling'
+        ? 'pending_scheduling'
+        : 'unscheduled'
+      : status || 'scheduled';
+
     const scheduledDate = isClearingSchedule
       ? null
       : date !== undefined
@@ -4637,11 +4671,15 @@ class ProjectService {
 
     project.defenseSchedule = {
       date: scheduledDate,
-      time: isClearingSchedule ? time || '' : time || project.defenseSchedule?.time || '',
-      venue: venue || project.defenseSchedule?.venue || 'COT Conference Room',
+      time: isClearingSchedule ? '' : time || project.defenseSchedule?.time || '',
+      venue: isClearingSchedule
+        ? ''
+        : venue || project.defenseSchedule?.venue || 'COT Conference Room',
       round: round || project.defenseSchedule?.round || '1st',
       defenseType: defenseType || project.defenseSchedule?.defenseType || 'midterm',
-      clientName: clientName || project.defenseSchedule?.clientName || 'Dr. Sales G. Aribe Jr.',
+      clientName: isClearingSchedule
+        ? ''
+        : clientName || project.defenseSchedule?.clientName || 'Dr. Sales G. Aribe Jr.',
       scheduledBy: user._id,
       scheduledAt: isClearingSchedule ? null : new Date(),
       status: targetStatus,
@@ -4659,6 +4697,9 @@ class ProjectService {
       updateOps.$set['deadlines.defense'] = scheduledDate;
     } else if (isClearingSchedule) {
       updateOps.$unset = { 'deadlines.defense': '' };
+      if (project.deadlines) {
+        delete project.deadlines.defense;
+      }
     }
 
     await Project.findByIdAndUpdate(projectId, updateOps);
