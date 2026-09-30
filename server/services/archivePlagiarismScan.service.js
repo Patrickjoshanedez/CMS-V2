@@ -239,6 +239,17 @@ const mergeIntervals = (intervals = []) => {
   return merged;
 };
 
+const filterSignificantIntervals = (text, intervals = [], minWords = 8, minChars = 40) => {
+  const merged = mergeIntervals(intervals);
+  return merged.filter((interval) => {
+    const excerpt = String(text || '')
+      .slice(interval.start, interval.end)
+      .trim();
+    const words = (excerpt.match(/\b[a-zA-Z0-9]+\b/g) || []).length;
+    return excerpt.length >= minChars || words >= minWords;
+  });
+};
+
 const createOllamaClient = async () => {
   const ollamaModule = await import('ollama');
 
@@ -680,7 +691,8 @@ export async function runArchivePdfPlagiarismScan({ fileBuffer, fileType, fileNa
     semanticBySource,
   });
 
-  const mergedIntervals = mergeIntervals(
+  const mergedIntervals = filterSignificantIntervals(
+    extractedText,
     combinedMatches.flatMap((match) =>
       match.matchedBlocks.map((block) => ({
         start: block.studentStart,

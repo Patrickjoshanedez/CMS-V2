@@ -110,6 +110,19 @@ function countWordsInIntervals(text, intervals = []) {
   }, 0);
 }
 
+/**
+ * Filter merged intervals to remove trivial micro-phrase noise (< minWords and < minChars).
+ */
+export function filterSignificantIntervals(text, intervals = [], minWords = 8, minChars = 40) {
+  const merged = mergeIntervals(intervals);
+  return merged.filter((interval) => {
+    const excerpt = String(text || '')
+      .slice(interval.start, interval.end)
+      .trim();
+    return excerpt.length >= minChars || countWords(excerpt) >= minWords;
+  });
+}
+
 function md5Hash(input) {
   return crypto.createHash('md5').update(input).digest('hex').slice(0, 8);
 }
@@ -423,7 +436,7 @@ export async function calculatePlagiarism(studentText, submissionId) {
       continue;
     }
 
-    const mergedSourceIntervals = mergeIntervals(sourceIntervals);
+    const mergedSourceIntervals = filterSignificantIntervals(rawStudentText, sourceIntervals);
     const matchedWordsForSource = countWordsInIntervals(rawStudentText, mergedSourceIntervals);
     const similarityPercentage = clampPercent((matchedWordsForSource / totalDocumentWords) * 100);
 
@@ -436,12 +449,18 @@ export async function calculatePlagiarism(studentText, submissionId) {
       ? projectMap.get(sourceSubmission.projectId.toString())
       : null;
 
+    const denoisedMatchedBlocks = matchedBlocks.filter((block) =>
+      mergedSourceIntervals.some(
+        (interval) => block.studentStart >= interval.start && block.studentEnd <= interval.end,
+      ),
+    );
+
     textMatches.push({
       sourceId,
       sourceTitle: resolveSourceTitle(sourceSubmission, sourceProject, source?.chapter),
       similarityPercentage: toRounded(similarityPercentage),
       colorCode: COLOR_PALETTE[(textMatches.length || 0) % COLOR_PALETTE.length],
-      matchedBlocks,
+      matchedBlocks: denoisedMatchedBlocks.length > 0 ? denoisedMatchedBlocks : matchedBlocks,
     });
 
     allMatchedIntervals.push(...mergedSourceIntervals);
