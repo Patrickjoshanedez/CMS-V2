@@ -40,7 +40,7 @@ class SourceMetadata(BaseModel):
     (internal CMS submissions vs. future web-crawled documents).
     """
 
-    document_id: str = Field(..., description="Unique identifier for the source document.")
+    document_id: str | None = Field(default=None, description="Unique identifier for the source document.")
     title: str = Field(default="Unknown Title", description="Document title.")
     author: str = Field(default="Unknown Author", description="Primary author or team name.")
     url: str | None = Field(
@@ -289,12 +289,24 @@ class IndexRequest(BaseModel):
 
     document_id: str = Field(..., description="Unique ID for the document.")
     text: str = Field(..., min_length=50, description="Full plain text of the document.")
-    metadata: SourceMetadata = Field(..., description="Source metadata to persist in ChromaDB.")
+    metadata: SourceMetadata | dict[str, Any] = Field(default_factory=dict, description="Source metadata to persist in ChromaDB.")
 
     @field_validator("text")
     @classmethod
     def strip_text(cls, v: str) -> str:
         return v.strip()
+
+    @model_validator(mode="after")
+    def populate_metadata_document_id(self) -> "IndexRequest":
+        if isinstance(self.metadata, dict):
+            meta_dict = dict(self.metadata)
+            if not meta_dict.get("document_id"):
+                meta_dict["document_id"] = self.document_id
+            self.metadata = SourceMetadata(**meta_dict)
+        elif isinstance(self.metadata, SourceMetadata):
+            if not self.metadata.document_id:
+                self.metadata.document_id = self.document_id
+        return self
 
 
 class IndexResponse(BaseModel):

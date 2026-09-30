@@ -295,8 +295,38 @@ class HybridSourceTracker:
 
         # Calculate overall unique matched character coverage
         total_unique_matched_chars = count_unique_matched_chars(all_unique_spans, total_chars)
-        plagiarism_percentage = min(100.0, (total_unique_matched_chars / max(1, total_chars)) * 100.0)
-        originality_score = max(0.0, 100.0 - plagiarism_percentage)
+        syntactic_percentage = min(100.0, (total_unique_matched_chars / max(1, total_chars)) * 100.0)
+
+        if syntactic_percentage > 0:
+            plagiarism_percentage = max(
+                syntactic_percentage,
+                round(0.70 * syntactic_percentage + 0.30 * (top_composite * 100.0), 2),
+            )
+        elif top_dense >= 0.50:
+            # Semantic paraphrasing detected by dense and sparse vectors
+            plagiarism_percentage = round(min(100.0, top_composite * 100.0), 2)
+        else:
+            plagiarism_percentage = 0.0
+
+        originality_score = max(0.0, round(100.0 - plagiarism_percentage, 2))
+
+        # If semantic match found without exact winnowing spans, provide semantic segment matches
+        if not all_match_results and top_eval and top_eval.dense_score >= 0.50 and segments:
+            for seg in segments:
+                snippet = extract_source_snippet(top_eval.source_text, seg.text)
+                all_match_results.append(
+                    MatchResult(
+                        match_id=str(uuid.uuid4()),
+                        match_text=seg.text,
+                        start_index=seg.char_start,
+                        end_index=seg.char_end,
+                        similarity_score=top_eval.composite_score,
+                        winnow_score=top_eval.winnowing_score,
+                        semantic_score=top_eval.dense_score,
+                        source_metadata=top_eval.source_metadata,
+                        source_snippet=snippet,
+                    )
+                )
 
         # Sort matches by start_index for frontend VirtualizedPlagiarismViewer
         all_match_results.sort(key=lambda m: m.start_index)

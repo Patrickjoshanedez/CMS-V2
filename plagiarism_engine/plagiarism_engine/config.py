@@ -100,19 +100,19 @@ class Settings(BaseSettings):
         description="Number of coarse candidate documents fetched from ChromaDB HNSW.",
     )
     HST_WEIGHT_WINNOWING: float = Field(
-        default=0.65,
+        default=0.50,
         ge=0.0,
         le=1.0,
         description="Weight for exact syntactic Winnowing match score in composite calculation.",
     )
     HST_WEIGHT_DENSE: float = Field(
-        default=0.35,
+        default=0.30,
         ge=0.0,
         le=1.0,
         description="Weight for BGE-M3 dense semantic cosine similarity.",
     )
     HST_WEIGHT_SPARSE: float = Field(
-        default=0.0,
+        default=0.20,
         ge=0.0,
         le=1.0,
         description="Weight for BGE-M3 sparse lexical term-salience dot product.",

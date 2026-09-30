@@ -116,8 +116,11 @@ class EmbeddingModel:
         resolved_device = self._resolve_device(device=device, torch_module=torch)
 
         if resolved_device == "cpu":
-            torch.set_num_threads(int(os.getenv("TORCH_NUM_THREADS", "2")))
-            torch.set_num_interop_threads(1)
+            try:
+                torch.set_num_threads(int(os.getenv("TORCH_NUM_THREADS", "2")))
+                torch.set_num_interop_threads(1)
+            except RuntimeError:
+                pass
 
         self._model_name = model_name
         self._batch_size = batch_size

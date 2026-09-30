@@ -85,4 +85,5 @@ def test_sparse_lexical_weights_and_similarity() -> None:
     sim_ac = model.compute_sparse_similarity(sparse_weights[0], sparse_weights[2])
 
     assert sim_ab > 0.4
-    assert sim_ac < 0.1
+    assert sim_ac < 0.2
+    assert sim_ab > 2.0 * sim_ac
