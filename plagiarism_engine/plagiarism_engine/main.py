@@ -201,6 +201,11 @@ async def submit_check(body: CheckRequest) -> CheckResponse:
     summary="Run an immediate synchronous plagiarism check (HST)",
     tags=["Plagiarism Check"],
 )
+@app.post(
+    "/check/sync",
+    response_model=PlagiarismReport,
+    include_in_schema=False,
+)
 async def check_document_sync(body: CheckRequest) -> PlagiarismReport:
     """Execute the two-stage HybridSourceTracker pipeline synchronously."""
     if not body.text or not body.text.strip():
@@ -315,6 +320,23 @@ async def index_document(body: IndexRequest) -> IndexResponse:
         segments_indexed=0,
         message="Indexing task queued. Document will be available shortly.",
     )
+
+
+@app.post(
+    "/index/sync",
+    response_model=IndexResponse,
+    summary="Index a document into the corpus synchronously",
+    tags=["Corpus Index"],
+)
+async def index_document_sync(body: IndexRequest) -> IndexResponse:
+    """Synchronously index a source document into the ChromaDB corpus."""
+    if not body.text or not body.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'text' is required and must not be empty.",
+        )
+    engine = PlagiarismEngine()
+    return engine.index_document(body)
 
 
 @app.delete(
