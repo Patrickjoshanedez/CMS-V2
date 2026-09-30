@@ -1,0 +1,30 @@
+{
+  "session_id": "2026-10-01_scheduling-center-wiring-and-deadlines",
+  "timestamp": "2026-10-01T02:07:00+08:00",
+  "task_category": "defense_scheduling_and_academic_info_persistence",
+  "task_summary": "Wired Schedule Defense button on Instructor Review and Project Details directly to Scheduling Center with deep-link handling; fixed defense schedule and deadline persistence by adding unschedule capability, handling null transmissions, expanding Mongoose defenseScheduleSchema.status enum to include 'unscheduled', unsetting deadlines.defense, and emitting defense_unscheduled notifications; and renamed Section to Year and Section across student Academic Info.",
+  "user_requests": [
+    "Wire the schedule defense button on the instructor review to scheduling center make sure every schedule set will appear there",
+    "Even after I remove the deadline on the submission it still persist in pages like this",
+    "In academic info the section should be called year and section"
+  ],
+  "commits": [
+    "3be5553 - fix: rename section to year and section in academic info profile card",
+    "8fc6e9e - fix(defense): persistence fix for deadlines and defense schedules (unschedule and clear actions)",
+    "09c7907 - fix(defense): address code and spec review findings for defense scheduling and deadline persistence",
+    "4905d35 - feat(defense): wire schedule defense button to scheduling center with deep link handling"
+  ],
+  "tests_passing": [
+    "client: DefenseScheduleBadge.test.jsx (11 tests)",
+    "client: ScheduleDefenseModal.test.jsx (6 tests)",
+    "client: ProfilePage.test.jsx (4 tests)",
+    "client: DefenseSchedulingPage.test.jsx (26 tests)",
+    "client: ProjectDetailPage.schedule-nav.test.jsx (2 tests)",
+    "server: project.defense-schedule-clear.test.js (6 tests)"
+  ],
+  "quality_gates": {
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=220, CLIENT_ENDPOINT_COUNT=200, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "playwright_visual_audit": "10 screenshots captured across Desktop (1440x900) & Mobile (390x844) in Light & Dark modes"
+  }
+}
