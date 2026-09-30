@@ -216,8 +216,20 @@ function resolveSourceTitle(submission, project, fallbackChapter) {
   return chapterLabel ? `${projectTitle} - Chapter ${chapterLabel}` : projectTitle;
 }
 
+const BUKSU_INSTITUTIONAL_BOILERPLATE = [
+  /\bBukidnon\s+State\s+University\b/gi,
+  /\bCollege\s+of\s+Technologies\b/gi,
+  /\bDepartment\s+of\s+(?:Information\s+Technology|Entertainment\s+and\s+Multimedia\s+Computing)\b/gi,
+  /\b(?:Bachelor\s+of\s+Science\s+in\s+Information\s+Technology|Bachelor\s+of\s+Science\s+in\s+Entertainment\s+and\s+Multimedia\s+Computing)\b/gi,
+  /\b(?:Approval\s+Sheet|Certificate\s+of\s+Approval|Panel\s+of\s+Examiners|Certificate\s+of\s+Originality|Declaration\s+of\s+Originality|Action\s+Done\s+Matrix)\b/gi,
+  /\bin\s+partial\s+fulfillment\s+of\s+the\s+requirements(?:\s+for\s+the\s+degree(?:\s+of)?)?\b/gi,
+  /\bMalaybalay\s+City[,\s]+Bukidnon\b/gi,
+  /\bTable\s+of\s+Contents\b/gi,
+  /\bList\s+of\s+(?:Figures|Tables|Abbreviations|Appendices)\b/gi,
+];
+
 /**
- * Exclude quoted text and bibliography sections while preserving character offsets.
+ * Exclude quoted text, institutional boilerplate, and bibliography sections while preserving character offsets.
  * Replaced ranges are padded with spaces so all downstream indices still map to raw text.
  */
 export function applyExclusions(text) {
@@ -226,7 +238,15 @@ export function applyExclusions(text) {
 
   let output = raw;
 
-  output = output.replace(/"[\s\S]*?"/g, (segment) => ' '.repeat(segment.length));
+  // Exclude quoted citations (both ASCII and curly Unicode smart quotes)
+  output = output.replace(/(?:["“”][\s\S]*?["“”]|['‘’][\s\S]*?['‘’])/g, (segment) =>
+    ' '.repeat(segment.length),
+  );
+
+  // Exclude BukSU institutional capstone template headings and boilerplate
+  for (const pattern of BUKSU_INSTITUTIONAL_BOILERPLATE) {
+    output = output.replace(pattern, (match) => ' '.repeat(match.length));
+  }
 
   const bibliographyMatch = /(^|\n)\s*(references|bibliography|works\s+cited)\b/i.exec(output);
   if (bibliographyMatch) {
