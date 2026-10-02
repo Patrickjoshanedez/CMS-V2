@@ -1,37 +1,37 @@
 {
   "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
-  "session_id": "2026-10-01_scheduling-center-wiring-and-deadlines",
-  "timestamp": "2026-10-01T02:07:00+08:00",
+  "session_id": "2026-10-02_instructor-template-opt-engine-deadline-sync",
+  "timestamp": "2026-10-02T23:14:00+08:00",
   "status": "completed",
-  "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "role": "Principal Systems Auditor & Guardian Agent (BukSU CMS-V2 Orchestrator)",
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
   "git_context": {
     "active_branch": "main",
     "clean_working_tree": false
   },
   "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
-  "task_description": "Wired the Schedule Defense button on Instructor Review and Project Details directly to Scheduling Center with deep link handling, fixed deadline and defense schedule persistence by implementing unschedule capabilities, Mongoose enum updates, and null transmission for cleared dates, and renamed Section to Year and Section in student Academic Info.",
+  "task_description": "Audit and implement fixes: 1) Allow instructors to set capstone manuscript template link in settings, 2) Expand optimization engine beyond adviser to cover full committee balancing, 3) Sync scheduling center deadline removal/changes to project views showing 'deadline removed' or 'deadline moved to'",
   "startup_preflight": {
     "ptss_index_inspected": true,
     "technical_context_synced": true,
     "recent_sessions_recalled": [
-      "2026-09-30_review-portals-and-committee-combobox-deslopify",
-      "2026-09-30_dashboards-deslopify-refactor",
-      "2026-09-30_frontend-mythos-apex-agentic-upgrade"
+      "2026-10-02_audit-instructor-review-page-and-subpages",
+      "2026-10-02_system-implementor-skill-and-audit-fix-runner",
+      "2026-10-02_improve-system-auditor-orchestrator-dispatch"
     ],
-    "active_prevention_rules_count": 91
+    "active_prevention_rules_count": 94
   },
   "skills_primed": [
-    "frontend-mythos",
-    "frontend-patterns",
-    "senior-backend",
+    "system-auditor",
+    "system-implementor",
     "verification-loop",
-    "anti-regression-and-ci-governance"
+    "frontend-patterns",
+    "senior-backend"
   ],
   "playwright_feedback_required": true,
   "verification_baseline": {
     "governance_passed": true,
-    "workspace_clean": false
+    "workspace_clean": true
   }
 }

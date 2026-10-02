@@ -46,9 +46,9 @@ export const dashboardService = {
   /** Get instructor KPI cards data. */
   getInstructorKpis: () => api.get('/dashboard/instructor/kpis'),
 
-  /** Get cross-adviser workload matrix for instructor. */
-  getInstructorWorkload: () => api.get('/dashboard/instructor/workload'),
+  /** Get cross-faculty workload matrix for instructor. */
+  getInstructorWorkload: (params) => api.get('/dashboard/instructor/workload', { params }),
 
-  /** Get workload balancing suggestions. */
-  optimizeInstructorWorkload: () => api.post('/dashboard/instructor/optimize'),
+  /** Get workload balancing suggestions across advisers, panelists, or all faculty. */
+  optimizeInstructorWorkload: (params) => api.post('/dashboard/instructor/optimize', params),
 };

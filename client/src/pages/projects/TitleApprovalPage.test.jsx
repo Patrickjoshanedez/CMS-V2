@@ -253,4 +253,183 @@ describe('TitleApprovalPage', () => {
     expect(container.textContent).toContain('In Progress');
     expect(container.textContent).toContain('Pending');
   });
+
+  describe('Defense Hearing Countdown & Scheduling Enhancements', () => {
+    it('renders Step 3 as Scheduled with live countdown badge when defenseSchedule is active', async () => {
+      const scheduledDate = new Date(Date.now() + 3 * 86400 * 1000 + 4 * 3600 * 1000);
+      const dateStr = scheduledDate.toISOString().split('T')[0];
+
+      mockProjectData.defenseSchedule = {
+        date: dateStr,
+        time: '08:00 AM - 08:30 AM',
+        venue: 'COT Conference Room',
+        status: 'scheduled',
+        round: '1st',
+        clientName: 'BukSU Clinic & Health Services',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      // Pipeline Step 3 should display "Scheduled" badge
+      expect(container.textContent).toContain('Scheduled');
+      // Description should contain date, time, and venue
+      expect(container.textContent).toContain('COT Conference Room');
+      expect(container.textContent).toContain('08:00 AM - 08:30 AM');
+
+      // Countdown badge inside Step 3 card
+      const stepCountdown = container.querySelector('[data-testid="step-defense-countdown"]');
+      expect(stepCountdown).toBeTruthy();
+      expect(stepCountdown.textContent).toContain('⏳');
+    });
+
+    it('renders prominent Scheduled Defense Hearing Banner with details and 4 countdown units', async () => {
+      const scheduledDate = new Date(Date.now() + 2 * 86400 * 1000 + 5 * 3600 * 1000);
+      const dateStr = scheduledDate.toISOString().split('T')[0];
+
+      mockProjectData.defenseSchedule = {
+        date: dateStr,
+        time: '09:00 AM - 09:30 AM',
+        venue: 'COT AVR 1',
+        status: 'scheduled',
+        round: '1st',
+        clientName: 'BukSU Disaster Risk Reduction Center',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      // Header and badge
+      const banner = container.querySelector('[data-testid="scheduled-defense-banner"]');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('Defense Hearing Scheduled');
+      expect(banner.textContent).toContain('1st Round (Standard Defense)');
+
+      // Details
+      expect(banner.textContent).toContain('09:00 AM - 09:30 AM');
+      expect(banner.textContent).toContain('COT AVR 1');
+      expect(banner.textContent).toContain('Target Client/Partner');
+      expect(banner.textContent).toContain('BukSU Disaster Risk Reduction Center');
+      expect(banner.textContent).toContain('Committee members:');
+      expect(banner.textContent).toContain('Maria Clara');
+      expect(banner.textContent).toContain('Jose Rizal');
+
+      // 4 Countdown Units
+      expect(container.querySelector('[data-testid="defense-countdown-days"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="defense-countdown-hours"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="defense-countdown-minutes"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="defense-countdown-seconds"]')).toBeTruthy();
+      expect(banner.textContent).toContain('Days');
+      expect(banner.textContent).toContain('Hours');
+      expect(banner.textContent).toContain('Minutes');
+      expect(banner.textContent).toContain('Seconds');
+    });
+
+    it('renders hearing session active today and in progress when defense is currently ongoing', async () => {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+
+      const currentH = today.getHours();
+      const startH12 = currentH === 0 ? 12 : currentH > 12 ? currentH - 12 : currentH;
+      const startAmPm = currentH >= 12 ? 'PM' : 'AM';
+      const timeStr = `${String(startH12).padStart(2, '0')}:00 ${startAmPm} - ${String(startH12).padStart(2, '0')}:59 ${startAmPm}`;
+
+      mockProjectData.defenseSchedule = {
+        date: dateStr,
+        time: timeStr,
+        venue: 'COT Conference Room',
+        status: 'scheduled',
+        round: '1st',
+        clientName: 'BukSU Admin Office',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      const banner = container.querySelector('[data-testid="scheduled-defense-banner"]');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('Hearing Session Active Today');
+
+      const stepCountdown = container.querySelector('[data-testid="step-defense-countdown"]');
+      expect(stepCountdown).toBeTruthy();
+      expect(stepCountdown.textContent).toContain('Hearing in Progress');
+    });
+
+    it('renders hearing concluded indicator when defense schedule is in the past', async () => {
+      const pastDate = new Date(Date.now() - 2 * 86400 * 1000);
+      const dateStr = pastDate.toISOString().split('T')[0];
+
+      mockProjectData.defenseSchedule = {
+        date: dateStr,
+        time: '08:00 AM - 08:30 AM',
+        venue: 'COT Conference Room',
+        status: 'scheduled',
+        round: '1st',
+        clientName: 'BukSU Clinic',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      const banner = container.querySelector('[data-testid="scheduled-defense-banner"]');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain(
+        'Hearing concluded, awaiting rubric evaluation / committee clearance',
+      );
+
+      const stepCountdown = container.querySelector('[data-testid="step-defense-countdown"]');
+      expect(stepCountdown).toBeTruthy();
+      expect(stepCountdown.textContent).toContain('Hearing Concluded');
+    });
+
+    it('does not render scheduled banner when defenseSchedule status is unscheduled or cancelled', async () => {
+      mockProjectData.defenseSchedule = {
+        date: '2026-10-15',
+        status: 'unscheduled',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      expect(container.querySelector('[data-testid="scheduled-defense-banner"]')).toBeNull();
+      expect(container.querySelector('[data-testid="step-defense-countdown"]')).toBeNull();
+    });
+
+    it('ticks countdown seconds every 1000ms via interval', async () => {
+      vi.useFakeTimers();
+      const baseNow = new Date('2026-10-10T08:00:00.000');
+      vi.setSystemTime(baseNow);
+
+      mockProjectData.defenseSchedule = {
+        date: '2026-10-15',
+        time: '08:00 AM - 08:30 AM',
+        status: 'scheduled',
+      };
+
+      await act(async () => {
+        root.render(<TitleApprovalPage />);
+      });
+
+      const secEl = container.querySelector('[data-testid="defense-countdown-seconds"]');
+      expect(secEl).toBeTruthy();
+      const initialSeconds = secEl.textContent;
+
+      // Advance by 1 second
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      const updatedSeconds = container.querySelector(
+        '[data-testid="defense-countdown-seconds"]',
+      ).textContent;
+      expect(updatedSeconds).not.toEqual(initialSeconds);
+
+      vi.useRealTimers();
+    });
+  });
 });

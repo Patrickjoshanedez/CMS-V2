@@ -13,6 +13,7 @@ import {
   Sparkles,
   AlertTriangle,
   Users,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -85,6 +86,9 @@ export default function ScheduleDefenseModal({
         time: '',
       });
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
       toast.success(`Defense schedule removed for ${project.teamId?.name || project.title}.`);
       if (onScheduled) onScheduled();
       onClose();
@@ -206,16 +210,42 @@ export default function ScheduleDefenseModal({
                   ? `Team ${project.teamId.name.replace(/^Team\s+/i, '')}`
                   : project?.title || 'Project Defense Hearing'}
               </p>
+              <a
+                href={`/projects/${project?._id || project?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-0.5"
+              >
+                <span>View Linked Project Workspace</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="h-8 px-2.5 text-xs gap-1.5 border-border/60 hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
+              <a
+                href={`/projects/${project?._id || project?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">View Project Workspace</span>
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable Form Body */}

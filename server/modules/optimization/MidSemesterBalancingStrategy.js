@@ -32,21 +32,38 @@ export class MidSemesterBalancingStrategy extends WorkloadOptimizationStrategy {
    * @param {Object} workload.summary
    * @returns {Promise<Object>}
    */
-  async executeOptimization(workload) {
-    const { advisers } = workload;
+  async executeOptimization(workload, options = {}) {
+    const roleScope = options.roleScope || 'all';
+    const advisers = workload.advisers || [];
+    const panelists = workload.panelists || [];
+    const faculty = workload.faculty || [];
 
-    if (advisers.length < 2) {
+    const targetPool =
+      roleScope === 'panelist' && panelists.length > 0
+        ? panelists
+        : roleScope === 'adviser' && advisers.length > 0
+          ? advisers
+          : faculty.length >= 2
+            ? faculty
+            : advisers;
+
+    if (targetPool.length < 2) {
       return {
         strategy: this.strategyName,
         suggested: false,
-        reason: 'At least two advisers are needed for balancing suggestions.',
+        reason:
+          roleScope === 'panelist'
+            ? 'At least two panelists are needed for balancing suggestions.'
+            : roleScope === 'adviser'
+              ? 'At least two advisers are needed for balancing suggestions.'
+              : 'At least two faculty members or committee members are needed for balancing suggestions.',
         suggestions: [],
         snapshot: null,
       };
     }
 
-    const heaviest = advisers[0];
-    const lightest = advisers[advisers.length - 1];
+    const heaviest = targetPool[0];
+    const lightest = targetPool[targetPool.length - 1];
     const scoreGap = heaviest.workloadScore - lightest.workloadScore;
 
     if (scoreGap < MID_SEMESTER_IMBALANCE_THRESHOLD) {
@@ -59,24 +76,44 @@ export class MidSemesterBalancingStrategy extends WorkloadOptimizationStrategy {
       };
     }
 
-    // Mid-semester: generate suggestions for top-heavy advisers against all lighter ones
-    const suggestions = advisers
-      .slice(0, Math.ceil(advisers.length / 2))
+    // Mid-semester: generate suggestions for top-heavy members against all lighter ones
+    const suggestions = targetPool
+      .slice(0, Math.ceil(targetPool.length / 2))
       .flatMap((overloaded) => {
-        const underloaded = advisers.filter(
-          (a) =>
-            a.adviserId.toString() !== overloaded.adviserId.toString() &&
-            a.workloadScore < overloaded.workloadScore - MID_SEMESTER_IMBALANCE_THRESHOLD,
-        );
+        const overloadedId = overloaded.facultyId || overloaded.panelistId || overloaded.adviserId;
+        const overloadedName =
+          overloaded.facultyName || overloaded.panelistName || overloaded.adviserName;
+        const roleLabel =
+          overloaded.roleType ||
+          (roleScope === 'panelist'
+            ? 'panelist'
+            : roleScope === 'adviser'
+              ? 'adviser'
+              : 'committee member');
+
+        const underloaded = targetPool.filter((a) => {
+          const aId = a.facultyId || a.panelistId || a.adviserId;
+          return (
+            aId.toString() !== overloadedId.toString() &&
+            a.workloadScore < overloaded.workloadScore - MID_SEMESTER_IMBALANCE_THRESHOLD
+          );
+        });
 
         return underloaded.map((target) => {
+          const targetId = target.facultyId || target.panelistId || target.adviserId;
+          const targetName = target.facultyName || target.panelistName || target.adviserName;
           const gap = overloaded.workloadScore - target.workloadScore;
           return {
-            fromAdviserId: overloaded.adviserId,
-            fromAdviserName: overloaded.adviserName,
-            toAdviserId: target.adviserId,
-            toAdviserName: target.adviserName,
-            action: `Reassign 1-2 pending projects from ${overloaded.adviserName} to ${target.adviserName} to reduce mid-semester pressure.`,
+            fromAdviserId: overloadedId,
+            fromAdviserName: overloadedName,
+            toAdviserId: targetId,
+            toAdviserName: targetName,
+            fromFacultyId: overloadedId,
+            fromFacultyName: overloadedName,
+            toFacultyId: targetId,
+            toFacultyName: targetName,
+            roleType: roleLabel,
+            action: `Reassign 1-2 pending ${roleLabel} assignments from ${overloadedName} to ${targetName} to reduce mid-semester pressure.`,
             estimatedScoreGapReduction: Number((gap * REDUCTION_FACTOR).toFixed(2)),
           };
         });

@@ -2056,9 +2056,9 @@ class TeamService {
       const SystemSettings =
         mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
       const settings = await SystemSettings.findOne({ key: 'global' }).lean();
-      settingsTpl = settings?.documentTemplates?.find(
-        (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
-      );
+      settingsTpl =
+        settings?.documentTemplates?.find((t) => t.documentType === 'manuscript_template') ||
+        settings?.documentTemplates?.find((t) => t.documentType === 'proposal_template');
       if (settingsTpl?.templateUrl) {
         settingsUrl = settingsTpl.templateUrl;
       }

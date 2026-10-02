@@ -109,7 +109,14 @@ const assertValidDocumentFile = async (file, fieldLabel = 'File') => {
  */
 const validateFile = async (req, _res, next) => {
   try {
-    if (!req.file && (!req.files || req.files.length === 0)) {
+    const hasFilesDict =
+      req.files &&
+      typeof req.files === 'object' &&
+      !Array.isArray(req.files) &&
+      Object.keys(req.files).length > 0;
+    const hasFilesArray = Array.isArray(req.files) && req.files.length > 0;
+
+    if (!req.file && !hasFilesDict && !hasFilesArray) {
       return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
     }
 
@@ -119,9 +126,24 @@ const validateFile = async (req, _res, next) => {
     }
 
     // Array of files (batch upload)
-    if (Array.isArray(req.files)) {
+    if (hasFilesArray) {
       for (const f of req.files) {
         f.validatedMime = await assertValidDocumentFile(f, 'File');
+      }
+    }
+
+    // Dictionary of fields (fields upload)
+    if (hasFilesDict) {
+      if (req.files.file?.[0]) {
+        req.file = req.files.file[0];
+        req.file.validatedMime = await assertValidDocumentFile(req.file, 'Document');
+      }
+      if (req.files.justificationLetter?.[0]) {
+        req.justificationLetterFile = req.files.justificationLetter[0];
+        req.justificationLetterFile.validatedMime = await assertValidDocumentFile(
+          req.justificationLetterFile,
+          'Justification letter',
+        );
       }
     }
 

@@ -111,6 +111,13 @@ const systemSettingsSchema = new mongoose.Schema(
       type: [documentTemplateSchema],
       default: [
         {
+          documentType: 'manuscript_template',
+          templateUrl:
+            'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy',
+          description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+          lastUpdated: new Date(),
+        },
+        {
           documentType: 'proposal_template',
           templateUrl: 'https://docs.google.com/document/d/example-proposal',
           description: 'Capstone 1 Proposal Manuscript Template',

@@ -22,6 +22,7 @@ export const uploadChapter = catchAsync(async (req, res) => {
     req.params.projectId,
     req.body,
     req.file,
+    req.justificationLetterFile,
   );
 
   res.status(HTTP_STATUS.CREATED).json({

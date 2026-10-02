@@ -1,0 +1,15 @@
+{
+  "session_id": "2026-10-02_instructor-template-opt-engine-deadline-sync",
+  "timestamp": "2026-10-02T23:59:59.000Z",
+  "date": "2026-10-02T23:59:59.000Z",
+  "task_summary": "Resolved 3 key architectural requirements: 1) Enabled instructors to configure official manuscript template in settings (Settings administration tab) and synchronized with student workspace widget, 2) Expanded the Workload Optimization Engine beyond advisers to balance panelists and all faculty committee members with role badges and segmented controls, 3) Implemented institutional deadline synchronization between scheduling center and projects: removed deadlines now transition to 'Deadline removed' (neutral badge with no overdue warnings or late submission gating), and changed deadlines display 'Deadline moved to [Date]'.",
+  "task_category": "feature_and_bugfix",
+  "skills_written": [],
+  "skills_patched": [],
+  "evidence": {
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=220, CLIENT_ENDPOINT_COUNT=200, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "client_tests": "DeadlineWarning.test.jsx (6/6 passed), OptimizationEngine.test.jsx (4/4 passed), ManuscriptTemplateWidget.test.jsx (4/4 passed)",
+    "server_tests": "workloadOptimizationStrategy.test.js (22/22 passed), milestoneDeadline.sync.test.js (2/2 passed), project.defense-schedule-clear.test.js (6/6 passed)"
+  }
+}

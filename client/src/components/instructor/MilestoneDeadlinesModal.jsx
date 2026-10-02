@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { CAPSTONE_STAGES, STAGE_DELIVERABLE_MAP, DELIVERABLE_CATEGORY_MAP } from '@cms/shared';
 
@@ -36,6 +37,7 @@ export default function MilestoneDeadlinesModal({
   deadlines = [],
   onSaved,
 }) {
+  const queryClient = useQueryClient();
   const { data: createdAcademicYears = [] } = useAcademicYears();
 
   const availableBatches = useMemo(() => {
@@ -130,6 +132,9 @@ export default function MilestoneDeadlinesModal({
       });
 
       toast.success('Milestone deadline scheduled successfully.');
+      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       if (onSaved) onSaved();
       // Reset date and description
       setDeadlineDate('');
@@ -151,6 +156,9 @@ export default function MilestoneDeadlinesModal({
     try {
       await api.delete(`/settings/deadlines/milestone/${id}`);
       toast.success('Milestone deadline removed.');
+      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       if (onSaved) onSaved();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to delete milestone deadline.');

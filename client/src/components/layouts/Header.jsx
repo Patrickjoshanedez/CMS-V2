@@ -130,6 +130,9 @@ function getRoleLabel(role) {
  * correct for users arriving via direct link (e.g. from an email notification).
  */
 export function getBackDestination(pathname, role) {
+  // Student project creation and title approval sit under /project
+  if (/^\/project\/create\/?$/.test(pathname) || /^\/project\/approval\/?$/.test(pathname))
+    return { to: '/project', label: 'Back to My Capstone' };
   // Student chapter-upload sits inside /project/submissions
   if (/^\/project\/submissions\/upload\/?$/.test(pathname))
     return { to: '/project/submissions', label: 'Back to Submissions' };
@@ -144,6 +147,18 @@ export function getBackDestination(pathname, role) {
     if (role === ROLES.STUDENT) {
       return { to: '/project', label: 'Back to My Capstone' };
     }
+    return { to: '/projects', label: 'Back to Projects' };
+  }
+  // Instructor scheduling and committee assignments return to projects directory
+  if (
+    /^\/(scheduling-center|defense-schedule|defense-scheduling|committee-assignments)\/?$/.test(
+      pathname,
+    )
+  ) {
+    return { to: '/projects', label: 'Back to Projects' };
+  }
+  // Secretary review returns to projects directory
+  if (/^\/secretary(-review|\/review)\/?$/.test(pathname)) {
     return { to: '/projects', label: 'Back to Projects' };
   }
   // Archive detail sits inside /archive

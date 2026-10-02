@@ -482,6 +482,13 @@ const submissionSchema = new mongoose.Schema(
       maxlength: [1000, 'Justification must not exceed 1000 characters'],
       default: null,
     },
+    lateJustificationLetter: {
+      storageKey: { type: String, default: null },
+      fileName: { type: String, default: null },
+      fileSize: { type: Number, default: null },
+      fileType: { type: String, default: null },
+      uploadedAt: { type: Date, default: null },
+    },
     isFlagged: {
       type: Boolean,
       default: false,

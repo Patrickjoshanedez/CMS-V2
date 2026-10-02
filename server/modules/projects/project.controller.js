@@ -12,6 +12,21 @@ import Project from './project.model.js';
 import Team from '../teams/team.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToRoom, getIO } from '../../services/socket.service.js';
+import cacheService from '../../services/cache.service.js';
+
+/**
+ * Invalidate Redis project metadata cache when any project or ADM mutation occurs
+ */
+export async function invalidateProjectCache(projectId) {
+  if (!projectId) return;
+  try {
+    const id = String(projectId._id || projectId);
+    await cacheService.del(`project:meta:${id}`);
+    await cacheService.del(`project:detail:${id}`);
+  } catch {
+    // Non-blocking
+  }
+}
 
 /**
  * Safely resolve a project ID to exclude from similarity checks.
@@ -777,6 +792,7 @@ export const handleProjectStream = catchAsync(async (req, res) => {
 
 function broadcastADMUpdate(projectId, event, payload = {}) {
   try {
+    invalidateProjectCache(projectId);
     emitToRoom(`project:${projectId}`, event, { projectId, ...payload });
     emitToRoom(`project:${projectId}`, 'project:updated', { projectId });
     const io = getIO();
@@ -940,12 +956,15 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
     .populate({
       path: 'teamId',
       populate: [
-        { path: 'leaderId', select: 'firstName lastName email avatar' },
+        {
+          path: 'leaderId',
+          select: 'firstName lastName email avatar instructorId',
+          populate: { path: 'instructorId', select: 'firstName lastName email avatar' },
+        },
         { path: 'members', select: 'firstName lastName email avatar' },
         {
           path: 'sectionId',
-          select: 'name code instructorId',
-          populate: { path: 'instructorId', select: 'firstName lastName email avatar' },
+          select: 'name code',
         },
       ],
     });
@@ -981,6 +1000,7 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
       admReviewTypeByMilestone: project.admReviewTypeByMilestone || {},
       secretaryMinutes: project.secretaryMinutes || {},
       secretaryMinutesByMilestone: project.secretaryMinutesByMilestone || {},
+      unisonADM: typeof project.getUnisonADM === 'function' ? project.getUnisonADM() : null,
       capstoneCourse: project.capstoneCourse,
       title: project.title,
       adviser: project.adviserId,
@@ -1056,6 +1076,7 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
 
   broadcastADMUpdate(project._id, 'adm:row_updated', {
     item,
+    row: item,
     actionDoneMatrix: project.actionDoneMatrix,
     admStatus: project.admStatus,
     updatedBy: req.user._id,
@@ -1110,6 +1131,7 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
 
   broadcastADMUpdate(project._id, 'adm:row_created', {
     item: addedItem,
+    row: addedItem,
     actionDoneMatrix: project.actionDoneMatrix,
     admStatus: project.admStatus,
     updatedBy: req.user._id,
@@ -1158,6 +1180,7 @@ export const deleteActionDoneMatrixItem = catchAsync(async (req, res) => {
 
   broadcastADMUpdate(project._id, 'adm:row_deleted', {
     itemId,
+    rowId: itemId,
     actionDoneMatrix: project.actionDoneMatrix,
     updatedBy: req.user._id,
   });
@@ -1475,6 +1498,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
       admSignaturesByMilestone: project.admSignaturesByMilestone,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
+      unisonADM: typeof project.getUnisonADM === 'function' ? project.getUnisonADM() : null,
       capstonePhase: project.capstonePhase,
       capstoneCourse: project.capstoneCourse,
     },
@@ -1577,6 +1601,7 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
       admSignaturesByMilestone: project.admSignaturesByMilestone,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
+      unisonADM: typeof project.getUnisonADM === 'function' ? project.getUnisonADM() : null,
       capstonePhase: project.capstonePhase,
       capstoneCourse: project.capstoneCourse,
     },
@@ -1707,13 +1732,28 @@ export const seedInstitutionalADM = catchAsync(async (req, res) => {
     },
   ];
 
-  project.actionDoneMatrix = institutionalRows;
+  const requestedMilestone = resolveTargetMilestone(project, req.body?.milestone);
+  const rowsWithMilestone = institutionalRows.map((r, idx) => ({
+    ...r,
+    itemNo: idx + 1,
+    milestone: requestedMilestone,
+  }));
+
+  const existingRows = Array.isArray(project.actionDoneMatrix) ? project.actionDoneMatrix : [];
+  const otherMilestoneRows = existingRows.filter(
+    (r) => (r.milestone || 'CAPSTONE_1') !== requestedMilestone,
+  );
+  project.actionDoneMatrix = [...otherMilestoneRows, ...rowsWithMilestone];
   project.admStatus = 'pending_developer_action';
+  if (typeof project.markModified === 'function') {
+    project.markModified('actionDoneMatrix');
+  }
   await project.save();
+  await invalidateProjectCache(project._id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Institutional ADM template loaded successfully.',
+    message: `Institutional ADM template for ${requestedMilestone.replace('_', ' ')} loaded successfully.`,
     data: {
       actionDoneMatrix: project.actionDoneMatrix,
       admStatus: project.admStatus,

@@ -83,6 +83,10 @@ const deadlineSchema = new mongoose.Schema(
     defense: { type: Date, default: null },
     /** Fields marked "To Be Announced" by the instructor. */
     tba: { type: [String], default: [] },
+    /** Fields where the deadline has been removed. */
+    removed: { type: [String], default: [] },
+    /** Fields where the deadline was moved/rescheduled: { [key]: { oldDate, newDate } | Date } */
+    moved: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { _id: false },
 );

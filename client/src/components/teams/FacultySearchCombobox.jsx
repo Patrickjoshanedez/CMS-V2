@@ -28,8 +28,18 @@ export function getId(val) {
 }
 
 /**
+ * Extract 2-letter initials for avatar badge
+ */
+export function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
  * FacultySearchCombobox — Accessible, searchable dropdown combobox for assigning faculty members.
- * Supports real-time text search by full name, email, or institutional role.
+ * Supports real-time text search by full name, email, or institutional role with candidate cards.
  */
 export default function FacultySearchCombobox({
   id,
@@ -37,7 +47,9 @@ export default function FacultySearchCombobox({
   onChange,
   facultyList = [],
   conflictMap = {},
+  workloadMap = {},
   placeholder = '-- Select faculty member --',
+  emptyLabel = '-- None (Unassigned) --',
   isLoading = false,
   disabled = false,
   className = '',
@@ -122,10 +134,16 @@ export default function FacultySearchCombobox({
           isOpen && 'ring-1 ring-primary border-primary',
         )}
       >
-        <div className="flex items-center gap-1.5 truncate min-w-0 flex-1 mr-2">
+        <div className="flex items-center gap-2 truncate min-w-0 flex-1 mr-2">
           {selectedFaculty ? (
             <>
-              <span className="truncate font-medium text-foreground">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border/80 bg-primary/10 text-primary font-bold text-[9px]">
+                {getInitials(
+                  [selectedFaculty.firstName, selectedFaculty.lastName].filter(Boolean).join(' ') ||
+                    selectedFaculty.email,
+                )}
+              </div>
+              <span className="truncate font-semibold text-slate-900 dark:text-foreground">
                 {[selectedFaculty.firstName, selectedFaculty.middleName, selectedFaculty.lastName]
                   .filter(Boolean)
                   .join(' ')}
@@ -147,7 +165,10 @@ export default function FacultySearchCombobox({
               )}
             </>
           ) : (
-            <span className="text-muted-foreground truncate">{placeholderText}</span>
+            <div className="flex items-center gap-1.5 truncate text-muted-foreground">
+              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="truncate">{placeholderText}</span>
+            </div>
           )}
         </div>
 
@@ -187,12 +208,12 @@ export default function FacultySearchCombobox({
       {/* Dropdown Floating Panel */}
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in-80 zoom-in-95 duration-100 overflow-hidden"
+          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-border/80 bg-popover text-popover-foreground shadow-xl animate-in fade-in-80 zoom-in-95 duration-100 overflow-hidden"
           role="listbox"
           aria-labelledby={id}
         >
           {/* Search Input Box */}
-          <div className="p-1.5 border-b border-border/60 bg-muted/30">
+          <div className="p-2 border-b border-border/60 bg-muted/20">
             <div className="relative flex items-center">
               <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <input
@@ -208,7 +229,7 @@ export default function FacultySearchCombobox({
                   }
                 }}
                 placeholder="Search faculty by name or email..."
-                className="w-full h-8 pl-8 pr-7 text-xs rounded bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-8 pl-8 pr-7 text-xs rounded-md bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {searchTerm && (
                 <button
@@ -224,27 +245,29 @@ export default function FacultySearchCombobox({
           </div>
 
           {/* Options List */}
-          <div className="max-h-52 overflow-y-auto p-1 space-y-0.5">
+          <div className="max-h-56 overflow-y-auto p-1.5 space-y-1 divide-y divide-border/20">
             {/* Unassign / None Option */}
-            <button
-              type="button"
-              role="option"
-              aria-selected={!value}
-              onClick={() => {
-                onChange('');
-                setIsOpen(false);
-                setSearchTerm('');
-              }}
-              className={cn(
-                'w-full text-left px-2.5 py-1.5 text-xs rounded transition-colors flex items-center justify-between cursor-pointer',
-                !value
-                  ? 'bg-accent text-accent-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-              )}
-            >
-              <span>-- None (Unassigned) --</span>
-              {!value && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-            </button>
+            {emptyLabel && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={!value}
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                  setSearchTerm('');
+                }}
+                className={cn(
+                  'w-full text-left px-2.5 py-1.5 text-xs rounded-md transition-colors flex items-center justify-between cursor-pointer',
+                  !value
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                )}
+              >
+                <span>{emptyLabel}</span>
+                {!value && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+              </button>
+            )}
 
             {filteredFaculty.map((fac) => {
               const facId = getId(fac._id);
@@ -255,6 +278,8 @@ export default function FacultySearchCombobox({
               const fullName = [fac.firstName, fac.middleName, fac.lastName]
                 .filter(Boolean)
                 .join(' ');
+              const initials = getInitials(fullName || fac.email);
+              const workload = workloadMap?.[facId] ?? workloadMap?.[String(fac._id)];
 
               return (
                 <button
@@ -281,7 +306,7 @@ export default function FacultySearchCombobox({
                     setSearchTerm('');
                   }}
                   className={cn(
-                    'w-full text-left px-2.5 py-1.5 text-xs rounded transition-colors flex items-center justify-between group cursor-pointer',
+                    'w-full text-left p-2 text-xs rounded-md transition-colors flex items-center justify-between group cursor-pointer pt-1.5',
                     isSelected
                       ? 'bg-primary/10 text-primary font-medium'
                       : isConflicted
@@ -289,40 +314,52 @@ export default function FacultySearchCombobox({
                         : 'text-foreground hover:bg-muted/80',
                   )}
                 >
-                  <div className="flex flex-col min-w-0 pr-2">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="truncate font-medium">{fullName}</span>
-                      <span
-                        className={cn(
-                          'text-[10px] px-1.5 py-0.2 rounded font-normal shrink-0',
-                          displayRole === 'Instructor'
-                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                            : 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
-                        )}
-                      >
-                        [{displayRole}]
-                      </span>
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/80 bg-primary/10 text-primary font-semibold text-[11px]">
+                      {initials}
                     </div>
-                    <div className="flex items-center gap-2 truncate">
-                      {fac.email && (
-                        <span className="text-[11px] text-muted-foreground truncate">
-                          {fac.email}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="truncate font-semibold text-slate-900 dark:text-foreground">
+                          {fullName}
                         </span>
-                      )}
-                      {isConflicted && (
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic truncate">
-                          · Already {conflictRole}
+                        <span
+                          className={cn(
+                            'text-[10px] px-1.5 py-0.2 rounded font-normal shrink-0',
+                            displayRole === 'Instructor'
+                              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                              : 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+                          )}
+                        >
+                          [{displayRole}]
                         </span>
-                      )}
+                        {typeof workload === 'number' && (
+                          <span className="text-[10px] text-muted-foreground bg-muted/80 border border-border/50 px-1.5 py-0.2 rounded shrink-0">
+                            {workload} team{workload === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 truncate mt-0.5">
+                        {fac.email && (
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            {fac.email}
+                          </span>
+                        )}
+                        {isConflicted && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic truncate">
+                            · Already {conflictRole}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-primary ml-2" />}
+                  {isSelected && <Check className="h-4 w-4 shrink-0 text-primary ml-2" />}
                 </button>
               );
             })}
 
             {filteredFaculty.length === 0 && (
-              <div className="py-4 text-center text-xs text-muted-foreground">
+              <div className="py-5 text-center text-xs text-muted-foreground">
                 {searchTerm ? `No faculty found matching "${searchTerm}"` : 'No faculty available'}
               </div>
             )}
@@ -339,7 +376,9 @@ FacultySearchCombobox.propTypes = {
   onChange: PropTypes.func.isRequired,
   facultyList: PropTypes.arrayOf(PropTypes.object),
   conflictMap: PropTypes.objectOf(PropTypes.string),
+  workloadMap: PropTypes.objectOf(PropTypes.number),
   placeholder: PropTypes.string,
+  emptyLabel: PropTypes.string,
   isLoading: PropTypes.bool,
   disabled: PropTypes.bool,
   className: PropTypes.string,

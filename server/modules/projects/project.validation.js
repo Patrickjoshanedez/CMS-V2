@@ -187,6 +187,7 @@ export const rejectTitleSchema = z.object({
     .trim()
     .min(5, 'Rejection reason must be at least 5 characters')
     .max(1000, 'Rejection reason must not exceed 1000 characters'),
+  proposalId: z.union([z.string(), z.number()]).optional(),
 });
 
 /* ───── Add comment to a title proposal ───── */

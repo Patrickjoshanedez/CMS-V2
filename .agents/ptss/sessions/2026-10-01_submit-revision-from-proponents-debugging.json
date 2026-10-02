@@ -1,0 +1,55 @@
+{
+  "session_id": "2026-10-01_submit-revision-from-proponents-debugging",
+  "timestamp": "2026-10-01T22:56:00+08:00",
+  "task_description": "Investigate and resolve 400 Bad Request error when submitting Request Revisions from Proponents in Capstone 1 title proposal deliberation.",
+  "task_category": "bugfix_and_workflow_hardening",
+  "root_causes": [
+    "Strict titleStatus check in project.service.js:rejectTitle: only project.titleStatus === SUBMITTED was permitted, throwing 400 INVALID_STATUS_TRANSITION when projects were in revision_required, draft, approved, or approved_with_revision (e.g. project 6abd3d0745027cf1c8fee54d in revision_required).",
+    "rejectTitle lacked proposalId resolution and metadata status synchronization, preventing individual proposal tracking in titleProposalMetadata.",
+    "Client error toast in Capstone1CollapsibleSections.jsx extracted err?.response?.data?.message instead of err?.response?.data?.error?.message, falling back to raw Axios string 'Request failed with status code 400'."
+  ],
+  "modifications": [
+    {
+      "file": "server/modules/projects/project.service.js",
+      "summary": "Expanded allowed rejectTitle pre-revision statuses to include SUBMITTED, DRAFT, APPROVED, APPROVED_WITH_REVISION, REVISION_REQUIRED, and PENDING_MODIFICATION. Added resilient proposalId resolution across ObjectIds, titles, and array indices, marking targeted proposal as 'rejected' in titleProposalMetadata."
+    },
+    {
+      "file": "server/modules/projects/project.validation.js",
+      "summary": "Added optional proposalId: z.union([z.string(), z.number()]).optional() to rejectTitleSchema."
+    },
+    {
+      "file": "client/src/hooks/useProjects.js",
+      "summary": "Updated useRejectTitle to pass proposalId to projectService.rejectTitle."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+      "summary": "Passed proposalId: selectedProposalIndex to rejectTitleMutation.mutateAsync and enhanced error toast extraction to check err?.response?.data?.error?.message."
+    },
+    {
+      "file": "server/tests/unit/project.defense-schedule-gate.test.js",
+      "summary": "Added unit tests verifying rejectTitle transitions from SUBMITTED, DRAFT, APPROVED, and REVISION_REQUIRED statuses."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.test.jsx",
+      "summary": "Added unit test asserting instructor can submit revision request with remarks and proposalId."
+    }
+  ],
+  "verifications": {
+    "server_unit_tests": "11/11 passed in tests/unit/project.defense-schedule-gate.test.js",
+    "client_unit_tests": "11/11 passed in src/components/projects/Capstone1CollapsibleSections.test.jsx",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=220, CLIENT_ENDPOINT_COUNT=200, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed in scripts/validate-agentic-system.js",
+    "governance_pipeline": "0 errors, 0 warnings in validate:governance",
+    "client_build": "Vite client built in 17.43s with 0 errors",
+    "playwright_visual_audit": "4 screenshots captured in scratch/screenshots/proposal_approval_studio/ across desktop (1440x900) and mobile (390x844) in light and dark modes"
+  },
+  "skills_used": [
+    "systematic-debugging",
+    "using-superpowers",
+    "brainstorming",
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "anti-regression-and-ci-governance"
+  ]
+}

@@ -24,6 +24,22 @@ const DEADLINE_LABELS = {
 };
 
 /**
+ * Check if a deadline value represents an active, valid date.
+ * Excludes null, undefined, empty strings, 'unscheduled', 'none', 'cancelled', and invalid dates.
+ */
+function isValidDeadline(val) {
+  if (!val) return false;
+  if (typeof val === 'string') {
+    const s = val.trim().toLowerCase();
+    if (!s || s === 'unscheduled' || s === 'none' || s === 'cancelled' || s === 'tbd') {
+      return false;
+    }
+  }
+  const d = new Date(val);
+  return !isNaN(d.getTime());
+}
+
+/**
  * Compute urgency level and human-readable remaining text.
  * @param {string|Date} deadline - ISO date string or Date object
  * @returns {{ level: 'overdue'|'critical'|'warning'|'safe'|'distant', text: string, ms: number }}
@@ -122,7 +138,10 @@ const LEVEL_CONFIG = {
 /**
  * Single deadline row.
  */
-function DeadlineRow({ label, deadline }) {
+/**
+ * Single deadline row.
+ */
+function DeadlineRow({ label, deadline, isMoved = false }) {
   const { level, text } = computeUrgency(deadline);
   const config = LEVEL_CONFIG[level];
   const Icon = config.icon;
@@ -132,6 +151,11 @@ function DeadlineRow({ label, deadline }) {
     day: 'numeric',
     year: 'numeric',
   });
+
+  const badgeText = isMoved ? `Deadline moved to ${formattedDate}` : text;
+  const badgeClass = isMoved
+    ? 'bg-amber-600 text-white dark:bg-amber-500 font-medium'
+    : config.badgeClass;
 
   return (
     <div
@@ -145,14 +169,39 @@ function DeadlineRow({ label, deadline }) {
             <span className="ml-2 text-xs text-muted-foreground">{formattedDate}</span>
           </div>
         </div>
-        <Badge className={`shrink-0 text-xs ${config.badgeClass}`}>{text}</Badge>
+        <Badge className={`shrink-0 text-xs ${badgeClass}`}>{badgeText}</Badge>
       </div>
-      {level === 'overdue' && (
+      {!isMoved && level === 'overdue' && (
         <p className="text-[11px] text-destructive font-medium pl-7">
           Institutional Gate: Late submission justification is required upon chapter/manuscript
           upload.
         </p>
       )}
+      {isMoved && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium pl-7">
+          Milestone schedule adjusted. Remaining time: {text}.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Removed deadline row — neutral status informing proponent that deadline is removed.
+ */
+function RemovedRow({ label }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-4 py-3 transition-colors">
+      <div className="flex items-center gap-3">
+        <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground">{label}</span>
+      </div>
+      <Badge
+        variant="outline"
+        className="shrink-0 text-xs border-muted-foreground/30 text-muted-foreground bg-muted/40 font-medium"
+      >
+        Deadline removed
+      </Badge>
     </div>
   );
 }
@@ -182,89 +231,181 @@ function TbaRow({ label }) {
  *
  * Shows urgent deadlines (overdue / critical / warning) first, sorted by
  * proximity, then remaining deadlines in natural order.
+ * Handles explicit removed deadlines ("Deadline removed") and rescheduled
+ * deadlines ("Deadline moved to [Date]").
  *
- * @param {{ deadlines: Record<string, string|null>, compact?: boolean }} props
- * @param {boolean} [props.compact=false] — When true, only shows deadlines
- *   within the warning threshold (≤ 3 days) or overdue. Useful for inline alerts.
+ * @param {{ deadlines: Record<string, any>, defenseSchedule?: Record<string, any>, compact?: boolean }} props
+ * @param {boolean} [props.compact=false] — When true, shows urgent deadlines or active updates.
  */
-export default function DeadlineWarning({ deadlines, compact = false }) {
+export default function DeadlineWarning({ deadlines, defenseSchedule, compact = false }) {
   const tbaSet = useMemo(() => new Set(deadlines?.tba || []), [deadlines]);
 
-  // Dated items — deadlines with actual dates
+  const removedSet = useMemo(() => {
+    const set = new Set(deadlines?.removed || []);
+    if (deadlines) {
+      Object.entries(deadlines).forEach(([k, v]) => {
+        if (v === 'removed' || v === 'cancelled' || v === 'unscheduled') {
+          set.add(k);
+        }
+      });
+    }
+    if (
+      defenseSchedule &&
+      (defenseSchedule.status === 'unscheduled' ||
+        defenseSchedule.status === 'pending_scheduling') &&
+      !deadlines?.defense
+    ) {
+      set.add('defense');
+    }
+    return set;
+  }, [deadlines, defenseSchedule]);
+
+  const movedMap = useMemo(() => deadlines?.moved || {}, [deadlines]);
+
+  // Removed items list
+  const removedItems = useMemo(() => {
+    if (removedSet.size === 0) return [];
+    return [...removedSet]
+      .filter((key) => DEADLINE_LABELS[key])
+      .map((key) => ({
+        key,
+        label: DEADLINE_LABELS[key] || key,
+      }));
+  }, [removedSet]);
+
+  // Dated items — active deadlines with actual dates that are NOT removed
   const datedItems = useMemo(() => {
     if (!deadlines) return [];
 
     const entries = Object.entries(deadlines)
-      .filter(([key, val]) => val && key !== 'tba' && DEADLINE_LABELS[key])
-      .map(([key, val]) => ({
-        key,
-        label: DEADLINE_LABELS[key] || key,
-        deadline: val,
-        ...computeUrgency(val),
-      }));
+      .filter(
+        ([key, val]) =>
+          isValidDeadline(val) &&
+          key !== 'tba' &&
+          key !== 'removed' &&
+          key !== 'moved' &&
+          !removedSet.has(key) &&
+          DEADLINE_LABELS[key],
+      )
+      .map(([key, val]) => {
+        const isMoved = Boolean(movedMap[key]);
+        return {
+          key,
+          label: DEADLINE_LABELS[key] || key,
+          deadline: val,
+          isMoved,
+          movedData: movedMap[key],
+          ...computeUrgency(val),
+        };
+      });
 
     // Sort: overdue first (most overdue at top), then by ms ascending (soonest first)
     entries.sort((a, b) => a.ms - b.ms);
 
     if (compact) {
       return entries.filter(
-        (e) => e.level === 'overdue' || e.level === 'critical' || e.level === 'warning',
+        (e) =>
+          e.level === 'overdue' || e.level === 'critical' || e.level === 'warning' || e.isMoved,
       );
     }
 
     return entries;
-  }, [deadlines, compact]);
+  }, [deadlines, compact, removedSet, movedMap]);
 
   // TBA items — fields marked TBA with no date (shown only in full mode)
   const tbaItems = useMemo(() => {
     if (!deadlines || compact || tbaSet.size === 0) return [];
 
     return [...tbaSet]
-      .filter((key) => !deadlines[key] && DEADLINE_LABELS[key])
+      .filter((key) => !deadlines[key] && !removedSet.has(key) && DEADLINE_LABELS[key])
       .map((key) => ({
         key,
         label: DEADLINE_LABELS[key] || key,
       }));
-  }, [deadlines, compact, tbaSet]);
+  }, [deadlines, compact, tbaSet, removedSet]);
 
-  const hasContent = datedItems.length > 0 || tbaItems.length > 0;
+  const hasContent = datedItems.length > 0 || removedItems.length > 0 || tbaItems.length > 0;
   if (!hasContent) return null;
 
-  // Compact mode: inline alert-style (no card wrapper) — only dated items
-  if (compact && datedItems.length > 0) {
-    const hasOverdue = datedItems.some((i) => i.level === 'overdue');
-    const hasCritical = datedItems.some((i) => i.level === 'critical');
-
-    return (
-      <div
-        className={`rounded-lg border p-4 ${
-          hasOverdue || hasCritical
-            ? 'border-destructive/40 bg-destructive/5'
-            : 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30'
-        }`}
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <AlertTriangle
-            className={`h-4 w-4 ${
-              hasOverdue || hasCritical ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'
-            }`}
-          />
-          <span className="text-sm font-semibold">
-            {hasOverdue ? 'Overdue Deadlines' : 'Upcoming Deadlines'}
-          </span>
-        </div>
-        <div className="space-y-2">
-          {datedItems.map((item) => (
-            <DeadlineRow key={item.key} label={item.label} deadline={item.deadline} />
-          ))}
-        </div>
-      </div>
+  // Compact mode: inline alert-style
+  if (compact) {
+    const overdueOrCritical = datedItems.filter(
+      (i) => (i.level === 'overdue' || i.level === 'critical') && !i.isMoved,
     );
+    const hasUrgent = overdueOrCritical.length > 0;
+
+    // If there are urgent active deadlines: show urgent banner
+    if (hasUrgent) {
+      const hasOverdue = overdueOrCritical.some((i) => i.level === 'overdue');
+      return (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-semibold">
+              {hasOverdue ? 'Overdue Deadlines' : 'Upcoming Deadlines'}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {datedItems.map((item) => (
+              <DeadlineRow
+                key={item.key}
+                label={item.label}
+                deadline={item.deadline}
+                isMoved={item.isMoved}
+              />
+            ))}
+            {removedItems.map((item) => (
+              <RemovedRow key={item.key} label={item.label} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // If there are only removed items or moved items: neutral update container
+    if (removedItems.length > 0 || datedItems.length > 0) {
+      const allUpcoming = datedItems.filter((i) => !i.isMoved);
+      const isUpcomingOnly = allUpcoming.length > 0 && removedItems.length === 0;
+
+      return (
+        <div
+          className={`rounded-lg border p-4 space-y-3 ${
+            isUpcomingOnly
+              ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30'
+              : 'border-border/60 bg-muted/20'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {isUpcomingOnly ? (
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            ) : (
+              <Info className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-sm font-semibold text-foreground">
+              {isUpcomingOnly ? 'Upcoming Deadlines' : 'Milestone & Deadline Updates'}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {datedItems.map((item) => (
+              <DeadlineRow
+                key={item.key}
+                label={item.label}
+                deadline={item.deadline}
+                isMoved={item.isMoved}
+              />
+            ))}
+            {removedItems.map((item) => (
+              <RemovedRow key={item.key} label={item.label} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   }
 
-  if (compact) return null;
-
-  // Full mode: card wrapper with all deadlines + TBA rows
+  // Full mode: card wrapper with all deadlines + removed + TBA rows
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -275,7 +416,15 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
       </CardHeader>
       <CardContent className="space-y-2">
         {datedItems.map((item) => (
-          <DeadlineRow key={item.key} label={item.label} deadline={item.deadline} />
+          <DeadlineRow
+            key={item.key}
+            label={item.label}
+            deadline={item.deadline}
+            isMoved={item.isMoved}
+          />
+        ))}
+        {removedItems.map((item) => (
+          <RemovedRow key={item.key} label={item.label} />
         ))}
         {tbaItems.map((item) => (
           <TbaRow key={item.key} label={item.label} />

@@ -1409,11 +1409,18 @@ class ProjectService {
     await this._assertCanReviewTitle(user, project);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
-      throw new AppError(
-        'Only submitted titles can be approved.',
-        400,
-        'INVALID_STATUS_TRANSITION',
-      );
+      if (
+        project.titleStatus === TITLE_STATUSES.DRAFT ||
+        project.titleStatus === TITLE_STATUSES.REVISION_REQUIRED
+      ) {
+        project.titleStatus = TITLE_STATUSES.SUBMITTED;
+      } else {
+        throw new AppError(
+          'Only submitted titles can be approved.',
+          400,
+          'INVALID_STATUS_TRANSITION',
+        );
+      }
     }
 
     // Enforce scheduled defense hearing prerequisite before title approval
@@ -1438,19 +1445,60 @@ class ProjectService {
     let selectedProposalIndex = -1;
 
     if (data?.proposalId !== undefined && data?.proposalId !== null && data?.proposalId !== '') {
-      let proposalIndex = -1;
+      const rawProposalId = data.proposalId;
 
-      if (typeof data.proposalId === 'number' && Number.isInteger(data.proposalId)) {
-        proposalIndex = data.proposalId;
-      } else if (/^\d+$/.test(String(data.proposalId))) {
-        proposalIndex = Number.parseInt(String(data.proposalId), 10);
+      // 1. Try matching by subdocument _id in titleProposalMetadata or titleProposals
+      const idMatchIndex = metadataEntries.findIndex(
+        (m) => m?._id && String(m._id) === String(rawProposalId),
+      );
+      if (idMatchIndex !== -1) {
+        selectedProposalIndex = idMatchIndex;
+      } else {
+        const propIdMatchIndex = proposals.findIndex(
+          (p) => p && typeof p === 'object' && p._id && String(p._id) === String(rawProposalId),
+        );
+        if (propIdMatchIndex !== -1) {
+          selectedProposalIndex = propIdMatchIndex;
+        }
       }
 
-      if (proposalIndex < 0 || proposalIndex >= proposals.length) {
+      // 2. Try matching by exact title string
+      if (selectedProposalIndex === -1 && typeof rawProposalId === 'string') {
+        const titleMatchIndex = proposals.findIndex((p) => {
+          const t = typeof p === 'string' ? p : p?.title;
+          return t && t.trim().toLowerCase() === rawProposalId.trim().toLowerCase();
+        });
+        if (titleMatchIndex !== -1) {
+          selectedProposalIndex = titleMatchIndex;
+        }
+      }
+
+      // 3. Try integer index (supports 0-based or 1-based index)
+      if (selectedProposalIndex === -1) {
+        let numIndex = -1;
+        if (typeof rawProposalId === 'number' && Number.isInteger(rawProposalId)) {
+          numIndex = rawProposalId;
+        } else if (/^\d+$/.test(String(rawProposalId))) {
+          numIndex = Number.parseInt(String(rawProposalId), 10);
+        }
+
+        if (numIndex >= 0) {
+          // If valid 0-based index
+          if (numIndex < proposals.length) {
+            selectedProposalIndex = numIndex;
+          }
+          // If 1-based index (e.g. 1..N)
+          else if (numIndex === proposals.length && proposals.length > 0) {
+            selectedProposalIndex = numIndex - 1;
+          }
+        }
+      }
+
+      if (selectedProposalIndex < 0 || selectedProposalIndex >= proposals.length) {
         throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
       }
 
-      const selectedProposal = proposals[proposalIndex];
+      const selectedProposal = proposals[selectedProposalIndex];
       const selectedTitle =
         typeof selectedProposal === 'string'
           ? selectedProposal.trim()
@@ -1462,7 +1510,6 @@ class ProjectService {
         throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
       }
 
-      selectedProposalIndex = proposalIndex;
       project.title = selectedTitle;
     }
 
@@ -1531,14 +1578,23 @@ class ProjectService {
    * @param {Object} data - { reason }
    * @returns {Object} { project }
    */
-  async rejectTitle(projectId, user, data) {
+  async rejectTitle(projectId, user, data = {}) {
     const project = await this._getProjectOrFail(projectId);
 
     await this._assertCanReviewTitle(user, project);
 
-    if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
+    const allowedStatuses = [
+      TITLE_STATUSES.SUBMITTED,
+      TITLE_STATUSES.DRAFT,
+      TITLE_STATUSES.APPROVED,
+      TITLE_STATUSES.APPROVED_WITH_REVISION,
+      TITLE_STATUSES.REVISION_REQUIRED,
+      TITLE_STATUSES.PENDING_MODIFICATION,
+    ];
+
+    if (!allowedStatuses.includes(project.titleStatus)) {
       throw new AppError(
-        'Only submitted titles can be rejected.',
+        'Title proposals cannot be rejected or sent for revision in the current project status.',
         400,
         'INVALID_STATUS_TRANSITION',
       );
@@ -1546,12 +1602,91 @@ class ProjectService {
 
     project.titleStatus = TITLE_STATUSES.REVISION_REQUIRED;
     project.rejectionReason = data.reason;
+
+    // Resiliently resolve and update proposal status in metadata if proposalId is provided
+    const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+    const metadataEntries = Array.isArray(project.titleProposalMetadata)
+      ? project.titleProposalMetadata
+      : [];
+
+    let selectedProposalIndex = -1;
+    if (data?.proposalId !== undefined && data?.proposalId !== null && data?.proposalId !== '') {
+      const rawProposalId = data.proposalId;
+
+      // 1. Try matching by subdocument _id in titleProposalMetadata or titleProposals
+      const idMatchIndex = metadataEntries.findIndex(
+        (m) => m?._id && String(m._id) === String(rawProposalId),
+      );
+      if (idMatchIndex !== -1) {
+        selectedProposalIndex = idMatchIndex;
+      } else {
+        const propIdMatchIndex = proposals.findIndex(
+          (p) => p && typeof p === 'object' && p._id && String(p._id) === String(rawProposalId),
+        );
+        if (propIdMatchIndex !== -1) {
+          selectedProposalIndex = propIdMatchIndex;
+        }
+      }
+
+      // 2. Try matching by exact title string
+      if (selectedProposalIndex === -1 && typeof rawProposalId === 'string') {
+        const titleMatchIndex = proposals.findIndex((p) => {
+          const t = typeof p === 'string' ? p : p?.title;
+          return t && t.trim().toLowerCase() === rawProposalId.trim().toLowerCase();
+        });
+        if (titleMatchIndex !== -1) {
+          selectedProposalIndex = titleMatchIndex;
+        }
+      }
+
+      // 3. Try integer index (supports 0-based or 1-based index fallback)
+      if (selectedProposalIndex === -1) {
+        let numIndex = -1;
+        if (typeof rawProposalId === 'number' && Number.isInteger(rawProposalId)) {
+          numIndex = rawProposalId;
+        } else if (/^\d+$/.test(String(rawProposalId))) {
+          numIndex = Number.parseInt(String(rawProposalId), 10);
+        }
+
+        if (numIndex >= 0) {
+          if (numIndex < proposals.length) {
+            selectedProposalIndex = numIndex;
+          } else if (numIndex === proposals.length && proposals.length > 0) {
+            selectedProposalIndex = numIndex - 1;
+          }
+        }
+      }
+    }
+
+    if (metadataEntries.length > 0) {
+      project.titleProposalMetadata = metadataEntries.map((entry, index) => {
+        if (selectedProposalIndex === -1 || index === selectedProposalIndex) {
+          return {
+            ...entry,
+            status: 'rejected',
+            reviewedBy: user._id,
+            reviewedAt: new Date(),
+          };
+        }
+        return entry;
+      });
+    }
+
     await project.save();
+
+    const displayTitle =
+      project.title ||
+      (selectedProposalIndex >= 0 && proposals[selectedProposalIndex]
+        ? typeof proposals[selectedProposalIndex] === 'string'
+          ? proposals[selectedProposalIndex]
+          : proposals[selectedProposalIndex]?.title
+        : null) ||
+      'Title Proposal';
 
     await this._notifyTeamMembers(project.teamId, {
       type: 'title_rejected',
       title: 'Title Revision Required',
-      message: `Your project title "${project.title}" requires revisions. Reason: ${data.reason}`,
+      message: `Your project title "${displayTitle}" requires revisions. Reason: ${data.reason}`,
       metadata: { projectId: project._id, rejectedBy: user._id },
     });
 
@@ -1582,15 +1717,27 @@ class ProjectService {
       );
     }
 
-    let proposalIndex = proposals.findIndex((proposal) => {
-      if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) return false;
-      return proposal._id?.toString?.() === proposalId;
-    });
+    const metadataEntries = Array.isArray(project.titleProposalMetadata)
+      ? project.titleProposalMetadata
+      : [];
+
+    let proposalIndex = metadataEntries.findIndex(
+      (m) => m?._id && String(m._id) === String(proposalId),
+    );
+
+    if (proposalIndex === -1) {
+      proposalIndex = proposals.findIndex((proposal) => {
+        if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) return false;
+        return proposal._id?.toString?.() === proposalId;
+      });
+    }
 
     if (proposalIndex === -1 && /^\d+$/.test(proposalId)) {
       const parsedIndex = Number.parseInt(proposalId, 10);
       if (parsedIndex >= 0 && parsedIndex < proposals.length) {
         proposalIndex = parsedIndex;
+      } else if (parsedIndex === proposals.length && proposals.length > 0) {
+        proposalIndex = parsedIndex - 1;
       }
     }
 
@@ -2383,9 +2530,56 @@ class ProjectService {
 
     for (const targetProject of targetProjects) {
       if (!targetProject.deadlines) targetProject.deadlines = {};
+      if (!Array.isArray(targetProject.deadlines.removed)) targetProject.deadlines.removed = [];
+      if (!targetProject.deadlines.moved || typeof targetProject.deadlines.moved !== 'object') {
+        targetProject.deadlines.moved = {};
+      }
+
       dateFields.forEach((key) => {
-        if (data[key] !== undefined) targetProject.deadlines[key] = data[key];
+        if (data[key] !== undefined) {
+          const oldVal = targetProject.deadlines[key];
+          const newVal = data[key];
+
+          if (newVal === null || newVal === '' || newVal === 'unscheduled') {
+            targetProject.deadlines[key] = null;
+            if (!targetProject.deadlines.removed.includes(key)) {
+              targetProject.deadlines.removed.push(key);
+            }
+            if (targetProject.deadlines.moved?.[key]) {
+              delete targetProject.deadlines.moved[key];
+            }
+          } else {
+            const newDate = new Date(newVal);
+            if (!isNaN(newDate.getTime())) {
+              if (oldVal && new Date(oldVal).getTime() !== newDate.getTime()) {
+                targetProject.deadlines.moved[key] = {
+                  oldDate: oldVal,
+                  newDate,
+                  movedAt: new Date(),
+                };
+              }
+              targetProject.deadlines[key] = newDate;
+              targetProject.deadlines.removed = targetProject.deadlines.removed.filter(
+                (r) => r !== key,
+              );
+            }
+          }
+        }
       });
+
+      if (Array.isArray(data.removed)) {
+        data.removed.forEach((key) => {
+          if (dateFields.includes(key)) {
+            targetProject.deadlines[key] = null;
+            if (!targetProject.deadlines.removed.includes(key)) {
+              targetProject.deadlines.removed.push(key);
+            }
+            if (targetProject.deadlines.moved?.[key]) {
+              delete targetProject.deadlines.moved[key];
+            }
+          }
+        });
+      }
 
       if (data.defense === null || data.defense === '') {
         if (targetProject.defenseSchedule) {
@@ -4653,8 +4847,9 @@ class ProjectService {
       status === 'pending_scheduling' ||
       status === 'unscheduled' ||
       status === 'cancelled' ||
-      (date === null && (!time || time === '')) ||
-      (date === '' && (!time || time === ''));
+      date === null ||
+      date === '' ||
+      (date === undefined && (!project.defenseSchedule?.date || status === 'pending_scheduling'));
 
     const targetStatus = isClearingSchedule
       ? status === 'pending_scheduling'
@@ -4698,13 +4893,43 @@ class ProjectService {
 
     if (scheduledDate) {
       if (!project.deadlines) project.deadlines = {};
+      const previousDate = previousSchedule?.date || project.deadlines.defense;
+      const isMoved =
+        previousDate && new Date(previousDate).getTime() !== new Date(scheduledDate).getTime();
+
       project.deadlines.defense = scheduledDate;
       updateOps.$set['deadlines.defense'] = scheduledDate;
-    } else if (isClearingSchedule) {
-      updateOps.$unset = { 'deadlines.defense': '' };
-      if (project.deadlines) {
-        delete project.deadlines.defense;
+
+      if (!updateOps.$pull) updateOps.$pull = {};
+      updateOps.$pull['deadlines.removed'] = 'defense';
+      if (project.deadlines.removed) {
+        project.deadlines.removed = project.deadlines.removed.filter((r) => r !== 'defense');
       }
+
+      if (isMoved) {
+        updateOps.$set['deadlines.moved.defense'] = {
+          oldDate: previousDate,
+          newDate: scheduledDate,
+          movedAt: new Date(),
+        };
+      }
+    } else {
+      if (!project.deadlines) project.deadlines = {};
+      delete project.deadlines.defense;
+      if (!project.deadlines.removed) project.deadlines.removed = [];
+      if (!project.deadlines.removed.includes('defense')) {
+        project.deadlines.removed.push('defense');
+      }
+      if (!updateOps.$unset) updateOps.$unset = {};
+      updateOps.$unset['deadlines.defense'] = '';
+
+      if (project.deadlines?.moved?.defense) {
+        delete project.deadlines.moved.defense;
+        updateOps.$unset['deadlines.moved.defense'] = '';
+      }
+
+      if (!updateOps.$addToSet) updateOps.$addToSet = {};
+      updateOps.$addToSet['deadlines.removed'] = 'defense';
     }
 
     await Project.findByIdAndUpdate(projectId, updateOps);

@@ -585,7 +585,7 @@ export function compareAgainstCorpus(submittedText, corpus = [], options = {}) {
       }
     }
 
-    const merged = mergeIntervals(sourceIntervals);
+    const merged = filterSignificantIntervals(submittedText, sourceIntervals);
     if (merged.length === 0) continue;
 
     const matchedWordsForSource = countWordsInIntervals(submittedText, merged);
@@ -617,6 +617,7 @@ export function compareAgainstCorpus(submittedText, corpus = [], options = {}) {
   return {
     originalityScore: toRounded(originalityScore),
     similarityPercentage: toRounded(similarityPercentage),
+    overallScore: toRounded(similarityPercentage),
     matchedSources: matchedSources
       .sort((left, right) => right.matchPercentage - left.matchPercentage)
       .slice(0, 10),

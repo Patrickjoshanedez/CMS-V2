@@ -250,4 +250,58 @@ describe('ScheduleDefenseModal', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(removeBtn.disabled).toBe(false);
   });
+
+  it('renders project workspace redirection button and link with correct href and target', () => {
+    const project = {
+      _id: 'proj-456',
+      title: 'CMS Portal Capstone',
+      teamId: { name: 'Team Gamma' },
+    };
+
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project,
+    });
+
+    const links = Array.from(document.body.querySelectorAll('a'));
+
+    // Header redirection button link
+    const workspaceBtnLink = links.find((a) => a.textContent.includes('View Project Workspace'));
+    expect(workspaceBtnLink).toBeDefined();
+    expect(workspaceBtnLink?.getAttribute('href')).toBe('/projects/proj-456');
+    expect(workspaceBtnLink?.getAttribute('target')).toBe('_blank');
+    expect(workspaceBtnLink?.getAttribute('rel')).toBe('noopener noreferrer');
+
+    // Subheader team link
+    const teamWorkspaceLink = links.find((a) =>
+      a.textContent.includes('View Linked Project Workspace'),
+    );
+    expect(teamWorkspaceLink).toBeDefined();
+    expect(teamWorkspaceLink?.getAttribute('href')).toBe('/projects/proj-456');
+    expect(teamWorkspaceLink?.getAttribute('target')).toBe('_blank');
+    expect(teamWorkspaceLink?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('falls back to project.id when _id is not present for workspace links', () => {
+    const project = {
+      id: 'proj-789',
+      title: 'CMS Alternative ID',
+    };
+
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project,
+    });
+
+    const links = Array.from(document.body.querySelectorAll('a'));
+    const workspaceBtnLink = links.find((a) => a.textContent.includes('View Project Workspace'));
+    expect(workspaceBtnLink?.getAttribute('href')).toBe('/projects/proj-789');
+
+    const teamWorkspaceLink = links.find((a) =>
+      a.textContent.includes('View Linked Project Workspace'),
+    );
+    expect(teamWorkspaceLink?.getAttribute('href')).toBe('/projects/proj-789');
+  });
 });

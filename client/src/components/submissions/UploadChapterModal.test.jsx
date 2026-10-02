@@ -98,4 +98,57 @@ describe('UploadChapterModal Component', () => {
     expect(select).toBeTruthy();
     expect(select.disabled).toBe(false);
   });
+
+  it('renders mandatory late justification note and letter document when deadline has passed', async () => {
+    const pastDeadline = new Date(Date.now() - 86400000).toISOString();
+
+    await act(async () => {
+      root.render(
+        <UploadChapterModal
+          isOpen={true}
+          onClose={vi.fn()}
+          initialChapter={1}
+          isLocked={false}
+          projectId="proj-123"
+          deadlines={{ chapter1: pastDeadline }}
+        />,
+      );
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Late Submission');
+    expect(dialog.textContent).toContain('Late Submission Compliance Gate');
+    expect(dialog.textContent).toContain('Justification Statement');
+    expect(dialog.textContent).toContain('Official Justification Letter Document');
+    expect(dialog.textContent).toContain('Click to attach signed justification letter');
+
+    // Submit button should be disabled without file, remarks, and justificationLetter
+    const submitBtn = dialog.querySelector('button[type="submit"]');
+    expect(submitBtn).toBeTruthy();
+    expect(submitBtn.disabled).toBe(true);
+  });
+
+  it('hides late justification note and letter upload when submission is on-time or unscheduled', async () => {
+    const futureDeadline = new Date(Date.now() + 86400000).toISOString();
+
+    await act(async () => {
+      root.render(
+        <UploadChapterModal
+          isOpen={true}
+          onClose={vi.fn()}
+          initialChapter={1}
+          isLocked={false}
+          projectId="proj-123"
+          deadlines={{ chapter1: futureDeadline }}
+        />,
+      );
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).not.toContain('Late Submission Compliance Gate');
+    expect(dialog.textContent).not.toContain('Official Justification Letter Document');
+    expect(dialog.textContent).toContain('Submission Remarks (Optional)');
+  });
 });

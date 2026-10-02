@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import SignaturePad from '@/components/ui/SignaturePad';
 import { useAuthStore } from '@/stores/authStore';
 import { projectService, userService } from '@/services/authService';
+import { getSocket, connectSocket } from '@/services/socket';
 import { useProjects } from '@/hooks/useProjects';
 import { ROLES, PROJECT_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
@@ -35,6 +36,7 @@ import {
   BookOpen,
   FileSpreadsheet,
 } from 'lucide-react';
+import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import SecretaryMinutesDocumentSheet from '@/components/secretary/SecretaryMinutesDocumentSheet';
 
 export default function SecretaryReviewPage() {
@@ -85,9 +87,11 @@ export default function SecretaryReviewPage() {
     if (!selectedProjectId && projects.length > 0) {
       const firstId = projects[0]._id;
       setSelectedProjectId(firstId);
-      setSearchParams({ projectId: firstId }, { replace: true });
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('projectId', firstId);
+      setSearchParams(nextParams, { replace: true });
     }
-  }, [projects, selectedProjectId, setSearchParams]);
+  }, [projects, selectedProjectId, searchParams, setSearchParams]);
 
   const handleSelectProject = (id) => {
     setSelectedProjectId(id);
@@ -158,6 +162,52 @@ export default function SecretaryReviewPage() {
     });
   }, [projects, searchTerm, statusFilter]);
 
+  // Real-time synchronization with Proponents, Committee, and Instructor
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    let s = getSocket();
+    if (!s) {
+      s = connectSocket();
+    }
+    if (!s) return;
+
+    try {
+      s.emit('join:project', selectedProjectId);
+    } catch {
+      // Non-blocking
+    }
+
+    const handleSync = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(selectedProjectId)) {
+        refetchProjectDetails();
+        queryClient.invalidateQueries({ queryKey: ['project', selectedProjectId] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        queryClient.invalidateQueries({ queryKey: ['secretary-minutes', selectedProjectId] });
+      }
+    };
+
+    s.on('adm:row_updated', handleSync);
+    s.on('adm:row_created', handleSync);
+    s.on('adm:row_deleted', handleSync);
+    s.on('adm:endorsed', handleSync);
+    s.on('adm:signed', handleSync);
+    s.on('adm:submitted', handleSync);
+    s.on('defense:minutes_updated', handleSync);
+    s.on('project:updated', handleSync);
+
+    return () => {
+      s.off('adm:row_updated', handleSync);
+      s.off('adm:row_created', handleSync);
+      s.off('adm:row_deleted', handleSync);
+      s.off('adm:endorsed', handleSync);
+      s.off('adm:signed', handleSync);
+      s.off('adm:submitted', handleSync);
+      s.off('defense:minutes_updated', handleSync);
+      s.off('project:updated', handleSync);
+    };
+  }, [selectedProjectId, refetchProjectDetails, queryClient]);
+
   // Upload Minutes Handler
   const handleUploadMinutes = async (e) => {
     e.preventDefault();
@@ -188,12 +238,14 @@ export default function SecretaryReviewPage() {
   // Add ADM Item Manually
   const handleAddRow = async () => {
     if (!selectedProjectId) return;
+    const phase = Number(project?.capstonePhase || 1);
+    const defaultMilestone = phase >= 3 ? 'CAPSTONE_3' : phase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_1';
     try {
       await projectService.createActionDoneMatrixItem(selectedProjectId, {
         panelName: 'Committee Secretary',
         suggestion: 'Additional hearing observation / compliance remark',
         expectedAction: 'Address remark in manuscript and document page reference',
-        milestone: project?.capstonePhase >= 4 ? 'CAPSTONE_4' : 'CAPSTONE_2',
+        milestone: defaultMilestone,
       });
       toast.success('New ADM row added.');
       refetchProjectDetails();
@@ -586,368 +638,20 @@ export default function SecretaryReviewPage() {
                     }}
                   />
                 ) : (
-                  <>
-                    {/* Section 1: Minutes Upload Zone */}
-                    <Card className="border-border/70 shadow-sm">
-                      <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                          <Upload className="h-4 w-4 text-primary" />
-                          Upload Hearing Defense Minutes
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Upload your official defense hearing minutes (PDF or DOCX). Remarks and
-                          panel critiques are directly parsed into Action Done Matrix rows.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2">
-                        <form
-                          onSubmit={handleUploadMinutes}
-                          className="flex flex-col sm:flex-row items-center gap-3"
-                        >
-                          <div className="flex-1 w-full">
-                            <Input
-                              type="file"
-                              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                              onChange={(e) => setMinutesFile(e.target.files?.[0] || null)}
-                              className="text-xs file:text-xs file:font-semibold"
-                            />
-                          </div>
-                          <Button
-                            type="submit"
-                            disabled={!minutesFile || isUploadingMinutes}
-                            className="w-full sm:w-auto shrink-0 text-xs gap-1.5"
-                          >
-                            {isUploadingMinutes ? (
-                              <>Uploading & Parsing…</>
-                            ) : (
-                              <>
-                                <Upload className="h-3.5 w-3.5" />
-                                Extract to ADM
-                              </>
-                            )}
-                          </Button>
-                        </form>
-                      </CardContent>
-                    </Card>
-
-                    {/* Section 2: Action Done Matrix Table */}
-                    <Card className="border-border/70 shadow-sm">
-                      <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-                        <div>
-                          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-primary" />
-                            Action Done Matrix (ADM)
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            Review remarks recorded during defense and the actions taken by
-                            proponents.
-                          </CardDescription>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleAddRow}
-                          className="text-xs gap-1"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Remark
-                        </Button>
-                      </CardHeader>
-
-                      <CardContent className="p-4 pt-2">
-                        {admRows.length === 0 ? (
-                          <div className="rounded-lg border border-dashed p-8 text-center text-xs text-muted-foreground">
-                            <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                            No Action Done Matrix remarks found. Upload defense minutes above or
-                            click &quot;+ Add Remark&quot; to populate the matrix.
-                          </div>
-                        ) : (
-                          <div className="overflow-x-auto rounded-lg border border-border/70">
-                            <table className="w-full text-xs text-left border-collapse">
-                              <thead className="bg-muted/40 text-[11px] font-bold uppercase text-muted-foreground border-b border-border/70">
-                                <tr>
-                                  <th className="p-2.5 w-8">#</th>
-                                  <th className="p-2.5 w-32">Panelist</th>
-                                  <th className="p-2.5">Critique / Suggestion</th>
-                                  <th className="p-2.5">Student Action Taken</th>
-                                  <th className="p-2.5 w-16 text-center">Page(s)</th>
-                                  <th className="p-2.5 w-24 text-center">Status</th>
-                                  <th className="p-2.5 w-12 text-center">Act</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border/50 font-sans">
-                                {admRows.map((row, idx) => {
-                                  const hasAction = Boolean(
-                                    row.actionDone && String(row.actionDone).trim(),
-                                  );
-                                  return (
-                                    <tr
-                                      key={row._id || idx}
-                                      className="hover:bg-muted/10 transition-colors"
-                                    >
-                                      <td className="p-2.5 font-mono text-[10px] text-muted-foreground text-center">
-                                        {idx + 1}
-                                      </td>
-                                      <td className="p-2.5 font-medium text-foreground">
-                                        {row.panelName || 'Panelist'}
-                                      </td>
-                                      <td className="p-2.5 text-foreground leading-relaxed">
-                                        {row.suggestion}
-                                        {row.expectedAction && (
-                                          <div className="text-[10px] text-muted-foreground mt-0.5 italic">
-                                            Expected: {row.expectedAction}
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="p-2.5">
-                                        {hasAction ? (
-                                          <span className="text-foreground font-medium">
-                                            {row.actionDone}
-                                          </span>
-                                        ) : (
-                                          <span className="text-amber-600 dark:text-amber-400 italic text-[11px]">
-                                            Pending proponent action…
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="p-2.5 text-center font-mono text-[11px]">
-                                        {row.pageNumbers || '—'}
-                                      </td>
-                                      <td className="p-2.5 text-center">
-                                        {row.status === 'verified' ? (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px] font-bold text-emerald-600 bg-emerald-500/10 border-emerald-500/30"
-                                          >
-                                            Verified
-                                          </Badge>
-                                        ) : hasAction ? (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px] font-bold text-sky-600 bg-sky-500/10 border-sky-500/30"
-                                          >
-                                            Addressed
-                                          </Badge>
-                                        ) : (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px] font-bold text-amber-600 bg-amber-500/10 border-amber-500/30"
-                                          >
-                                            Pending
-                                          </Badge>
-                                        )}
-                                      </td>
-                                      <td className="p-2.5 text-center">
-                                        <button
-                                          onClick={() => handleDeleteRow(row._id)}
-                                          className="text-muted-foreground hover:text-rose-500 transition-colors p-1"
-                                          title="Delete row"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Section 3: Institutional Secretary Endorsement Gate */}
-                    <Card
-                      className={`border shadow-sm transition-all ${
-                        isEndorsed
-                          ? 'border-emerald-500/50 bg-emerald-500/5'
-                          : canEndorse
-                            ? 'border-primary/50 bg-primary/5'
-                            : 'border-amber-500/40 bg-amber-500/5'
-                      }`}
-                    >
-                      <CardContent className="p-5 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white ${
-                                isEndorsed
-                                  ? 'bg-emerald-600'
-                                  : canEndorse
-                                    ? 'bg-primary'
-                                    : 'bg-amber-600'
-                              }`}
-                            >
-                              {isEndorsed ? (
-                                <ShieldCheck className="h-5 w-5" />
-                              ) : canEndorse ? (
-                                <FileSignature className="h-5 w-5" />
-                              ) : (
-                                <Clock className="h-5 w-5" />
-                              )}
-                            </div>
-                            <div className="space-y-0.5">
-                              <h3 className="text-sm font-bold text-foreground">
-                                {isEndorsed
-                                  ? 'Action Done Matrix Endorsed by Committee Secretary'
-                                  : canEndorse
-                                    ? 'All Remarks Addressed — Ready for Secretary Endorsement'
-                                    : 'Secretary Endorsement Pending Proponent Revisions'}
-                              </h3>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {isEndorsed
-                                  ? `Endorsed by Secretary ${project.admSignatures?.secretary?.signatoryName || user?.fullName}${project.admSignatures?.secretary?.endorsedAt ? ` on ${new Date(project.admSignatures.secretary.endorsedAt).toLocaleDateString()}` : ''}. Committee signatures are unlocked.`
-                                  : canEndorse
-                                    ? 'The student proponents have documented actions and page references for all hearing remarks. You may now grant digital endorsement.'
-                                    : `${totalRows - addressedCount} remark(s) are still pending student action. Secretary endorsement unlocks once all items are completed.`}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Action Button */}
-                          <div>
-                            {isEndorsed ? (
-                              <Badge
-                                variant="outline"
-                                className="text-xs font-bold text-emerald-600 bg-emerald-500/10 border-emerald-500/30 px-3 py-1.5 flex items-center gap-1.5"
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                                Endorsement Granted
-                              </Badge>
-                            ) : (
-                              <Button
-                                onClick={() => setIsEndorseModalOpen(true)}
-                                disabled={!canEndorse || isSubmittingEndorsement}
-                                className="text-xs font-bold gap-1.5 whitespace-nowrap shadow-sm"
-                              >
-                                <FileSignature className="h-4 w-4" />
-                                Sign & Endorse Matrix
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
+                  <ActionDoneMatrixTab
+                    project={project}
+                    user={user}
+                    isFaculty={true}
+                    isSecretary={true}
+                    onRefresh={async () => {
+                      await Promise.all([refetchProjectDetails(), refetchProjects()]);
+                    }}
+                  />
                 )}
               </>
             )}
           </div>
         </div>
-
-        {/* Endorsement Modal */}
-        {isEndorseModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
-            <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b pb-3">
-                <div className="flex items-center gap-2 text-foreground font-bold">
-                  <FileSignature className="h-5 w-5 text-primary" />
-                  Grant Committee Secretary Endorsement
-                </div>
-                <button
-                  onClick={() => setIsEndorseModalOpen(false)}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <Label className="text-xs font-semibold text-foreground">
-                    Secretary Signatory Full Name
-                  </Label>
-                  <Input
-                    value={signatoryName}
-                    onChange={(e) => setSignatoryName(e.target.value)}
-                    placeholder="e.g. Glaiza Mae A. Libe"
-                    className="mt-1 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-foreground">
-                    Endorsement & Verification Notes
-                  </Label>
-                  <Textarea
-                    value={endorsementNotes}
-                    onChange={(e) => setEndorsementNotes(e.target.value)}
-                    rows={3}
-                    className="mt-1 text-xs"
-                  />
-                </div>
-
-                {/* Digital Signature Pad */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-foreground">
-                      Digital Signature
-                    </Label>
-                    {user?.digitalSignature && (
-                      <button
-                        type="button"
-                        onClick={() => setIsDrawingSignature(!isDrawingSignature)}
-                        className="text-[11px] text-primary hover:underline"
-                      >
-                        {isDrawingSignature ? 'Use Saved Signature' : 'Draw New Signature'}
-                      </button>
-                    )}
-                  </div>
-
-                  {isDrawingSignature || !signatureDataUrl ? (
-                    <div className="rounded-lg border border-border bg-background p-2">
-                      <SignaturePad
-                        onSave={(dataUrl) => setSignatureDataUrl(dataUrl)}
-                        onClear={() => setSignatureDataUrl(null)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          Saved Digital Signature Active
-                        </span>
-                      </div>
-                      <img
-                        src={signatureDataUrl}
-                        alt="Signature"
-                        className="h-10 max-w-[120px] object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 border-t pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEndorseModalOpen(false)}
-                  disabled={isSubmittingEndorsement}
-                  className="text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleConfirmEndorsement}
-                  disabled={isSubmittingEndorsement || !signatureDataUrl}
-                  className="text-xs font-bold gap-1.5"
-                >
-                  {isSubmittingEndorsement ? (
-                    <>Submitting…</>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Confirm & Sign Endorsement
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );

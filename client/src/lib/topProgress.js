@@ -4,6 +4,16 @@
  * and lazy-loaded React Suspense chunk downloads.
  */
 
+function cleanPath(urlStr, baseOrigin) {
+  try {
+    const u = new URL(urlStr, baseOrigin);
+    const p = u.pathname.replace(/\/+$/, '') || '/';
+    return p + (u.search || '');
+  } catch {
+    return null;
+  }
+}
+
 class TopProgressManager {
   constructor() {
     this.status = 'idle'; // 'idle' | 'loading' | 'completing'
@@ -12,6 +22,7 @@ class TopProgressManager {
     this.trickleTimer = null;
     this.completeTimer = null;
     this.safetyTimer = null;
+    this.clickVerifyTimer = null;
     this._initialized = false;
   }
 
@@ -46,11 +57,11 @@ class TopProgressManager {
       this.trickle();
     }, 200);
 
-    // Fail-safe watchdog: automatically complete after 8s if navigation hangs
+    // Fail-safe watchdog: automatically complete after 4s if navigation hangs
     if (this.safetyTimer) clearTimeout(this.safetyTimer);
     this.safetyTimer = setTimeout(() => {
       this.done();
-    }, 8000);
+    }, 4000);
   }
 
   trickle() {
@@ -72,6 +83,11 @@ class TopProgressManager {
   }
 
   done() {
+    if (this.clickVerifyTimer) {
+      clearTimeout(this.clickVerifyTimer);
+      this.clickVerifyTimer = null;
+    }
+
     if (this.status === 'idle') return;
 
     if (this.trickleTimer) {
@@ -128,7 +144,9 @@ class TopProgressManager {
           !href ||
           href.startsWith('#') ||
           href.startsWith('mailto:') ||
-          href.startsWith('tel:')
+          href.startsWith('tel:') ||
+          anchor.getAttribute('role') === 'button' ||
+          anchor.getAttribute('aria-disabled') === 'true'
         ) {
           return;
         }
@@ -136,13 +154,22 @@ class TopProgressManager {
         if (anchor.hasAttribute('download')) return;
 
         try {
-          const targetUrl = new URL(anchor.href, window.location.href);
-          if (targetUrl.origin === window.location.origin) {
-            const currentPath = window.location.pathname + window.location.search;
-            const targetPath = targetUrl.pathname + targetUrl.search;
-            if (targetPath !== currentPath) {
-              this.start();
-            }
+          const currentPath = cleanPath(window.location.href, window.location.origin);
+          const targetPath = cleanPath(anchor.href, window.location.origin);
+
+          if (targetPath && currentPath && targetPath !== currentPath) {
+            this.start();
+
+            // Safety guard: If within 400ms no pushState/popstate actually occurred
+            // (e.g. event was defaultPrevented by a router/component, or route transition was aborted),
+            // auto-reset progress so the bar does not trickle to 100% while contents remain on same page.
+            if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
+            this.clickVerifyTimer = setTimeout(() => {
+              const nowPath = cleanPath(window.location.href, window.location.origin);
+              if (nowPath === currentPath && this.status === 'loading') {
+                this.done();
+              }
+            }, 450);
           }
         } catch {
           // Ignore URL parsing errors
@@ -153,6 +180,10 @@ class TopProgressManager {
 
     // History API popstate listener (back/forward navigation)
     window.addEventListener('popstate', () => {
+      if (this.clickVerifyTimer) {
+        clearTimeout(this.clickVerifyTimer);
+        this.clickVerifyTimer = null;
+      }
       this.start();
     });
 
@@ -161,13 +192,16 @@ class TopProgressManager {
     if (origPushState) {
       const self = this;
       window.history.pushState = function (...args) {
+        if (self.clickVerifyTimer) {
+          clearTimeout(self.clickVerifyTimer);
+          self.clickVerifyTimer = null;
+        }
         const url = args[2];
         if (url) {
           try {
-            const targetUrl = new URL(url, window.location.href);
-            const currentPath = window.location.pathname + window.location.search;
-            const targetPath = targetUrl.pathname + targetUrl.search;
-            if (targetPath !== currentPath) {
+            const currentPath = cleanPath(window.location.href, window.location.origin);
+            const targetPath = cleanPath(url, window.location.origin);
+            if (targetPath && currentPath && targetPath !== currentPath) {
               self.start();
             }
           } catch {

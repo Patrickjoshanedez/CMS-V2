@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { SignaturePad } from '@/components/ui/SignaturePad';
 import { projectService, userService } from '@/services/authService';
+import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 import buksuLogo from '@/assets/buksu-logo.png';
 import { cn } from '@/lib/utils';
@@ -1369,26 +1370,45 @@ export default function SecretaryMinutesDocumentSheet({
   };
 
   // Check if current user has secretary signing permission
+  const isStudent = user?.role === 'student' || user?.role === ROLES?.STUDENT;
+  const userIdStr = user?._id ? String(user._id) : '';
+  const appointedSecId = (
+    project?.secretaryId?._id ||
+    project?.secretaryId ||
+    project?.teamId?.secretaryId?._id ||
+    project?.teamId?.secretaryId
+  )?.toString();
+  const isPanelistSec = project?.panelists?.some((p) => {
+    const pid = (p.userId?._id || p.userId || p._id)?.toString();
+    return pid === userIdStr && (p.role === 'secretary' || p.role === 'SECRETARY');
+  });
+
   const isUserSecretary = Boolean(
-    user &&
-    (project?.secretaryId?._id === user._id ||
-      String(project?.secretaryId) === String(user._id) ||
-      project?.panelists?.some(
-        (p) =>
-          (p.userId === user._id || p.userId?._id === user._id || p._id === user._id) &&
-          (p.role === 'secretary' || p.role === 'SECRETARY'),
-      ) ||
-      user.role === 'faculty' ||
-      user.role === 'instructor'),
+    !isStudent &&
+    (!user ||
+      !appointedSecId ||
+      appointedSecId === userIdStr ||
+      isPanelistSec ||
+      user?.facultyRole === 'secretary' ||
+      user?.role === 'instructor' ||
+      user?.role === 'admin'),
   );
 
   const isSigned = Boolean(minutes.signature?.signed);
   const signatureData = minutes.signature;
+  const designatedSecName =
+    project?.defenseCommittees?.capstone2?.secretary?.fullName ||
+    project?.defenseCommittees?.capstone1?.secretary?.fullName ||
+    (project?.secretaryId?.firstName && project?.secretaryId?.lastName
+      ? `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
+      : project?.secretaryId?.name || '');
+
   const signatoryNameDisplay =
     signatureData?.signatoryName ||
     minutes.secretarySignatoryName ||
     minutes.secretary ||
-    'JOAN MARIE M. PANES';
+    designatedSecName ||
+    'Committee Secretary';
 
   const totalPages = minutes.pages?.length || 1;
 
@@ -1681,79 +1701,89 @@ export default function SecretaryMinutesDocumentSheet({
             </Button>
           )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAutofillFromProject}
-            disabled={!project}
-            className="gap-1.5 text-xs h-8"
-            title="Autofill project title, proponents, adviser, and panel members from project database"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            Autofill from Project
-          </Button>
+          {isUserSecretary && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAutofillFromProject}
+              disabled={!project}
+              className="gap-1.5 text-xs h-8"
+              title="Autofill project title, proponents, adviser, and panel members from project database"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Autofill from Project
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setMinutes((prev) => ({
-                ...prev,
-                pages: autoAllocateContinuationSheets(prev.pages),
-              }));
-              toast.success('Remarks distributed across balanced sheets.');
-            }}
-            className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
-            title="Automatically balance comments and continuation sheets across pages"
-            data-testid="auto-distribute-btn"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            Balance Pages
-          </Button>
+          {isUserSecretary && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setMinutes((prev) => ({
+                  ...prev,
+                  pages: autoAllocateContinuationSheets(prev.pages),
+                }));
+                toast.success('Remarks distributed across balanced sheets.');
+              }}
+              className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
+              title="Automatically balance comments and continuation sheets across pages"
+              data-testid="auto-distribute-btn"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              Balance Pages
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleLoadOfficialReference}
-            className="gap-1.5 text-xs h-8 font-medium"
-            title="Load authentic BukSU Prototype Defense Minutes corresponding to the official PDF"
-          >
-            <BookOpen className="h-3.5 w-3.5 text-primary" />
-            Load Reference Sample
-          </Button>
+          {isUserSecretary && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleLoadOfficialReference}
+              className="gap-1.5 text-xs h-8 font-medium"
+              title="Load authentic BukSU Prototype Defense Minutes corresponding to the official PDF"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
+              Load Reference Sample
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handleAddContinuationPage()}
-            className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
-            title="Insert a continuation page before the final sign-off sheet"
-            data-testid="add-page-btn"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Continuation Page
-          </Button>
+          {isUserSecretary && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleAddContinuationPage()}
+              className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
+              title="Insert a continuation page before the final sign-off sheet"
+              data-testid="add-page-btn"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Continuation Page
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleSyncToADM}
-            disabled={isSyncingADM}
-            className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
-            title="Convert panel remarks into official Action Done Matrix rows"
-          >
-            {isSyncingADM ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-            )}
-            Sync to ADM
-          </Button>
+          {isUserSecretary && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSyncToADM}
+              disabled={isSyncingADM}
+              className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
+              title="Convert panel remarks into official Action Done Matrix rows"
+            >
+              {isSyncingADM ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+              )}
+              Sync to ADM
+            </Button>
+          )}
 
           {isUserSecretary && !isSigned && (
             <Button
@@ -2431,12 +2461,13 @@ export default function SecretaryMinutesDocumentSheet({
                                 e.target.value.toUpperCase(),
                               );
                             }}
-                            placeholder="JOAN MARIE M. PANES"
-                            className="text-center font-bold text-xs sm:text-sm uppercase tracking-wide bg-transparent border-none focus:outline-none w-full text-black print:hidden"
+                            disabled={!isUserSecretary || isSigned}
+                            placeholder="COMMITTEE SECRETARY"
+                            className="text-center font-bold text-xs sm:text-sm uppercase tracking-wide bg-transparent border-none focus:outline-none w-full text-black print:hidden disabled:cursor-default"
                             data-testid="minutes-signatory-name"
                           />
                           <span className="hidden print:block text-center font-bold text-xs sm:text-sm uppercase tracking-wide text-black w-full">
-                            {signatoryNameDisplay || 'JOAN MARIE M. PANES'}
+                            {signatoryNameDisplay || 'COMMITTEE SECRETARY'}
                           </span>
 
                           {/* 3. BOTTOM: Horizontal Underline */}

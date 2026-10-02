@@ -118,4 +118,116 @@ describe('projectService.approveTitle - Defense Schedule Prerequisite & Auto-Com
     expect(result.project.defenseSchedule.verdict).toBe('Passed with Revisions');
     expect(mockProject.save).toHaveBeenCalled();
   });
+
+  it('resiliently handles 1-based proposal index (proposalId: 1 when proposals length is 1)', async () => {
+    mockProject.defenseSchedule = {
+      status: 'scheduled',
+      date: new Date('2026-10-15'),
+      time: '09:00 AM - 10:00 AM',
+      venue: 'COT Conference Room',
+    };
+
+    const result = await projectService.approveTitle(projectId, mockInstructor, { proposalId: 1 });
+
+    expect(result.project.titleStatus).toBe(TITLE_STATUSES.APPROVED);
+    expect(result.project.title).toBe('Decentralized LoRa-Enabled Evacuation Mesh');
+    expect(result.project.defenseSchedule.status).toBe('completed');
+  });
+
+  it('resiliently resolves proposal matching titleProposalMetadata _id', async () => {
+    mockProject.defenseSchedule = {
+      status: 'scheduled',
+      date: new Date('2026-10-15'),
+      time: '09:00 AM - 10:00 AM',
+      venue: 'COT Conference Room',
+    };
+    mockProject.titleProposalMetadata = [
+      {
+        _id: '65e0000000000000000000aa',
+        title: 'Decentralized LoRa-Enabled Evacuation Mesh',
+        status: 'submitted',
+      },
+    ];
+
+    const result = await projectService.approveTitle(projectId, mockInstructor, {
+      proposalId: '65e0000000000000000000aa',
+    });
+
+    expect(result.project.titleStatus).toBe(TITLE_STATUSES.APPROVED);
+    expect(result.project.title).toBe('Decentralized LoRa-Enabled Evacuation Mesh');
+  });
+
+  it('auto-advances project from DRAFT to SUBMITTED and then APPROVED', async () => {
+    mockProject.titleStatus = TITLE_STATUSES.DRAFT;
+    mockProject.defenseSchedule = {
+      status: 'scheduled',
+      date: new Date('2026-10-15'),
+      time: '09:00 AM - 10:00 AM',
+      venue: 'COT Conference Room',
+    };
+
+    const result = await projectService.approveTitle(projectId, mockInstructor, { proposalId: 0 });
+
+    expect(result.project.titleStatus).toBe(TITLE_STATUSES.APPROVED);
+    expect(mockProject.save).toHaveBeenCalled();
+  });
+
+  describe('projectService.rejectTitle - Proposal Deliberation Revision Requests', () => {
+    it('successfully requests revision on a project with SUBMITTED status', async () => {
+      mockProject.titleStatus = TITLE_STATUSES.SUBMITTED;
+
+      const result = await projectService.rejectTitle(projectId, mockInstructor, {
+        reason: 'Proposal Revision Required: Please update methodology.',
+        proposalId: 0,
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.REVISION_REQUIRED);
+      expect(result.project.rejectionReason).toBe(
+        'Proposal Revision Required: Please update methodology.',
+      );
+      expect(result.project.titleProposalMetadata[0].status).toBe('rejected');
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+
+    it('successfully requests revision when project is in DRAFT status', async () => {
+      mockProject.titleStatus = TITLE_STATUSES.DRAFT;
+
+      const result = await projectService.rejectTitle(projectId, mockInstructor, {
+        reason: 'Proposal Revision Required: Insufficient problem statement.',
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.REVISION_REQUIRED);
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+
+    it('successfully requests revision when project was previously APPROVED', async () => {
+      mockProject.titleStatus = TITLE_STATUSES.APPROVED;
+
+      const result = await projectService.rejectTitle(projectId, mockInstructor, {
+        reason: 'Proposal Revision Required: Committee requested scope adjustment.',
+        proposalId: 0,
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.REVISION_REQUIRED);
+      expect(result.project.rejectionReason).toBe(
+        'Proposal Revision Required: Committee requested scope adjustment.',
+      );
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+
+    it('successfully updates revision reason when project is already REVISION_REQUIRED', async () => {
+      mockProject.titleStatus = TITLE_STATUSES.REVISION_REQUIRED;
+
+      const result = await projectService.rejectTitle(projectId, mockInstructor, {
+        reason: 'Proposal Revision Required: Additional panel feedback.',
+        proposalId: 0,
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.REVISION_REQUIRED);
+      expect(result.project.rejectionReason).toBe(
+        'Proposal Revision Required: Additional panel feedback.',
+      );
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+  });
 });

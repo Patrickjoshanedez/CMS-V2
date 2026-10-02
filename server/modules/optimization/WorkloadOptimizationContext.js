@@ -44,9 +44,7 @@ export class WorkloadOptimizationContext {
    */
   setStrategy(strategy) {
     if (!(strategy instanceof WorkloadOptimizationStrategy)) {
-      throw new TypeError(
-        'strategy must be an instance of WorkloadOptimizationStrategy.',
-      );
+      throw new TypeError('strategy must be an instance of WorkloadOptimizationStrategy.');
     }
     this._strategy = strategy;
   }
@@ -61,9 +59,7 @@ export class WorkloadOptimizationContext {
     const StrategyClass = STRATEGY_REGISTRY[mode];
     if (!StrategyClass) {
       const valid = Object.keys(STRATEGY_REGISTRY).join(', ');
-      throw new Error(
-        `Unknown optimization mode: "${mode}". Valid modes are: ${valid}.`,
-      );
+      throw new Error(`Unknown optimization mode: "${mode}". Valid modes are: ${valid}.`);
     }
     this._strategy = new StrategyClass();
   }
@@ -72,17 +68,18 @@ export class WorkloadOptimizationContext {
    * Execute the active strategy's optimization logic.
    *
    * @param {Object} workload - Workload snapshot from DashboardService.getInstructorWorkload().
+   * @param {Object} [options={}] - Optimization parameters (e.g. roleScope).
    * @returns {Promise<Object>} The optimization result.
    * @throws {Error} If no strategy has been set.
    */
-  async executeOptimization(workload) {
+  async executeOptimization(workload, options = {}) {
     if (!this._strategy) {
       throw new Error(
         'No strategy is set on WorkloadOptimizationContext. ' +
           'Call resolveStrategy(mode) or setStrategy(strategy) before executing.',
       );
     }
-    return this._strategy.executeOptimization(workload);
+    return this._strategy.executeOptimization(workload, options);
   }
 
   /**

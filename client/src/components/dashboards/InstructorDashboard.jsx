@@ -9,6 +9,7 @@ import OptimizationEngine from './OptimizationEngine';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { AlertTriangle } from 'lucide-react';
 
 const InstructorDashboard = () => {
@@ -40,9 +41,11 @@ const InstructorDashboard = () => {
     staleTime: 30 * 1000,
   });
 
+  const [roleScope, setRoleScope] = React.useState('all');
+
   const optimizeMutation = useMutation({
-    mutationFn: async () => {
-      const response = await dashboardService.optimizeInstructorWorkload();
+    mutationFn: async (scope = roleScope) => {
+      const response = await dashboardService.optimizeInstructorWorkload({ roleScope: scope });
       return response.data?.data || response.data;
     },
     onSuccess: () => {
@@ -68,75 +71,64 @@ const InstructorDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header — card-based, matches FacultyDashboard style */}
-      <div className="flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      {/* Page Header - Clean Linear-Grade Command Bar */}
+      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Instructor Command Center
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Monitor capstone progress, adviser load, and balancing recommendations.
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Instructor Command Center
+            </h1>
+            <Badge variant="outline" className="text-[10px] font-semibold">
+              AY {new Date().getFullYear()}–{new Date().getFullYear() + 1}
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            Monitor capstone progress, adviser workload distribution, and automated rebalancing
+            recommendations.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
-            <p className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground">
-              Projects
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {kpisLoading ? '...' : kpis?.totals?.totalProjects || 0}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
-            <p className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground">
-              Pending
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {kpisLoading ? '...' : kpis?.pipeline?.pendingSubmissions || 0}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
-            <p className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground">
-              Completion
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {kpisLoading ? '...' : `${kpis?.performance?.completionRatePercent || 0}%`}
-            </p>
-          </div>
+        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+          <Badge variant="success" className="gap-1.5 py-1 px-2.5 text-xs font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Advisory Monitoring Active
+          </Badge>
         </div>
       </div>
 
       {kpisLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl bg-muted/40 border border-border" />
+            <div key={i} className="h-32 rounded-xl bg-muted/40 border border-border/60" />
           ))}
         </div>
       ) : (
         <KPICards kpis={kpis} />
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-        <div className="xl:col-span-3">
+      {/* Balanced 12-Column Grid: Workload Heatmap (7 cols) + Optimization Engine (5 cols) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+        <div className="lg:col-span-7">
           {workloadLoading ? (
-            <div className="h-80 rounded-2xl bg-muted/40 border border-border animate-pulse p-6 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-80 rounded-xl bg-muted/40 border border-border/60 animate-pulse p-6 flex items-center justify-center text-xs text-muted-foreground">
               Loading adviser workload distribution...
             </div>
           ) : (
             <WorkloadHeatmap workload={workload} />
           )}
         </div>
-        <div className="xl:col-span-2">
+        <div className="lg:col-span-5">
           <OptimizationEngine
             optimization={optimizeMutation.data}
-            onGenerate={() => optimizeMutation.mutate()}
+            onGenerate={(scope) => optimizeMutation.mutate(scope)}
             loading={optimizeMutation.isPending}
+            roleScope={roleScope}
+            onRoleScopeChange={setRoleScope}
           />
         </div>
       </div>
 
       {/* Visual Deadline Calendar */}
-      <div className="rounded-2xl border border-border bg-card/60 p-4">
+      <div className="rounded-xl border border-border/60 bg-card p-5 shadow-xs">
         <CalendarScheduler deadlines={deadlines} defenseSchedules={[]} />
       </div>
     </div>

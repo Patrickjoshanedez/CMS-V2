@@ -672,7 +672,13 @@ export default function ProjectSubmissionsPage() {
         </div>
 
         {/* Deadline warnings */}
-        {activeProject.deadlines && <DeadlineWarning deadlines={activeProject.deadlines} compact />}
+        {activeProject.deadlines && (
+          <DeadlineWarning
+            deadlines={activeProject.deadlines}
+            defenseSchedule={activeProject.defenseSchedule}
+            compact
+          />
+        )}
 
         {/* Progress bar */}
         <ChapterProgress latestChapterSubmissions={latestChapterSubmissions} />

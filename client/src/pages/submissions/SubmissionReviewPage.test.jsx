@@ -36,14 +36,16 @@ vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
     ) : null,
 }));
 
+let currentMockUser = {
+  _id: 'user-faculty-1',
+  name: 'Dr. Faculty Member',
+  role: 'faculty',
+};
+
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: (selector) =>
     selector({
-      user: {
-        _id: 'user-faculty-1',
-        name: 'Dr. Faculty Member',
-        role: 'faculty',
-      },
+      user: currentMockUser,
     }),
 }));
 
@@ -176,6 +178,11 @@ describe('SubmissionReviewPage', () => {
   let root;
 
   beforeEach(() => {
+    currentMockUser = {
+      _id: 'user-faculty-1',
+      name: 'Dr. Faculty Member',
+      role: 'faculty',
+    };
     currentWorkspaceData = mockWorkspaceData;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -317,5 +324,49 @@ describe('SubmissionReviewPage', () => {
     expect(viewer.getAttribute('data-embedded')).toBe('true');
     expect(viewer.getAttribute('data-highlights-count')).toBe('0');
     expect(viewer.getAttribute('data-plagiarism-count')).toBe('0');
+  });
+
+  it('renders ReviewerRoleBanner with Instructor chip when viewing as course instructor', () => {
+    currentMockUser = {
+      _id: 'user-instructor-1',
+      name: 'Prof. Course Instructor',
+      role: 'instructor',
+    };
+
+    act(() => {
+      root.render(<SubmissionReviewPage />);
+    });
+
+    expect(container.textContent).toContain('Reviewing as');
+    expect(container.textContent).toContain('Instructor');
+  });
+
+  it('renders Committee Preview Mode banner when proposal panelist cannot take decision', () => {
+    currentMockUser = {
+      _id: 'panelist-1',
+      name: 'Panel Member',
+      role: 'faculty',
+    };
+    currentWorkspaceData = {
+      ...mockWorkspaceData,
+      type: 'proposal',
+      adviserId: 'other-adviser-999',
+      project: {
+        ...mockWorkspaceData.project,
+        adviser: 'other-adviser-999',
+      },
+      panelistIds: ['panelist-1'],
+    };
+
+    act(() => {
+      root.render(<SubmissionReviewPage />);
+    });
+
+    expect(container.textContent).toContain(
+      'Committee Preview Mode: Proposal endorsement is conducted by the Assigned Adviser or Course Instructor.',
+    );
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const approveBtn = buttons.find((b) => b.textContent.includes('Approve Round'));
+    expect(approveBtn.disabled).toBe(true);
   });
 });

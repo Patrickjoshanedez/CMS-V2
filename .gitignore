@@ -151,3 +151,5 @@ start-all-services.ps1
 start-cms.ps1
 start-prod-test.ps1
 
+# Local sample papers
+Sample papers/

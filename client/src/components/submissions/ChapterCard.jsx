@@ -21,8 +21,20 @@ const CHAPTER_TITLES = {
   5: 'Summary, Conclusions & Recommendations',
 };
 
+function isValidDeadline(val) {
+  if (!val) return false;
+  if (typeof val === 'string') {
+    const s = val.trim().toLowerCase();
+    if (!s || s === 'unscheduled' || s === 'none' || s === 'cancelled' || s === 'tbd') {
+      return false;
+    }
+  }
+  const d = new Date(val);
+  return !isNaN(d.getTime());
+}
+
 function formatDeadline(dateStr) {
-  if (!dateStr) return null;
+  if (!isValidDeadline(dateStr)) return null;
   return new Date(dateStr).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -31,7 +43,7 @@ function formatDeadline(dateStr) {
 }
 
 function getDeadlineStatus(dateStr) {
-  if (!dateStr) return 'none';
+  if (!isValidDeadline(dateStr)) return 'none';
   const now = Date.now();
   const deadline = new Date(dateStr).getTime();
   const diff = deadline - now;

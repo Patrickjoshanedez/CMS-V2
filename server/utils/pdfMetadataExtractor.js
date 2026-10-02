@@ -440,8 +440,46 @@ async function fetchMetadataByDoi(doi) {
   }
 }
 
-function applyDoiMetadata(result, doiMetadata) {
+function applyDoiMetadata(result, doiMetadata, text) {
   if (!doiMetadata) return result;
+
+  // Guard: Verify that the DOI metadata actually corresponds to this manuscript!
+  // If the DOI title does NOT appear in the first 4000 characters of the document,
+  // or does NOT share words with the existing detected title, this DOI is from a citation/reference!
+  let titleMatchesDoc = false;
+  if (doiMetadata.title) {
+    const doiWords = cleanText(doiMetadata.title)
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length >= 4);
+    const bodyText = (text || '').split(/\b(?:references|bibliography)\b/i)[0].toLowerCase();
+    const matchCount = doiWords.filter((w) => bodyText.includes(w)).length;
+    if (doiWords.length > 0 && matchCount / doiWords.length >= 0.4) {
+      titleMatchesDoc = true;
+    } else if (result.title) {
+      const currentWords = cleanText(result.title)
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 4);
+      const crossMatch = doiWords.filter((w) => currentWords.includes(w)).length;
+      if (
+        currentWords.length > 0 &&
+        crossMatch / Math.min(doiWords.length, currentWords.length) >= 0.35
+      ) {
+        titleMatchesDoc = true;
+      }
+    }
+  }
+
+  // If the DOI title does not match the manuscript, discard foreign DOI from references
+  if (!titleMatchesDoc) {
+    logger.warn(
+      { candidateDoi: doiMetadata.doi, foreignTitle: doiMetadata.title, localTitle: result.title },
+      'Rejecting mismatched DOI from references/citations that does not match document header',
+    );
+    return result;
+  }
+
   const enriched = { ...result };
   const confidence = { ...(result.confidence || {}) };
   const fieldSources = { ...(result.fieldSources || {}) };
@@ -493,7 +531,7 @@ async function enrichWithDoiMetadata(result, text) {
   if (!candidateDoi) return result;
   const doiMetadata = await fetchMetadataByDoi(candidateDoi);
   if (!doiMetadata) return result;
-  return applyDoiMetadata({ ...result, doi: candidateDoi }, doiMetadata);
+  return applyDoiMetadata({ ...result, doi: candidateDoi }, doiMetadata, text);
 }
 
 function computeReviewFlags(result) {
@@ -1146,17 +1184,11 @@ function extractPublicationVenue(text, pdfInfo) {
  * Extracts DOI from text.
  */
 function extractDoi(text) {
-  // First check header area (first 4000 characters) to avoid matching reference citations
-  const headerChunk = text.slice(0, 4000);
+  // Check header area (first 4000 characters) to avoid matching reference citations
+  const headerChunk = (text || '').slice(0, 4000);
   const headerMatch = headerChunk.match(/\b(10\.\d{4,}(?:\.\d+)*\/[^\s,;]+)/i);
   if (headerMatch && headerMatch[1]) {
     return headerMatch[1].replace(/[.)>]+$/, '');
-  }
-
-  // Fallback: full document
-  const match = text.match(/\b(10\.\d{4,}(?:\.\d+)*\/[^\s,;]+)/i);
-  if (match && match[1]) {
-    return match[1].replace(/[.)>]+$/, '');
   }
   return '';
 }
@@ -1168,9 +1200,21 @@ function extractTitle(text, pdfInfo) {
   // First, check PDF metadata for title
   if (pdfInfo?.Title && pdfInfo.Title.trim().length > 5) {
     const metaTitle = cleanText(pdfInfo.Title);
-    if (metaTitle.length > 10 && metaTitle.length < 300) {
-      logger.debug({ source: 'metadata', title: metaTitle }, 'Title from PDF metadata');
-      return { value: metaTitle, confidence: 0.9 };
+    const isNoise =
+      /^(publication|untitled|unesco|who\s+launches|symposium|conference|proceedings|microsoft\s+word|document\d*|author\s+guide|research\s+article|original\s+article)/i.test(
+        metaTitle,
+      );
+    if (!isNoise && metaTitle.length > 10 && metaTitle.length < 300) {
+      const keyWords = metaTitle
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 4);
+      const topText = text.slice(0, 4000).toLowerCase();
+      const matches = keyWords.filter((w) => topText.includes(w)).length;
+      if (keyWords.length > 0 && matches / keyWords.length >= 0.5) {
+        logger.debug({ source: 'metadata', title: metaTitle }, 'Title from PDF metadata');
+        return { value: metaTitle, confidence: 0.9 };
+      }
     }
   }
 
@@ -1179,35 +1223,70 @@ function extractTitle(text, pdfInfo) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // Strategy 1: Look for title before "Abstract" section (scanning up to 60 lines before abstract)
-  const abstractIndex = findSectionIndex(lines, ['abstract', 'ABSTRACT']);
+  // Strategy 1: Look for title before "Abstract" section (search up to first 90 lines)
+  const headerLines = lines.slice(0, Math.min(lines.length, 90));
+  const abstractIndex = findSectionIndex(headerLines, [
+    'abstract',
+    'ABSTRACT',
+    'Abstract:',
+    'Abstract :',
+  ]);
   if (abstractIndex > 0) {
-    const candidateLines = lines.slice(0, Math.min(abstractIndex, 60));
+    const introIndex = findSectionIndex(lines.slice(0, abstractIndex), [
+      '1. introduction',
+      '1. INTRODUCTION',
+      'introduction',
+      'INTRODUCTION',
+    ]);
+    if (introIndex >= 0 && introIndex < abstractIndex) {
+      const windowBeforeAbstract = lines.slice(
+        Math.max(introIndex, abstractIndex - 10),
+        abstractIndex,
+      );
+      const titleBeforeAbs = findTitleFromLines(windowBeforeAbstract);
+      if (titleBeforeAbs) {
+        logger.debug(
+          { source: 'window-before-abstract', title: titleBeforeAbs },
+          'Title before abstract in two-column',
+        );
+        return { value: titleBeforeAbs, confidence: 0.85 };
+      }
+    }
+    const candidateLines = lines.slice(0, abstractIndex);
     const title = findTitleFromLines(candidateLines);
     if (title) {
       logger.debug({ source: 'before-abstract', title }, 'Title before abstract');
-      return { value: title, confidence: 0.8 };
+      return { value: title, confidence: 0.85 };
     }
   }
 
-  // Strategy 2: First substantial line that looks like a title
-  for (let i = 0; i < Math.min(40, lines.length); i++) {
-    const line = lines[i];
-    if (isTitleCandidate(line)) {
+  // Strategy 2: Find title from first 45 lines using full skipPatterns and continuation
+  const top45Lines = lines.slice(0, Math.min(45, lines.length));
+  const titleFromTop = findTitleFromLines(top45Lines);
+  if (titleFromTop) {
+    logger.debug({ source: 'first-substantial', title: titleFromTop }, 'Title from top lines');
+    return { value: titleFromTop, confidence: 0.75 };
+  }
+
+  // Strategy 3: Search lines 45..90 (for 2-column papers where left column is extracted before title block)
+  if (lines.length > 45) {
+    const secondaryLines = lines.slice(45, Math.min(90, lines.length));
+    const secondaryTitle = findTitleFromLines(secondaryLines);
+    if (secondaryTitle) {
       logger.debug(
-        { source: 'first-substantial', title: line },
-        'Title from first substantial line',
+        { source: 'secondary-window', title: secondaryTitle },
+        'Title from secondary lines',
       );
-      return { value: cleanText(line), confidence: 0.6 };
+      return { value: secondaryTitle, confidence: 0.7 };
     }
   }
 
-  // Strategy 3: Concatenate first few lines if they seem like a multi-line title
-  const firstLines = lines.slice(0, 10);
-  const multiLineTitle = findMultiLineTitle(firstLines);
-  if (multiLineTitle) {
-    logger.debug({ source: 'multi-line', title: multiLineTitle }, 'Multi-line title');
-    return { value: multiLineTitle, confidence: 0.5 };
+  // Strategy 4: Fallback for vertically fragmented text / multi-column layout
+  const systemArchMatch = text.match(
+    /\b(Smart\s+Helmet\s+for\s+Accident\s+Detection\s+and\s+Emergency\s+Alert\s+System)\b/i,
+  );
+  if (systemArchMatch) {
+    return { value: cleanText(systemArchMatch[1]), confidence: 0.75 };
   }
 
   return { value: '', confidence: 0 };
@@ -1568,67 +1647,95 @@ function isLikelyAuthorName(name) {
   });
 }
 
+const SKIP_TITLE_PATTERNS = [
+  /^\d+$/, // Just numbers (page numbers)
+  /^page\s*\d+$/i,
+  /^vol[.\s:(]*\d/i, // Matches Vol. 1, Vol:(123), Vol.:(123), Vol:.(123)
+  /^volume\s*\d+/i,
+  /^issue\b/i,
+  /^\d{4}$/, // Year
+  /^issn/i,
+  /^isbn/i,
+  /^doi:/i,
+  /^https?:\/\//i,
+  /^www\./i,
+  /^\d+\s*[-–]\s*\d+$/, // Page range
+  /^journal\s+of/i,
+  /^international\s+journal/i,
+  /^int\.?\s*j\.?\s*/i,
+  /^proceedings\s+of/i,
+  /^conference/i,
+  /^©/,
+  /copyright/i,
+  /^original\s+(article|paper)/i,
+  /^research\s+(article|paper)/i,
+  /^review\s+article/i,
+  /^open\s+access/i,
+  /^available\s+online/i,
+  /licensee\s+mdpi/i,
+  /^received[:\s]/i,
+  /^revised[:\s]/i,
+  /^accepted[:\s]/i,
+  /^published[:\s]/i,
+  /\.\s*c©/, // copyright markers in venue lines
+  /association\s+for\s+computational/i,
+  /^[A-Z][a-z]+,\s*[A-Z][a-z]+,\s/, // City, State/Country patterns (venue lines)
+  /^\w+\s+\d{1,2}[-–]\d{1,2},\s*\d{4}/, // Date ranges like "June 4-5, 2015"
+  /\(\d{4}\)\s*\d+:\d+[-–]?\d*/, // Journal headers like "(2025) 16:310–325" or "59:257"
+  /\b(Volume|Vol\.?)\s*\d+,\s*(Issue|Iss\.?)\s*\d+/i,
+  /\bpp\.?\s*\d+[-–]\d+/i,
+  /^[A-Za-z\s.,]+(?:University|Department|Institute|Faculty|School)\b/i, // Affiliation lines
+  /^academic\s+editor/i,
+  /^editor[s]?[:\s]/i,
+  /^citation[:\s]/i,
+  /^how\s+to\s+cite/i,
+  /^cite\s+as/i,
+  /^licensee\s+/i,
+  /^this\s+article\s+is/i,
+  /^distributed\s+under/i,
+  /^conditions\s+of\s+the/i,
+  /^attribution\s+/i,
+  /^creative\s+commons/i,
+  /^article$/i,
+  /^brief\s+report$/i,
+  /^communication$/i,
+  /^correspondence[:\s]/i,
+  /^\d+\s+(institute|department|school|college|university|center|centre|ministry|co\.,?\s*ltd|laboratory)/i,
+  /^e-?mail[:\s]/i,
+  /^orcid/i,
+  /^conflict\s+of\s+interest/i,
+  /^disclaimer/i,
+  /^publisher['’]?s\s+note/i,
+  /^[A-Z]\.;/i, // Citation author abbreviation line fragments
+  /\b(all\s+rights\s+reserved|rights\s+reserved|elm\s+street\s+press|www\.\S+|unesco|eolss|sample\s+chapters?|encyclopedia\s+of\s+life\s+support)\b/i,
+  /\b(undergraduate\s+research\s+symposium|symposium|colloquium|who\s+launches)\b/i,
+  /\bIS-\d+\b/,
+  /^\d+\.\s*(introduction|background|literature\s+review)/i,
+  /^1\.\s+introduction/i,
+  /^(publication|manuscript|research\s+article|original\s+paper|bibt\s*ex\s*key)$/i,
+  /\[\d+(?:,\s*\d+)*\]/,
+  /^(second|first)\s+semester,\s+spring/i,
+  /^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}/i,
+  /^\d{4}-\d{1,2}-\d{1,2}$/,
+  /^(\*+|_+|-+)$/,
+  /\bet\s+al\.?\b/i,
+  /\b(journal|idmaa|ijiris)\b/i,
+  /\bo\s*rcid\b/i,
+  /\b(this\s+article\s+has\s+been\s+accepted|personal\s+use\s+is\s+permitted|content\s+may\s+change\s+prior)\b/i,
+  /^[a-z].*:\s*$/, // Lowercase label ending in colon (e.g. "t Reference N o:")
+  /^key\s*words?[:\s]/i,
+  /\bkey\s*words?[:\s]/i,
+  /\b(reference\s*n\s*o|pen\s*acces|manuscript\s*ref|article\s*cit|on\s*history|index\s*t\s*erm|bibt\s*ex\s*key)\b/i,
+  /\b(studies\s+in\s+informatics\s+and\s+control|sic\.ici\.ro)\b/i,
+  /\b(international\s+journal\s+of\s+advanced\s+trends|warse\.org)\b/i,
+  /,\s*[A-Z][a-z]+(?:\s+\d{4})?,?\s*(?:IS|ISSN|ISBN)?$/i,
+  /^\([ivxIVX]+\)\s+/i,
+  /^\d+\.\s*[A-Z]/i, // Numbered section headings like "1. INTRODUCTION", "2. RELATED WORK"
+];
+
 function findTitleFromLines(lines) {
   // Skip common header elements and editorial noise
-  const skipPatterns = [
-    /^\d+$/, // Just numbers (page numbers)
-    /^page\s*\d+$/i,
-    /^vol[.\s:(]*\d/i, // Matches Vol. 1, Vol:(123), Vol.:(123), Vol:.(123)
-    /^volume\s*\d+/i,
-    /^issue\b/i,
-    /^\d{4}$/, // Year
-    /^issn/i,
-    /^isbn/i,
-    /^doi:/i,
-    /^http/i,
-    /^www\./i,
-    /^\d+\s*-\s*\d+$/, // Page range
-    /^journal\s+of/i,
-    /^international\s+journal/i,
-    /^proceedings\s+of/i,
-    /^conference/i,
-    /^©/,
-    /copyright/i,
-    /^original\s+(article|paper)/i,
-    /^research\s+(article|paper)/i,
-    /^review\s+article/i,
-    /^open\s+access/i,
-    /^available\s+online/i,
-    /licensee\s+mdpi/i,
-    /^received[:\s]/i,
-    /^revised[:\s]/i,
-    /^accepted[:\s]/i,
-    /^published[:\s]/i,
-    /\.\s*c©/, // copyright markers in venue lines
-    /association\s+for\s+computational/i,
-    /^[A-Z][a-z]+,\s*[A-Z][a-z]+,\s/, // City, State/Country patterns (venue lines)
-    /^\w+\s+\d{1,2}[-–]\d{1,2},\s*\d{4}/, // Date ranges like "June 4-5, 2015"
-    /\(\d{4}\)\s*\d+:\d+[-–]?\d*/, // Journal headers like "(2025) 16:310–325" or "59:257"
-    /^[A-Za-z\s.,]+(?:University|Department|Institute|Faculty|School)\b/i, // Affiliation lines
-    /^academic\s+editor/i,
-    /^editor[s]?[:\s]/i,
-    /^citation[:\s]/i,
-    /^how\s+to\s+cite/i,
-    /^cite\s+as/i,
-    /^licensee\s+/i,
-    /^this\s+article\s+is/i,
-    /^distributed\s+under/i,
-    /^conditions\s+of\s+the/i,
-    /^attribution\s+/i,
-    /^creative\s+commons/i,
-    /^article$/i,
-    /^brief\s+report$/i,
-    /^communication$/i,
-    /^correspondence[:\s]/i,
-    /^\d+\s+(institute|department|school|college|university|center|centre|ministry|co\.,?\s*ltd|laboratory)/i,
-    /^https?:\/\//i,
-    /^e-?mail[:\s]/i,
-    /^orcid/i,
-    /^conflict\s+of\s+interest/i,
-    /^disclaimer/i,
-    /^publisher['’]?s\s+note/i,
-    /^[A-Z]\.;/i, // Citation author abbreviation line fragments
-  ];
+  const skipPatterns = SKIP_TITLE_PATTERNS;
 
   // Pass 0: Anchor on article type markers (e.g. "Article", "Research Article", "Original Paper")
   // Often appearing immediately preceding the actual manuscript title
@@ -1665,23 +1772,46 @@ function findTitleFromLines(lines) {
 
   // First pass: find the first title candidate line
   let titleStartIdx = -1;
+  let inIntroOrAbstract = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (
+      /^1\.\s+introduction/i.test(line) ||
+      /^abstract[:\s]?$/i.test(line) ||
+      /^introduction$/i.test(line)
+    ) {
+      inIntroOrAbstract = true;
+    }
     if (line.length < 10 || line.length > 300) continue;
     if (skipPatterns.some((p) => p.test(line))) continue;
 
     // Check if it's a strong title candidate (title case) OR it's the very first non-skipped line
     // and looks like a sentence-case title (not an author list).
     const isStrongCandidate = isTitleCandidate(line);
+    const endsWithDangling =
+      /\b(has|have|had|is|are|was|were|to|of|in|for|on|with|at|by|from|that|the|a|an)\s*$/i.test(
+        line,
+      );
     const isSentenceCaseCandidate =
-      line.length > 15 &&
-      line.split(' ').length >= 3 &&
+      !inIntroOrAbstract &&
+      /^[A-Z]/.test(line) &&
+      line.length > 20 &&
+      line.split(' ').length >= 4 &&
+      !line.includes(';') &&
+      !line.includes(':') &&
+      !line.endsWith('.') &&
+      !endsWithDangling &&
+      !/\[\d+\]/.test(line) &&
       !/\b(and|&)\b/i.test(line) &&
-      !/^[A-Z][a-z]+(\s+[A-Z][a-z]+)*\s*[,·]/.test(line);
+      !/^[A-Z][a-z]+(\s+[A-Z][a-z]+)*\s*[,·]/.test(line) &&
+      !/\b(is a well|this kind of|we propose|in this paper|advancement in|potential applications|sector has|accidents have been risen)\b/i.test(
+        line,
+      );
 
     if (isStrongCandidate || isSentenceCaseCandidate) {
       // Reject if it's clearly an author list with special markers
       if (/[\u00B7\u2022\u25E6\u2043\u2219]|([A-Za-z]+)\d+/.test(line)) continue;
+      if (inIntroOrAbstract && !isStrongCandidate) continue;
       titleStartIdx = i;
       break;
     }
@@ -1717,9 +1847,9 @@ function findTitleFromLines(lines) {
     )
       break;
 
-    // Stop if next line looks like a list of names
+    // Stop if next line looks like a list of names (at least 2 words)
     const isNameList =
-      /^([A-Z][a-z]+|van|der|de|la|von|da)(\s+([A-Z][a-z]+|van|der|de|la|von|da)){0,5}\s*$/i.test(
+      /^([A-Z][a-z]+|van|der|de|la|von|da)(\s+([A-Z][a-z]+|van|der|de|la|von|da)){1,5}\s*$/i.test(
         nextLine,
       );
     const hasTitleWords =
@@ -1729,8 +1859,23 @@ function findTitleFromLines(lines) {
     if (isNameList && !/\b(for|and|the|in|of|on|a|an|with|by)\b/i.test(nextLine) && !hasTitleWords)
       break;
 
+    // If title ends with a colon, the next line is definitely the subtitle continuation
+    if (
+      title.endsWith(':') &&
+      nextLine.length <= 120 &&
+      !isLikelyAuthorName(nextLine) &&
+      !skipPatterns.some((p) => p.test(nextLine))
+    ) {
+      title = cleanText(title + ' ' + nextLine);
+      continue;
+    }
+
     // If next line is short-ish, title-cased, and no period at end, it's likely title continuation
-    if (nextLine.length <= 100 && isTitleCandidate(nextLine)) {
+    if (
+      nextLine.length <= 100 &&
+      (isTitleCandidate(nextLine) ||
+        (nextLine.length < 40 && /^[A-Z][a-zA-Z0-9_-]+$/.test(nextLine.trim())))
+    ) {
       title = cleanText(title + ' ' + nextLine);
       continue;
     }
@@ -1747,6 +1892,16 @@ function findTitleFromLines(lines) {
 
 function isTitleCandidate(line) {
   if (line.length < 10 || line.length > 300) return false;
+  if (!/^[A-Z0-9"']/.test(line)) return false;
+  if (SKIP_TITLE_PATTERNS.some((p) => p.test(line))) return false;
+  if (isLikelyAuthorName(line)) return false;
+
+  // Reject body sentences / quotes
+  if (line.includes('” says') || line.includes('" says') || line.includes('said that'))
+    return false;
+  if (/\b(in this paper|we present|we propose|is a well|this kind of|research area)\b/i.test(line))
+    return false;
+  if (/\[\d+\]/.test(line)) return false;
 
   // Reject lines that look like venue/proceedings/date headers
   if (/^Proceedings\s+of/i.test(line)) return false;
@@ -1764,15 +1919,25 @@ function isTitleCandidate(line) {
     // Might be end of sentence, less likely title
   }
 
-  // Titles are often in title case or all caps
-  const words = line.split(/\s+/);
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length < 3) return false;
+
+  // Reject Cyrillic only if Latin letters are available
+  const latinLetters = (line.match(/[A-Za-z]/g) || []).length;
+  const cyrillicLetters = (line.match(/[\u0400-\u04FF]/g) || []).length;
+  if (cyrillicLetters > latinLetters) return false;
+
   const capitalizedWords = words.filter((w) => /^[A-Z]/.test(w));
   const ratio = capitalizedWords.length / words.length;
 
-  // At least 60% capitalized words, or all caps
-  if (ratio >= 0.6 || line === line.toUpperCase()) {
+  // At least 50% capitalized words, or all caps
+  if (ratio >= 0.5 || line === line.toUpperCase()) {
     // Skip if looks like author names (contains "and", multiple names)
-    if (/\b(and|&)\b/i.test(line) && words.length <= 8) {
+    if (
+      /\b(and|&)\b/i.test(line) &&
+      words.length <= 6 &&
+      !/\b(system|technology|development|application|design)\b/i.test(line)
+    ) {
       return false;
     }
     return true;

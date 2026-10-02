@@ -90,6 +90,39 @@ describe('MidSemesterBalancingStrategy', () => {
     expect(result.snapshot).toBeDefined();
     expect(result.snapshot.scoreGap).toBeCloseTo(10, 1);
   });
+
+  it('should support balancing panelists when roleScope is "panelist"', async () => {
+    const workload = {
+      advisers: [],
+      panelists: [
+        { panelistId: 'p1', panelistName: 'Dr. Panelist Lead', workloadScore: 15 },
+        { panelistId: 'p2', panelistName: 'Dr. Panelist Helper', workloadScore: 2 },
+      ],
+      summary: { adviserCount: 0, panelistCount: 2, averageScore: 8.5 },
+    };
+    const result = await strategy.executeOptimization(workload, { roleScope: 'panelist' });
+    expect(result.suggested).toBe(true);
+    expect(result.suggestions[0].fromAdviserName).toBe('Dr. Panelist Lead');
+    expect(result.suggestions[0].toAdviserName).toBe('Dr. Panelist Helper');
+    expect(result.suggestions[0].roleType).toBe('panelist');
+    expect(result.suggestions[0].action).toContain('panelist');
+  });
+
+  it('should balance across all faculty committee members when roleScope is "all"', async () => {
+    const workload = {
+      advisers: [adviser('a1', 'Alice', 10)],
+      panelists: [{ panelistId: 'p1', panelistName: 'Dr. Panelist', workloadScore: 2 }],
+      faculty: [
+        { facultyId: 'f1', facultyName: 'Alice', workloadScore: 16, roleType: 'committee' },
+        { facultyId: 'f2', facultyName: 'Bob', workloadScore: 2, roleType: 'committee' },
+      ],
+      summary: { adviserCount: 1, panelistCount: 1, facultyCount: 2, averageScore: 9 },
+    };
+    const result = await strategy.executeOptimization(workload, { roleScope: 'all' });
+    expect(result.suggested).toBe(true);
+    expect(result.suggestions[0].fromFacultyName).toBe('Alice');
+    expect(result.suggestions[0].toFacultyName).toBe('Bob');
+  });
 });
 
 /* ─────────────── EndSemesterAuditStrategy ─────────────── */
@@ -127,10 +160,7 @@ describe('EndSemesterAuditStrategy', () => {
   });
 
   it('should include restrictionNote in end-semester suggestions', async () => {
-    const workload = makeWorkload([
-      adviser('a1', 'Alice', 20),
-      adviser('a2', 'Bob', 4),
-    ]);
+    const workload = makeWorkload([adviser('a1', 'Alice', 20), adviser('a2', 'Bob', 4)]);
     const result = await strategy.executeOptimization(workload);
     if (result.suggestions.length > 0) {
       expect(result.suggestions[0].restrictionNote).toBeDefined();

@@ -31,6 +31,15 @@ const pdfMetadataUpload = createMemoryUpload(pdfMetadataMaxBytes, 1);
 const avatarUpload = createMemoryUpload(5 * 1024 * 1024, 1);
 
 /**
+ * Multer instance for chapter uploads:
+ * one required chapter document ('file') and one optional justification letter ('justificationLetter').
+ */
+const chapterUpload = createMemoryUpload(maxBytes, 2).fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'justificationLetter', maxCount: 1 },
+]);
+
+/**
  * Multer instance for archive bundle uploads:
  * one required academic paper and one optional journal paper.
  */
@@ -55,5 +64,5 @@ const prototypeUpload = multer({
   },
 });
 
-export { prototypeUpload, archiveDualUpload, pdfMetadataUpload, avatarUpload };
+export { chapterUpload, prototypeUpload, archiveDualUpload, pdfMetadataUpload, avatarUpload };
 export default upload;

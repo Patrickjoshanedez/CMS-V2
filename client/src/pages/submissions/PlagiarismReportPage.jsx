@@ -1572,7 +1572,7 @@ function PlagiarismReportPage({
               <div
                 ref={canvasContainerRef}
                 onScroll={handleCanvasScroll}
-                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-slate-900/60 dark:bg-slate-950"
+                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-muted/40"
                 style={{ maxHeight: '76vh', scrollBehavior: 'smooth' }}
                 tabIndex={0}
                 role="region"
@@ -1583,7 +1583,9 @@ function PlagiarismReportPage({
                     data-paper-canvas={paperMode === 'paper' ? 'paper' : 'theme'}
                     className={cn(
                       'w-full flex flex-col items-center gap-10 select-text transition-all',
-                      paperMode === 'paper' ? 'bg-white text-[#0f172a]' : 'bg-card text-foreground',
+                      paperMode === 'paper'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'bg-card text-foreground',
                     )}
                     style={{ background: 'transparent' }}
                   >
@@ -1616,7 +1618,7 @@ function PlagiarismReportPage({
                           className={cn(
                             'w-full max-w-[8.5in] min-h-[11in] rounded-sm transition-all duration-200 select-text flex flex-col justify-between shadow-2xl ring-1',
                             paperMode === 'paper'
-                              ? 'bg-white text-[#0f172a] border border-slate-200/90 ring-black/10'
+                              ? 'bg-card text-card-foreground border border-border/80 ring-border/20'
                               : 'bg-card text-foreground border border-border/80 ring-border/20',
                           )}
                           style={{
@@ -1626,7 +1628,7 @@ function PlagiarismReportPage({
                             padding: 'clamp(1.25rem, 4vw, 1in)',
                             boxSizing: 'border-box',
                             position: 'relative',
-                            color: paperMode === 'paper' ? '#0f172a' : undefined,
+                            color: undefined,
                           }}
                         >
                           {isCover ? (
@@ -1638,7 +1640,7 @@ function PlagiarismReportPage({
                                     key={line.id}
                                     className={cn(
                                       'text-center font-bold text-lg sm:text-xl md:text-2xl tracking-tight uppercase max-w-2xl mx-auto my-4',
-                                      paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+                                      'text-foreground',
                                     )}
                                   >
                                     {renderLineFragments(line)}

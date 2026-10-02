@@ -102,6 +102,12 @@ export const useSettingsStore = create((set, get) => ({
   maxFileSize: 25 * 1024 * 1024,
   documentTemplates: [
     {
+      documentType: 'manuscript_template',
+      templateUrl:
+        'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy',
+      description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+    },
+    {
       documentType: 'proposal_template',
       templateUrl: 'https://docs.google.com/document/d/example-proposal',
       description: 'Capstone 1 Proposal Manuscript Template',

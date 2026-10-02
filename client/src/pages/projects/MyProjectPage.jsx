@@ -338,17 +338,17 @@ export default function MyProjectPage() {
                   This project is archived. Workflow uploads and edits are read-only.
                 </AlertDescription>
               </Alert>
-              <Card className="rounded-2xl border-y border-r border-l-4 border-border border-l-primary bg-card shadow-lg mb-6 mt-6">
-                <CardContent className="p-6">
+              <Card className="rounded-xl border-y border-r border-l-4 border-border/60 border-l-primary bg-card shadow-xs mb-6 mt-6">
+                <CardContent className="p-5 sm:p-6">
                   <div className="flex justify-between items-start gap-4">
                     <div>
-                      <h2 className="text-2xl font-bold text-card-foreground mb-2 leading-tight">
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground mb-2 leading-tight">
                         {project.title || 'Archived Project'}
                       </h2>
                       <div className="flex gap-2">
                         <Badge
                           variant="outline"
-                          className="bg-muted border-border text-muted-foreground"
+                          className="bg-muted border-border/60 text-muted-foreground"
                         >
                           {project.projectStatus}
                         </Badge>
@@ -359,12 +359,12 @@ export default function MyProjectPage() {
               </Card>
 
               {/* Official Full Manuscript Paper Reader & Archival Document Package */}
-              <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6 mb-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+              <div className="rounded-xl border border-border/60 bg-card shadow-xs p-5 sm:p-6 space-y-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <BookMarked className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-bold text-foreground">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-foreground">
                         Official Full Manuscript Paper
                       </h3>
                     </div>
@@ -398,7 +398,7 @@ export default function MyProjectPage() {
 
                 {/* Abstract Reader */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
                     Executive Abstract
                   </h4>
                   <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
@@ -410,7 +410,7 @@ export default function MyProjectPage() {
 
                 {/* Citation Generator */}
                 <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
                     Academic Citation Formats
                   </h4>
                   <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
@@ -439,7 +439,11 @@ export default function MyProjectPage() {
               {/* Status & Deadline Alerts */}
               {project.deadlines && (
                 <div className="no-print">
-                  <DeadlineWarning deadlines={project.deadlines} compact />
+                  <DeadlineWarning
+                    deadlines={project.deadlines}
+                    defenseSchedule={project.defenseSchedule}
+                    compact
+                  />
                 </div>
               )}
 

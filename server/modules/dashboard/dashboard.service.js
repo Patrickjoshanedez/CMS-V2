@@ -23,6 +23,7 @@ import {
   PROJECT_STATUSES,
   EVALUATION_STATUSES,
 } from '@cms/shared';
+import { WorkloadOptimizationContext } from '../optimization/WorkloadOptimizationContext.js';
 
 class DashboardService {
   /**
@@ -770,124 +771,195 @@ class DashboardService {
   }
 
   /**
-   * Phase 4: Cross-adviser workload matrix.
+   * Phase 4: Cross-faculty workload matrix (advisers, panelists, and full committee load).
    * @returns {Promise<Object>}
    */
   async getInstructorWorkload() {
-    const advisers = await User.find({ role: ROLES.ADVISER, isActive: true })
-      .select('firstName lastName')
+    const faculty = await User.find({
+      role: { $in: [ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST] },
+      isActive: true,
+    })
+      .select('firstName lastName role email')
       .lean();
 
-    const adviserRows = await Promise.all(
-      advisers.map(async (adviser) => {
-        const projectIds = await Project.find({ adviserId: adviser._id, isArchived: { $ne: true } })
-          .select('_id')
-          .lean();
-        const ids = projectIds.map((p) => p._id);
+    const facultyIds = faculty.map((f) => f._id);
 
-        if (ids.length === 0) {
-          return {
-            adviserId: adviser._id,
-            adviserName: `${adviser.firstName} ${adviser.lastName}`,
-            projectCount: 0,
-            pending: 0,
-            revisions: 0,
-            overdue: 0,
-            workloadScore: 0,
-          };
-        }
+    // Fetch all active projects involving any of these faculty members
+    const allProjects = await Project.find({
+      isArchived: { $ne: true },
+      $or: [{ adviserId: { $in: facultyIds } }, { panelistIds: { $in: facultyIds } }],
+    })
+      .select('_id adviserId panelistIds')
+      .lean();
 
-        const submissions = await Submission.find({ projectId: { $in: ids } })
-          .select('status revisionDeadline')
-          .lean();
+    const projectIds = allProjects.map((p) => p._id);
 
-        const now = new Date();
-        const pending = submissions.filter((s) => s.status === SUBMISSION_STATUSES.PENDING).length;
-        const revisions = submissions.filter(
-          (s) => s.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED,
-        ).length;
-        const overdue = submissions.filter(
-          (s) => s.revisionDeadline && new Date(s.revisionDeadline) < now,
-        ).length;
-        const workloadScore = pending * 2 + revisions * 1.5 + overdue * 3;
+    // Fetch relevant submissions & draft evaluations in batch
+    const [allSubmissions, draftEvaluations] = await Promise.all([
+      Submission.find({ projectId: { $in: projectIds } })
+        .select('projectId status revisionDeadline')
+        .lean(),
+      Evaluation.find({
+        panelistId: { $in: facultyIds },
+        status: EVALUATION_STATUSES.DRAFT,
+      })
+        .select('panelistId projectId')
+        .lean(),
+    ]);
 
-        return {
-          adviserId: adviser._id,
-          adviserName: `${adviser.firstName} ${adviser.lastName}`,
-          projectCount: ids.length,
-          pending,
-          revisions,
-          overdue,
-          workloadScore: Number(workloadScore.toFixed(2)),
-        };
-      }),
-    );
+    // Index submissions by projectId
+    const subsByProject = new Map();
+    for (const sub of allSubmissions) {
+      const pid = sub.projectId?.toString();
+      if (!pid) continue;
+      if (!subsByProject.has(pid)) subsByProject.set(pid, []);
+      subsByProject.get(pid).push(sub);
+    }
+
+    // Index draft evaluations by panelistId
+    const evalsByPanelist = new Map();
+    for (const ev of draftEvaluations) {
+      const pid = ev.panelistId?.toString();
+      if (!pid) continue;
+      if (!evalsByPanelist.has(pid)) evalsByPanelist.set(pid, []);
+      evalsByPanelist.get(pid).push(ev);
+    }
+
+    const now = new Date();
+
+    const adviserRows = [];
+    const panelistRows = [];
+    const facultyRows = [];
+
+    for (const member of faculty) {
+      const mId = member._id.toString();
+      const fullName = `${member.firstName} ${member.lastName}`.trim();
+
+      // 1. Advisory projects & metrics
+      const advProjects = allProjects.filter((p) => p.adviserId?.toString() === mId);
+      const advSubs = advProjects.flatMap((p) => subsByProject.get(p._id.toString()) || []);
+      const advPending = advSubs.filter((s) => s.status === SUBMISSION_STATUSES.PENDING).length;
+      const advRevisions = advSubs.filter(
+        (s) => s.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED,
+      ).length;
+      const advOverdue = advSubs.filter(
+        (s) => s.revisionDeadline && new Date(s.revisionDeadline) < now,
+      ).length;
+      const advScore = Number((advPending * 2 + advRevisions * 1.5 + advOverdue * 3).toFixed(2));
+
+      // 2. Panelist projects & metrics
+      const panProjects = allProjects.filter((p) =>
+        p.panelistIds?.some((id) => id?.toString() === mId),
+      );
+      const draftEvals = evalsByPanelist.get(mId) || [];
+      const panPending = draftEvals.length;
+      const panScore = Number((panProjects.length * 1.5 + panPending * 2).toFixed(2));
+
+      // 3. Combined load
+      const totalProjectIds = new Set([
+        ...advProjects.map((p) => p._id.toString()),
+        ...panProjects.map((p) => p._id.toString()),
+      ]);
+      const combinedScore = Number((advScore + panScore).toFixed(2));
+
+      const baseInfo = {
+        facultyId: member._id,
+        facultyName: fullName,
+        email: member.email,
+        role: member.role,
+      };
+
+      const advRow = {
+        ...baseInfo,
+        adviserId: member._id,
+        adviserName: fullName,
+        roleType: 'adviser',
+        projectCount: advProjects.length,
+        pending: advPending,
+        revisions: advRevisions,
+        overdue: advOverdue,
+        workloadScore: advScore,
+      };
+
+      const panRow = {
+        ...baseInfo,
+        panelistId: member._id,
+        panelistName: fullName,
+        roleType: 'panelist',
+        projectCount: panProjects.length,
+        pending: panPending,
+        revisions: 0,
+        overdue: 0,
+        workloadScore: panScore,
+      };
+
+      const facRow = {
+        ...baseInfo,
+        adviserId: member._id,
+        adviserName: fullName,
+        roleType: 'committee',
+        adviserProjectCount: advProjects.length,
+        panelistProjectCount: panProjects.length,
+        projectCount: totalProjectIds.size,
+        pending: advPending + panPending,
+        revisions: advRevisions,
+        overdue: advOverdue,
+        workloadScore: combinedScore,
+      };
+
+      adviserRows.push(advRow);
+      panelistRows.push(panRow);
+      facultyRows.push(facRow);
+    }
 
     adviserRows.sort((a, b) => b.workloadScore - a.workloadScore);
+    panelistRows.sort((a, b) => b.workloadScore - a.workloadScore);
+    facultyRows.sort((a, b) => b.workloadScore - a.workloadScore);
+
+    const calcAvg = (rows) =>
+      rows.length > 0
+        ? Number((rows.reduce((sum, r) => sum + r.workloadScore, 0) / rows.length).toFixed(2))
+        : 0;
 
     return {
       advisers: adviserRows,
+      panelists: panelistRows,
+      faculty: facultyRows,
       summary: {
         adviserCount: adviserRows.length,
-        averageScore:
-          adviserRows.length > 0
-            ? Number(
-                (
-                  adviserRows.reduce((acc, row) => acc + row.workloadScore, 0) / adviserRows.length
-                ).toFixed(2),
-              )
-            : 0,
+        panelistCount: panelistRows.length,
+        facultyCount: facultyRows.length,
+        averageScore: calcAvg(facultyRows),
+        adviserAverageScore: calcAvg(adviserRows),
+        panelistAverageScore: calcAvg(panelistRows),
       },
     };
   }
 
   /**
-   * Phase 4: Suggest balancing actions for adviser workload.
+   * Phase 4: Suggest balancing actions for faculty workload (Strategy Pattern).
+   * Supports roleScope ('all' | 'adviser' | 'panelist') and mode ('mid_semester' | 'end_semester').
+   * @param {string|Object} [userIdOrOptions]
+   * @param {Object} [maybeOptions={}]
    * @returns {Promise<Object>}
    */
-  async optimizeInstructorWorkload() {
+  async optimizeInstructorWorkload(userIdOrOptions, maybeOptions = {}) {
+    let options = {};
+    if (typeof userIdOrOptions === 'object' && userIdOrOptions !== null) {
+      options = userIdOrOptions;
+    } else if (typeof maybeOptions === 'object' && maybeOptions !== null) {
+      options = maybeOptions;
+    }
+
+    const mode = options.mode || 'mid_semester';
+    const roleScope = options.roleScope || 'all';
+
     const workload = await this.getInstructorWorkload();
-    const advisers = workload.advisers;
 
-    if (advisers.length < 2) {
-      return {
-        suggested: false,
-        reason: 'At least two advisers are needed for balancing suggestions.',
-        suggestions: [],
-      };
-    }
+    const context = new WorkloadOptimizationContext();
+    context.resolveStrategy(mode);
 
-    const heaviest = advisers[0];
-    const lightest = advisers[advisers.length - 1];
-    const scoreGap = heaviest.workloadScore - lightest.workloadScore;
-
-    if (scoreGap < 4) {
-      return {
-        suggested: false,
-        reason: 'Workload distribution is already balanced.',
-        suggestions: [],
-      };
-    }
-
-    return {
-      suggested: true,
-      reason: 'Detected significant workload imbalance.',
-      suggestions: [
-        {
-          fromAdviserId: heaviest.adviserId,
-          fromAdviserName: heaviest.adviserName,
-          toAdviserId: lightest.adviserId,
-          toAdviserName: lightest.adviserName,
-          action: 'Reassign 1-2 pending projects from heavy to light adviser.',
-          estimatedScoreGapReduction: Number((scoreGap * 0.4).toFixed(2)),
-        },
-      ],
-      snapshot: {
-        heaviest,
-        lightest,
-        scoreGap: Number(scoreGap.toFixed(2)),
-      },
-    };
+    return context.executeOptimization(workload, { roleScope });
   }
 
   /**

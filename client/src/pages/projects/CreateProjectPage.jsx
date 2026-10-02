@@ -1236,7 +1236,17 @@ export default function CreateProjectPage() {
       <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto min-w-0 bg-slate-100 dark:bg-[#060b13] text-foreground transition-colors">
         {/* 1. Header Toolbar & Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-300 dark:border-slate-800 pb-5">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/project')}
+              className="h-7 px-2 -ml-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-slate-800/60 gap-1"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>Back to My Capstone</span>
+            </Button>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 Capstone 1: Title Proposal Studio

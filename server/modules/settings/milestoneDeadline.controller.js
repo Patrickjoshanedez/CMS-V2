@@ -3,11 +3,23 @@
  * Manages CRUD operations for academic milestone submission deadlines.
  */
 import MilestoneDeadline from './milestoneDeadline.model.js';
+import Project from '../projects/project.model.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/AppError.js';
 import { HTTP_STATUS, ROLES } from '@cms/shared';
 import { emitToAll } from '../../services/socket.service.js';
 import deadlineNotificationService from './deadlineNotification.service.js';
+
+const DELIVERABLE_DEADLINE_MAP = {
+  chapter_1: 'chapter1',
+  chapter_2: 'chapter2',
+  chapter_3: 'chapter3',
+  proposal: 'proposal',
+  chapter_4: 'chapter4',
+  chapter_5: 'chapter5',
+  oral_defense: 'defense',
+  defense: 'defense',
+};
 
 /**
  * GET /api/settings/deadlines/milestone
@@ -81,6 +93,8 @@ export const upsertMilestoneDeadline = catchAsync(async (req, res) => {
     createdBy: req.user?._id || null,
   };
 
+  const existingDeadline = await MilestoneDeadline.findOne(filter).select('deadlineDate').lean();
+
   const deadline = await MilestoneDeadline.findOneAndUpdate(
     filter,
     { $set: update },
@@ -91,6 +105,41 @@ export const upsertMilestoneDeadline = catchAsync(async (req, res) => {
       setDefaultsOnInsert: true,
     },
   ).populate('sectionId', 'name code');
+
+  // Synchronize Project.deadlines for matching academic year / section
+  const deadlineKey = DELIVERABLE_DEADLINE_MAP[deliverable];
+  if (deadlineKey && deadline.deadlineDate) {
+    const projectFilter = {};
+    if (batchYear) {
+      projectFilter.$or = [
+        { academicYear: String(batchYear).trim() },
+        { academicYear: { $exists: false } },
+        { academicYear: null },
+        { academicYear: '' },
+      ];
+    }
+    if (targetType === 'section' && sectionId) projectFilter.sectionId = sectionId;
+
+    const newDate = new Date(deadline.deadlineDate);
+    const isMoved =
+      existingDeadline?.deadlineDate &&
+      new Date(existingDeadline.deadlineDate).getTime() !== newDate.getTime();
+
+    const updateDoc = {
+      $set: { [`deadlines.${deadlineKey}`]: newDate },
+      $pull: { 'deadlines.removed': deadlineKey },
+    };
+
+    if (isMoved) {
+      updateDoc.$set[`deadlines.moved.${deadlineKey}`] = {
+        oldDate: existingDeadline.deadlineDate,
+        newDate,
+        movedAt: new Date(),
+      };
+    }
+
+    await Project.updateMany(projectFilter, updateDoc);
+  }
 
   // Broadcast real-time update to all connected clients
   try {
@@ -141,6 +190,30 @@ export const deleteMilestoneDeadline = catchAsync(async (req, res) => {
       HTTP_STATUS.NOT_FOUND,
       'DEADLINE_NOT_FOUND',
     );
+  }
+
+  // Synchronize Project.deadlines: unset removed deadline field on matching projects
+  const deadlineKey = DELIVERABLE_DEADLINE_MAP[deadline.deliverable];
+  if (deadlineKey) {
+    const projectFilter = {};
+    if (deadline.batchYear) {
+      projectFilter.$or = [
+        { academicYear: String(deadline.batchYear).trim() },
+        { academicYear: { $exists: false } },
+        { academicYear: null },
+        { academicYear: '' },
+      ];
+    }
+    if (deadline.targetType === 'section' && deadline.sectionId) {
+      projectFilter.sectionId = deadline.sectionId;
+    }
+    await Project.updateMany(projectFilter, {
+      $unset: {
+        [`deadlines.${deadlineKey}`]: '',
+        [`deadlines.moved.${deadlineKey}`]: '',
+      },
+      $addToSet: { 'deadlines.removed': deadlineKey },
+    });
   }
 
   try {

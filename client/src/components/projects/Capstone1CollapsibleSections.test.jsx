@@ -29,10 +29,14 @@ vi.mock('@/hooks/useSubmissions', () => ({
   }),
 }));
 
+const mockApproveTitleMutate = vi.fn().mockResolvedValue({});
+const mockRejectTitleMutate = vi.fn().mockResolvedValue({});
+const mockAddTitleCommentMutate = vi.fn().mockResolvedValue({});
+
 vi.mock('@/hooks/useProjects', () => ({
-  useApproveTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useRejectTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useAddTitleComment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useApproveTitle: () => ({ mutateAsync: mockApproveTitleMutate, isPending: false }),
+  useRejectTitle: () => ({ mutateAsync: mockRejectTitleMutate, isPending: false }),
+  useAddTitleComment: () => ({ mutateAsync: mockAddTitleCommentMutate, isPending: false }),
 }));
 
 vi.mock('./ActionDoneMatrixTab', () => ({
@@ -49,6 +53,16 @@ vi.mock('./EvaluationPanel', () => ({
       Evaluation Panel ({defenseType})
     </div>
   ),
+}));
+
+vi.mock('@/components/defense/ScheduleDefenseModal', () => ({
+  default: ({ isOpen, onClose }) =>
+    isOpen ? (
+      <div data-testid="mock-schedule-defense-modal">
+        Schedule Defense Modal
+        <button onClick={onClose}>Close</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/submissions/ChapterReviewPanel', () => ({
@@ -307,5 +321,144 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     expect(mockToastError).toHaveBeenCalledWith(
       'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
     );
+    // Should also automatically pop the ScheduleDefenseModal for instructor convenience
+    expect(container.querySelector('[data-testid="mock-schedule-defense-modal"]')).toBeTruthy();
+  });
+
+  it('approves proposal and passes selectedProposalIndex (0-based) when defense hearing is scheduled', async () => {
+    const scheduledProject = {
+      ...mockProject,
+      titleStatus: 'submitted',
+      defenseSchedule: {
+        status: 'scheduled',
+        date: new Date('2026-10-20'),
+        time: '09:00 AM - 10:00 AM',
+        venue: 'COT Conference Room',
+      },
+    };
+
+    await renderComponent({
+      project: scheduledProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    expect(container.textContent).toContain('Defense Hearing Scheduled:');
+
+    const approveBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Approve Proposal as Official Title'),
+    );
+    await act(async () => {
+      approveBtn.click();
+    });
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit Official Decision'),
+    );
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockApproveTitleMutate).toHaveBeenCalledWith({
+      projectId: scheduledProject._id,
+      proposalId: 0,
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      expect.stringContaining('officially approved as capstone title'),
+    );
+  });
+
+  it('allows instructor to open ScheduleDefenseModal via inline button when unscheduled', async () => {
+    const unscheduledProject = {
+      ...mockProject,
+      titleStatus: 'submitted',
+      defenseSchedule: null,
+    };
+
+    await renderComponent({
+      project: unscheduledProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    const scheduleBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Schedule Defense Hearing'),
+    );
+    expect(scheduleBtn).toBeTruthy();
+
+    await act(async () => {
+      scheduleBtn.click();
+    });
+
+    expect(container.querySelector('[data-testid="mock-schedule-defense-modal"]')).toBeTruthy();
+  });
+
+  it('allows instructor to submit revision request with remarks and proposalId', async () => {
+    const scheduledProject = {
+      ...mockProject,
+      titleStatus: 'revision_required',
+      defenseSchedule: {
+        status: 'scheduled',
+        date: '2026-10-15T09:00:00.000Z',
+        time: '09:00 AM - 10:00 AM',
+        venue: 'COT AVR 1',
+      },
+    };
+
+    await renderComponent({
+      project: scheduledProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    const revisionBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Request Revisions from Proponents'),
+    );
+    expect(revisionBtn).toBeTruthy();
+
+    await act(async () => {
+      revisionBtn.click();
+    });
+
+    const textarea = container.querySelector('textarea');
+    expect(textarea).toBeTruthy();
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value',
+      ).set;
+      valueSetter.call(textarea, 'Please revise scope and title wording.');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit Official Decision'),
+    );
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockRejectTitleMutate).toHaveBeenCalledWith({
+      projectId: scheduledProject._id,
+      reason: 'Proposal Revision Required: Please revise scope and title wording.',
+      proposalId: 0,
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith('Title proposal sent back for revision.');
   });
 });

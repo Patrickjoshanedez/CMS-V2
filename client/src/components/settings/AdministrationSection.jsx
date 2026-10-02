@@ -61,8 +61,6 @@ export default function AdministrationSection() {
       const admTpl = templates.find((t) => t.documentType === 'adm_form');
       if (manuscriptTpl?.templateUrl) {
         setManuscriptTemplateUrl(manuscriptTpl.templateUrl);
-      } else if (proposalTpl?.templateUrl) {
-        setManuscriptTemplateUrl(proposalTpl.templateUrl);
       }
       if (proposalTpl?.templateUrl) {
         setProposalTemplateUrl(proposalTpl.templateUrl);
@@ -95,8 +93,6 @@ export default function AdministrationSection() {
       const admTpl = templates.find((t) => t.documentType === 'adm_form');
       if (manuscriptTpl?.templateUrl) {
         setManuscriptTemplateUrl(manuscriptTpl.templateUrl);
-      } else if (proposalTpl?.templateUrl) {
-        setManuscriptTemplateUrl(proposalTpl.templateUrl);
       }
       if (proposalTpl?.templateUrl) {
         setProposalTemplateUrl(proposalTpl.templateUrl);
@@ -194,8 +190,10 @@ export default function AdministrationSection() {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
 
       toast.success('Document templates saved and cascaded to student workspaces.');
+      setDirty(false);
     } catch (err) {
       toast.error(
         err?.response?.data?.error?.message || err?.message || 'Failed to save document templates.',

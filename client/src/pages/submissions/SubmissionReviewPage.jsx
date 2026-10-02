@@ -80,7 +80,8 @@ function formatCommentTimestamp(value) {
  * Derive the logged-in user's committee role for this project's workspace.
  * Compares userId against adviserId, panelistIds, and secretaryId from the workspace.
  */
-function deriveReviewerRole(userId, workspace) {
+function deriveReviewerRole(userId, workspace, userRole) {
+  if (userRole === ROLES.INSTRUCTOR) return 'Instructor';
   if (!userId || !workspace) return null;
   const uid = String(userId);
 
@@ -129,6 +130,11 @@ const ROLE_STYLE = {
     chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
     icon: GanttChartSquare,
     accent: 'border-l-amber-500',
+  },
+  Instructor: {
+    chip: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30',
+    icon: ShieldCheck,
+    accent: 'border-l-blue-500',
   },
 };
 
@@ -446,8 +452,8 @@ export default function SubmissionReviewPage() {
 
   // Derive reviewer's committee role client-side
   const reviewerRole = useMemo(
-    () => deriveReviewerRole(user?._id, workspace),
-    [user?._id, workspace],
+    () => deriveReviewerRole(user?._id, workspace, user?.role),
+    [user?._id, workspace, user?.role],
   );
 
   // Build context-aware back navigation
@@ -541,7 +547,11 @@ export default function SubmissionReviewPage() {
   });
 
   const unifiedHighlights = useMemo(() => {
-    const rawComments = submissionCommentsQuery.data || [];
+    const rawComments = Array.isArray(submissionCommentsQuery.data)
+      ? submissionCommentsQuery.data
+      : Array.isArray(submissionCommentsQuery.data?.comments)
+        ? submissionCommentsQuery.data.comments
+        : [];
     return rawComments.map((c, idx) => ({
       id: c._id || `comment-${idx}`,
       type: 'faculty_comment',
@@ -657,7 +667,12 @@ export default function SubmissionReviewPage() {
         workspace.panelistIds.some((pid) => String(pid?._id || pid) === String(user?._id))));
 
   const canModerate = (isAssignedAdviser || isInstructor || isPanelistForProposal) && !isArchived;
-  const canTakeDecision = Boolean(activeSubmissionId && !activeRound?.reviewClosed && canModerate);
+  const canTakeDecision = Boolean(
+    activeSubmissionId &&
+    !activeRound?.reviewClosed &&
+    !isArchived &&
+    (isAssignedAdviser || isInstructor),
+  );
 
   const annotationsCount = activeRound?.annotations?.length || 0;
   const tabs = [
@@ -805,153 +820,158 @@ export default function SubmissionReviewPage() {
         {/* ── Main Content: Sidebar + Content Area ── */}
         <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           {/* ── Left Sidebar ── */}
+          {/* ── Left Sidebar: Unified Review Inspector Card ── */}
           <div className="space-y-3">
-            {/* Submission Metadata Card */}
-            <Card className="shadow-sm">
-              <CardHeader className="px-4 py-3 border-b">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Submission Info
+            <Card className="border border-border/60 bg-card shadow-xs rounded-xl overflow-hidden">
+              <CardHeader className="px-4 py-3 border-b border-border/50 bg-muted/20">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground flex items-center justify-between">
+                  <span>Review Inspector</span>
+                  <Badge variant="outline" className="text-[10px] font-mono font-normal">
+                    v{activeRound?.roundNumber || workspace?.submission?.version || 1}
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Status</span>
-                  <SubmissionStatusBadge status={activeRound?.status || 'pending'} />
-                </div>
-                <div className="flex items-start justify-between gap-2 text-sm">
-                  <span className="shrink-0 text-muted-foreground">Document</span>
-                  <span
-                    className="max-w-[170px] truncate text-right text-xs font-medium"
-                    title={activeRound?.fileName || ''}
-                  >
-                    {activeRound?.fileName || 'Awaiting upload'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">File Size</span>
-                  <span className="text-xs font-medium">{formatBytes(activeRound?.fileSize)}</span>
-                </div>
 
-                {/* Team Working Document Link */}
-                <div className="flex items-center justify-between text-sm pt-2 border-t border-border/60">
-                  <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                    <FileText className="h-3.5 w-3.5 text-blue-500" />
-                    Team Google Doc
-                  </span>
-                  {teamGoogleDocUrl ? (
-                    <a
-                      href={teamGoogleDocUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-                      title="Open Team Working Google Doc"
+              <CardContent className="p-4 space-y-4 divide-y divide-border/50">
+                {/* SECTION 1: Submission Info */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">Status</span>
+                    <SubmissionStatusBadge status={activeRound?.status || 'pending'} />
+                  </div>
+                  <div className="flex items-start justify-between gap-2 text-xs">
+                    <span className="shrink-0 text-muted-foreground font-medium">Document</span>
+                    <span
+                      className="max-w-[170px] truncate text-right font-semibold text-slate-900 dark:text-foreground"
+                      title={activeRound?.fileName || ''}
                     >
-                      <span>Open Doc</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">Not attached</span>
+                      {activeRound?.fileName || 'Awaiting upload'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium">File Size</span>
+                    <span className="font-mono text-slate-800 dark:text-foreground">
+                      {formatBytes(activeRound?.fileSize)}
+                    </span>
+                  </div>
+
+                  {/* Team Working Document Link */}
+                  <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/40">
+                    <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <FileText className="h-3.5 w-3.5 text-blue-500" />
+                      Team Google Doc
+                    </span>
+                    {teamGoogleDocUrl ? (
+                      <a
+                        href={teamGoogleDocUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                        title="Open Team Working Google Doc"
+                      >
+                        <span>Open Doc</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground italic">Not attached</span>
+                    )}
+                  </div>
+
+                  {activeRound?.reviewNote && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-700 dark:text-amber-400">
+                      <p className="font-semibold mb-1">Faculty Feedback</p>
+                      <p className="leading-relaxed">{activeRound.reviewNote}</p>
+                    </div>
                   )}
                 </div>
 
-                {activeRound?.reviewNote && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-700 dark:text-amber-400">
-                    <p className="font-semibold mb-1">Faculty Feedback</p>
-                    <p className="leading-relaxed">{activeRound.reviewNote}</p>
+                {/* SECTION 2: Plagiarism & Originality */}
+                <div className="pt-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                      Plagiarism &amp; Originality
+                    </span>
+                  </div>
+                  <OriginalityBar score={originalityScore} />
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5 text-xs h-8"
+                      disabled={!activeSubmissionId}
+                      onClick={() =>
+                        navigate(`/project/submissions/${activeSubmissionId}/plagiarism-report`)
+                      }
+                    >
+                      View Full Report
+                    </Button>
+                    {activeSubmissionId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full gap-1.5 text-xs h-8 text-muted-foreground hover:text-foreground"
+                        disabled={scanArchive.isPending}
+                        onClick={() => scanArchive.mutate(activeSubmissionId)}
+                      >
+                        {scanArchive.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                        )}
+                        <span>{scanArchive.isPending ? 'Scanning...' : 'Re-scan Archive'}</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* SECTION 3: File Actions */}
+                {!isRoundPendingUpload && (
+                  <div className="pt-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                        File Actions
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      className="w-full gap-2 shadow-xs h-8.5 text-xs"
+                      onClick={() => setViewerOpen(true)}
+                      disabled={!activeRound}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Fullscreen Viewer
+                    </Button>
+                    {teamGoogleDocUrl && (
+                      <Button asChild variant="outline" className="w-full gap-2 text-xs h-8">
+                        <a href={teamGoogleDocUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                          Open Team Google Doc
+                        </a>
+                      </Button>
+                    )}
+                    {activeSubmissionId && (
+                      <Button asChild variant="outline" className="w-full gap-2 text-xs h-8">
+                        <a
+                          href={`/api/submissions/${activeSubmissionId}/file?download=true`}
+                          download={activeRound?.fileName || 'manuscript.docx'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download Original
+                        </a>
+                      </Button>
+                    )}
+                    {isSubmissionFileUnavailable && (
+                      <p className="text-[11px] text-muted-foreground text-center">
+                        File preview unavailable — use download.
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
-
-            {/* Originality Card */}
-            <Card className="shadow-sm">
-              <CardHeader className="px-4 py-3 border-b">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Plagiarism & Originality
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-4">
-                <OriginalityBar score={originalityScore} />
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 text-xs"
-                    disabled={!activeSubmissionId}
-                    onClick={() =>
-                      navigate(`/project/submissions/${activeSubmissionId}/plagiarism-report`)
-                    }
-                  >
-                    View Full Report
-                  </Button>
-                  {activeSubmissionId && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                      disabled={scanArchive.isPending}
-                      onClick={() => scanArchive.mutate(activeSubmissionId)}
-                    >
-                      {scanArchive.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCcw className="h-3.5 w-3.5" />
-                      )}
-                      <span>{scanArchive.isPending ? 'Scanning...' : 'Re-scan Archive'}</span>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* File Actions */}
-            {!isRoundPendingUpload && (
-              <Card className="shadow-sm">
-                <CardHeader className="px-4 py-3 border-b">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    File Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 p-4">
-                  <Button
-                    type="button"
-                    variant="default"
-                    className="w-full gap-2 shadow-xs"
-                    onClick={() => setViewerOpen(true)}
-                    disabled={!activeRound}
-                  >
-                    <Eye className="h-4 w-4" />
-                    Fullscreen Viewer
-                  </Button>
-                  {teamGoogleDocUrl && (
-                    <Button asChild variant="outline" className="w-full gap-2 text-xs">
-                      <a href={teamGoogleDocUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 text-blue-500" />
-                        Open Team Google Doc
-                      </a>
-                    </Button>
-                  )}
-                  {activeSubmissionId && (
-                    <Button asChild variant="outline" className="w-full gap-2">
-                      <a
-                        href={`/api/submissions/${activeSubmissionId}/file?download=true`}
-                        download={activeRound?.fileName || 'manuscript.docx'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download Original
-                      </a>
-                    </Button>
-                  )}
-                  {isSubmissionFileUnavailable && (
-                    <p className="text-[11px] text-muted-foreground text-center">
-                      File preview unavailable — use download.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* ── Right Content Area ── */}
@@ -1049,7 +1069,13 @@ export default function SubmissionReviewPage() {
                         });
                       }}
                       canComment={canModerate}
-                      userRole={reviewerRole ? reviewerRole.toLowerCase() : 'adviser'}
+                      userRole={
+                        reviewerRole
+                          ? reviewerRole.toLowerCase()
+                          : user?.role === ROLES.INSTRUCTOR
+                            ? 'instructor'
+                            : 'adviser'
+                      }
                     />
                   </div>
                 )}
@@ -1115,14 +1141,17 @@ export default function SubmissionReviewPage() {
 
         {/* ── Decision Toolbar ── */}
         <Card
-          className={`border-2 shadow-lg transition-all ${
-            canTakeDecision ? 'border-primary/20 bg-primary/5' : 'border-border/60 bg-muted/20'
+          className={`border transition-all shadow-xs rounded-xl ${
+            canTakeDecision ? 'border-primary/30 bg-primary/[0.03]' : 'border-border/60 bg-muted/20'
           }`}
         >
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="overallNotes" className="text-sm font-semibold">
+          <CardContent className="p-3.5 sm:p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <div className="flex-1 space-y-1.5">
+                <Label
+                  htmlFor="overallNotes"
+                  className="text-xs font-bold text-slate-900 dark:text-foreground uppercase tracking-wide"
+                >
                   Overall Feedback / Decision Notes
                 </Label>
                 <Textarea
@@ -1136,7 +1165,7 @@ export default function SubmissionReviewPage() {
                       : 'You do not have decision-making authority for this project.'
                   }
                   disabled={!canModerate}
-                  className="resize-none text-sm"
+                  className="resize-none text-xs"
                 />
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1149,12 +1178,12 @@ export default function SubmissionReviewPage() {
                       reviewNote: overallNotes.trim() || undefined,
                     });
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 text-xs h-9"
                 >
                   {approveAndClose.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 className="h-3.5 w-3.5" />
                   )}
                   Approve Round
                 </Button>
@@ -1167,26 +1196,33 @@ export default function SubmissionReviewPage() {
                       overallFeedback: overallNotes.trim() || undefined,
                     });
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 text-xs h-9"
                 >
                   {requestRevisionRound.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <RotateCw className="h-4 w-4" />
+                    <RotateCw className="h-3.5 w-3.5" />
                   )}
                   Request Revision
                 </Button>
               </div>
             </div>
 
+            {!canTakeDecision && isPanelistForProposal && (
+              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Shield className="h-3.5 w-3.5 text-primary" />
+                Committee Preview Mode: Proposal endorsement is conducted by the Assigned Adviser or
+                Course Instructor.
+              </p>
+            )}
             {!canModerate && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Shield className="h-3.5 w-3.5" />
                 Decision actions are available to advisers and course instructors only.
               </p>
             )}
             {canModerate && activeRound?.reviewClosed && (
-              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
                 ✓ This round has been closed. Open a new revision round to continue.
               </p>
             )}
@@ -1196,6 +1232,15 @@ export default function SubmissionReviewPage() {
         {/* ── Text Selection Popover ── */}
         {selectionDraft && (
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add manuscript annotation"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                setSelectionDraft(null);
+              }
+            }}
             className="fixed z-50 w-80 rounded-xl border bg-card p-4 shadow-2xl"
             style={{
               left: Math.max(16, selectionDraft.x - 140),
@@ -1259,7 +1304,11 @@ export default function SubmissionReviewPage() {
                         category: selectionDraft.category || 'Correction',
                         pageNumber: selectionDraft.pageNumber || 1,
                         position: selectionDraft.position,
-                        authorRole: reviewerRole ? reviewerRole.toLowerCase() : 'adviser',
+                        authorRole: reviewerRole
+                          ? reviewerRole.toLowerCase()
+                          : user?.role === ROLES.INSTRUCTOR
+                            ? 'instructor'
+                            : 'adviser',
                       },
                       { onSuccess: () => setSelectionDraft(null) },
                     );
@@ -1322,7 +1371,13 @@ export default function SubmissionReviewPage() {
             });
           }}
           canComment={canModerate}
-          userRole={reviewerRole ? reviewerRole.toLowerCase() : 'adviser'}
+          userRole={
+            reviewerRole
+              ? reviewerRole.toLowerCase()
+              : user?.role === ROLES.INSTRUCTOR
+                ? 'instructor'
+                : 'adviser'
+          }
         />
       )}
 

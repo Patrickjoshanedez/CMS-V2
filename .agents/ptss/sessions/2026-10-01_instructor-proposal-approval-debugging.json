@@ -1,0 +1,47 @@
+{
+  "session_id": "2026-10-01_instructor-proposal-approval-debugging",
+  "timestamp": "2026-10-01T21:18:20+08:00",
+  "task_description": "Investigate and resolve why instructors cannot approve proposals on the instructor side in Capstone 1, tracing client-side and backend guards.",
+  "task_category": "bugfix_and_workflow_hardening",
+  "root_causes": [
+    "1-based vs 0-based array index mismatch: Capstone1CollapsibleSections passed proposalId: activeProposal.index where index = idx + 1 (1-based), while server project.service.js:approveTitle validated proposalIndex strictly as 0-based (< 0 || >= proposals.length). For single-proposal teams, 1 >= 1 threw 404 TITLE_PROPOSAL_NOT_FOUND. For multi-proposal teams, selecting proposal 1 approved proposal 2.",
+    "addTitleComment also received the 1-based index from activeProposal.index, throwing 404 whenever deliberation remarks were entered.",
+    "Strict titleStatus === 'submitted' gate threw 400 INVALID_STATUS_TRANSITION if proposal was in draft or revision_required, blocking instructor deliberation.",
+    "Defense hearing requirement lacked inline scheduling integration: clicking approve without a scheduled defense hearing displayed a dead-end error toast without inline action."
+  ],
+  "modifications": [
+    {
+      "file": "server/modules/projects/project.service.js",
+      "summary": "Added multi-strategy proposal identification (MongoDB _id on metadata/proposals, title string, 0-based index, and 1-based index fallback) in approveTitle and addTitleComment. Auto-advances DRAFT and REVISION_REQUIRED to SUBMITTED to unblock deliberation."
+    },
+    {
+      "file": "server/tests/unit/project.defense-schedule-gate.test.js",
+      "summary": "Added unit tests verifying 1-based index resolution, metadata _id resolution, and DRAFT status auto-advancement."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+      "summary": "Passed canonical selectedProposalIndex (0-based) to approveTitleMutation.mutateAsync and activeProposal.id / selectedProposalIndex to addCommentMutation.mutateAsync. Integrated ScheduleDefenseModal directly into the Deliberation Studio with amber/emerald defense status indicator."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.test.jsx",
+      "summary": "Added mocks and unit tests for scheduled approval, schedule modal button, and auto-opening modal on unscheduled approval attempt."
+    }
+  ],
+  "verifications": {
+    "server_unit_tests": "7/7 passed in tests/unit/project.defense-schedule-gate.test.js",
+    "client_unit_tests": "10/10 passed in src/components/projects/Capstone1CollapsibleSections.test.jsx",
+    "project_detail_tests": "18/18 passed across 4 suites in src/pages/projects/",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=220, CLIENT_ENDPOINT_COUNT=200, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed in scripts/validate-agentic-system.js",
+    "client_build": "Vite client built in 6.09s with 0 errors",
+    "playwright_visual_audit": "4 screenshots captured in scratch/screenshots/proposal_approval_studio/ across desktop (1440x900) and mobile (390x844) in light and dark modes"
+  },
+  "skills_used": [
+    "systematic-debugging",
+    "senior-backend",
+    "frontend-patterns",
+    "frontend-mythos",
+    "verification-loop",
+    "anti-regression-and-ci-governance"
+  ]
+}

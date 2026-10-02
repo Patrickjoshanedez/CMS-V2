@@ -455,6 +455,7 @@ export default function ActionDoneMatrixTab({
   project,
   isFaculty: isFacultyProp = false,
   isStudent: isStudentProp = false,
+  isSecretary: isSecretaryProp = false,
   user: userProp,
   onRefresh,
   initialMilestone,
@@ -485,6 +486,11 @@ export default function ActionDoneMatrixTab({
   const [reviewType, setReviewType] = useState('internal');
   const [projectTitle, setProjectTitle] = useState('');
   const [_savingCells, setSavingCells] = useState({}); // { [rowId_field]: 'saving' | 'saved' | 'error' }
+  const [signaturesState, setSignaturesState] = useState(project?.admSignatures || {});
+  const [milestoneSignatures, setMilestoneSignatures] = useState(
+    project?.admSignaturesByMilestone || {},
+  );
+  const [_admStatus, setAdmStatus] = useState(project?.admStatus || 'draft');
 
   // Milestone revision scoping (Capstone 1, Capstone 2, Capstone 3)
   const defaultMilestone = useMemo(() => {
@@ -507,9 +513,9 @@ export default function ActionDoneMatrixTab({
     const filtered =
       selectedMilestone === 'ALL'
         ? rows
-        : rows.filter((r) => (r.milestone || 'CAPSTONE_1') === selectedMilestone);
+        : rows.filter((r) => (r.milestone || defaultMilestone) === selectedMilestone);
     return consolidateADMRowsByPanel(filtered);
-  }, [rows, selectedMilestone]);
+  }, [rows, selectedMilestone, defaultMilestone]);
 
   // Automatically determine minimal required pages and content-aware page distribution
   const autoAllocationResult = useMemo(() => autoAllocateADMSheets(displayedRows), [displayedRows]);
@@ -680,6 +686,15 @@ export default function ActionDoneMatrixTab({
         project.admReviewTypeByMilestone?.[targetMilestone] || project.admReviewType || 'internal';
       setReviewType(milestoneReviewType);
       setProjectTitle(project.title || '');
+      if (project.admSignatures) {
+        setSignaturesState(project.admSignatures);
+      }
+      if (project.admSignaturesByMilestone) {
+        setMilestoneSignatures(project.admSignaturesByMilestone);
+      }
+      if (project.admStatus) {
+        setAdmStatus(project.admStatus);
+      }
     }
   }, [project, targetMilestone]);
 
@@ -697,43 +712,78 @@ export default function ActionDoneMatrixTab({
 
     const handleRowUpdated = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
-        if (data.row) {
+        const row = data.row || data.item;
+        if (row) {
           setRows((prev) =>
-            prev.map((r) =>
-              (r._id || r.id) === (data.row._id || data.row.id) ? { ...r, ...data.row } : r,
-            ),
+            prev.map((r) => ((r._id || r.id) === (row._id || row.id) ? { ...r, ...row } : r)),
           );
+        } else if (Array.isArray(data.actionDoneMatrix)) {
+          setRows(data.actionDoneMatrix);
+        }
+        if (data.admStatus) {
+          setAdmStatus(data.admStatus);
         }
       }
     };
 
     const handleRowCreated = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
-        if (data.row) {
+        const row = data.row || data.item;
+        if (row) {
           setRows((prev) => {
-            const exists = prev.some((r) => (r._id || r.id) === (data.row._id || data.row.id));
-            return exists ? prev : [...prev, data.row];
+            const exists = prev.some((r) => (r._id || r.id) === (row._id || row.id));
+            return exists
+              ? prev.map((r) => ((r._id || r.id) === (row._id || row.id) ? { ...r, ...row } : r))
+              : [...prev, row];
           });
+        } else if (Array.isArray(data.actionDoneMatrix)) {
+          setRows(data.actionDoneMatrix);
+        }
+        if (data.admStatus) {
+          setAdmStatus(data.admStatus);
         }
       }
     };
 
     const handleRowDeleted = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
-        if (data.rowId) {
-          setRows((prev) => prev.filter((r) => (r._id || r.id) !== data.rowId));
+        const targetId = data.rowId || data.itemId;
+        if (targetId) {
+          setRows((prev) => prev.filter((r) => (r._id || r.id) !== targetId));
+        } else if (Array.isArray(data.actionDoneMatrix)) {
+          setRows(data.actionDoneMatrix);
         }
       }
     };
 
     const handleSigned = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.admSignatures) setSignaturesState(data.admSignatures);
+        if (data.admSignaturesByMilestone) setMilestoneSignatures(data.admSignaturesByMilestone);
+        if (data.milestone && data.admSignatures) {
+          setMilestoneSignatures((prev) => ({
+            ...prev,
+            [data.milestone]: data.admSignatures,
+          }));
+        }
+        if (Array.isArray(data.actionDoneMatrix)) setRows(data.actionDoneMatrix);
+        if (data.admStatus) setAdmStatus(data.admStatus);
         if (onRefresh) onRefresh();
       }
     };
 
     const handleEndorsed = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.admSignatures) setSignaturesState(data.admSignatures);
+        if (data.admSignaturesByMilestone) setMilestoneSignatures(data.admSignaturesByMilestone);
+        if (data.milestone && data.admSignatures) {
+          setMilestoneSignatures((prev) => ({
+            ...prev,
+            [data.milestone]: data.admSignatures,
+          }));
+        }
+        if (Array.isArray(data.actionDoneMatrix)) setRows(data.actionDoneMatrix);
+        if (data.admStatus) setAdmStatus(data.admStatus);
         if (onRefresh) onRefresh();
       }
     };
@@ -819,6 +869,9 @@ export default function ActionDoneMatrixTab({
 
   // Milestone-isolated signatures
   const admSignatures = useMemo(() => {
+    if (milestoneSignatures?.[targetMilestone]) {
+      return milestoneSignatures[targetMilestone];
+    }
     if (project?.admSignaturesByMilestone?.[targetMilestone]) {
       return project.admSignaturesByMilestone[targetMilestone];
     }
@@ -828,8 +881,19 @@ export default function ActionDoneMatrixTab({
         : Number(project?.capstonePhase ?? project?.phase ?? 1) === 2
           ? 'CAPSTONE_2'
           : 'CAPSTONE_1';
+    if (
+      targetMilestone === currentMilestoneKey &&
+      (signaturesState?.secretary || signaturesState?.adviser)
+    ) {
+      return signaturesState;
+    }
     if (targetMilestone === currentMilestoneKey && project?.admSignatures) {
       return project.admSignatures;
+    }
+    const unisonKey =
+      targetMilestone === 'CAPSTONE_3' ? 'v3' : targetMilestone === 'CAPSTONE_2' ? 'v2' : 'v1';
+    if (project?.unisonADM?.[unisonKey]?.signatures) {
+      return project.unisonADM[unisonKey].signatures;
     }
     return {
       secretary: { endorsed: false },
@@ -840,12 +904,50 @@ export default function ActionDoneMatrixTab({
       dean: { signed: false },
     };
   }, [
+    milestoneSignatures,
     project?.admSignaturesByMilestone,
     project?.admSignatures,
     project?.capstonePhase,
     project?.phase,
+    project?.unisonADM,
+    signaturesState,
     targetMilestone,
   ]);
+
+  // Match Panelist 1 and 2 signatures by user ID or signatory name (preventing index collision)
+  const panelist1Signature = useMemo(() => {
+    const p = regularPanelists[0];
+    if (!p) return null;
+    const pUserId = String(p.userId?._id || p.userId || p._id || p.id || p);
+    const pName = formatFullName(p);
+    const list = Array.isArray(admSignatures?.panelists) ? admSignatures.panelists : [];
+    return (
+      list.find((entry) => {
+        const entryId = String(entry.userId?._id || entry.userId || '');
+        return (
+          (entryId && entryId === pUserId) || (entry.signatoryName && entry.signatoryName === pName)
+        );
+      }) ||
+      list[0] ||
+      null
+    );
+  }, [regularPanelists, admSignatures]);
+
+  const panelist2Signature = useMemo(() => {
+    const p = regularPanelists[1];
+    if (!p) return null;
+    const pUserId = String(p.userId?._id || p.userId || p._id || p.id || p);
+    const pName = formatFullName(p);
+    const list = Array.isArray(admSignatures?.panelists) ? admSignatures.panelists : [];
+    return (
+      list.find((entry) => {
+        const entryId = String(entry.userId?._id || entry.userId || '');
+        return (
+          (entryId && entryId === pUserId) || (entry.signatoryName && entry.signatoryName === pName)
+        );
+      }) || (list.length > 1 ? list[1] : null)
+    );
+  }, [regularPanelists, admSignatures]);
 
   // Permissions
   const isUserChair =
@@ -871,16 +973,19 @@ export default function ActionDoneMatrixTab({
   const panelist2Id = panelist2User?._id || panelist2User;
   const isUserPanelist2 = Boolean(user && panelist2Id && String(panelist2Id) === String(user._id));
 
-  const isUserSecretary =
-    user &&
-    (secretary?._id === user._id ||
-      String(secretary) === String(user._id) ||
-      rawPanelists.some(
-        (p) =>
-          (p.userId === user._id || p.userId?._id === user._id || p._id === user._id) &&
-          (p.role === PANEL_ROLES.SECRETARY || p.role === 'secretary'),
-      ));
-  const isUserAdviser = user && (adviser?._id === user._id || String(adviser) === String(user._id));
+  const secretaryIdStr = (secretary?._id || secretary)?.toString();
+  const userIdStr = user?._id?.toString();
+  const isUserSecretary = Boolean(
+    isSecretaryProp ||
+    (userIdStr &&
+      (secretaryIdStr === userIdStr ||
+        rawPanelists.some((p) => {
+          const pid = (p.userId?._id || p.userId || p._id)?.toString();
+          return pid === userIdStr && (p.role === PANEL_ROLES.SECRETARY || p.role === 'secretary');
+        }))),
+  );
+  const adviserIdStr = (adviser?._id || adviser)?.toString();
+  const isUserAdviser = Boolean(userIdStr && adviserIdStr === userIdStr);
   const isUserInstructor = user && user.role === ROLES.INSTRUCTOR;
   const isCurrentUserStudent = Boolean(isStudent || user?.role === ROLES.STUDENT);
 
@@ -1200,13 +1305,20 @@ export default function ActionDoneMatrixTab({
 
     try {
       setIsSubmittingSignature(true);
-      await projectService.signTieredADM(project._id, {
+      const res = await projectService.signTieredADM(project._id, {
         tier: signingSignatory.tier,
         role: signingSignatory.role,
         signatoryName: finalName,
         signatureDataUrl: sigToUse,
         milestone: targetMilestone,
       });
+
+      if (res?.data?.data?.admSignatures) {
+        setSignaturesState(res.data.data.admSignatures);
+      }
+      if (res?.data?.data?.admSignaturesByMilestone) {
+        setMilestoneSignatures(res.data.data.admSignaturesByMilestone);
+      }
 
       // Persist signature to user profile if user opted to save and doesn't already have one or updated
       if (saveSignatureForFuture && (!user?.digitalSignature || isDrawingNewSignature)) {
@@ -1257,11 +1369,18 @@ export default function ActionDoneMatrixTab({
     setIsSubmittingEndorsement(true);
     try {
       const name = endorsementTypedName || formatFullName(user, 'Committee Secretary');
-      await projectService.endorseADM(projectId, {
+      const res = await projectService.endorseADM(projectId, {
         notes: endorsementNotes,
         signatoryName: name,
+        signatureDataUrl: user?.digitalSignature || null,
         milestone: targetMilestone,
       });
+      if (res?.data?.data?.admSignatures) {
+        setSignaturesState(res.data.data.admSignatures);
+      }
+      if (res?.data?.data?.admSignaturesByMilestone) {
+        setMilestoneSignatures(res.data.data.admSignaturesByMilestone);
+      }
       toast.success('Action Done Matrix successfully endorsed by Committee Secretary.');
       setIsEndorsementModalOpen(false);
       setEndorsementNotes('');
@@ -1590,9 +1709,10 @@ export default function ActionDoneMatrixTab({
                   size="sm"
                   onClick={() => setIsUploadModalOpen(true)}
                   className="gap-1.5 text-xs h-8"
+                  title="Upload Hearing Defense Minutes (PDF)"
                 >
                   <Upload className="h-3.5 w-3.5 text-primary" />
-                  Upload Minutes (PDF)
+                  Upload Hearing Defense Minutes
                 </Button>
               )}
 
@@ -1623,7 +1743,7 @@ export default function ActionDoneMatrixTab({
                   className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Endorse Matrix
+                  Sign & Endorse Matrix
                 </Button>
               )}
 
@@ -2084,7 +2204,10 @@ export default function ActionDoneMatrixTab({
 
                       {/* Last Page: Secretary Compliance Gate & Signatories Board */}
                       {isLastPage && (
-                        <div className="mt-6 space-y-8 font-sans text-xs sm:text-sm text-black">
+                        <div
+                          data-testid="adm-signatories-board"
+                          className="mt-6 space-y-8 font-sans text-xs sm:text-sm text-black"
+                        >
                           {/* Secretary Compliance Endorsement Verification Banner */}
                           <div className="rounded-lg border border-black bg-neutral-50 p-4 font-sans text-left space-y-2.5 no-print print:hidden">
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-300 pb-2">
@@ -2099,9 +2222,11 @@ export default function ActionDoneMatrixTab({
                                     Secretary Compliance Verification Gate
                                   </h4>
                                   <p className="text-[11px] text-neutral-700">
-                                    Prerequisite compliance audit: The Committee Secretary must
-                                    endorse all student revision fulfillments before committee
-                                    digital signatures can unlock.
+                                    {isSecretaryEndorsed
+                                      ? 'Action Done Matrix Endorsed by Committee Secretary. Committee signatures are unlocked.'
+                                      : allRowsAddressed
+                                        ? 'All Remarks Addressed — Ready for Secretary Endorsement'
+                                        : 'Prerequisite compliance audit: The Committee Secretary must endorse all student revision fulfillments before committee digital signatures can unlock.'}
                                   </p>
                                 </div>
                               </div>
@@ -2143,6 +2268,16 @@ export default function ActionDoneMatrixTab({
                                     Remarks: &ldquo;{admSignatures.secretary.notes}&rdquo;
                                   </p>
                                 )}
+                                {isSecretaryEndorsed &&
+                                  admSignatures.secretary?.signatureDataUrl && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <img
+                                        src={admSignatures.secretary.signatureDataUrl}
+                                        alt="Secretary Signature"
+                                        className="max-h-8 max-w-[160px] object-contain filter drop-shadow-xs"
+                                      />
+                                    </div>
+                                  )}
                               </div>
 
                               {canEndorse && !isSecretaryEndorsed && (
@@ -2211,7 +2346,7 @@ export default function ActionDoneMatrixTab({
                             {/* Panel Member 1 */}
                             <SignatoryCard
                               name={
-                                admSignatures.panelists?.[0]?.signatoryName ||
+                                panelist1Signature?.signatoryName ||
                                 formatFullName(
                                   regularPanelists[0]?.userId ||
                                     regularPanelists[0]?.user ||
@@ -2220,7 +2355,7 @@ export default function ActionDoneMatrixTab({
                                 )
                               }
                               designation="Panel Member"
-                              signatureState={admSignatures.panelists?.[0]}
+                              signatureState={panelist1Signature}
                               canSign={isSecretaryEndorsed && isUserPanelist1}
                               isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist1}
                               onSign={() =>
@@ -2240,7 +2375,7 @@ export default function ActionDoneMatrixTab({
                             {/* Panel Member 2 */}
                             <SignatoryCard
                               name={
-                                admSignatures.panelists?.[1]?.signatoryName ||
+                                panelist2Signature?.signatoryName ||
                                 formatFullName(
                                   regularPanelists[1]?.userId ||
                                     regularPanelists[1]?.user ||
@@ -2249,7 +2384,7 @@ export default function ActionDoneMatrixTab({
                                 )
                               }
                               designation="Panel Member"
-                              signatureState={admSignatures.panelists?.[1]}
+                              signatureState={panelist2Signature}
                               canSign={isSecretaryEndorsed && isUserPanelist2}
                               isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist2}
                               onSign={() =>
@@ -2598,7 +2733,7 @@ export default function ActionDoneMatrixTab({
                           id="secretary-endorsement-modal-title"
                           className="text-base font-semibold"
                         >
-                          Committee Secretary Endorsement
+                          Grant Committee Secretary Endorsement
                         </h4>
                         <p className="text-xs text-muted-foreground">
                           Compliance Verification Gate
@@ -2627,7 +2762,7 @@ export default function ActionDoneMatrixTab({
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="sec-name" className="text-xs font-medium">
-                        Signatory Full Legal Name
+                        Secretary Signatory Full Name
                       </Label>
                       <Input
                         id="sec-name"
@@ -2677,7 +2812,7 @@ export default function ActionDoneMatrixTab({
                         </>
                       ) : (
                         <>
-                          <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
+                          <ShieldCheck className="h-3.5 w-3.5" /> Confirm & Sign Endorsement
                         </>
                       )}
                     </Button>
@@ -2804,7 +2939,9 @@ function SignatoryCard({
   onSign,
   isLockedBySecretary,
 }) {
-  const isSigned = Boolean(signatureState?.signed);
+  const isSigned = Boolean(
+    signatureState?.signed || signatureState?.signatureDataUrl || signatureState?.signedAt,
+  );
   const signatureDataUrl = signatureState?.signatureDataUrl;
   const signedAt = signatureState?.signedAt ? new Date(signatureState.signedAt) : null;
   const formattedDate = signedAt
@@ -2820,10 +2957,13 @@ function SignatoryCard({
       <div className="h-14 flex flex-col items-center justify-center w-full max-w-[280px]">
         {isSigned ? (
           <div className="flex flex-col items-center justify-center space-y-0.5">
-            {signatureDataUrl && signatureDataUrl.startsWith('data:image') ? (
+            {signatureDataUrl &&
+            (signatureDataUrl.startsWith('data:') ||
+              signatureDataUrl.startsWith('http') ||
+              signatureDataUrl.startsWith('/')) ? (
               <img
                 src={signatureDataUrl}
-                alt={`Digital signature of ${name}`}
+                alt={`Digital Signature of ${name}`}
                 className="max-h-10 max-w-[220px] object-contain filter drop-shadow-xs"
               />
             ) : (

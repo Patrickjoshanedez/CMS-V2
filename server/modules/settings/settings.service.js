@@ -72,9 +72,9 @@ class SettingsService {
     // Synchronize to DocumentTemplate collection to keep student team widgets updated
     if (Array.isArray(updates.documentTemplates)) {
       try {
-        const manuscriptTpl = updates.documentTemplates.find(
-          (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
-        );
+        const manuscriptTpl =
+          updates.documentTemplates.find((t) => t.documentType === 'manuscript_template') ||
+          updates.documentTemplates.find((t) => t.documentType === 'proposal_template');
         if (manuscriptTpl?.templateUrl) {
           await DocumentTemplate.updateMany(
             { targetType: 'MANUSCRIPT_CHAPTERS_1_5' },

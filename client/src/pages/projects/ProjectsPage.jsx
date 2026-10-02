@@ -360,12 +360,12 @@ export default function ProjectsPage() {
         {/* ========================================================= */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-amber-500/20 via-primary/15 to-primary/5 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-xs">
               <ClipboardCheck className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground">
                   {pageTitle}
                 </h1>
                 <Badge
@@ -438,7 +438,7 @@ export default function ProjectsPage() {
                       )}
                       <span>{kpi.label}</span>
                     </div>
-                    <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
+                    <div className="font-mono tabular-nums text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground mt-1">
                       {count}
                     </div>
                     <p className="text-[10px] text-muted-foreground truncate">{kpi.subtitle}</p>

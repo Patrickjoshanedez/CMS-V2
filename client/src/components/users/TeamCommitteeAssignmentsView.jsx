@@ -6,12 +6,9 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-  Calendar,
   Loader2,
   AlertTriangle,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import {
   Card,
@@ -24,12 +21,11 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { useTeams, useAssignCommittee, teamKeys } from '@/hooks/useTeams';
 import { useUsers } from '@/hooks/useUsers';
-import { useProject, useSetDeadlines } from '@/hooks/useProjects';
+import { useProject } from '@/hooks/useProjects';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLES } from '@cms/shared';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
@@ -69,17 +65,6 @@ export default function TeamCommitteeAssignmentsView() {
   const [selectedAdviserId, setSelectedAdviserId] = useState('');
   const [selectedSecretaryId, setSelectedSecretaryId] = useState('');
   const [selectedPanelistIds, setSelectedPanelistIds] = useState([]);
-
-  // Deadline collapsable state
-  const [isDeadlinesOpen, setIsDeadlinesOpen] = useState(false);
-  const [deadlineDraft, setDeadlineDraft] = useState({
-    proposal: '',
-    chapter1: '',
-    chapter2: '',
-    chapter3: '',
-    chapter4: '',
-    chapter5: '',
-  });
 
   // Queries
   const { data: years = [] } = useAcademicYears();
@@ -219,29 +204,6 @@ export default function TeamCommitteeAssignmentsView() {
     }
   }, [selectedTeam]);
 
-  // Sync deadlines
-  useEffect(() => {
-    if (selectedProject?.deadlines) {
-      setDeadlineDraft({
-        proposal: selectedProject.deadlines.proposal?.split('T')[0] || '',
-        chapter1: selectedProject.deadlines.chapter1?.split('T')[0] || '',
-        chapter2: selectedProject.deadlines.chapter2?.split('T')[0] || '',
-        chapter3: selectedProject.deadlines.chapter3?.split('T')[0] || '',
-        chapter4: selectedProject.deadlines.chapter4?.split('T')[0] || '',
-        chapter5: selectedProject.deadlines.chapter5?.split('T')[0] || '',
-      });
-    } else {
-      setDeadlineDraft({
-        proposal: '',
-        chapter1: '',
-        chapter2: '',
-        chapter3: '',
-        chapter4: '',
-        chapter5: '',
-      });
-    }
-  }, [selectedProject]);
-
   // Mutations
   const assignCommitteeMutation = useAssignCommittee({
     onSuccess: (data) => {
@@ -250,16 +212,6 @@ export default function TeamCommitteeAssignmentsView() {
     },
     onError: (err) => {
       toast.error(err?.response?.data?.error?.message || 'Failed to assign committee.');
-    },
-  });
-
-  const setDeadlines = useSetDeadlines({
-    onSuccess: () => {
-      toast.success('Project deadlines updated.');
-      queryClient.invalidateQueries({ queryKey: teamKeys.all });
-    },
-    onError: (err) => {
-      toast.error(err?.response?.data?.error?.message || 'Failed to update project deadlines.');
     },
   });
 
@@ -294,19 +246,6 @@ export default function TeamCommitteeAssignmentsView() {
       secretaryId: selectedSecretaryId || null,
       panelistIds: selectedPanelistIds,
     });
-  };
-
-  // Save Deadlines
-  const handleSaveDeadlines = () => {
-    if (!selectedProjectId) {
-      toast.error('Select a team with a linked project first.');
-      return;
-    }
-    const payload = { projectId: selectedProjectId };
-    Object.entries(deadlineDraft).forEach(([key, val]) => {
-      payload[key] = val || null;
-    });
-    setDeadlines.mutate(payload);
   };
 
   // Faculty helper maps
@@ -878,99 +817,6 @@ export default function TeamCommitteeAssignmentsView() {
                 </Button>
               </CardFooter>
             </Card>
-
-            {/* Collapsible Project Milestones / Deadline Setter */}
-            {selectedProjectId && (
-              <Card className="border-border/60 shadow-xs">
-                <CardHeader
-                  className="cursor-pointer py-3"
-                  onClick={() => setIsDeadlinesOpen((prev) => !prev)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      <div>
-                        <CardTitle className="text-sm font-semibold">
-                          Project Milestones & Deadlines
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Configure chapter submission cutoffs for this team.
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-[44px] min-w-[44px] p-0 rounded-lg"
-                      aria-label={
-                        isDeadlinesOpen
-                          ? 'Collapse project milestones and deadlines'
-                          : 'Expand project milestones and deadlines'
-                      }
-                      aria-expanded={isDeadlinesOpen}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDeadlinesOpen((prev) => !prev);
-                      }}
-                    >
-                      {isDeadlinesOpen ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </CardHeader>
-
-                {isDeadlinesOpen && (
-                  <CardContent className="pt-0 space-y-4">
-                    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                      {[
-                        { key: 'proposal', label: 'Proposal' },
-                        { key: 'chapter1', label: 'Chapter 1' },
-                        { key: 'chapter2', label: 'Chapter 2' },
-                        { key: 'chapter3', label: 'Chapter 3' },
-                        { key: 'chapter4', label: 'Chapter 4' },
-                        { key: 'chapter5', label: 'Chapter 5' },
-                      ].map((entry) => (
-                        <div
-                          key={entry.key}
-                          className="space-y-1 rounded-md border p-2.5 bg-muted/10"
-                        >
-                          <Label htmlFor={`deadline-${entry.key}`} className="text-xs">
-                            {entry.label}
-                          </Label>
-                          <Input
-                            id={`deadline-${entry.key}`}
-                            type="date"
-                            value={deadlineDraft[entry.key]}
-                            onChange={(e) =>
-                              setDeadlineDraft((prev) => ({
-                                ...prev,
-                                [entry.key]: e.target.value,
-                              }))
-                            }
-                            className="h-8 text-xs bg-background"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-end pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleSaveDeadlines}
-                        disabled={setDeadlines.isPending}
-                        className="text-xs h-8"
-                      >
-                        {setDeadlines.isPending ? 'Saving...' : 'Save Deadlines'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            )}
           </div>
         </div>
       )}

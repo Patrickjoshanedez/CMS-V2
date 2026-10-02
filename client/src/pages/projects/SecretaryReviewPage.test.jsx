@@ -226,9 +226,9 @@ describe('SecretaryReviewPage Studio', () => {
       endorseButton.click();
     });
 
-    expect(view.container.textContent).toContain('Grant Committee Secretary Endorsement');
-    expect(view.container.textContent).toContain('Secretary Signatory Full Name');
-    expect(view.container.textContent).toContain('Confirm & Sign Endorsement');
+    expect(document.body.textContent).toContain('Grant Committee Secretary Endorsement');
+    expect(document.body.textContent).toContain('Secretary Signatory Full Name');
+    expect(document.body.textContent).toContain('Confirm & Sign Endorsement');
 
     view.unmount();
   });

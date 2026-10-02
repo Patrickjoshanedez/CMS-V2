@@ -394,6 +394,9 @@ export default function DefenseSchedulingPage() {
           time: newTimeSlot,
         });
         queryClient.invalidateQueries({ queryKey: projectKeys.all });
+        queryClient.invalidateQueries({ queryKey: ['project'] });
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
         toast.success(
           `Duration updated for "${project.teamId?.name || project.title}" to ${formatDurationLabel(currentDuration)} (${newTimeSlot}).`,
         );
@@ -876,6 +879,9 @@ export default function DefenseSchedulingPage() {
     try {
       await projectService.scheduleDefense(proj._id, updatedSchedule);
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
       const dayLabel = new Date(dateStr).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -968,6 +974,9 @@ export default function DefenseSchedulingPage() {
         time: normalizedTime,
       });
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['project'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
       const teamName = proj.teamId?.name || proj.title;
       toast.success(
         `Defense hearing for "${teamName}" returned to Awaiting Scheduling (${formatDurationLabel(defaultDefenseDuration)} duration).`,

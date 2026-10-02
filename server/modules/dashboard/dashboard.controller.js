@@ -109,7 +109,13 @@ export const getInstructorWorkload = catchAsync(async (req, res) => {
  * Returns optimization suggestions for adviser assignment balancing.
  */
 export const optimizeInstructorWorkload = catchAsync(async (req, res) => {
-  const optimization = await dashboardService.optimizeInstructorWorkload(req.user._id);
+  const mode = req.query.mode || req.body?.mode || 'mid_semester';
+  const roleScope = req.query.roleScope || req.body?.roleScope || 'all';
+
+  const optimization = await dashboardService.optimizeInstructorWorkload(req.user._id, {
+    mode,
+    roleScope,
+  });
 
   res.status(200).json({
     success: true,

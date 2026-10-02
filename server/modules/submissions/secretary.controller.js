@@ -3,7 +3,11 @@ import { parseSecretaryMinutesDocument } from './secretaryMinutesParser.js';
 import Project from '../projects/project.model.js';
 import DefenseMinutes from './defenseMinutes.model.js';
 import Notification from '../notifications/notification.model.js';
-import { emitToUser, emitToRoom } from '../../services/socket.service.js';
+import { emitToUser, emitToRoom, getIO } from '../../services/socket.service.js';
+import {
+  consolidateInstitutionalADMRows,
+  invalidateProjectCache,
+} from '../projects/project.controller.js';
 import AppError from '../../utils/AppError.js';
 import env from '../../config/env.js';
 
@@ -167,6 +171,9 @@ export const extractMinutesToADM = async (req, res, next) => {
       parsedData = fallbackParseMinutes(rawText);
     }
 
+    // Automatically consolidate repeated panel rows into multi-bulleted rows per panelist
+    parsedData = consolidateInstitutionalADMRows(parsedData);
+
     // 3. Update the Project Document's ADM array field
     const project = await Project.findByIdAndUpdate(
       projectId,
@@ -181,6 +188,26 @@ export const extractMinutesToADM = async (req, res, next) => {
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    try {
+      emitToRoom(`project:${project._id}`, 'adm:row_created', {
+        projectId: project._id,
+        actionDoneMatrix: project.actionDoneMatrix,
+        admStatus: project.admStatus,
+      });
+      emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+      const io = getIO();
+      if (io) {
+        io.emit('adm:row_created', {
+          projectId: project._id,
+          actionDoneMatrix: project.actionDoneMatrix,
+          admStatus: project.admStatus,
+        });
+        io.emit('project:updated', { projectId: project._id });
+      }
+    } catch {
+      // Non-blocking socket dispatch
     }
 
     try {
@@ -227,6 +254,13 @@ export const saveSecretaryMinutes = async (req, res, next) => {
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    if (req.user?.role === 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Students are not authorized to modify official defense minutes.',
+      });
     }
 
     const milestoneMap = {
@@ -358,6 +392,7 @@ export const saveSecretaryMinutes = async (req, res, next) => {
     }
 
     await project.save();
+    await invalidateProjectCache(project._id);
 
     try {
       emitToRoom(`project:${project._id}`, 'defense:minutes_updated', {
@@ -365,6 +400,26 @@ export const saveSecretaryMinutes = async (req, res, next) => {
         secretaryMinutes: project.secretaryMinutes,
         actionDoneMatrix: project.actionDoneMatrix,
       });
+      emitToRoom(`project:${project._id}`, 'adm:row_updated', {
+        projectId: project._id,
+        actionDoneMatrix: project.actionDoneMatrix,
+        admStatus: project.admStatus,
+      });
+      emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+      const io = getIO();
+      if (io) {
+        io.emit('defense:minutes_updated', {
+          projectId: project._id,
+          secretaryMinutes: project.secretaryMinutes,
+          actionDoneMatrix: project.actionDoneMatrix,
+        });
+        io.emit('adm:row_updated', {
+          projectId: project._id,
+          actionDoneMatrix: project.actionDoneMatrix,
+          admStatus: project.admStatus,
+        });
+        io.emit('project:updated', { projectId: project._id });
+      }
     } catch {
       // non-fatal
     }

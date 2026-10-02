@@ -1,9 +1,19 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { FileText, Lock, ExternalLink, Download, CheckCircle2, Sparkles } from 'lucide-react';
+import {
+  FileText,
+  Lock,
+  ExternalLink,
+  Download,
+  CheckCircle2,
+  Sparkles,
+  Settings2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useTeamManuscriptTemplate } from '@/hooks/useTeams';
+import { useAuthStore } from '@/stores/authStore';
+import { ROLES } from '@cms/shared';
 
 export function ManuscriptTemplateWidget({
   teamId,
@@ -17,6 +27,15 @@ export function ManuscriptTemplateWidget({
     updatedAt: 'Sep 01, 2026',
   },
 }) {
+  const { user } = useAuthStore();
+  const isInstructor = user?.role === ROLES.INSTRUCTOR || user?.role === ROLES.ADMIN;
+
+  const handleGoToSettings = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/settings?tab=administration';
+    }
+  };
+
   // If teamId is provided and isTitleApproved is not explicitly passed, query the server
   const shouldQuery = Boolean(teamId && typeof isTitleApproved === 'undefined');
   const { data: serverGate, isLoading } = useTeamManuscriptTemplate(teamId, {
@@ -81,14 +100,25 @@ export function ManuscriptTemplateWidget({
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          className="h-8 text-xs shrink-0 cursor-not-allowed opacity-60 border-border/60"
-        >
-          <Lock className="mr-1.5 h-3 w-3" /> Locked in Proposal Stage
-        </Button>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            className="h-8 text-xs shrink-0 cursor-not-allowed opacity-60 border-border/60"
+          >
+            <Lock className="mr-1.5 h-3 w-3" /> Locked in Proposal Stage
+          </Button>
+          {isInstructor && (
+            <a
+              href="/settings?tab=administration"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline px-2 py-1 rounded border border-border/60"
+              title="Configure manuscript template link in instructor settings"
+            >
+              <Settings2 className="h-3 w-3" /> Set in Settings
+            </a>
+          )}
+        </div>
       </div>
     );
   }
@@ -96,7 +126,7 @@ export function ManuscriptTemplateWidget({
   // STATE 2: UNLOCKED (Title Approved by Panel/Instructor)
   const isGoogleDocs = effectiveTemplate.type === 'google_docs';
   const rawUrl = effectiveTemplate.url || '#';
-  const copyUrl = rawUrl.replace(/\/(edit|preview)(\?.*)?$/, '/copy$2');
+  const copyUrl = rawUrl.replace(/\/(edit|preview|view)(\?.*)?$/, '/copy$2');
   const targetUrl = copyUrl.includes('/copy') ? copyUrl : `${copyUrl.replace(/\/$/, '')}/copy`;
 
   return (
@@ -143,6 +173,15 @@ export function ManuscriptTemplateWidget({
           >
             <Download className="h-3.5 w-3.5" /> Download .DOCX Template
           </Button>
+        )}
+        {isInstructor && (
+          <a
+            href="/settings?tab=administration"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border/60 hover:bg-muted/40 transition-colors"
+            title="Configure manuscript template link in instructor settings"
+          >
+            <Settings2 className="h-3 w-3" /> Settings
+          </a>
         )}
       </div>
     </div>

@@ -23,6 +23,7 @@ import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
+import Section from '../academics/section.model.js';
 import storageService from '../../services/storage.index.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import auditService from '../audit/audit.service.js';
@@ -295,16 +296,31 @@ class SubmissionService {
    * @param {string|undefined} remarks - Student-provided late remarks
    * @returns {{ isLate: boolean }}
    */
-  _detectLateSubmission(project, deadlineField, remarks) {
+  _detectLateSubmission(
+    project,
+    deadlineField,
+    remarks,
+    justificationLetterFile = null,
+    requireLetter = false,
+  ) {
     const deadline = project.deadlines?.[deadlineField];
     const isLate = deadline ? new Date() > new Date(deadline) : false;
 
-    if (isLate && (!remarks || remarks.trim().length === 0)) {
-      throw new AppError(
-        'This submission is past the deadline. You must provide a late-justification note explaining the delay.',
-        400,
-        'LATE_REMARKS_REQUIRED',
-      );
+    if (isLate) {
+      if (!remarks || remarks.trim().length === 0) {
+        throw new AppError(
+          'This submission is past the deadline. You must provide a late-justification note explaining the delay.',
+          400,
+          'LATE_REMARKS_REQUIRED',
+        );
+      }
+      if (requireLetter && !justificationLetterFile) {
+        throw new AppError(
+          'This submission is past the deadline. You must attach a signed late-justification letter document.',
+          400,
+          'LATE_JUSTIFICATION_LETTER_REQUIRED',
+        );
+      }
     }
 
     return { isLate };
@@ -1018,7 +1034,7 @@ class SubmissionService {
    * @param {Object} file - multer file object with buffer, originalname, size, validatedMime
    * @returns {Object} { submission }
    */
-  async uploadChapter(userId, projectId, data, file) {
+  async uploadChapter(userId, projectId, data, file, justificationLetterFile = null) {
     const { user, project } = await this._authorizeStudentUpload(
       userId,
       projectId,
@@ -1154,8 +1170,14 @@ class SubmissionService {
     }
 
     // --- Late submission detection ---
-    const deadlineField = chapter <= 3 ? `chapter${chapter}` : 'proposal';
-    const { isLate } = this._detectLateSubmission(project, deadlineField, remarks);
+    const deadlineField = `chapter${chapter}`;
+    const { isLate } = this._detectLateSubmission(
+      project,
+      deadlineField,
+      remarks,
+      justificationLetterFile,
+      true,
+    );
 
     // --- Auto-increment version ---
     const nextVersion = latestSubmission ? latestSubmission.version + 1 : 1;
@@ -1189,6 +1211,42 @@ class SubmissionService {
       }
     }
 
+    // --- Upload late justification letter to S3 if provided ---
+    let lateJustificationLetter = null;
+    if (justificationLetterFile && justificationLetterFile.buffer) {
+      const letterMime =
+        justificationLetterFile.validatedMime ||
+        justificationLetterFile.mimetype ||
+        'application/pdf';
+      const letterKey = storageService.buildKey(
+        projectId,
+        chapter,
+        nextVersion,
+        `late-justification-${justificationLetterFile.originalname}`,
+      );
+      try {
+        await storageService.uploadFile(justificationLetterFile.buffer, letterKey, letterMime, {
+          projectId,
+          chapter: String(chapter),
+          version: String(nextVersion),
+          type: 'justification-letter',
+          uploadedBy: userId,
+        });
+        lateJustificationLetter = {
+          storageKey: letterKey,
+          fileName: justificationLetterFile.originalname,
+          fileSize: justificationLetterFile.size || 0,
+          fileType: letterMime,
+          uploadedAt: new Date(),
+        };
+      } catch (letterErr) {
+        logger.error(
+          '[SubmissionService] Failed to upload late justification letter:',
+          letterErr?.message,
+        );
+      }
+    }
+
     const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
       user,
       buffer: file.buffer,
@@ -1214,7 +1272,9 @@ class SubmissionService {
       status: SUBMISSION_STATUSES.PENDING,
       submittedBy: userId,
       isLate,
+      justification: remarks || null,
       remarks: remarks || null,
+      lateJustificationLetter,
       userDriveFolderId: driveSync.userDriveFolderId,
       driveFileId: driveSync.driveFileId,
       driveWebViewLink: driveSync.driveWebViewLink,
@@ -2875,9 +2935,6 @@ class SubmissionService {
           }
 
           try {
-            const Section = (await import('../academics/section.model.js')).default;
-            const User = (await import('../users/user.model.js')).default;
-            const Team = (await import('../teams/team.model.js')).default;
             const section = await Section.findById(projectDoc.sectionId);
             let instructorId = section?.instructorId;
             if (!instructorId) {

@@ -8,11 +8,8 @@ import {
   ChevronDown,
   CheckCircle2,
   Clock,
-  AlertCircle,
   ExternalLink,
-  Sparkles,
   Presentation,
-  ShieldCheck,
   Eye,
   FileCheck,
   Award,
@@ -20,8 +17,9 @@ import {
   XCircle,
   Send,
   ClipboardCheck,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
@@ -36,6 +34,7 @@ import ProposalRehearsalModal from './ProposalRehearsalModal';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import EvaluationPanel from './EvaluationPanel';
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
+import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
 
 const CHAPTER_TITLES = {
   1: 'Chapter 1: Problem Definition & Objectives',
@@ -74,6 +73,9 @@ export default function Capstone1CollapsibleSections({
   // Document Viewer modal state
   const [viewerDoc, setViewerDoc] = useState(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+
+  // Defense schedule modal state
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   // Derive title approval status
   const titleApproved =
@@ -138,6 +140,12 @@ export default function Capstone1CollapsibleSections({
   );
   const canReviewTitle = isInstructor || isAdviser || isPanelist || isFaculty;
 
+  // Derive defense hearing schedule status
+  const scheduleStatus = project?.defenseSchedule?.status;
+  const hasScheduleDate = Boolean(project?.defenseSchedule?.date);
+  const isScheduledOrDone =
+    (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
+
   // Selected proposal or approved title
   const activeProposal = useMemo(() => {
     if (!titleProposals.length) {
@@ -169,20 +177,23 @@ export default function Capstone1CollapsibleSections({
     setIsSubmittingDecision(true);
     try {
       if (deliberationRemarks.trim()) {
+        const commentProposalId =
+          activeProposal?.id && !String(activeProposal.id).startsWith('prop-')
+            ? String(activeProposal.id)
+            : String(selectedProposalIndex);
+
         await addCommentMutation.mutateAsync({
           projectId: project._id,
-          proposalId: String(activeProposal.index),
+          proposalId: commentProposalId,
           text: `Deliberation Decision: ${deliberationVote}\nRemarks: ${deliberationRemarks.trim()}`,
         });
       }
 
       if (deliberationVote === 'Approve') {
-        const scheduleStatus = project?.defenseSchedule?.status;
-        const hasScheduleDate = Boolean(project?.defenseSchedule?.date);
-        const isScheduledOrDone =
-          (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
-
         if (!isScheduledOrDone) {
+          if (isInstructor) {
+            setIsScheduleModalOpen(true);
+          }
           toast.error(
             'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
           );
@@ -191,13 +202,14 @@ export default function Capstone1CollapsibleSections({
 
         await approveTitleMutation.mutateAsync({
           projectId: project._id,
-          proposalId: activeProposal.index,
+          proposalId: selectedProposalIndex,
         });
         toast.success(`Proposal ${activeProposal.index} officially approved as capstone title!`);
       } else if (deliberationVote === 'Revision') {
         await rejectTitleMutation.mutateAsync({
           projectId: project._id,
           reason: `Proposal Revision Required: ${deliberationRemarks.trim()}`,
+          proposalId: selectedProposalIndex,
         });
         toast.success('Title proposal sent back for revision.');
       }
@@ -206,7 +218,12 @@ export default function Capstone1CollapsibleSections({
       setDeliberationRemarks('');
       onRefresh?.();
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to submit decision.');
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Failed to submit decision.',
+      );
     } finally {
       setIsSubmittingDecision(false);
     }
@@ -474,6 +491,44 @@ export default function Capstone1CollapsibleSections({
                     Proposal {activeProposal.index}
                   </Badge>
                 </div>
+
+                {/* Institutional Prerequisite: Scheduled Defense Hearing Indicator */}
+                {!isScheduledOrDone ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>
+                        <strong>Defense Hearing Required:</strong> The proponent team must have a
+                        scheduled defense hearing before their title proposal can be approved.
+                      </span>
+                    </div>
+                    {isInstructor && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsScheduleModalOpen(true)}
+                        className="gap-1.5 text-xs font-semibold border-amber-500/40 text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 shrink-0"
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        Schedule Defense Hearing
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>
+                      <strong>Defense Hearing Scheduled:</strong>{' '}
+                      {project?.defenseSchedule?.date
+                        ? new Date(project.defenseSchedule.date).toLocaleDateString()
+                        : 'Scheduled'}{' '}
+                      {project?.defenseSchedule?.time ? `(${project.defenseSchedule.time})` : ''} in{' '}
+                      {project?.defenseSchedule?.venue || 'COT Conference Room'}. Ready for official
+                      endorsement.
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <Button
@@ -930,6 +985,19 @@ export default function Capstone1CollapsibleSections({
           fileUrl={viewerDoc.fileUrl}
           chapterTitle={viewerDoc.title}
           embedded={false}
+        />
+      )}
+
+      {/* Defense Scheduling Modal for seamless inline hearing scheduling */}
+      {isScheduleModalOpen && (
+        <ScheduleDefenseModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          project={project}
+          onScheduled={() => {
+            onRefresh?.();
+            setIsScheduleModalOpen(false);
+          }}
         />
       )}
     </div>

@@ -522,7 +522,8 @@ export function useSubmissionComments(submissionId, options = {}) {
     queryKey: submissionKeys.comments(submissionId),
     queryFn: async () => {
       const res = await submissionService.getSubmissionComments(submissionId);
-      return res.data?.data?.comments ?? res.data?.data ?? [];
+      const comments = res.data?.data?.comments ?? res.data?.data ?? [];
+      return Array.isArray(comments) ? comments : [];
     },
     enabled: Boolean(submissionId),
     ...options,

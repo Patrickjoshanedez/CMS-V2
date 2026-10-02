@@ -13,6 +13,7 @@ import {
   MessageSquareQuote,
   Clock,
   Info,
+  Paperclip,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -78,10 +79,12 @@ export default function UploadChapterModal({
 }) {
   const [chapter, setChapter] = useState(initialChapter);
   const [file, setFile] = useState(null);
+  const [justificationLetter, setJustificationLetter] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [clientError, setClientError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const letterInputRef = useRef(null);
 
   // Sync initialChapter when modal opens
   useEffect(() => {
@@ -89,6 +92,7 @@ export default function UploadChapterModal({
       const validInitial = !isCap2ADMApproved && initialChapter >= 4 ? 1 : initialChapter;
       setChapter(validInitial);
       setFile(null);
+      setJustificationLetter(null);
       setRemarks('');
       setClientError('');
       setUploadProgress(0);
@@ -123,13 +127,13 @@ export default function UploadChapterModal({
     },
   });
 
-  const validateFile = useCallback((selectedFile) => {
-    if (!selectedFile) return 'Please select a file.';
+  const validateFile = useCallback((selectedFile, label = 'File') => {
+    if (!selectedFile) return `Please select a ${label.toLowerCase()}.`;
     if (!Object.keys(ACCEPTED_FILE_TYPES).includes(selectedFile.type)) {
-      return 'Invalid file type. Only PDF, DOCX, or TXT allowed.';
+      return `Invalid ${label.toLowerCase()} type. Only PDF, DOCX, or TXT allowed.`;
     }
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      return `File exceeds maximum size (${MAX_FILE_SIZE_MB}MB)`;
+      return `${label} exceeds maximum size (${MAX_FILE_SIZE_MB}MB)`;
     }
     return '';
   }, []);
@@ -137,7 +141,7 @@ export default function UploadChapterModal({
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0] || null;
     setFile(selected);
-    setClientError(selected ? validateFile(selected) : '');
+    setClientError(selected ? validateFile(selected, 'Manuscript file') : '');
     setUploadProgress(0);
   };
 
@@ -146,8 +150,23 @@ export default function UploadChapterModal({
     const dropped = e.dataTransfer.files?.[0] || null;
     if (dropped) {
       setFile(dropped);
-      setClientError(validateFile(dropped));
+      setClientError(validateFile(dropped, 'Manuscript file'));
       setUploadProgress(0);
+    }
+  };
+
+  const handleLetterChange = (e) => {
+    const selected = e.target.files?.[0] || null;
+    setJustificationLetter(selected);
+    setClientError(selected ? validateFile(selected, 'Justification letter') : '');
+  };
+
+  const handleLetterDrop = (e) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.files?.[0] || null;
+    if (dropped) {
+      setJustificationLetter(dropped);
+      setClientError(validateFile(dropped, 'Justification letter'));
     }
   };
 
@@ -172,14 +191,27 @@ export default function UploadChapterModal({
       setClientError('Please select a file.');
       return;
     }
-    const fileErr = validateFile(file);
+    const fileErr = validateFile(file, 'Manuscript file');
     if (fileErr) {
       setClientError(fileErr);
       return;
     }
-    if (requiresLateJustification && !remarks.trim()) {
-      setClientError('Late submission detected. Please provide a late-justification note.');
-      return;
+    if (requiresLateJustification) {
+      if (!remarks.trim()) {
+        setClientError('Late submission detected. Please provide a late-justification note.');
+        return;
+      }
+      if (!justificationLetter) {
+        setClientError(
+          'Late submission detected. An official signed justification letter (PDF/DOCX) must be uploaded.',
+        );
+        return;
+      }
+      const letterErr = validateFile(justificationLetter, 'Justification letter');
+      if (letterErr) {
+        setClientError(letterErr);
+        return;
+      }
     }
 
     const formData = new FormData();
@@ -187,6 +219,9 @@ export default function UploadChapterModal({
     formData.append('chapter', chapter);
     if (remarks.trim()) {
       formData.append('remarks', remarks.trim());
+    }
+    if (requiresLateJustification && justificationLetter) {
+      formData.append('justificationLetter', justificationLetter);
     }
 
     uploadMutation.mutate({
@@ -401,41 +436,141 @@ export default function UploadChapterModal({
             )}
           </div>
 
-          {/* Late Justification / Remarks */}
-          <div className="space-y-1.5">
-            <Label htmlFor="modal-remarks" className="text-xs font-medium">
-              {requiresLateJustification
-                ? 'Late Justification Note (Required)'
-                : isLocked
+          {/* ──────────────────────────────────────────────────────── */}
+          {/* LATE SUBMISSION JUSTIFICATION (Visible ONLY when late)   */}
+          {/* ──────────────────────────────────────────────────────── */}
+          {requiresLateJustification ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3.5 animate-in fade-in duration-200">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-destructive">
+                    Late Submission Compliance Gate
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    The deadline for Chapter {selectedChapterNumber} (
+                    {formatDeadline(selectedDeadline)}) has elapsed. Institutional policy requires
+                    both a written justification statement and an official signed justification
+                    letter (PDF/DOCX).
+                  </p>
+                </div>
+              </div>
+
+              {/* Required Written Justification Note */}
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-remarks" className="text-xs font-semibold text-foreground">
+                  Justification Statement <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="modal-remarks"
+                  rows={3}
+                  placeholder="Provide a comprehensive explanation for the delay in deliverable submission..."
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  disabled={isSubmitting}
+                  maxLength={1000}
+                  required
+                  className="text-xs resize-none"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span className="text-destructive font-medium">
+                    Justification statement is mandatory.
+                  </span>
+                  <span>{remarks.length}/1000 characters</span>
+                </div>
+              </div>
+
+              {/* Required Signed Justification Letter Document */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="modal-justification-letter"
+                  className="text-xs font-semibold text-foreground"
+                >
+                  Official Justification Letter Document <span className="text-destructive">*</span>
+                </Label>
+                {!justificationLetter ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => letterInputRef.current?.click()}
+                    onDrop={handleLetterDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onKeyDown={(e) => e.key === 'Enter' && letterInputRef.current?.click()}
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-destructive/40 bg-background/50 p-3.5 text-center transition hover:bg-background/80"
+                  >
+                    <Paperclip className="h-4 w-4 text-destructive mb-1" />
+                    <span className="text-xs font-semibold text-foreground">
+                      Click to attach signed justification letter
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                      Signed document (PDF or DOCX format, up to {MAX_FILE_SIZE_MB} MB)
+                    </span>
+                    <input
+                      ref={letterInputRef}
+                      id="modal-justification-letter"
+                      type="file"
+                      accept={ACCEPT_STRING}
+                      onChange={handleLetterChange}
+                      disabled={isSubmitting}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-background p-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="h-4 w-4 text-destructive shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate max-w-[240px]">
+                          {justificationLetter.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatBytes(justificationLetter.size)} &bull; Signed Justification Letter
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => setJustificationLetter(null)}
+                      disabled={isSubmitting}
+                      aria-label="Remove justification letter"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Standard Remarks (Optional when not late) */
+            <div className="space-y-1.5">
+              <Label htmlFor="modal-remarks" className="text-xs font-medium">
+                {isLocked
                   ? 'Revision Notes for Adviser (Optional)'
                   : 'Submission Remarks (Optional)'}
-            </Label>
-            <Textarea
-              id="modal-remarks"
-              rows={3}
-              placeholder={
-                requiresLateJustification
-                  ? 'This submission is past the deadline. Please provide a clear justification for your committee.'
-                  : isLocked
+              </Label>
+              <Textarea
+                id="modal-remarks"
+                rows={3}
+                placeholder={
+                  isLocked
                     ? 'Summarize the changes made in response to adviser comments (e.g., expanded Section 1.2, revised problem statement).'
                     : 'Any additional notes for your adviser regarding this chapter.'
-              }
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              disabled={isSubmitting}
-              maxLength={1000}
-              required={requiresLateJustification}
-              className="text-xs resize-none"
-            />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>
-                {requiresLateJustification && (
-                  <span className="text-red-500 font-medium">Justification required.</span>
-                )}
-              </span>
-              <span>{remarks.length}/1000 characters</span>
+                }
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                disabled={isSubmitting}
+                maxLength={1000}
+                className="text-xs resize-none"
+              />
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span />
+                <span>{remarks.length}/1000 characters</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Client / Server Error */}
           {clientError && (
@@ -473,7 +608,10 @@ export default function UploadChapterModal({
               type="submit"
               size="sm"
               disabled={
-                isSubmitting || !file || !chapter || (requiresLateJustification && !remarks.trim())
+                isSubmitting ||
+                !file ||
+                !chapter ||
+                (requiresLateJustification && (!remarks.trim() || !justificationLetter))
               }
               className="gap-2"
             >

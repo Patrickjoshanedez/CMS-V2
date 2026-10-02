@@ -34,9 +34,9 @@ export default function ProjectSidebarInfo({ project }) {
   const proposalCount = proposalTitles.length;
 
   return (
-    <Card className="rounded-2xl border-border bg-card shadow-lg">
-      <CardHeader className="pb-3 border-b border-border">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
+    <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
+      <CardHeader className="pb-3 border-b border-border/60">
+        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-foreground">
           <BookOpen className="h-4 w-4 text-indigo-500" />
           Project Details
         </CardTitle>
@@ -128,8 +128,8 @@ export default function ProjectSidebarInfo({ project }) {
 
         {/* Team Members List (FRAD2 - Adviser/Faculty Right-Sidebar Visibility) */}
         {Array.isArray(project.teamId?.members) && project.teamId.members.length > 0 && (
-          <div className="pt-2 border-t border-border space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="pt-2 border-t border-border/60 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
               Team Roster ({project.teamId.members.length})
             </p>
             <div className="space-y-1.5">
@@ -146,9 +146,11 @@ export default function ProjectSidebarInfo({ project }) {
                 return (
                   <div
                     key={member._id || idx}
-                    className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs"
+                    className="flex items-center justify-between rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs"
                   >
-                    <span className="font-medium text-foreground truncate">{memberName}</span>
+                    <span className="font-semibold text-slate-900 dark:text-foreground truncate">
+                      {memberName}
+                    </span>
                     {isLeader ? (
                       <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
                         Leader

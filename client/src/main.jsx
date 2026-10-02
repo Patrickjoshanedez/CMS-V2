@@ -8,6 +8,7 @@ import { getGoogleAuthRuntimeConfig } from './utils/googleAuth';
 import { appQueryClient } from './lib/queryClient';
 import { applyTheme } from './stores/themeStore';
 import './index.css';
+import './utils/pdfWorker';
 
 // ─── Flash-free theme bootstrap ───────────────────────────────────────────────
 // Apply the persisted theme class BEFORE React mounts to eliminate the white

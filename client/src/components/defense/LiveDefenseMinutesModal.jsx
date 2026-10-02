@@ -1000,14 +1000,14 @@ export default function LiveDefenseMinutesModal({
                           <span className="font-serif italic font-bold text-primary tracking-widest text-base">
                             {minutes?.secretaryId?.firstName
                               ? `${minutes.secretaryId.firstName} ${minutes.secretaryId.lastName}`
-                              : 'Joan Marie M. Panes'}
+                              : minutes?.secretaryName || 'Committee Secretary'}
                           </span>
                         </div>
                         <div className="border-t border-foreground pt-1">
                           <p className="text-xs font-bold uppercase text-foreground">
                             {minutes?.secretaryId?.firstName
                               ? `${minutes.secretaryId.firstName} ${minutes.secretaryId.lastName}`
-                              : 'JOAN MARIE M. PANES'}
+                              : minutes?.secretaryName || 'COMMITTEE SECRETARY'}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
                             Signature over Printed Name of Secretary

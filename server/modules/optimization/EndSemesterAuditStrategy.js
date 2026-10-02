@@ -23,35 +23,67 @@ export class EndSemesterAuditStrategy extends WorkloadOptimizationStrategy {
   }
 
   /**
-   * Performs a conservative audit of adviser workloads. Only surfaces critical
+   * Performs a conservative audit of faculty workloads. Only surfaces critical
    * overloads that exceed the high end-semester threshold, and restricts transfer
    * suggestions to non-defense-phase projects.
    *
    * @param {Object} workload
-   * @param {Array<Object>} workload.advisers
+   * @param {Array<Object>} [workload.advisers]
+   * @param {Array<Object>} [workload.panelists]
+   * @param {Array<Object>} [workload.faculty]
    * @param {Object} workload.summary
+   * @param {Object} [options]
+   * @param {'all'|'adviser'|'panelist'} [options.roleScope='all']
    * @returns {Promise<Object>}
    */
-  async executeOptimization(workload) {
-    const { advisers, summary } = workload;
+  async executeOptimization(workload, options = {}) {
+    const roleScope = options.roleScope || 'all';
+    const advisers = workload.advisers || [];
+    const panelists = workload.panelists || [];
+    const faculty = workload.faculty || [];
 
-    if (advisers.length < 2) {
+    const targetPool =
+      roleScope === 'panelist' && panelists.length > 0
+        ? panelists
+        : roleScope === 'adviser' && advisers.length > 0
+          ? advisers
+          : faculty.length >= 2
+            ? faculty
+            : advisers.length >= 2
+              ? advisers
+              : panelists.length >= 2
+                ? panelists
+                : advisers;
+
+    const summary = workload.summary || {};
+    const averageScore =
+      summary.averageScore ||
+      (targetPool.length > 0
+        ? targetPool.reduce((acc, f) => acc + (f.workloadScore || 0), 0) / targetPool.length
+        : 0);
+
+    if (targetPool.length < 2) {
       return {
         strategy: this.strategyName,
         suggested: false,
-        reason: 'At least two advisers are needed for an end-semester audit.',
+        reason:
+          roleScope === 'panelist'
+            ? 'At least two panelists are needed for an end-semester audit.'
+            : roleScope === 'adviser'
+              ? 'At least two advisers are needed for an end-semester audit.'
+              : 'At least two faculty members or committee members are needed for an end-semester audit.',
         suggestions: [],
         snapshot: null,
       };
     }
 
-    const heaviest = advisers[0];
-    const lightest = advisers[advisers.length - 1];
+    const heaviest = targetPool[0];
+    const lightest = targetPool[targetPool.length - 1];
     const scoreGap = heaviest.workloadScore - lightest.workloadScore;
 
-    // Flag advisers whose score significantly exceeds the cohort average
-    const criticalOverloads = advisers.filter(
-      (a) => a.workloadScore > summary.averageScore + END_SEMESTER_IMBALANCE_THRESHOLD,
+    // Flag faculty whose score significantly exceeds the cohort average
+    const criticalOverloads = targetPool.filter(
+      (a) => a.workloadScore > averageScore + END_SEMESTER_IMBALANCE_THRESHOLD,
     );
 
     if (scoreGap < END_SEMESTER_IMBALANCE_THRESHOLD && criticalOverloads.length === 0) {
@@ -65,15 +97,34 @@ export class EndSemesterAuditStrategy extends WorkloadOptimizationStrategy {
       };
     }
 
-    // End-semester: only propose targeted relief for critically overloaded advisers
+    // End-semester: only propose targeted relief for critically overloaded faculty
+    const lightestId = lightest.facultyId || lightest.panelistId || lightest.adviserId;
+    const lightestName = lightest.facultyName || lightest.panelistName || lightest.adviserName;
+
     const suggestions = criticalOverloads.map((overloaded) => {
+      const overloadedId = overloaded.facultyId || overloaded.panelistId || overloaded.adviserId;
+      const overloadedName =
+        overloaded.facultyName || overloaded.panelistName || overloaded.adviserName;
+      const roleLabel =
+        overloaded.roleType ||
+        (roleScope === 'panelist'
+          ? 'panelist'
+          : roleScope === 'adviser'
+            ? 'adviser'
+            : 'committee member');
       const gap = overloaded.workloadScore - lightest.workloadScore;
+
       return {
-        fromAdviserId: overloaded.adviserId,
-        fromAdviserName: overloaded.adviserName,
-        toAdviserId: lightest.adviserId,
-        toAdviserName: lightest.adviserName,
-        action: `AUDIT FLAG: ${overloaded.adviserName} is critically overloaded near end-semester. Review pending projects for potential transfer (non-defense phase only).`,
+        fromAdviserId: overloadedId,
+        fromAdviserName: overloadedName,
+        toAdviserId: lightestId,
+        toAdviserName: lightestName,
+        fromFacultyId: overloadedId,
+        fromFacultyName: overloadedName,
+        toFacultyId: lightestId,
+        toFacultyName: lightestName,
+        roleType: roleLabel,
+        action: `AUDIT FLAG: ${overloadedName} is critically overloaded near end-semester (${roleLabel}). Review pending projects for potential transfer (non-defense phase only).`,
         estimatedScoreGapReduction: Number((gap * REDUCTION_FACTOR).toFixed(2)),
         restrictionNote:
           'Transfers restricted to projects not yet in defense phase. Instructor review required.',
@@ -85,7 +136,7 @@ export class EndSemesterAuditStrategy extends WorkloadOptimizationStrategy {
       suggested: suggestions.length > 0,
       reason:
         suggestions.length > 0
-          ? 'End-semester audit detected critical adviser overloads requiring instructor review.'
+          ? 'End-semester audit detected critical faculty overloads requiring instructor review.'
           : 'Minor imbalance detected but end-semester transfer restrictions apply.',
       suggestions,
       snapshot: {

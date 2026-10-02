@@ -11,7 +11,6 @@ const mockUseTeams = vi.fn();
 const mockUseUsers = vi.fn();
 const mockUseProject = vi.fn();
 const mockAssignCommitteeMutate = vi.fn();
-const mockSetDeadlinesMutate = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 
@@ -38,13 +37,6 @@ vi.mock('@/hooks/useUsers', () => ({
 
 vi.mock('@/hooks/useProjects', () => ({
   useProject: (...args) => mockUseProject(...args),
-  useSetDeadlines: (options) => ({
-    mutate: (payload) => {
-      mockSetDeadlinesMutate(payload);
-      options?.onSuccess?.();
-    },
-    isPending: false,
-  }),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -244,5 +236,12 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
       }),
     );
     expect(toastSuccess).toHaveBeenCalledWith('Committee assigned successfully.');
+  });
+
+  it('does not render Project Milestones & Deadlines card', async () => {
+    await renderComponent();
+
+    expect(container.textContent).not.toContain('Project Milestones & Deadlines');
+    expect(container.textContent).not.toContain('Configure chapter submission cutoffs');
   });
 });

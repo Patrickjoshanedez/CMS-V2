@@ -8,6 +8,30 @@
  */
 
 /**
+ * Detects institutional header/footer boilerplate and continuation headers
+ * so that PDF pagination and document codes do not pollute remarks or matrix fields.
+ */
+function isInstitutionalNoiseLine(line) {
+  if (!line || typeof line !== 'string') return true;
+  const trimmed = line.trim();
+  if (!trimmed) return true;
+  return (
+    /^(?:page\s+\d+(\s+of\s+\d+)?|\d+\s+of\s+\d+)$/i.test(trimmed) ||
+    /Document\s+Code:/i.test(trimmed) ||
+    /BUKIDNON\s+STATE\s+UNIVERSITY/i.test(trimmed) ||
+    /Malaybalay\s+City/i.test(trimmed) ||
+    /Tel(?:efax|\(088\))/i.test(trimmed) ||
+    /SECRETARY(?:'S|’S)?\s+MINUTES/i.test(trimmed) ||
+    /Revision\s+No:?/i.test(trimmed) ||
+    /Issue\s+No:?/i.test(trimmed) ||
+    /Issue\s+Date:?/i.test(trimmed) ||
+    /OVPAA-F-INS-032/i.test(trimmed) ||
+    /Name\s+of\s+Panel/i.test(trimmed) ||
+    /COMMENTS\s*[/&and]*\s*SUGGESTIONS/i.test(trimmed)
+  );
+}
+
+/**
  * Parses BukSU Form OVPAA-F-INS-032 plain text or OCR extract.
  *
  * @param {string} text - Raw extracted text from PDF/DOCX/OCR
@@ -39,10 +63,17 @@ export function parseSecretaryMinutesDocument(text) {
 
   if (!text || typeof text !== 'string') return result;
 
-  // 1. Title of Paper
-  const titleMatch = text.match(/Title\s+of\s+Paper:\s*([^\n\r]+)/i);
+  // 1. Title of Paper (handles both single-line and multi-line titles)
+  const titleMatch = text.match(
+    /Title\s+of\s+Paper:\s*([\s\S]*?)(?=Name\s+of\s+Proponents:|Type\s+of\s+Defense:|$)/i,
+  );
   if (titleMatch) {
-    let rawTitle = titleMatch[1].trim();
+    let rawTitle = titleMatch[1]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !isInstitutionalNoiseLine(l))
+      .join(' ')
+      .trim();
     // Clean up potential OCR merged words if separated by colon
     if (rawTitle.includes(':') && !rawTitle.includes(': ')) {
       rawTitle = rawTitle.replace(':', ': ');
@@ -58,7 +89,7 @@ export function parseSecretaryMinutesDocument(text) {
     result.proponents = proponentsMatch[1]
       .split('\n')
       .map((p) => p.trim())
-      .filter((p) => p.length > 0 && !/^page\s+\d+/i.test(p) && !/Document\s+Code:/i.test(p));
+      .filter((p) => p.length > 0 && !isInstitutionalNoiseLine(p));
   }
 
   // 3. Type of Defense
@@ -129,7 +160,7 @@ export function parseSecretaryMinutesDocument(text) {
     result.panelMembers = membersMatch[1]
       .split('\n')
       .map((m) => m.trim())
-      .filter((m) => m.length > 0 && !/^page\s+\d+/i.test(m) && !/Document\s+Code:/i.test(m));
+      .filter((m) => m.length > 0 && !isInstitutionalNoiseLine(m));
   }
 
   // 9. Secretary
@@ -147,7 +178,9 @@ export function parseSecretaryMinutesDocument(text) {
     'Dr. Sales G. Aribe Jr.',
   ].filter(Boolean);
 
-  const tablePart = text.split(/Name\s+of\s+Panel\s+COMMENTS\/SUGGESTIONS/i);
+  const tablePart = text.split(
+    /Name\s+of\s+Panel\s+(?:COMMENTS\s*[/&and]*\s*SUGGESTIONS|COMMENTS|SUGGESTIONS)/i,
+  );
   if (tablePart.length > 1) {
     const fullTableContent = tablePart
       .slice(1)
@@ -179,16 +212,7 @@ export function parseSecretaryMinutesDocument(text) {
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
-      if (!line) continue;
-      if (/Name\s+of\s+Panel\s+COMMENTS\/SUGGESTIONS/i.test(line)) continue;
-      if (
-        /Document\s+Code:/i.test(line) ||
-        /BUKIDNON\s+STATE\s+UNIVERSITY/i.test(line) ||
-        /Malaybalay\s+City/i.test(line) ||
-        /Tel\(088\)/i.test(line)
-      ) {
-        continue;
-      }
+      if (!line || isInstitutionalNoiseLine(line)) continue;
 
       let foundPanelInLine = null;
       let lineAfterPanel = line;
@@ -198,19 +222,20 @@ export function parseSecretaryMinutesDocument(text) {
         foundPanelInLine = 'Dr. Sales Aribe Jr. (Client)';
         lineAfterPanel = line
           .replace(/^(?:Client\s*)?(?:Dr\.\s*Sales\s*Aribe\s*(?:Jr\.)?)?/i, '')
+          .replace(/^[:\-\s]+/, '')
           .trim();
       } else {
         for (const cand of candidateNames) {
           const candParts = cand.split(/[\s,]+/);
           const candRegex = new RegExp(
-            `^(?:${cand.replace(/\./g, '\\.')}|${candParts[candParts.length - 1]}|${candParts[0]})`,
+            `^(?:${cand.replace(/\./g, '\\.')}|${candParts[candParts.length - 1]}|${candParts[0]})\\b`,
             'i',
           );
           if (candRegex.test(line) && !isBulletStart(line)) {
-            const match = line.match(/^([^•\-*]+)(.*)$/);
+            const match = line.match(/^([^•\-*:]+)(.*)$/);
             if (match) {
               foundPanelInLine = match[1].trim();
-              lineAfterPanel = match[2].trim();
+              lineAfterPanel = match[2].replace(/^[:\-\s]+/, '').trim();
             } else {
               foundPanelInLine = cand;
               lineAfterPanel = '';
@@ -235,11 +260,11 @@ export function parseSecretaryMinutesDocument(text) {
 
       if (bulletParts.length > 0 && (line.includes('•') || line.includes(''))) {
         for (const bp of bulletParts) {
-          if (bp) currentComments.push(bp);
+          if (bp && !isInstitutionalNoiseLine(bp)) currentComments.push(bp);
         }
       } else if (isBulletStart(line)) {
         const clean = line.replace(/^[•\-*]\s*/, '').trim();
-        if (clean) currentComments.push(clean);
+        if (clean && !isInstitutionalNoiseLine(clean)) currentComments.push(clean);
       } else if (currentComments.length > 0) {
         currentComments[currentComments.length - 1] += ' ' + line;
       } else if (currentPanel) {
@@ -255,15 +280,13 @@ export function parseSecretaryMinutesDocument(text) {
     result.overallRecommendations = recMatch[1]
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l && !/Document\s+Code:/i.test(l) && !/BUKIDNON/i.test(l))
+      .filter((l) => l && !isInstitutionalNoiseLine(l))
       .join(' ')
       .trim();
   }
 
   // 12. Panel Verdict
-  const verdictMatch = text.match(
-    /Panel\s+Verdict:\s*([\s\S]*?)(?=JOAN\s+MARIE|Signature\s+over|$)/i,
-  );
+  const verdictMatch = text.match(/Panel\s+Verdict:\s*([\s\S]*?)(?=Signature\s+over|$)/i);
   if (verdictMatch) {
     const rawV = verdictMatch[1].replace(/\s+/g, ' ');
     if (
@@ -295,7 +318,9 @@ export function parseSecretaryMinutesDocument(text) {
     const cleanSignName = signMatch[1]
       .split('\n')
       .map((s) => s.trim())
-      .filter((s) => s && !/^(?:approved|rejected|revision)/i.test(s))
+      .filter(
+        (s) => s && !/^(?:approved|rejected|revision)/i.test(s) && !isInstitutionalNoiseLine(s),
+      )
       .pop();
     if (cleanSignName) {
       result.secretarySignatoryName = cleanSignName.trim();

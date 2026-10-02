@@ -5,7 +5,14 @@
  * for capstone project management: creation, title workflow, adviser/panelist
  * assignment, deadlines, and project rejection.
  */
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useContext } from 'react';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClientContext,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import { projectService } from '../services/authService';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -105,7 +112,8 @@ export function useProject(id, options = {}) {
  * Hook to prefetch project details into QueryClient cache on hover / user intent.
  */
 export function usePrefetchProject() {
-  const queryClient = useQueryClient();
+  const queryClient = useContext(QueryClientContext);
+
   return (id) => {
     if (!id || !queryClient) return;
     queryClient.prefetchQuery({
@@ -213,8 +221,8 @@ export function useApproveTitle(options = {}) {
 
 /** Reject a submitted title (instructor) */
 export function useRejectTitle(options = {}) {
-  return useProjectMutation(async ({ projectId, reason }) => {
-    const res = await projectService.rejectTitle(projectId, { reason });
+  return useProjectMutation(async ({ projectId, reason, proposalId }) => {
+    const res = await projectService.rejectTitle(projectId, { reason, proposalId });
     return res.data;
   }, options);
 }

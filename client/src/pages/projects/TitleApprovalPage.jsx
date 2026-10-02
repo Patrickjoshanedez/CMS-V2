@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -20,7 +20,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Maximize2,
-  X,
   Sparkles,
   Layers,
   Users,
@@ -28,6 +27,8 @@ import {
   RefreshCw,
   MessageSquare,
   Lock,
+  Calendar,
+  MapPin,
 } from 'lucide-react';
 import { useMyProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
@@ -138,6 +139,154 @@ function parsePitchDeckFromDescription(description = '') {
   return result;
 }
 
+export function parseDefenseDate(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return new Date(dateVal.getTime());
+  const str = String(dateVal).trim();
+  const datePart = str.split('T')[0];
+  const parts = datePart.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m, d);
+    }
+  }
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function formatDefenseDate(dateVal) {
+  const d = parseDefenseDate(dateVal);
+  if (!d) return 'TBD';
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+export function parseTimeSlot(timeStr, baseDate) {
+  const dateObj = baseDate ? new Date(baseDate.getTime()) : new Date();
+  dateObj.setHours(9, 0, 0, 0); // default 9:00 AM
+  let endObj = new Date(dateObj.getTime() + 30 * 60 * 1000); // default 30 mins
+
+  if (!timeStr || typeof timeStr !== 'string') {
+    return { startDate: dateObj, endDate: endObj };
+  }
+
+  const parts = timeStr.split(' - ');
+  const startStr = parts[0]?.trim() || '';
+  const endStr = parts[1]?.trim() || '';
+
+  const parseTimePart = (s) => {
+    if (!s) return null;
+    const match = s.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    if (!match) return null;
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    const ampm = match[3]?.toUpperCase();
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return { h, m };
+  };
+
+  const startHM = parseTimePart(startStr);
+  if (startHM) {
+    dateObj.setHours(startHM.h, startHM.m, 0, 0);
+  }
+
+  const endHM = parseTimePart(endStr);
+  if (endHM) {
+    endObj = new Date(dateObj.getTime());
+    endObj.setHours(endHM.h, endHM.m, 0, 0);
+  } else {
+    endObj = new Date(dateObj.getTime() + 30 * 60 * 1000);
+  }
+
+  return { startDate: dateObj, endDate: endObj };
+}
+
+export function calculateDefenseCountdown(defenseSchedule, now = new Date()) {
+  if (!defenseSchedule?.date) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isToday: false,
+      isPast: false,
+      isOngoing: false,
+      formattedText: '',
+      stepCountdownText: '',
+    };
+  }
+
+  const baseDate = parseDefenseDate(defenseSchedule.date);
+  if (!baseDate) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isToday: false,
+      isPast: false,
+      isOngoing: false,
+      formattedText: '',
+      stepCountdownText: '',
+    };
+  }
+
+  const { startDate, endDate } = parseTimeSlot(defenseSchedule.time, baseDate);
+  const nowMs = now.getTime();
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+
+  const isToday =
+    now.getFullYear() === startDate.getFullYear() &&
+    now.getMonth() === startDate.getMonth() &&
+    now.getDate() === startDate.getDate();
+
+  const isPast = nowMs >= endMs;
+  const isOngoing = nowMs >= startMs && nowMs < endMs;
+
+  let diffMs = startMs - nowMs;
+  if (diffMs < 0) diffMs = 0;
+
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const formattedUnits = `${pad(days)}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+
+  let stepCountdownText = '';
+  if (isPast) {
+    stepCountdownText = 'Hearing Concluded';
+  } else if (isOngoing) {
+    stepCountdownText = 'Hearing in Progress';
+  } else {
+    stepCountdownText = formattedUnits;
+  }
+
+  return {
+    days,
+    hours,
+    minutes,
+    seconds,
+    isToday,
+    isPast,
+    isOngoing,
+    formattedText: formattedUnits,
+    stepCountdownText,
+    startDate,
+    endDate,
+  };
+}
+
 export default function TitleApprovalPage() {
   const navigate = useNavigate();
   const authState = useAuthStore((s) => s?.user);
@@ -154,6 +303,29 @@ export default function TitleApprovalPage() {
 
   // Persistent presentation edits from rehearsal editor
   const allDeckEdits = usePresentationEditorStore((s) => s.deckEdits);
+
+  // Live ticking clock for scheduled defense countdown
+  const [now, setNow] = useState(() => new Date());
+
+  const countdown = useMemo(() => {
+    return calculateDefenseCountdown(project?.defenseSchedule, now);
+  }, [project?.defenseSchedule, now]);
+
+  const isDefenseScheduled = Boolean(
+    project?.defenseSchedule?.date &&
+    project?.defenseSchedule?.status === 'scheduled' &&
+    !countdown.isPast,
+  );
+  const isApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
+  const isSubmitted = project?.titleStatus === TITLE_STATUSES.SUBMITTED;
+
+  useEffect(() => {
+    if (!isDefenseScheduled || isApproved) return;
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isDefenseScheduled, isApproved]);
 
   const toggleProposalExpansion = (index) => {
     setExpandedProposals((prev) => ({
@@ -407,23 +579,35 @@ export default function TitleApprovalPage() {
     );
   }
 
-  const isApproved = project.titleStatus === TITLE_STATUSES.APPROVED;
-  const isSubmitted = project.titleStatus === TITLE_STATUSES.SUBMITTED;
-  const defenseStage = isApproved ? 4 : isSubmitted ? 3 : normalizedProposals.length > 0 ? 2 : 1;
+  const defenseStage = isApproved
+    ? 4
+    : isSubmitted || isDefenseScheduled
+      ? 3
+      : normalizedProposals.length > 0
+        ? 2
+        : 1;
   const defenseProgressPercent = isApproved
     ? 100
-    : isSubmitted
+    : isSubmitted || isDefenseScheduled
       ? 75
       : normalizedProposals.length > 0
         ? 50
         : 25;
   const currentStageLabel = isApproved
     ? 'Stage 4: Title Approval (Approved)'
-    : isSubmitted
-      ? 'Stage 3: Committee Defense (Deliberation)'
-      : normalizedProposals.length > 0
-        ? 'Stage 2: Similarity Pre-Scan'
-        : 'Stage 1: Proposals Submitted';
+    : isDefenseScheduled
+      ? 'Stage 3: Committee Defense (Scheduled)'
+      : isSubmitted
+        ? 'Stage 3: Committee Defense (Deliberation)'
+        : normalizedProposals.length > 0
+          ? 'Stage 2: Similarity Pre-Scan'
+          : 'Stage 1: Proposals Submitted';
+
+  const rawDefenseRound = project?.defenseSchedule?.round || '1st';
+  const rawDefenseRoundStr = String(rawDefenseRound).trim();
+  const defenseRoundBadge = rawDefenseRoundStr.toLowerCase().includes('round')
+    ? `${rawDefenseRoundStr} (${rawDefenseRoundStr.toLowerCase().includes('re') ? 'Re-Defense' : 'Standard Defense'})`
+    : `${rawDefenseRoundStr} Round (${rawDefenseRoundStr.toLowerCase().includes('re') ? 'Re-Defense' : 'Standard Defense'})`;
 
   const defenseSteps = [
     {
@@ -445,11 +629,32 @@ export default function TitleApprovalPage() {
       name: '3. Committee Defense',
       description: isApproved
         ? 'Defense hearing approved'
-        : isSubmitted
-          ? 'Deliberation in progress'
-          : 'Awaiting hearing schedule',
+        : isDefenseScheduled
+          ? `${formatDefenseDate(project.defenseSchedule.date)} · ${project.defenseSchedule.time || '08:00 AM - 08:30 AM'} · ${project.defenseSchedule.venue || 'COT Conference Room'}`
+          : isSubmitted
+            ? 'Deliberation in progress'
+            : 'Awaiting hearing schedule',
       icon: Clock,
-      status: isApproved ? 'completed' : isSubmitted ? 'current' : 'pending',
+      status: isApproved
+        ? 'completed'
+        : isDefenseScheduled
+          ? 'scheduled'
+          : isSubmitted
+            ? 'current'
+            : 'pending',
+      badgeText: isApproved
+        ? 'Completed'
+        : isDefenseScheduled
+          ? 'Scheduled'
+          : isSubmitted
+            ? 'In Progress'
+            : 'Pending',
+      badgeStyle:
+        isDefenseScheduled && !isApproved
+          ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+          : null,
+      isScheduled: isDefenseScheduled && !isApproved,
+      countdownBadge: isDefenseScheduled && !isApproved ? countdown.stepCountdownText : null,
     },
     {
       id: 4,
@@ -584,26 +789,37 @@ export default function TitleApprovalPage() {
                 const isCompleted = step.status === 'completed';
                 const isCurrent = step.status === 'current';
                 const isPending = step.status === 'pending';
+                const isScheduled = step.isScheduled || step.status === 'scheduled';
 
                 return (
                   <div
                     key={step.id}
                     className={cn(
                       'relative flex flex-col justify-between gap-3 p-3.5 sm:p-4 rounded-xl border transition-all',
-                      isCompleted &&
+                      isScheduled &&
+                        'border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20 ring-1 ring-emerald-500/30 shadow-xs',
+                      !isScheduled &&
+                        isCompleted &&
                         'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20',
-                      isCurrent &&
+                      !isScheduled &&
+                        isCurrent &&
                         'border-primary/50 bg-primary/5 dark:bg-primary/10 ring-2 ring-primary/20 shadow-xs',
-                      isPending && 'border-border/60 bg-card/50 text-muted-foreground',
+                      !isScheduled &&
+                        isPending &&
+                        'border-border/60 bg-card/50 text-muted-foreground',
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div
                         className={cn(
                           'h-9 w-9 rounded-full flex items-center justify-center shrink-0 transition-all',
-                          isCompleted && 'bg-emerald-500 text-white shadow-xs',
-                          isCurrent && 'bg-primary text-primary-foreground shadow-xs animate-pulse',
-                          isPending && 'bg-muted text-muted-foreground border border-border/60',
+                          (isCompleted || isScheduled) && 'bg-emerald-500 text-white shadow-xs',
+                          !isScheduled &&
+                            isCurrent &&
+                            'bg-primary text-primary-foreground shadow-xs animate-pulse',
+                          !isScheduled &&
+                            isPending &&
+                            'bg-muted text-muted-foreground border border-border/60',
                         )}
                       >
                         <Icon className="h-4 w-4" />
@@ -612,13 +828,17 @@ export default function TitleApprovalPage() {
                         variant="outline"
                         className={cn(
                           'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                          isCompleted &&
-                            'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
-                          isCurrent && 'border-primary/40 text-primary bg-primary/10',
-                          isPending && 'border-border/60 text-muted-foreground bg-muted/40',
+                          step.badgeStyle
+                            ? step.badgeStyle
+                            : isCompleted
+                              ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                              : isCurrent
+                                ? 'border-primary/40 text-primary bg-primary/10'
+                                : 'border-border/60 text-muted-foreground bg-muted/40',
                         )}
                       >
-                        {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Pending'}
+                        {step.badgeText ||
+                          (isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Pending')}
                       </Badge>
                     </div>
 
@@ -626,7 +846,9 @@ export default function TitleApprovalPage() {
                       <p
                         className={cn(
                           'text-xs sm:text-sm font-semibold truncate',
-                          isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground',
+                          isCompleted || isCurrent || isScheduled
+                            ? 'text-foreground'
+                            : 'text-muted-foreground',
                         )}
                         title={step.name}
                       >
@@ -638,6 +860,17 @@ export default function TitleApprovalPage() {
                       >
                         {step.description}
                       </p>
+                      {step.countdownBadge && (
+                        <div className="pt-1.5 flex items-center">
+                          <span
+                            data-testid="step-defense-countdown"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          >
+                            <span>⏳</span>
+                            <span>{step.countdownBadge}</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -645,6 +878,268 @@ export default function TitleApprovalPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 2.5 Institutional Scheduled Defense Hearing Banner */}
+        {isDefenseScheduled && !isApproved && (
+          <Card
+            data-testid="scheduled-defense-banner"
+            className="rounded-2xl border-emerald-500/40 bg-gradient-to-br from-card via-card to-emerald-500/[0.04] shadow-xs overflow-hidden"
+          >
+            <CardContent className="p-5 sm:p-6 space-y-5">
+              {/* Header Bar: Icon, Title, Round Badge, Status Indicator */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 shadow-xs">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+                        Defense Hearing Scheduled
+                      </h3>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5"
+                      >
+                        {defenseRoundBadge}
+                      </Badge>
+                      {countdown.isToday && !countdown.isPast && !countdown.isOngoing && (
+                        <Badge className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 font-semibold">
+                          Today
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      BukSU College of Technologies · Capstone 1 Title Defense Hearing Session
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {countdown.isOngoing ? (
+                    <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 gap-1.5 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                      Hearing Session Active Today
+                    </Badge>
+                  ) : countdown.isPast ? (
+                    <Badge
+                      variant="outline"
+                      className="border-muted-foreground/30 text-muted-foreground bg-muted/40 text-xs font-medium px-2.5 py-1"
+                    >
+                      Hearing Concluded · Awaiting Clearance
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs font-semibold px-2.5 py-1 gap-1.5"
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      Scheduled Hearing
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Prominent Countdown Timer Block */}
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/20 p-4 sm:p-5">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                        Live Defense Hearing Countdown
+                      </span>
+                    </div>
+                    <p
+                      className="text-xs text-muted-foreground max-w-md"
+                      data-testid="defense-countdown-status"
+                    >
+                      {countdown.isOngoing
+                        ? 'Hearing session active today · Live presentation & deliberation in progress.'
+                        : countdown.isPast
+                          ? 'Hearing concluded, awaiting rubric evaluation / committee clearance.'
+                          : countdown.isToday
+                            ? 'Hearing session active today. Finalize slide rehearsal and prepare prototype pitch.'
+                            : 'Time remaining until formal capstone title defense before the appointed faculty panel.'}
+                    </p>
+                  </div>
+
+                  {/* 4 Styled Units: Days, Hours, Minutes, Seconds */}
+                  <div
+                    data-testid="defense-countdown-timer"
+                    className="grid grid-cols-4 gap-2 sm:gap-3 text-center shrink-0 self-center lg:self-auto"
+                  >
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                      <span
+                        data-testid="defense-countdown-days"
+                        className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
+                      >
+                        {String(countdown.days).padStart(2, '0')}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
+                        Days
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                      <span
+                        data-testid="defense-countdown-hours"
+                        className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
+                      >
+                        {String(countdown.hours).padStart(2, '0')}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
+                        Hours
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                      <span
+                        data-testid="defense-countdown-minutes"
+                        className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
+                      >
+                        {String(countdown.minutes).padStart(2, '0')}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
+                        Minutes
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                      <span
+                        data-testid="defense-countdown-seconds"
+                        className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
+                      >
+                        {String(countdown.seconds).padStart(2, '0')}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-0.5">
+                        Seconds
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hearing Schedule Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                {/* Date */}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[10px] uppercase font-bold tracking-wider">Date</span>
+                  </div>
+                  <p className="font-semibold text-foreground text-sm">
+                    {formatDefenseDate(project.defenseSchedule.date)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Official Hearing Schedule</p>
+                </div>
+
+                {/* Time Slot */}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[10px] uppercase font-bold tracking-wider">
+                      Time Slot
+                    </span>
+                  </div>
+                  <p className="font-semibold text-foreground text-sm font-mono">
+                    {project.defenseSchedule.time || '08:00 AM - 08:30 AM'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">30-Minute Defense Window</p>
+                </div>
+
+                {/* Venue */}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[10px] uppercase font-bold tracking-wider">Venue</span>
+                  </div>
+                  <p
+                    className="font-semibold text-foreground text-sm truncate"
+                    title={project.defenseSchedule.venue || 'COT Conference Room'}
+                  >
+                    {project.defenseSchedule.venue || 'COT Conference Room'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">COT Defense Room / Virtual</p>
+                </div>
+
+                {/* Target Client / Partner */}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Award className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[10px] uppercase font-bold tracking-wider">
+                      Target Client/Partner
+                    </span>
+                  </div>
+                  <p
+                    className="font-semibold text-foreground text-sm truncate"
+                    title={
+                      project.defenseSchedule.clientName ||
+                      'Institutional Partner / Industry Client'
+                    }
+                  >
+                    {project.defenseSchedule.clientName ||
+                      'Institutional Partner / Industry Client'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Beneficiary / Industry Stakeholder
+                  </p>
+                </div>
+              </div>
+
+              {/* Committee Members Row */}
+              <div className="rounded-xl border border-border/60 bg-muted/15 p-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs">
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                    <Users className="h-3.5 w-3.5 text-primary" />
+                    <span>Committee members:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                    {project.adviserId && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-2 py-0.5">
+                        <span className="font-semibold">Adviser:</span>
+                        {project.adviserId.firstName} {project.adviserId.lastName}
+                      </span>
+                    )}
+                    {project.panelistIds?.[0] && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5">
+                        <span className="font-semibold">Chair:</span>
+                        {project.panelistIds[0].firstName} {project.panelistIds[0].lastName}
+                      </span>
+                    )}
+                    {project.panelistIds?.slice(1).map((panelist, idx) => (
+                      <span
+                        key={panelist._id || `panelist-${idx}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-foreground"
+                      >
+                        <span className="font-semibold">Panelist {idx + 2}:</span>
+                        {panelist.firstName} {panelist.lastName}
+                      </span>
+                    ))}
+                    {team?.secretaryId && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5">
+                        <span className="font-semibold">Secretary:</span>
+                        {team.secretaryId.firstName} {team.secretaryId.lastName}
+                      </span>
+                    )}
+                    {!project.adviserId && !project.panelistIds?.length && (
+                      <span className="text-muted-foreground">
+                        {Array.isArray(project.defenseSchedule?.panelists)
+                          ? project.defenseSchedule.panelists.join(', ')
+                          : 'Appointed Capstone Faculty Committee'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                    Phase 1 Proposal Evaluation
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 3. Approved Banner Notice */}
         {isApproved && (

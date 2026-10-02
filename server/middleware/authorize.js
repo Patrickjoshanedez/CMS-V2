@@ -258,7 +258,9 @@ export const verifyAdmSignatoryRole = () => {
 
     try {
       const project = await Project.findById(projectId)
-        .select('panelists panelistIds adviserId secretaryId teamId admSignatures sectionId')
+        .select(
+          'panelists panelistIds adviserId secretaryId teamId admSignatures admSignaturesByMilestone capstonePhase sectionId',
+        )
         .populate({
           path: 'teamId',
           select: 'adviserId secretaryId panelistIds sectionId',
@@ -273,7 +275,12 @@ export const verifyAdmSignatoryRole = () => {
         return next(new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND'));
       }
 
-      const isSecretaryEndorsed = Boolean(project.admSignatures?.secretary?.endorsed);
+      const milestone = req.body?.milestone || 'CAPSTONE_1';
+      const targetMilestone = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone;
+      const milestoneSig = project.admSignaturesByMilestone?.[targetMilestone];
+      const isSecretaryEndorsed = Boolean(
+        milestoneSig?.secretary?.endorsed || project.admSignatures?.secretary?.endorsed,
+      );
 
       // 1. Capstone Adviser
       if (role === 'adviser' || (tier === 1 && req.user.role === ROLES.ADVISER)) {

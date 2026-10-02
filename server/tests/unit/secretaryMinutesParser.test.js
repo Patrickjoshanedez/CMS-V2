@@ -165,4 +165,63 @@ Signature over Printed Name of Secretary`;
     expect(emptyParsed.overallRecommendations).toBe('');
     expect(emptyParsed.admRows).toEqual([]);
   });
+
+  it('filters institutional headers, footers, and continuation page noise from remarks', () => {
+    const multiPageOcrWithNoise = `BUKIDNON STATE UNIVERSITY
+Document Code: OVPAA-F-INS-032 Revision No: 01 Issue No: 01 Page 1 of 2
+Title of Paper: Automated Academic Management Platform
+for Capstone Review and ADM Verification
+Name of Proponents:
+Juan Dela Cruz
+Maria Santos
+Type of Defense: (✓) Proposal Defense
+Panel Chair: Dr. Jane Doe
+Panel Members:
+Prof. John Smith
+Secretary: Sarah Connor
+Name of Panel COMMENTS / SUGGESTIONS
+Dr. Jane Doe  First suggestion for manuscript improvement
+Page 2 of 2
+SECRETARY’S MINUTES (CONTINUATION)
+Revision No: 01 Issue No: 01
+BUKIDNON STATE UNIVERSITY Malaybalay City
+Name of Panel COMMENTS / SUGGESTIONS
+Dr. Jane Doe  Second suggestion after page break
+Prof. John Smith - Review algorithm performance metrics
+Overall Recommendations:
+Proceed with minor revisions.
+Panel Verdict:
+(✓) Approved with Minor Revision
+SARAH CONNOR
+Signature over Printed Name of Secretary`;
+
+    const parsed = parseSecretaryMinutesDocument(multiPageOcrWithNoise);
+
+    // Verify multi-line title joined properly without header noise
+    expect(parsed.title).toBe(
+      'Automated Academic Management Platform for Capstone Review and ADM Verification',
+    );
+    expect(parsed.proponents).toEqual(['Juan Dela Cruz', 'Maria Santos']);
+    expect(parsed.defenseType).toBe('proposal');
+
+    // Verify remarks contain only actual suggestions, without header noise
+    const janeRemarks = parsed.panelRemarks.find((p) => p.panelName.includes('Jane Doe'));
+    expect(janeRemarks).toBeDefined();
+    expect(janeRemarks.comments).toEqual([
+      'First suggestion for manuscript improvement',
+      'Second suggestion after page break',
+    ]);
+
+    // Ensure no header/footer boilerplate leaked into comments
+    janeRemarks.comments.forEach((c) => {
+      expect(c).not.toMatch(/Page \d+/i);
+      expect(c).not.toMatch(/SECRETARY’S MINUTES/i);
+      expect(c).not.toMatch(/Revision No/i);
+      expect(c).not.toMatch(/Malaybalay/i);
+    });
+
+    // Verify dynamic secretary signature name
+    expect(parsed.secretarySignatoryName).toBe('SARAH CONNOR');
+    expect(parsed.panelVerdict).toBe('approved_with_minor_revisions');
+  });
 });

@@ -19,7 +19,7 @@ import {
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
-import upload from '../../middleware/upload.js';
+import upload, { chapterUpload } from '../../middleware/upload.js';
 import streamUploadMiddleware from '../../middleware/upload.stream.js';
 import validateFile from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
@@ -69,7 +69,7 @@ router.post(
   authorize(ROLES.STUDENT),
   validate(projectIdParamSchema, 'params'),
   uploadLimiter,
-  upload.single('file'),
+  chapterUpload,
   validateFile,
   validate(uploadChapterSchema),
   auditLog('submission.chapter_uploaded', 'Submission', {
@@ -512,7 +512,7 @@ router.get(
  */
 router.post(
   '/secretary-minutes',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
   validateFile,
@@ -521,7 +521,7 @@ router.post(
 
 router.post(
   '/secretary/extract-minutes',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
   validateFile,
@@ -534,7 +534,7 @@ router.post(
  */
 router.post(
   '/secretary/scan-minutes',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
   validateFile,
@@ -547,7 +547,7 @@ router.post(
  */
 router.post(
   '/secretary/save-minutes',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   saveSecretaryMinutes,
 );
 
