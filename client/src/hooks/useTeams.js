@@ -42,7 +42,9 @@ export function useMyTeam(userId, options = {}) {
       return failureCount < 3;
     },
     enabled: Boolean(userId) && (enabledOption ?? true),
-    staleTime: 2 * 60 * 1000, // 2 min
+    staleTime: 3 * 60 * 1000, // 3 min
+    gcTime: 10 * 60 * 1000, // 10 min
+    placeholderData: (previousData) => previousData,
     ...restOptions,
   });
 }
@@ -60,7 +62,9 @@ export function useTeamById(teamId, options = {}) {
       return data.data?.teams?.[0] || null;
     },
     enabled: Boolean(teamId) && (enabledOption ?? true),
-    staleTime: 1 * 60 * 1000, // 1 min
+    staleTime: 3 * 60 * 1000, // 3 min
+    gcTime: 10 * 60 * 1000, // 10 min
+    placeholderData: (previousData) => previousData,
     ...restOptions,
   });
 }
@@ -75,8 +79,40 @@ export function useTeams(filters = {}, options = {}) {
       const { data } = await teamService.listTeams(filters);
       return data.data; // { teams, pagination }
     },
-    staleTime: 1 * 60 * 1000, // 1 min
+    staleTime: 3 * 60 * 1000, // 3 min
+    gcTime: 10 * 60 * 1000, // 10 min
+    placeholderData: (previousData) => previousData,
     ...options,
+  });
+}
+
+/**
+ * Imperatively prefetch teams list into React Query cache for instant page rendering.
+ */
+export function prefetchTeams(queryClient, filters = {}) {
+  if (!queryClient) return Promise.resolve();
+  return queryClient.prefetchQuery({
+    queryKey: teamKeys.list(filters),
+    queryFn: async () => {
+      const { data } = await teamService.listTeams(filters);
+      return data.data;
+    },
+    staleTime: 3 * 60 * 1000,
+  });
+}
+
+/**
+ * Imperatively prefetch current student's team into React Query cache.
+ */
+export function prefetchMyTeam(queryClient, userId) {
+  if (!queryClient || !userId) return Promise.resolve();
+  return queryClient.prefetchQuery({
+    queryKey: teamKeys.my(userId),
+    queryFn: async () => {
+      const { data } = await teamService.getMyTeam();
+      return data.data.team;
+    },
+    staleTime: 3 * 60 * 1000,
   });
 }
 

@@ -101,6 +101,7 @@ export function useProject(id, options = {}) {
       return data.data.project;
     },
     enabled: !!id,
+    placeholderData: (previousData) => previousData,
     staleTime: 5 * 60 * 1000, // 5 min
     gcTime: 15 * 60 * 1000, // 15 min cache retention
     refetchOnWindowFocus: false,
@@ -137,7 +138,9 @@ export function useProjects(filters = {}, options = {}) {
       const { data } = await projectService.listProjects(filters);
       return data.data; // { projects, pagination }
     },
-    staleTime: 1 * 60 * 1000, // 1 min
+    placeholderData: keepPreviousData,
+    staleTime: 3 * 60 * 1000, // 3 min
+    gcTime: 10 * 60 * 1000,
     ...options,
   });
 }
@@ -467,6 +470,48 @@ export function useUpdateGithubRepoUrl(options = {}) {
   return useProjectMutation(
     async ({ projectId, ...data }) => {
       const res = await projectService.updateGithubRepoUrl(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.projectId) });
+        queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+        queryClient.invalidateQueries({ queryKey: ['team', 'me'] });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}
+
+/** Update Google Doc Manuscript URL */
+export function useUpdateGoogleDocUrl(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateGoogleDocUrl(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.projectId) });
+        queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+        queryClient.invalidateQueries({ queryKey: ['team', 'me'] });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}
+
+/** Update External Links (Google Doc & GitHub Repo) */
+export function useUpdateProjectExternalLinks(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateExternalLinks(projectId, data);
       return res.data;
     },
     {

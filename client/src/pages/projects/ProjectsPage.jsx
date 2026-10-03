@@ -622,7 +622,7 @@ export default function ProjectsPage() {
         )}
 
         {/* Loading Spinner */}
-        {isLoading && (
+        {isLoading && projects.length === 0 && (
           <div className="flex h-48 flex-col items-center justify-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="text-xs text-muted-foreground">Loading evaluation records…</span>
@@ -652,7 +652,7 @@ export default function ProjectsPage() {
         {/* ========================================================= */}
         {/* 5. REDESIGNED INSTITUTIONAL PROJECT CARDS (MEMOIZED)      */}
         {/* ========================================================= */}
-        {!isLoading && projects.length > 0 && (
+        {projects.length > 0 && (
           <div className="space-y-3">
             {projects.map((project) => (
               <ProjectCohortCard

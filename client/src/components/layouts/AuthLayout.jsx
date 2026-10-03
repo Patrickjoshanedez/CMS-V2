@@ -2,15 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import ThemeToggle from '@/components/ThemeToggle';
-import BukSULoginSidePanel from '@/components/auth/BukSULoginSidePanel';
 import buksuLogo from '@/assets/buksu-logo.png';
-import buksuCampusGate from '@/assets/buksu-campus-gate.jpg';
-import { useParallax } from '@/hooks/useParallax';
 
 /**
- * AuthLayout — Split-screen layout for authentication pages.
- * Left: BukSU Main Campus Gate architectural panel with deep navy & gold overlays.
- * Right: High-contrast, clean manuscript form container with smooth light/dark mode transitions.
+ * AuthLayout — Centered single-card layout for authentication pages.
+ * Clean token-driven background with a subtle grid and BukSU blue/gold glow.
  *
  * Props:
  *   children     — form content
@@ -20,7 +16,6 @@ import { useParallax } from '@/hooks/useParallax';
  */
 export default function AuthLayout({ children, title, description, wide = false }) {
   const [loaded, setLoaded] = useState(false);
-  const { coords } = useParallax({ ease: 0.05 });
 
   useEffect(() => {
     // Kick off the stagger entry animation after mount.
@@ -29,136 +24,53 @@ export default function AuthLayout({ children, title, description, wide = false 
   }, []);
 
   return (
-    <div className="relative min-h-screen text-slate-900 dark:text-slate-100 selection:bg-[#E5A823] selection:text-[#071329] transition-colors duration-300 overflow-x-hidden">
-      {/* ── Master Full-Bleed BukSU Campus Gate Backdrop (Continuous across both columns) ── */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <img
-          src={buksuCampusGate}
-          alt="BukSU Campus Main Gate"
-          style={{
-            transform: `scale(1.06) translate3d(${coords.x * -18}px, ${coords.y * -18}px, 0)`,
-            transition: 'transform 0.1s ease-out',
-          }}
-          className="w-full h-full object-cover object-[center_32%] filter brightness-[0.92] contrast-[1.06]"
-        />
-
-        {/* Dark Mode Gradient Overlay: Rich Obsidian & Institutional Navy */}
-        <div
-          className="absolute inset-0 hidden dark:block"
-          style={{
-            background:
-              'linear-gradient(105deg, rgba(7, 19, 41, 0.88) 0%, rgba(11, 27, 61, 0.80) 45%, rgba(7, 19, 41, 0.88) 100%)',
-          }}
-        />
-        <div
-          className="absolute inset-0 hidden dark:block"
-          style={{
-            background:
-              'radial-gradient(circle at 20% 30%, rgba(229, 168, 35, 0.12) 0%, transparent 60%)',
-          }}
-        />
-
-        {/* Light Mode Gradient Overlay: Unified, continuous BukSU campus wash soft on the eyes, eliminating harsh center seams and glare */}
-        <div
-          className="absolute inset-0 block dark:hidden"
-          style={{
-            background:
-              'linear-gradient(115deg, rgba(7, 19, 41, 0.92) 0%, rgba(11, 27, 61, 0.86) 45%, rgba(15, 32, 67, 0.82) 100%)',
-          }}
-        />
-        <div
-          className="absolute inset-0 block dark:hidden"
-          style={{
-            background:
-              'radial-gradient(circle at 75% 25%, rgba(229, 168, 35, 0.10) 0%, transparent 60%)',
-          }}
-        />
-
-        {/* Shared Institutional Blueprint Coordinate Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.06] dark:opacity-15 pointer-events-none"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, #1E3A8A 1px, transparent 1px),
-              linear-gradient(to bottom, #1E3A8A 1px, transparent 1px)
-            `,
-            backgroundSize: '40px 40px',
-          }}
-        />
-
-        {/* Atmospheric Ambient Glows */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#E5A823]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 right-1/4 w-[500px] h-[500px] bg-[#1A448A]/25 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-buksu-gold-500/30">
+      {/* Background: grid + soft glow */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.5)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.5)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_55%_50%_at_50%_0%,black_40%,transparent_100%)]" />
+        <div className="absolute left-1/2 top-[-14rem] h-[30rem] w-[44rem] -translate-x-1/2 rounded-full bg-buksu-blue-500/20 blur-3xl dark:bg-buksu-blue-500/25" />
+        <div className="absolute bottom-[-10rem] right-[-6rem] h-80 w-80 rounded-full bg-buksu-gold-500/15 blur-3xl" />
       </div>
 
-      {/* ── Two-Column Responsive Content Grid ── */}
-      <div className="relative z-10 grid min-h-screen lg:grid-cols-[minmax(0,1.2fr)_minmax(28rem,38rem)] xl:grid-cols-[minmax(0,1.3fr)_minmax(30rem,42rem)]">
-        {/* Left Column: BukSU Campus Architectural Side Panel (Desktop) */}
-        <BukSULoginSidePanel />
+      {/* Top bar */}
+      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img
+            src={buksuLogo}
+            alt="Bukidnon State University seal"
+            className="h-8 w-8 object-contain"
+          />
+          <span className="text-sm font-semibold tracking-tight">BukSU CMS</span>
+        </Link>
+        <ThemeToggle />
+      </header>
 
-        {/* Right Column: Credentials Form Panel with Frosted Glassmorphic Canvas */}
-        <div className="relative flex flex-col items-center justify-center overflow-y-auto px-6 py-10 sm:px-12 lg:px-14 xl:px-16">
-          {/* Theme toggle in upper corner */}
-          <div className="absolute right-6 top-6 z-20">
-            <ThemeToggle />
-          </div>
+      {/* Card */}
+      <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-12 pt-4 sm:px-6">
+        <div
+          className={`auth-form w-full ${wide ? 'max-w-xl' : 'max-w-md'} ${
+            loaded ? 'auth-loaded' : ''
+          } rounded-2xl border border-border/60 bg-card/80 p-6 shadow-xl shadow-black/5 backdrop-blur-xl sm:p-8 dark:shadow-black/40`}
+        >
+          {title && (
+            <div className="auth-item mb-6 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+              {description && (
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+              )}
+            </div>
+          )}
 
-          {/* Institutional Branding (Mobile Only Header) */}
-          <div className="mb-6 flex flex-col items-center text-center lg:hidden">
-            <Link to="/" className="inline-flex flex-col items-center gap-2 group">
-              <div className="w-14 h-14 rounded-2xl bg-white border border-[#E5A823] p-1.5 flex items-center justify-center shadow-xl">
-                <img src={buksuLogo} alt="BukSU Logo" className="w-full h-full object-contain" />
-              </div>
-              <div className="mt-1">
-                <h1 className="text-xl font-bold tracking-tight text-white font-serif drop-shadow-md">
-                  BukSU CMS
-                </h1>
-                <p className="text-[11px] font-mono text-[#E5A823] tracking-wider uppercase font-semibold drop-shadow-xs">
-                  Capstone Management System
-                </p>
-              </div>
-            </Link>
-          </div>
-
-          {/* Form Card Container — Frosted Institutional Glass */}
-          <div
-            className={`auth-form w-full ${
-              wide ? 'max-w-xl' : 'max-w-md'
-            } ${loaded ? 'auth-loaded' : ''} p-7 sm:p-9 rounded-2xl bg-white/95 dark:bg-[#0B1B3D]/90 backdrop-blur-2xl border border-slate-200/90 dark:border-[#1E3356] shadow-2xl shadow-black/35 dark:shadow-black/70 transition-all`}
-          >
-            {/* Form Title & Subtitle */}
-            {title && (
-              <div className="auth-item mb-6">
-                <div className="hidden lg:flex items-center gap-2 mb-2.5">
-                  <span className="w-2 h-2 rounded-full bg-[#E5A823] shadow-xs shadow-[#E5A823]/50" />
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide font-sans">
-                    Bukidnon State University · Portal Authentication
-                  </span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-serif">
-                  {title}
-                </h2>
-                {description && (
-                  <p className="mt-1.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300/90 leading-relaxed font-sans">
-                    {description}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {children}
-          </div>
-
-          {/* Institutional Compliance & Archival Tag */}
-          <div className="mt-8 text-center text-xs text-slate-300/90 dark:text-slate-400 font-sans select-none tracking-normal">
-            Bukidnon State University · College of Technologies Capstone Management System
-          </div>
+          {children}
         </div>
-      </div>
+      </main>
+
+      <footer className="relative z-10 pb-6 text-center text-xs text-muted-foreground">
+        Bukidnon State University · College of Technologies
+      </footer>
     </div>
   );
 }
-
 AuthLayout.propTypes = {
   children: PropTypes.node.isRequired,
   title: PropTypes.string,

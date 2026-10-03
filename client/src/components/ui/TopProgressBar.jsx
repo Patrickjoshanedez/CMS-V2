@@ -37,7 +37,7 @@ export default function TopProgressBar() {
     return () => unsubscribe();
   }, []);
 
-  // When location changes (route commits), mark progress as done
+  // When location changes (route commits), complete progress if not currently in Suspense
   useEffect(() => {
     const currentLoc = `${location.pathname}${location.search}`;
     if (!location.pathname) return;
@@ -45,7 +45,20 @@ export default function TopProgressBar() {
     // Only complete if location actually changed after mount
     if (prevLocationRef.current !== currentLoc) {
       prevLocationRef.current = currentLoc;
-      topProgress.done();
+      // If React is currently in Suspense loading a lazy page chunk, SuspenseProgressBridge
+      // will hold the bar active and complete it when the page component actually mounts.
+      // Otherwise (for synchronous or preloaded routes), complete cleanly on layout render.
+      if (!topProgress.isSuspended) {
+        if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+          requestAnimationFrame(() => {
+            if (!topProgress.isSuspended) {
+              topProgress.done();
+            }
+          });
+        } else {
+          topProgress.done();
+        }
+      }
     }
   }, [location.pathname, location.search]);
 

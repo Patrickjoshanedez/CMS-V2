@@ -41,6 +41,8 @@ import {
   updateGanttChartUrlSchema,
   updateDemoVideoUrlSchema,
   updateGithubRepoUrlSchema,
+  updateGoogleDocUrlSchema,
+  updateExternalLinksSchema,
   updateGanttApprovalSchema,
 } from './project.validation.js';
 
@@ -210,6 +212,33 @@ router.patch(
     getMetadata: (req) => ({ githubRepoUrl: req.body.githubRepoUrl }),
   }),
   projectController.updateGithubRepoUrl,
+);
+
+// Update Google Doc manuscript URL (team member, adviser, instructor)
+router.patch(
+  '/:id/google-doc',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateGoogleDocUrlSchema),
+  auditLog('project.google_doc_updated', 'Project', {
+    getDescription: (req) => `Updated Google Doc manuscript URL for project ${req.params.id}`,
+    getMetadata: (req) => ({ googleDocUrl: req.body.googleDocUrl }),
+  }),
+  projectController.updateGoogleDocUrl,
+);
+
+// Update external links (Google Doc & GitHub) (team member, adviser, instructor)
+router.patch(
+  '/:id/external-links',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateExternalLinksSchema),
+  auditLog('project.external_links_updated', 'Project', {
+    getDescription: (req) => `Updated external links for project ${req.params.id}`,
+    getMetadata: (req) => ({
+      googleDocUrl: req.body.googleDocUrl,
+      githubRepoUrl: req.body.githubRepoUrl,
+    }),
+  }),
+  projectController.updateExternalLinks,
 );
 
 // Add a prototype link (team member, Capstone 2 & 3)

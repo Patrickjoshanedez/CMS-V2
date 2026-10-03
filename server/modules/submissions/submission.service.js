@@ -3426,11 +3426,12 @@ class SubmissionService {
   async getSubmissionReviewWorkspace(submissionId, userId, _userRole) {
     const { submission } = await this.getSubmission(submissionId, userId);
 
-    const project = await Project.findById(submission.projectId).populate(
-      'teamId',
-      'name members googleDocUrl githubLink',
-    );
-    const user = await User.findById(userId);
+    const [project, user] = await Promise.all([
+      Project.findById(submission.projectId)
+        .populate('teamId', 'name members googleDocUrl githubLink')
+        .lean({ virtuals: true, getters: true }),
+      User.findById(userId).lean({ virtuals: true, getters: true }),
+    ]);
 
     if (!project || !user) {
       throw new AppError('Project or user not found.', 404, 'NOT_FOUND');
@@ -3444,22 +3445,23 @@ class SubmissionService {
       type: submission.type,
     };
 
-    const versionSubmissions = await Submission.find(baseFilter)
-      .sort({ version: 1 })
-      .select(
-        '_id chapter type version fileName fileSize fileType status createdAt originalityScore plagiarismResult reviewNote reviewClosed annotations driveWebViewLink syncedGoogleDocId syncedGoogleDocUrl',
-      )
-      .populate('annotations.userId', 'firstName middleName lastName')
-      .populate('annotations.replies.userId', 'firstName middleName lastName')
-      .lean();
-
-    const placeholderRounds = await SubmissionRound.find({
-      ...baseFilter,
-      sourceSubmissionId: null,
-      status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
-    })
-      .sort({ roundNumber: 1 })
-      .lean();
+    const [versionSubmissions, placeholderRounds] = await Promise.all([
+      Submission.find(baseFilter)
+        .sort({ version: 1 })
+        .select(
+          '_id chapter type version fileName fileSize fileType status createdAt originalityScore plagiarismResult reviewNote reviewClosed annotations driveWebViewLink syncedGoogleDocId syncedGoogleDocUrl',
+        )
+        .populate('annotations.userId', 'firstName middleName lastName')
+        .populate('annotations.replies.userId', 'firstName middleName lastName')
+        .lean(),
+      SubmissionRound.find({
+        ...baseFilter,
+        sourceSubmissionId: null,
+        status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
+      })
+        .sort({ roundNumber: 1 })
+        .lean(),
+    ]);
 
     const rounds = versionSubmissions.map((item) => ({
       roundNumber: item.version,

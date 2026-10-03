@@ -63,6 +63,8 @@ export default function WorkflowPhaseTracker({
   onScheduleDefense,
   canManageCommittee = false,
   canManageArchive = false,
+  onViewFullDocument,
+  hasFullDocument = false,
   onRefresh,
   className,
 }) {
@@ -76,6 +78,8 @@ export default function WorkflowPhaseTracker({
       onScheduleDefense={onScheduleDefense}
       canManageCommittee={canManageCommittee}
       canManageArchive={canManageArchive}
+      onViewFullDocument={onViewFullDocument}
+      hasFullDocument={hasFullDocument}
       onRefresh={onRefresh}
       className={cn('workflow-phase-tracker no-print', className)}
     />
@@ -91,6 +95,8 @@ WorkflowPhaseTracker.propTypes = {
   onScheduleDefense: PropTypes.func,
   canManageCommittee: PropTypes.bool,
   canManageArchive: PropTypes.bool,
+  onViewFullDocument: PropTypes.func,
+  hasFullDocument: PropTypes.bool,
   onRefresh: PropTypes.func,
   className: PropTypes.string,
 };

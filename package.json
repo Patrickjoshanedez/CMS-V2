@@ -37,6 +37,8 @@
     "validate:agentic": "node scripts/validate-agentic-system.js",
     "validate:governance": "node scripts/validate-agentic-system.js && python .github/hooks/scripts/agent_prefetch.py && python .github/hooks/scripts/agent_sync_verify.py && python .github/hooks/scripts/decision_coherence.py",
     "audit:fix": "node scripts/audit-fix-runner.js",
+    "test:qa": "node scripts/qa-test-runner.js",
+    "test:e2e": "node scripts/e2e-capstone-core-scenarios.js",
     "test:client": "npm test --workspace=client --",
     "test:server": "npm test --workspace=server --",
     "lint": "eslint .",

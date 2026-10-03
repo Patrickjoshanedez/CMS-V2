@@ -12,7 +12,7 @@ import SignaturePad from '@/components/ui/SignaturePad';
 import { useAuthStore } from '@/stores/authStore';
 import { projectService, userService } from '@/services/authService';
 import { getSocket, connectSocket } from '@/services/socket';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, useProject, usePrefetchProject } from '@/hooks/useProjects';
 import { ROLES, PROJECT_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
@@ -45,6 +45,7 @@ export default function SecretaryReviewPage() {
   const authState = useAuthStore((s) => s?.user);
   const user = authState?.user ?? authState;
   const queryClient = useQueryClient();
+  const prefetchProject = usePrefetchProject();
 
   const initialProjectId = searchParams.get('projectId');
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
@@ -111,20 +112,12 @@ export default function SecretaryReviewPage() {
     setSearchParams(nextParams, { replace: true });
   };
 
-  // Fetch full details of selected project
+  // Fetch full details of selected project with shared cache and placeholderData
   const {
     data: selectedProjectData,
     isLoading: isProjectDetailsLoading,
     refetch: refetchProjectDetails,
-  } = useQuery({
-    queryKey: ['project', selectedProjectId],
-    queryFn: async () => {
-      if (!selectedProjectId) return null;
-      const res = await projectService.getProject(selectedProjectId);
-      return res.data?.data?.project || res.data?.project || res.data;
-    },
-    enabled: Boolean(selectedProjectId),
-  });
+  } = useProject(selectedProjectId);
 
   const project = selectedProjectData || projects.find((p) => p._id === selectedProjectId);
 
@@ -438,6 +431,8 @@ export default function SecretaryReviewPage() {
                       <div
                         key={p._id}
                         onClick={() => handleSelectProject(p._id)}
+                        onMouseEnter={() => prefetchProject(p._id)}
+                        onFocus={() => prefetchProject(p._id)}
                         className={`cursor-pointer rounded-lg border p-3 text-left transition-all ${
                           isSelected
                             ? 'border-primary bg-primary/5 shadow-sm'

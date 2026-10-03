@@ -424,9 +424,29 @@ export function useSubmissionReviewWorkspace(submissionId, options = {}) {
       return data.data.workspace;
     },
     enabled: !!submissionId,
-    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     ...options,
   });
+}
+
+/**
+ * Hook to prefetch review workspace into QueryClient cache on hover / user intent.
+ */
+export function usePrefetchSubmissionReviewWorkspace() {
+  const queryClient = useQueryClient();
+  return (submissionId) => {
+    if (!submissionId || !queryClient) return;
+    queryClient.prefetchQuery({
+      queryKey: submissionKeys.reviewWorkspace(submissionId),
+      queryFn: async () => {
+        const { data } = await submissionService.getReviewWorkspace(submissionId);
+        return data.data.workspace;
+      },
+      staleTime: 3 * 60 * 1000,
+    });
+  };
 }
 
 /* ────────── Mutation Helper ────────── */

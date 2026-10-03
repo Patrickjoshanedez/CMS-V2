@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { dashboardService } from '@/services/dashboardService';
+import { usePrefetchSubmissionReviewWorkspace } from '@/hooks/useSubmissions';
+import { prefetchRoute } from '@/lib/routePrefetch';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -117,9 +119,17 @@ function StatsRow({ awaiting, underReview }) {
 
 function SubmissionCard({ item }) {
   const navigate = useNavigate();
+  const prefetchWorkspace = usePrefetchSubmissionReviewWorkspace();
   const isOverdue = typeof item.daysRemaining === 'number' && item.daysRemaining < 0;
   const isUrgent =
     typeof item.daysRemaining === 'number' && item.daysRemaining >= 0 && item.daysRemaining <= 2;
+
+  const handleWarmup = () => {
+    prefetchRoute(`/project/submissions/${item._id}`);
+    prefetchRoute(`/submissions/${item._id}/review`);
+    prefetchRoute(`/project/submissions/${item._id}/review`);
+    prefetchWorkspace(item._id);
+  };
 
   return (
     <div
@@ -129,6 +139,8 @@ function SubmissionCard({ item }) {
         isUrgent ? 'border-amber-500/40 bg-amber-500/[0.03]' : '',
       ].join(' ')}
       onClick={() => navigate(`/project/submissions/${item._id}`)}
+      onMouseEnter={handleWarmup}
+      onFocus={handleWarmup}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/project/submissions/${item._id}`)}
@@ -243,8 +255,10 @@ export default function TeamReviewWorkflowPage() {
   } = useQuery({
     queryKey: ['adviserWorkload', 'teamReviewWorkflow'],
     queryFn: () => dashboardService.getAdviserWorkload(),
-    staleTime: 60 * 1000,
-    refetchInterval: 30 * 1000,
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const workload = useMemo(

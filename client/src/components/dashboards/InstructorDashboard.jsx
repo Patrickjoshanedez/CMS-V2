@@ -24,7 +24,9 @@ const InstructorDashboard = () => {
       const response = await dashboardService.getInstructorKpis();
       return response.data?.data || response.data;
     },
-    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const {
@@ -38,7 +40,9 @@ const InstructorDashboard = () => {
       const response = await dashboardService.getInstructorWorkload();
       return response.data?.data || response.data;
     },
-    staleTime: 30 * 1000,
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const [roleScope, setRoleScope] = React.useState('all');
@@ -53,7 +57,7 @@ const InstructorDashboard = () => {
     },
   });
 
-  if (kpisLoading && workloadLoading) {
+  if (kpisLoading && workloadLoading && !kpisData && !workloadData) {
     return <PageSkeleton />;
   }
 

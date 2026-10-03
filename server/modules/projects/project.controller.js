@@ -721,6 +721,36 @@ export const updateGithubRepoUrl = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/projects/:id/google-doc — Update Google Doc manuscript URL */
+export const updateGoogleDocUrl = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateGoogleDocUrl(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Google Doc manuscript URL updated.',
+    data: { project },
+  });
+});
+
+/** PATCH /api/projects/:id/external-links — Update external links (Google Doc & GitHub) */
+export const updateExternalLinks = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateExternalLinks(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Project external links updated.',
+    data: { project },
+  });
+});
+
 /** PATCH /api/projects/:id/gantt-approval — Approve/reject Gantt schedule */
 export const updateGanttApproval = catchAsync(async (req, res) => {
   const { project } = await projectService.updateGanttApproval(

@@ -570,7 +570,8 @@ class TeamService {
         .populate('members', 'firstName middleName lastName email profilePicture role')
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
         .populate('secretaryId', 'firstName middleName lastName email profilePicture')
-        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .lean({ virtuals: true, getters: true });
     }
 
     if (!team) {
@@ -588,7 +589,8 @@ class TeamService {
         .populate('members', 'firstName middleName lastName email profilePicture role')
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
         .populate('secretaryId', 'firstName middleName lastName email profilePicture')
-        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .lean({ virtuals: true, getters: true });
 
       if (!team) {
         if (user.teamId) {
@@ -620,9 +622,10 @@ class TeamService {
       .select('adviserId secretaryId panelistIds capstonePhase titleStatus projectStatus')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
       .populate('secretaryId', 'firstName middleName lastName email profilePicture')
-      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+      .lean({ virtuals: true, getters: true });
 
-    const teamObject = team.toObject();
+    const teamObject = team.toObject ? team.toObject() : { ...team };
     const assignedAdviser = teamObject.adviserId || currentProject?.adviserId || null;
     const assignedSecretary = teamObject.secretaryId || currentProject?.secretaryId || null;
     const assignedPanelists =

@@ -1157,11 +1157,21 @@ class DashboardService {
   async _getFacultyStats(user) {
     const userId = user._id;
 
-    // 1. Adviser query
-    const adviserProjectIds = await Project.find({ adviserId: userId, isArchived: { $ne: true } })
-      .select('_id')
-      .lean()
-      .then((projects) => projects.map((p) => p._id));
+    // 1. Adviser query (single authoritative fetch, eliminating duplicate sequential query)
+    const adviserProjects = await Project.find({ adviserId: userId, isArchived: { $ne: true } })
+      .populate({
+        path: 'teamId',
+        select: 'name members memberRoles leaderId githubUrl googleDocUrl isLocked',
+        populate: [
+          { path: 'members', select: 'firstName lastName email fullName' },
+          { path: 'memberRoles.userId', select: 'firstName lastName email fullName' },
+          { path: 'leaderId', select: 'firstName lastName email fullName' },
+        ],
+      })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const adviserProjectIds = adviserProjects.map((p) => p._id);
 
     // 2. Panelist query
     const panelistFilter = {
@@ -1176,25 +1186,12 @@ class DashboardService {
     };
 
     const [
-      adviserProjects,
       pendingReviews,
       panelProjects,
       pendingEvaluations,
       secretaryProjects,
       recentNotifications,
     ] = await Promise.all([
-      Project.find({ adviserId: userId, isArchived: { $ne: true } })
-        .populate({
-          path: 'teamId',
-          select: 'name members memberRoles leaderId githubUrl googleDocUrl isLocked',
-          populate: [
-            { path: 'members', select: 'firstName lastName email fullName' },
-            { path: 'memberRoles.userId', select: 'firstName lastName email fullName' },
-            { path: 'leaderId', select: 'firstName lastName email fullName' },
-          ],
-        })
-        .sort({ updatedAt: -1 })
-        .lean(),
       adviserProjectIds.length > 0
         ? Submission.find({
             projectId: { $in: adviserProjectIds },

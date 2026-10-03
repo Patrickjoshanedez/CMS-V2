@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ROLES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 import { dashboardService } from '../../services/dashboardService';
 import { useDashboard } from '@/hooks/useDashboard';
+import { usePrefetchSubmissionReviewWorkspace } from '@/hooks/useSubmissions';
+import { prefetchRoute } from '@/lib/routePrefetch';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -230,6 +232,7 @@ function ProjectDetailedStatus({ project }) {
 export default function FacultyDashboard({ user }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const prefetchSubmissionWorkspace = usePrefetchSubmissionReviewWorkspace();
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [mode, setMode] = useState(() =>
     user?.role === ROLES.PANELIST ? VIEW_MODES.PANELIST : VIEW_MODES.ADVISER,
@@ -258,6 +261,9 @@ export default function FacultyDashboard({ user }) {
   useQuery({
     queryKey: ['adviserWorkload'],
     queryFn: () => dashboardService.getAdviserWorkload(),
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     enabled: mode === VIEW_MODES.ADVISER,
   });
 
@@ -267,6 +273,9 @@ export default function FacultyDashboard({ user }) {
       const res = await dashboardService.getPanelistTopics();
       return res.data?.data || res.data;
     },
+    placeholderData: (previousData) => previousData,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     enabled: mode === VIEW_MODES.PANELIST,
   });
 
@@ -501,6 +510,12 @@ export default function FacultyDashboard({ user }) {
                   const queueTime = getQueueTime(r.createdAt);
                   const badgeColor = getQueueBadgeColor(r.createdAt);
                   const reviewDest = `/project/submissions/${r._id}/review`;
+                  const handleWarmup = () => {
+                    prefetchRoute(reviewDest);
+                    prefetchRoute(`/submissions/${r._id}/review`);
+                    prefetchSubmissionWorkspace(r._id);
+                    if (r.projectId) prefetchRoute(`/projects/${r.projectId}`);
+                  };
                   return (
                     <div
                       key={r._id}
@@ -510,6 +525,8 @@ export default function FacultyDashboard({ user }) {
                           state: { from: `/projects/${targetProjectId}?tab=capstone_2` },
                         })
                       }
+                      onMouseEnter={handleWarmup}
+                      onFocus={handleWarmup}
                     >
                       <div className="flex min-w-0 flex-col">
                         <div className="flex items-center gap-2">

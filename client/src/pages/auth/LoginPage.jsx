@@ -124,10 +124,7 @@ export default function LoginPage() {
   );
 
   return (
-    <AuthLayout
-      title="Welcome to BukSU CMS"
-      description="Sign in with your university credentials to access the capstone portal."
-    >
+    <AuthLayout title="Welcome back" description="Sign in with your BukSU account to continue.">
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
@@ -177,18 +174,11 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Remember me + Forgot password row */}
-        <div className="auth-item mb-4 flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-input text-primary focus:ring-primary/40"
-            />
-            <span className="text-sm text-muted-foreground">Remember me</span>
-          </label>
+        {/* Forgot password */}
+        <div className="auth-item mb-5 flex justify-end">
           <Link
             to="/forgot-password"
-            className="text-sm font-semibold text-[#1A448A] dark:text-[#E5A823] hover:underline transition-colors"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Forgot password?
           </Link>
@@ -214,11 +204,7 @@ export default function LoginPage() {
 
         {/* Submit — gradient button */}
         <div className="auth-item">
-          <AuthSubmitButton
-            loading={loading}
-            loadingLabel="Signing in…"
-            idleLabel="Sign in to Capstone Studio"
-          />
+          <AuthSubmitButton loading={loading} loadingLabel="Signing in…" idleLabel="Sign in" />
         </div>
       </form>
 
@@ -269,7 +255,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link
             to="/register"
-            className="font-bold text-[#1A448A] dark:text-[#E5A823] hover:underline transition-colors"
+            className="font-semibold text-foreground underline-offset-4 hover:underline transition-colors"
           >
             Create account
           </Link>

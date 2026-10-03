@@ -237,6 +237,8 @@ export const projectService = {
   updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
   updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
   updateGithubRepoUrl: (id, data) => api.patch(`/projects/${id}/github-repo`, data),
+  updateGoogleDocUrl: (id, data) => api.patch(`/projects/${id}/google-doc`, data),
+  updateExternalLinks: (id, data) => api.patch(`/projects/${id}/external-links`, data),
   updateGanttApproval: (id, data) => api.patch(`/projects/${id}/gantt-approval`, data),
 };
 

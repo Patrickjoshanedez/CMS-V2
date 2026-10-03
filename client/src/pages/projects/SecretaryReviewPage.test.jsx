@@ -79,6 +79,12 @@ vi.mock('@/hooks/useProjects', () => ({
     isLoading: false,
     refetch: vi.fn(),
   }),
+  useProject: () => ({
+    data: mockProject,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+  usePrefetchProject: () => vi.fn(),
   useMyProject: () => ({
     data: null,
     isLoading: false,

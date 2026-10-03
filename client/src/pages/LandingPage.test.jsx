@@ -6,7 +6,14 @@ import LandingPage from './LandingPage';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('LandingPage Institutional Architecture & Parallax Integration', () => {
+// Mock routePrefetch utilities to avoid idle-callback side effects in jsdom
+vi.mock('@/lib/routePrefetch', () => ({
+  prefetchRoute: vi.fn(),
+  prefetchHandlers: vi.fn(() => ({})),
+  default: vi.fn(),
+}));
+
+describe('LandingPage — Minimal Redesign', () => {
   let container = null;
   let root = null;
 
@@ -25,7 +32,7 @@ describe('LandingPage Institutional Architecture & Parallax Integration', () => 
     root = null;
   });
 
-  it('renders authentic BukSU institutional pillars without fabricated metrics', () => {
+  it('renders authentic BukSU identity without fabricated metrics', () => {
     act(() => {
       root.render(
         <BrowserRouter>
@@ -37,7 +44,7 @@ describe('LandingPage Institutional Architecture & Parallax Integration', () => 
     const textContent = container.textContent;
 
     // 1. Verify official university identity
-    expect(textContent).toContain('BUKSU BSIT CAPSTONE PORTAL');
+    expect(textContent).toContain('BukSU BSIT Capstone Portal');
     expect(textContent).toContain('Manage your capstone projects with');
     expect(textContent).toContain('institutional rigor');
 
@@ -47,17 +54,19 @@ describe('LandingPage Institutional Architecture & Parallax Integration', () => 
     expect(textContent).not.toContain('THESIS-2024-019');
     expect(textContent).not.toContain('8.156° N');
 
-    // 3. Verify authentic System Architecture Stack is present
-    expect(textContent).toContain('SYSTEM ARCHITECTURE');
-    expect(textContent).toContain('BUKSU CMS-V2 STACK');
-    expect(textContent).toContain('Layer 1: Presentation & Workspace');
-    expect(textContent).toContain('Layer 2: API & Async Pipeline');
-    expect(textContent).toContain('Layer 3: Plagiarism & Similarity');
-    expect(textContent).toContain('Layer 4: Storage & Digital Vault');
+    // 3. Verify the four feature pillars are present
+    expect(textContent).toContain('Title similarity pre-screening');
+    expect(textContent).toContain('One document reader');
+    expect(textContent).toContain('Defense committees');
+    expect(textContent).toContain('Secure archival');
 
-    // 4. Verify authentic Knowledge Vault Platform pillars are present
-    expect(textContent).toContain('Live Cosine Similarity Pre-Screening');
-    expect(textContent).toContain('Unified Sophisticated Document Reader');
-    expect(textContent).toContain('Dean Ratification & MinIO Archival Vault');
+    // 4. Verify the four-phase workflow strip is present
+    expect(textContent).toContain('Title Defense');
+    expect(textContent).toContain('Chapters 1–3');
+    expect(textContent).toContain('System Build');
+    expect(textContent).toContain('Final Defense');
+
+    // 5. Verify FAQ is present
+    expect(textContent).toContain('Who can use the portal?');
   });
 });

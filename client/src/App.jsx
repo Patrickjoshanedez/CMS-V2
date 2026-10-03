@@ -6,7 +6,7 @@ import { PlagiarismProgressModal } from './components/plagiarism/PlagiarismProgr
 import { useThemeStore, applyTheme } from './stores/themeStore';
 
 // Lazy-loaded page imports
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
@@ -74,10 +74,10 @@ import { topProgress } from './lib/topProgress';
  * while lazy page chunks are downloading and surges to 100% when ready.
  */
 function SuspenseProgressBridge() {
-  useEffect(() => {
-    topProgress.start();
+  useLayoutEffect(() => {
+    topProgress.setSuspended(true);
     return () => {
-      topProgress.done();
+      topProgress.setSuspended(false);
     };
   }, []);
 

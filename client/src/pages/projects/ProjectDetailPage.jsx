@@ -33,6 +33,8 @@ import Capstone1CollapsibleSections from '@/components/projects/Capstone1Collaps
 import Capstone2CollapsibleSections from '@/components/projects/Capstone2CollapsibleSections';
 import Capstone3CollapsibleSections from '@/components/projects/Capstone3CollapsibleSections';
 import CanonicalDocumentViewer from '@/components/archive/CanonicalDocumentViewer';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
+import { toast } from 'sonner';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
 // Lazy-loaded heavy components and modals
@@ -176,6 +178,7 @@ export default function ProjectDetailPage() {
   // Defense live minutes & compile proposal modals state (Hooks placed unconditionally at top)
   const [isLiveMinutesOpen, setIsLiveMinutesOpen] = useState(false);
   const [isCompileProposalOpen, setIsCompileProposalOpen] = useState(false);
+  const [isFullDocViewerOpen, setIsFullDocViewerOpen] = useState(false);
 
   const submissionsList = useMemo(() => {
     return Array.isArray(submissionsData)
@@ -190,6 +193,41 @@ export default function ProjectDetailPage() {
   const compiledProposalSub = useMemo(() => {
     return submissionsList.find((s) => s.type === 'proposal') || null;
   }, [submissionsList]);
+
+  // Derive the best full manuscript or compiled proposal submission or project document
+  const fullDocumentSub = useMemo(() => {
+    // 1. Look for manuscript or proposal submission in submissionsList
+    const fullSub = submissionsList.find(
+      (s) => s.type === 'manuscript' || s.type === 'final_manuscript' || s.type === 'proposal',
+    );
+    if (fullSub) return fullSub;
+
+    // 2. Look for any submission with a valid document/file URL
+    const anySubWithFile = submissionsList.find((s) => s.fileUrl || s.documentUrl || s.fileUri);
+    if (anySubWithFile) return anySubWithFile;
+
+    // 3. Fallback to project-level manuscript / proposal document URLs if present
+    if (project?.finalManuscriptUrl || project?.manuscriptUrl || project?.proposalUrl) {
+      return {
+        _id: project._id,
+        title: project.title,
+        fileUrl: project.finalManuscriptUrl || project.manuscriptUrl || project.proposalUrl,
+        fileName: `${project.title || 'Manuscript'}.pdf`,
+        type: 'manuscript',
+        version: project.version || 1,
+        status: project.status,
+      };
+    }
+    return null;
+  }, [submissionsList, project]);
+
+  const handleOpenFullDocument = useCallback(() => {
+    if (fullDocumentSub) {
+      setIsFullDocViewerOpen(true);
+    } else {
+      toast.info('No manuscript or full document file uploaded yet for this project.');
+    }
+  }, [fullDocumentSub]);
 
   const isArchived = useMemo(() => {
     if (!project) return false;
@@ -307,6 +345,8 @@ export default function ProjectDetailPage() {
             }
             canManageCommittee={isInstructor}
             canManageArchive={isInstructor && !isArchived}
+            onViewFullDocument={handleOpenFullDocument}
+            hasFullDocument={Boolean(fullDocumentSub)}
             onRefresh={() => refetch()}
             className="mb-6 no-print"
           />
@@ -477,6 +517,18 @@ export default function ProjectDetailPage() {
             onSuccess={() => refetch()}
           />
         </Suspense>
+      )}
+
+      {/* Canonical Sophisticated Document Viewer Modal */}
+      {isFullDocViewerOpen && fullDocumentSub && (
+        <SophisticatedDocumentViewer
+          open={isFullDocViewerOpen}
+          onOpenChange={setIsFullDocViewerOpen}
+          submission={fullDocumentSub}
+          fileUrl={
+            fullDocumentSub.fileUrl || fullDocumentSub.documentUrl || fullDocumentSub.fileUri
+          }
+        />
       )}
     </DashboardLayout>
   );

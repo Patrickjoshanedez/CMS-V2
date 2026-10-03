@@ -831,6 +831,12 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
 
+    googleDocUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
     ganttApproval: {
       type: ganttApprovalSchema,
       default: () => ({}),
@@ -1028,6 +1034,7 @@ projectSchema.virtual('unisonADM').get(function () {
 // --- Indexes ---
 // One project per team lookup index
 projectSchema.index({ teamId: 1 });
+projectSchema.index({ teamId: 1, createdAt: -1 });
 projectSchema.index({ stage: 1 });
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
@@ -1047,6 +1054,14 @@ projectSchema.index(
 projectSchema.index(
   { sectionId: 1, projectStatus: 1, isArchived: 1 },
   { background: true, name: 'idx_projects_section_status' },
+);
+projectSchema.index(
+  { secretaryId: 1, isArchived: 1, createdAt: -1 },
+  { background: true, name: 'idx_projects_secretary_lookup' },
+);
+projectSchema.index(
+  { panelistIds: 1, isArchived: 1, createdAt: -1 },
+  { background: true, name: 'idx_projects_panelist_lookup' },
 );
 
 // Automatic Redis/Memory cache invalidation on project modifications

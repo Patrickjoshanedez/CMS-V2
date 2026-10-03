@@ -508,6 +508,43 @@ export const updateGithubRepoUrlSchema = z.object({
     .max(2000),
 });
 
+export const updateGoogleDocUrlSchema = z.object({
+  googleDocUrl: z
+    .string()
+    .trim()
+    .url('Invalid Google Docs URL')
+    .regex(
+      /^https?:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/,
+      'Must be a valid Google Docs URL (https://docs.google.com/document/d/...)',
+    )
+    .max(2000),
+});
+
+export const updateExternalLinksSchema = z.object({
+  googleDocUrl: z
+    .string()
+    .trim()
+    .url('Invalid Google Docs URL')
+    .regex(
+      /^https?:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/,
+      'Must be a valid Google Docs URL (https://docs.google.com/document/d/...)',
+    )
+    .max(2000)
+    .optional()
+    .nullable(),
+  githubRepoUrl: z
+    .string()
+    .trim()
+    .url('Invalid GitHub repository URL')
+    .regex(
+      /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/,
+      'Must be a valid GitHub repository URL',
+    )
+    .max(2000)
+    .optional()
+    .nullable(),
+});
+
 export const updateGanttApprovalSchema = z.object({
   approved: z.boolean(),
   remarks: z.string().trim().max(1000).optional().default(''),

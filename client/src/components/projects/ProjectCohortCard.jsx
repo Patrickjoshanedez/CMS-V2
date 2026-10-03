@@ -20,6 +20,7 @@ import {
 import { PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import { cn } from '@/lib/utils';
 import { usePrefetchProject } from '@/hooks/useProjects';
+import { prefetchRoute } from '@/lib/routePrefetch';
 
 /**
  * Resolves the institutional phase badge metadata.
@@ -152,11 +153,17 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
     onNavigate?.(project._id);
   };
 
+  const handleWarmup = () => {
+    prefetchRoute(`/projects/${project._id}`);
+    prefetchProject(project._id);
+  };
+
   return (
     <Card
       ref={isHighlighted ? highlightedRef : undefined}
       onClick={handleCardClick}
-      onMouseEnter={() => prefetchProject(project._id)}
+      onMouseEnter={handleWarmup}
+      onFocus={handleWarmup}
       className={cn(
         'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 cursor-pointer',
         isActionNeeded &&

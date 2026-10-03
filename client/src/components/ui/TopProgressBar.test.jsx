@@ -109,4 +109,38 @@ describe('TopProgressBar', () => {
     const innerBar = progressBar.firstElementChild;
     expect(innerBar.style.width).toBe('100%');
   });
+
+  it('keeps progress active and does not prematurely complete while Suspense is active', () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root.render(<TopProgressBar />);
+      topProgress.setSuspended(true);
+    });
+
+    expect(topProgress.isSuspended).toBe(true);
+    expect(topProgress.status).toBe('loading');
+
+    // Attempt premature completion (e.g. from location change)
+    act(() => {
+      topProgress.done();
+    });
+
+    // Bar MUST still be in loading state, not completed
+    expect(topProgress.status).toBe('loading');
+    const progressBar = container.querySelector('[role="progressbar"]');
+    expect(progressBar).not.toBeNull();
+    const innerBar = progressBar.firstElementChild;
+    expect(innerBar.style.width).not.toBe('100%');
+
+    // Now resolve Suspense (component finished mounting)
+    act(() => {
+      topProgress.setSuspended(false);
+    });
+
+    expect(topProgress.status).toBe('completing');
+    expect(innerBar.style.width).toBe('100%');
+  });
 });

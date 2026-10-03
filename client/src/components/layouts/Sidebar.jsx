@@ -27,6 +27,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { ROLES } from '@cms/shared';
@@ -293,9 +294,10 @@ function getActivePath(items, location) {
 function SidebarNavItem({ item, active, collapsed }) {
   const Icon = item.icon;
   const [coords, setCoords] = useState(null);
+  const queryClient = useQueryClient();
 
   const handleShow = (e) => {
-    prefetchRoute(item.path);
+    prefetchRoute(item.path, queryClient);
     if (!collapsed) return;
     const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
     setCoords({
@@ -312,10 +314,16 @@ function SidebarNavItem({ item, active, collapsed }) {
     <>
       <Link
         to={item.path}
-        onMouseEnter={handleShow}
-        onMouseOver={handleShow}
+        onMouseEnter={(e) => {
+          prefetchRoute(item.path, queryClient);
+          handleShow(e);
+        }}
+        onMouseOver={(e) => {
+          prefetchRoute(item.path, queryClient);
+          handleShow(e);
+        }}
         onFocus={() => {
-          prefetchRoute(item.path);
+          prefetchRoute(item.path, queryClient);
           handleShow();
         }}
         onMouseLeave={handleHide}
@@ -409,6 +417,7 @@ function SidebarNavItem({ item, active, collapsed }) {
  */
 function SidebarNavGroup({ item, activePath, collapsed }) {
   const { pathname } = useLocation();
+  const queryClient = useQueryClient();
   const isChildActive = item.children?.some((child) =>
     pathname.startsWith(child.path.split('?')[0]),
   );
@@ -434,9 +443,18 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
       <>
         <Link
           to={item.children?.[0]?.path || item.path}
-          onMouseEnter={handleShow}
-          onMouseOver={handleShow}
-          onFocus={handleShow}
+          onMouseEnter={(e) => {
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            handleShow(e);
+          }}
+          onMouseOver={(e) => {
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            handleShow(e);
+          }}
+          onFocus={() => {
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            handleShow();
+          }}
           onMouseLeave={handleHide}
           onMouseOut={handleHide}
           onBlur={handleHide}
@@ -522,9 +540,9 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
 export function Sidebar({ open = true, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const authState = useAuthStore((s) => s?.user);
+  const authState = useAuthStore();
   const user = authState?.user ?? authState;
-  const logout = useAuthStore((s) => s?.logout) ?? authState?.logout;
+  const logout = typeof authState?.logout === 'function' ? authState.logout : () => {};
 
   const collapsed = !open;
   const isStudent = user?.role === ROLES.STUDENT;

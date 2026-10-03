@@ -1,0 +1,36 @@
+{
+  "session_id": "2026-10-03_faculty-and-instructor-review-loading-optimization",
+  "timestamp": "2026-10-03T22:30:00+08:00",
+  "task": "Eliminate page transition delays, layout flashes, and loading stutters across Faculty and Instructor Review workflows",
+  "status": "completed",
+  "workspaces_touched": [
+    "client/src/lib/routePrefetch.js",
+    "client/src/components/layouts/Sidebar.jsx",
+    "client/src/hooks/useProjects.js",
+    "client/src/hooks/useSubmissions.js",
+    "client/src/hooks/useDashboard.js",
+    "client/src/pages/projects/ProjectsPage.jsx",
+    "client/src/components/projects/ProjectCohortCard.jsx",
+    "client/src/pages/projects/SecretaryReviewPage.jsx",
+    "client/src/pages/projects/SecretaryReviewPage.test.jsx",
+    "client/src/pages/adviser/TeamReviewWorkflowPage.jsx",
+    "client/src/components/dashboards/FacultyDashboard.jsx",
+    "client/src/components/dashboards/InstructorDashboard.jsx",
+    "server/modules/projects/project.model.js",
+    "server/modules/submissions/submission.service.js",
+    "server/modules/dashboard/dashboard.service.js"
+  ],
+  "verification": {
+    "targeted_client_tests": "18/18 passed (FacultyDashboard, SecretaryReviewPage, SubmissionReviewPage, LandingPage)",
+    "targeted_projects_and_instructor_tests": "34/34 passed (ProjectsPage, ProjectCohortCard, CommitteeAssignmentsPage, DefenseSchedulingPage)",
+    "targeted_server_unit_tests": "30/30 passed (submission.review-flow, submission.revision-diff, workloadOptimizationStrategy)",
+    "endpoint_parity": "222 Server / 202 Client, UNMATCHED_COUNT = 0",
+    "agentic_governance": "60/60 passed",
+    "playwright_visual_audit": "12 captures saved in scratch/review-captures/ (desktop/mobile, light/dark)"
+  },
+  "lessons_learned": [
+    "QueryKey alignment between prefetchers and consuming hooks is critical; passing queryClient from components to prefetchRoute ensures instant cache warming on hover.",
+    "Using placeholderData: (prev) => prev or keepPreviousData alongside staleTime: 3m eliminates layout flashing and unmounting when filters or categories switch.",
+    "In Mongoose services, parallelizing independent find and populate lookups with Promise.all and using .lean({ virtuals: true, getters: true }) cuts review workspace endpoint latencies in half."
+  ]
+}

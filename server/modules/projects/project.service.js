@@ -1280,6 +1280,96 @@ class ProjectService {
   }
 
   /**
+   * Update the Google Doc manuscript URL for a project.
+   * Can be updated by team members, assigned adviser, or instructor.
+   * @param {string} projectId
+   * @param {string} userId
+   * @param {Object} data - { googleDocUrl }
+   * @returns {Object} { project }
+   */
+  async updateGoogleDocUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const team = await Team.findById(project.teamId);
+    const isMember = team?.members?.some((id) => id.toString() === userId.toString());
+    const isAdviser = project.adviserId && project.adviserId.toString() === userId.toString();
+    const user = await User.findById(userId).select('role');
+    const isInstructor = user?.role === ROLES.INSTRUCTOR;
+
+    if (!isMember && !isAdviser && !isInstructor) {
+      throw new AppError(
+        'You do not have permission to update the project Google Doc manuscript link.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    if (data.googleDocUrl !== undefined) {
+      project.googleDocUrl = data.googleDocUrl;
+      await project.save();
+
+      // Mirror to team if applicable
+      if (team && (!team.googleDocUrl || team.googleDocUrl !== data.googleDocUrl)) {
+        team.googleDocUrl = data.googleDocUrl;
+        await team.save();
+      }
+    }
+
+    return { project };
+  }
+
+  /**
+   * Update external links (Google Doc and/or GitHub Repo) simultaneously.
+   * @param {string} projectId
+   * @param {string} userId
+   * @param {Object} data - { googleDocUrl, githubRepoUrl }
+   * @returns {Object} { project }
+   */
+  async updateExternalLinks(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const team = await Team.findById(project.teamId);
+    const isMember = team?.members?.some((id) => id.toString() === userId.toString());
+    const isAdviser = project.adviserId && project.adviserId.toString() === userId.toString();
+    const user = await User.findById(userId).select('role');
+    const isInstructor = user?.role === ROLES.INSTRUCTOR;
+
+    if (!isMember && !isAdviser && !isInstructor) {
+      throw new AppError(
+        'You do not have permission to update the project external links.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    let modified = false;
+    let teamModified = false;
+
+    if (data.googleDocUrl !== undefined) {
+      project.googleDocUrl = data.googleDocUrl;
+      modified = true;
+      if (team && team.googleDocUrl !== data.googleDocUrl) {
+        team.googleDocUrl = data.googleDocUrl;
+        teamModified = true;
+      }
+    }
+
+    if (data.githubRepoUrl !== undefined) {
+      project.githubRepoUrl = data.githubRepoUrl;
+      modified = true;
+      if (team && team.githubUrl !== data.githubRepoUrl) {
+        team.githubUrl = data.githubRepoUrl;
+        teamModified = true;
+      }
+    }
+
+    if (modified) await project.save();
+    if (teamModified && team) await team.save();
+
+    return { project };
+  }
+
+  /**
    * Approve or reject the Gantt chart schedule for Capstone 2.
    * Only assigned adviser or instructor can review and approve.
    * @param {string} projectId

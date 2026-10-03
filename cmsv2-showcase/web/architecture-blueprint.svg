@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" style="background:#090d16; font-family:'Segoe UI', system-ui, -apple-system, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="primaryGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#60a5fa" />
+    </linearGradient>
+    <linearGradient id="emeraldGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+    <linearGradient id="purpleGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#a78bfa" />
+    </linearGradient>
+    <linearGradient id="amberGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    
+    <!-- Filter Drop Shadows -->
+    <filter id="shadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Ambient Grid & Guidelines -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.7" stroke-opacity="0.6" />
+  </pattern>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+
+  <!-- Title Header -->
+  <g transform="translate(60, 50)">
+    <rect x="0" y="0" width="1480" height="70" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+    <circle cx="35" cy="35" r="8" fill="#10b981" />
+    <text x="55" y="42" fill="#f8fafc" font-size="22" font-weight="bold">BukSU CMS-V2 Architecture Blueprint</text>
+    <text x="440" y="42" fill="#94a3b8" font-size="14">Enterprise Capstone Management, OCR Ingestion &amp; Vector Similarity Engine</text>
+    <rect x="1300" y="18" width="150" height="34" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1" />
+    <text x="1322" y="40" fill="#60a5fa" font-size="12" font-weight="bold">ASDLC v2.0 • LIVE</text>
+  </g>
+
+  <!-- LAYER 1: CLIENT FRONTEND SPA (Top Layer) -->
+  <g transform="translate(60, 150)">
+    <rect x="0" y="0" width="440" height="380" rx="16" fill="#0b1120" stroke="#3b82f6" stroke-width="2" filter="url(#shadow)" />
+    <rect x="0" y="0" width="440" height="48" rx="16" fill="#1e293b" />
+    <text x="24" y="32" fill="#60a5fa" font-size="16" font-weight="bold">1. CLIENT FRONTEND SPA</text>
+    <text x="320" y="32" fill="#94a3b8" font-size="12">React 18 + Vite</text>
+
+    <!-- Component Blocks -->
+    <rect x="20" y="68" width="400" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="94" fill="#f1f5f9" font-size="13" font-weight="bold">SophisticatedDocumentViewer</text>
+    <text x="36" y="112" fill="#94a3b8" font-size="11">docx-preview OOXML + PDF Stream + Multi-Diff Engine</text>
+
+    <rect x="20" y="136" width="400" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="162" fill="#f1f5f9" font-size="13" font-weight="bold">State Stores &amp; Prefetch Cache</text>
+    <text x="36" y="180" fill="#94a3b8" font-size="11">Zustand (Auth/Theme) + TanStack React Query (Cache)</text>
+
+    <rect x="20" y="204" width="400" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="230" fill="#f1f5f9" font-size="13" font-weight="bold">Action Done Matrix &amp; Gating UI</text>
+    <text x="36" y="248" fill="#94a3b8" font-size="11">Secretary Compliance Gate + Multi-Signatory Canvas</text>
+
+    <rect x="20" y="272" width="400" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="298" fill="#f1f5f9" font-size="13" font-weight="bold">Interactive Capstone Gantt</text>
+    <text x="36" y="316" fill="#94a3b8" font-size="11">Milestone Tracker + Late Justification Form Gating</text>
+
+    <rect x="20" y="340" width="400" height="26" rx="6" fill="#1e293b" />
+    <text x="36" y="358" fill="#38bdf8" font-size="11">Real-time Socket.IO Ingestion Progress Bridge</text>
+  </g>
+
+  <!-- LAYER 2: API GATEWAY & APPLICATION SERVER (Middle Layer) -->
+  <g transform="translate(560, 150)">
+    <rect x="0" y="0" width="460" height="380" rx="16" fill="#0b1120" stroke="#10b981" stroke-width="2" filter="url(#shadow)" />
+    <rect x="0" y="0" width="460" height="48" rx="16" fill="#1e293b" />
+    <text x="24" y="32" fill="#34d399" font-size="16" font-weight="bold">2. EXPRESS REST API &amp; WORKFLOWS</text>
+    <text x="360" y="32" fill="#94a3b8" font-size="12">Node.js ES13</text>
+
+    <rect x="20" y="68" width="420" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="94" fill="#f1f5f9" font-size="13" font-weight="bold">RBAC &amp; Institutional Governance</text>
+    <text x="36" y="112" fill="#94a3b8" font-size="11">Student, Instructor, Faculty &amp; Committee Appointments</text>
+
+    <rect x="20" y="136" width="420" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="162" fill="#f1f5f9" font-size="13" font-weight="bold">BullMQ Asynchronous Job Queues</text>
+    <text x="36" y="180" fill="#94a3b8" font-size="11">document-extraction &amp; plagiarism-scan job dispatch</text>
+
+    <rect x="20" y="204" width="420" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="230" fill="#f1f5f9" font-size="13" font-weight="bold">Mongoose 9 Service Pipelines</text>
+    <text x="36" y="248" fill="#94a3b8" font-size="11">Lean queries + Aggregation pipelines + Multi-signatory state</text>
+
+    <rect x="20" y="272" width="420" height="56" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="298" fill="#f1f5f9" font-size="13" font-weight="bold">Redis 7 Session &amp; Event Broker</text>
+    <text x="36" y="316" fill="#94a3b8" font-size="11">Socket.IO real-time progress broadcasting</text>
+
+    <rect x="20" y="340" width="420" height="26" rx="6" fill="#1e293b" />
+    <text x="36" y="358" fill="#34d399" font-size="11">Zero-slop 196 Endpoints verified via check:endpoints</text>
+  </g>
+
+  <!-- LAYER 3: OCR & VECTOR PLAGIARISM ENGINES (Right Layer) -->
+  <g transform="translate(1080, 150)">
+    <rect x="0" y="0" width="460" height="380" rx="16" fill="#0b1120" stroke="#8b5cf6" stroke-width="2" filter="url(#shadow)" />
+    <rect x="0" y="0" width="460" height="48" rx="16" fill="#1e293b" />
+    <text x="24" y="32" fill="#a78bfa" font-size="16" font-weight="bold">3. OCR &amp; VECTOR AI ENGINES</text>
+    <text x="340" y="32" fill="#94a3b8" font-size="12">Python FastAPI</text>
+
+    <rect x="20" y="68" width="420" height="66" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="94" fill="#f1f5f9" font-size="13" font-weight="bold">PaddleOCR-VL (0.9B) Microservice</text>
+    <text x="36" y="112" fill="#94a3b8" font-size="11">Vision-Language Model for Academic PDF layout analysis</text>
+    <text x="36" y="126" fill="#38bdf8" font-size="10">Fallback: in-process pdf-parse degraded engine</text>
+
+    <rect x="20" y="146" width="420" height="66" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="172" fill="#f1f5f9" font-size="13" font-weight="bold">BAAI/bge-m3 Vector Embeddings</text>
+    <text x="36" y="190" fill="#94a3b8" font-size="11">1024-dimension dense + sparse hybrid vectors</text>
+    <text x="36" y="204" fill="#a78bfa" font-size="10">ChromaDB HNSW cosine similarity index</text>
+
+    <rect x="20" y="224" width="420" height="66" rx="10" fill="#131c31" stroke="#334155" />
+    <text x="36" y="250" fill="#f1f5f9" font-size="13" font-weight="bold">Winnowing Fingerprint Engine</text>
+    <text x="36" y="268" fill="#94a3b8" font-size="11">Exact n-gram match detection + cross-chapter diffs</text>
+    <text x="36" y="282" fill="#34d399" font-size="10">Sub-25% threshold institutional gating</text>
+
+    <rect x="20" y="302" width="420" height="64" rx="10" fill="#1e293b" />
+    <text x="36" y="326" fill="#fbbf24" font-size="12" font-weight="bold">Celery Workers &amp; Redis Task Queues</text>
+    <text x="36" y="344" fill="#94a3b8" font-size="11">Scalable background batch vectorization pipeline</text>
+  </g>
+
+  <!-- DATA CONNECTIONS & FLOW ARROWS -->
+  <!-- Client -> Server -->
+  <path d="M 500 340 L 560 340" stroke="#3b82f6" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrow)" />
+  <text x="510" y="330" fill="#60a5fa" font-size="11">REST</text>
+
+  <!-- Server -> Engines -->
+  <path d="M 1020 340 L 1080 340" stroke="#10b981" stroke-width="3" stroke-dasharray="6,4" />
+  <text x="1030" y="330" fill="#34d399" font-size="11">BullMQ</text>
+
+  <!-- BOTTOM LAYER: DATA PERSISTENCE & STORAGE -->
+  <g transform="translate(60, 580)">
+    <rect x="0" y="0" width="1480" height="340" rx="16" fill="#0b1120" stroke="#f59e0b" stroke-width="2" filter="url(#shadow)" />
+    <rect x="0" y="0" width="1480" height="48" rx="16" fill="#1e293b" />
+    <text x="24" y="32" fill="#fbbf24" font-size="16" font-weight="bold">4. PERSISTENCE, ASSET REPOSITORIES &amp; GOVERNANCE PIPELINES</text>
+    <text x="1220" y="32" fill="#94a3b8" font-size="12">Distributed Clusters</text>
+
+    <!-- MongoDB -->
+    <rect x="20" y="68" width="340" height="240" rx="12" fill="#131c31" stroke="#334155" />
+    <text x="40" y="100" fill="#f8fafc" font-size="15" font-weight="bold">MongoDB 7 (Clustered)</text>
+    <text x="40" y="126" fill="#94a3b8" font-size="12">• Users &amp; Committee Appointments</text>
+    <text x="40" y="150" fill="#94a3b8" font-size="12">• Teams (Roster Locking Phase 0)</text>
+    <text x="40" y="174" fill="#94a3b8" font-size="12">• Projects (Phases 1-4 Statechart)</text>
+    <text x="40" y="198" fill="#94a3b8" font-size="12">• Submissions &amp; Manuscripts</text>
+    <text x="40" y="222" fill="#94a3b8" font-size="12">• Multi-Signatory ADM Matrices</text>
+    <text x="40" y="246" fill="#94a3b8" font-size="12">• AuditLog Ledger &amp; Defense Rubrics</text>
+
+    <!-- S3 / MinIO -->
+    <rect x="380" y="68" width="340" height="240" rx="12" fill="#131c31" stroke="#334155" />
+    <text x="400" y="100" fill="#f8fafc" font-size="15" font-weight="bold">Object Storage (S3 / MinIO)</text>
+    <text x="400" y="126" fill="#94a3b8" font-size="12">• Full PDF Manuscripts (Chapters 1-5)</text>
+    <text x="400" y="150" fill="#94a3b8" font-size="12">• OOXML .docx Source Files</text>
+    <text x="400" y="174" fill="#94a3b8" font-size="12">• Defense Presentation Slide Decks</text>
+    <text x="400" y="198" fill="#94a3b8" font-size="12">• Sealed Completion Certificates</text>
+    <text x="400" y="222" fill="#94a3b8" font-size="12">• Action Done Matrix Sign-off Sheets</text>
+    <text x="400" y="246" fill="#94a3b8" font-size="12">• Auto-Archival Repository</text>
+
+    <!-- ChromaDB Vector DB -->
+    <rect x="740" y="68" width="340" height="240" rx="12" fill="#131c31" stroke="#334155" />
+    <text x="760" y="100" fill="#f8fafc" font-size="15" font-weight="bold">ChromaDB Vector Store</text>
+    <text x="760" y="126" fill="#94a3b8" font-size="12">• BAAI/bge-m3 1024-dim Collections</text>
+    <text x="760" y="150" fill="#94a3b8" font-size="12">• HNSW Cosine Similarity Index</text>
+    <text x="760" y="174" fill="#94a3b8" font-size="12">• BukSU Academic Archive Catalog</text>
+    <text x="760" y="198" fill="#94a3b8" font-size="12">• Candidate Proposal Pre-Scan</text>
+    <text x="760" y="222" fill="#94a3b8" font-size="12">• Fast Sub-Second KNN Lookups</text>
+    <text x="760" y="246" fill="#94a3b8" font-size="12">• SDG 1-17 &amp; IT Discipline Tags</text>
+
+    <!-- Academic Capstone Lifecycle -->
+    <rect x="1100" y="68" width="360" height="240" rx="12" fill="#131c31" stroke="#334155" />
+    <text x="1120" y="100" fill="#f8fafc" font-size="15" font-weight="bold">Capstone Lifecycle Statechart</text>
+    <text x="1120" y="126" fill="#34d399" font-size="12">Phase 0: Team Formation &amp; Roster Lock</text>
+    <text x="1120" y="150" fill="#38bdf8" font-size="12">Phase 1: Title Defense &amp; SDG Proposal</text>
+    <text x="1120" y="174" fill="#60a5fa" font-size="12">Phase 2: Ch 1-3 Manuscript &amp; Midterm ADM</text>
+    <text x="1120" y="198" fill="#a78bfa" font-size="12">Phase 3: Prototype &amp; Progress Defense</text>
+    <text x="1120" y="222" fill="#f43f5e" font-size="12">Phase 4: Final Oral Defense &amp; Dean ADM</text>
+    <text x="1120" y="246" fill="#fbbf24" font-size="12">Secretary Gate: project.admSignatures</text>
+  </g>
+
+  <!-- Connectors from Server to Persistence -->
+  <path d="M 790 530 L 790 580" stroke="#f59e0b" stroke-width="3" stroke-dasharray="6,4" />
+</svg>

@@ -316,4 +316,140 @@ describe('CapstoneWorkflowStepper Component', () => {
     });
     expect(document.querySelector('[data-testid="mock-academic-reports-widget"]')).toBeNull();
   });
+
+  it('renders View Full Document button and triggers onViewFullDocument callback when clicked', async () => {
+    const handleViewFullDoc = vi.fn();
+    const mockProject = {
+      _id: 'proj-fulldoc-1',
+      title: 'Document Analysis Pipeline',
+      titleStatus: 'approved',
+    };
+
+    await act(async () => {
+      root.render(
+        <CapstoneWorkflowStepper
+          project={mockProject}
+          onViewFullDocument={handleViewFullDoc}
+          hasFullDocument={true}
+        />,
+      );
+    });
+
+    const fullDocBtn = container.querySelector('[data-testid="milestone-view-full-doc-button"]');
+    expect(fullDocBtn).toBeTruthy();
+    expect(fullDocBtn.textContent).toContain('View Full Document');
+
+    await act(async () => {
+      fullDocBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(handleViewFullDoc).toHaveBeenCalled();
+  });
+
+  it('renders Google Doc collaboration link and allows opening ExternalLinksModal to edit', async () => {
+    const mockProject = {
+      _id: 'proj-links-1',
+      title: 'Collaborative Editor System',
+      titleStatus: 'approved',
+      googleDocUrl: 'https://docs.google.com/document/d/12345/edit',
+      githubRepoUrl: 'https://github.com/buksu/editor',
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} />);
+    });
+
+    // Check Google Doc and GitHub buttons
+    const gDocLink = container.querySelector('[data-testid="google-doc-link-button"]');
+    expect(gDocLink).toBeTruthy();
+    expect(gDocLink.getAttribute('href')).toBe('https://docs.google.com/document/d/12345/edit');
+
+    const ghLink = container.querySelector('[data-testid="github-repo-link-button"]');
+    expect(ghLink).toBeTruthy();
+    expect(ghLink.getAttribute('href')).toBe('https://github.com/buksu/editor');
+
+    // Click edit button for external links
+    const editBtn = container.querySelector('button[aria-label="Edit Google Doc Link"]');
+    expect(editBtn).toBeTruthy();
+
+    await act(async () => {
+      editBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Modal dialog is open in DOM via portal
+    const dialog = document.querySelector('[data-testid="external-links-dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Project Collaboration Links');
+
+    // Form inputs pre-filled
+    const gDocInput = dialog.querySelector('input[type="url"]');
+    expect(gDocInput.value).toBe('https://docs.google.com/document/d/12345/edit');
+
+    // Close button dismisses modal
+    const closeBtn = dialog.querySelector('button[aria-label="Close dialog"]');
+    await act(async () => {
+      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="external-links-dialog"]')).toBeNull();
+  });
+
+  it('toggles collapsible categorized actions panel on button click', async () => {
+    const mockProject = {
+      _id: 'proj-toggle-1',
+      title: 'Decramped Stepper Project',
+      titleStatus: 'approved',
+      panelistIds: ['p1', 'p2', 'p3'],
+      adviserId: { _id: 'adv-1', fullName: 'Dr. Cruz' },
+      secretaryId: 'sec-1',
+      googleDocUrl: 'https://docs.google.com/document/d/999/edit',
+      githubRepoUrl: 'https://github.com/buksu/toggle-repo',
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} />);
+    });
+
+    const toggleBtn = container.querySelector('[data-testid="toggle-actions-panel-button"]');
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Tools & Governance');
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+    const panel = container.querySelector('[data-testid="categorized-actions-panel"]');
+    expect(panel).toBeTruthy();
+    expect(panel.className).toContain('max-h-0');
+
+    // Click toggle button to expand
+    await act(async () => {
+      toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.className).toContain('max-h-[500px]');
+    expect(panel.textContent).toContain('Academic Governance');
+    expect(panel.textContent).toContain('Collaboration & Code');
+
+    // Click toggle button again to collapse
+    await act(async () => {
+      toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(panel.className).toContain('max-h-0');
+  });
+
+  it('suppresses confusing final_approved tag in header badges', async () => {
+    const mockProject = {
+      _id: 'proj-final-1',
+      title: 'Approved Final Manuscript',
+      titleStatus: 'approved',
+      projectStatus: 'final_approved',
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} />);
+    });
+
+    expect(container.textContent).toContain('Approved Final Manuscript');
+    expect(container.textContent).not.toContain('final_approved');
+  });
 });

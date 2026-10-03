@@ -1,0 +1,35 @@
+{
+  "session_id": "2026-10-03_project-detail-external-links-and-ui-decramping",
+  "timestamp": "2026-10-03T01:57:00+08:00",
+  "role": "Principal Systems Auditor & Guardian Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "task_summary": "Implemented Project Details external collaboration links (Google Docs & GitHub) endpoints and UI cockpit buttons, enabled full document reading via SophisticatedDocumentViewer, and de-cramped executive cockpit/KPI/milestone layouts.",
+  "task_category": "ui_ux_overhaul_and_api_expansion",
+  "status": "completed",
+  "changes": {
+    "server": [
+      "server/modules/projects/project.model.js (added googleDocUrl field)",
+      "server/modules/projects/project.validation.js (added updateGoogleDocUrlSchema and updateExternalLinksSchema)",
+      "server/modules/projects/project.service.js (implemented updateGoogleDocUrl and updateExternalLinks with role checking and Team mirror)",
+      "server/modules/projects/project.controller.js (exported updateGoogleDocUrl and updateExternalLinks)",
+      "server/modules/projects/project.routes.js (registered PATCH /api/projects/:id/google-doc and PATCH /api/projects/:id/external-links)"
+    ],
+    "client": [
+      "client/src/services/authService.js (added updateGoogleDocUrl and updateExternalLinks in projectService)",
+      "client/src/hooks/useProjects.js (added useUpdateGoogleDocUrl and useUpdateProjectExternalLinks mutation hooks)",
+      "client/src/components/projects/WorkflowPhaseTracker.jsx (passed onViewFullDocument and hasFullDocument)",
+      "client/src/pages/projects/ProjectDetailPage.jsx (wired fullDocumentSub derivation, handleOpenFullDocument, and SophisticatedDocumentViewer modal dialog)",
+      "client/src/components/projects/ProjectStatusBadge.jsx (suppressed confusing final_approved tag from rendering)",
+      "client/src/components/projects/CapstoneWorkflowStepper.jsx (de-cramped header/KPI/stepper vertical height, added View Full Document button, categorized secondary actions into Academic Governance & Collaboration cards with collapsible animated tray, Google Doc link/edit, GitHub repo link/edit, and ExternalLinksModal portal dialog)",
+      "client/src/components/projects/CapstoneWorkflowStepper.test.jsx (added tests for View Full Document, ExternalLinksModal dialog, collapsible panel toggle, and final_approved tag suppression; 14/14 passed)"
+    ]
+  },
+  "verification_evidence": {
+    "check_endpoints": "SERVER_ENDPOINT_COUNT=222, CLIENT_ENDPOINT_COUNT=202, UNMATCHED_COUNT=0",
+    "validate_agentic": "60/60 checks passed",
+    "validate_governance": "synchronization DAG valid, decision coherence valid (0 errors, 0 warnings)",
+    "client_tests": "src/components/projects/CapstoneWorkflowStepper.test.jsx (14/14 passed), src/pages/projects/ProjectDetailPage.schedule-nav.test.jsx (2/2 passed)",
+    "server_tests": "tests/unit/project.defense-schedule-gate.test.js (11/11 passed)",
+    "playwright_visual_audit": "Screenshots captured across desktop (1440x900) and mobile (390x844) in light and dark modes for both collapsed and expanded states, ExternalLinksModal rendered, SophisticatedDocumentViewer interaction verified"
+  }
+}

@@ -24,6 +24,24 @@ class TopProgressManager {
     this.safetyTimer = null;
     this.clickVerifyTimer = null;
     this._initialized = false;
+    this._isSuspended = false;
+  }
+
+  get isSuspended() {
+    return this._isSuspended;
+  }
+
+  setSuspended(val) {
+    this._isSuspended = Boolean(val);
+    if (this._isSuspended) {
+      if (this.completeTimer) {
+        clearTimeout(this.completeTimer);
+        this.completeTimer = null;
+      }
+      this.start();
+    } else {
+      this.done();
+    }
   }
 
   subscribe(listener) {
@@ -57,11 +75,12 @@ class TopProgressManager {
       this.trickle();
     }, 200);
 
-    // Fail-safe watchdog: automatically complete after 4s if navigation hangs
+    // Fail-safe watchdog: automatically complete after 6s if navigation hangs
     if (this.safetyTimer) clearTimeout(this.safetyTimer);
     this.safetyTimer = setTimeout(() => {
-      this.done();
-    }, 4000);
+      this._isSuspended = false;
+      this.done(true);
+    }, 6000);
   }
 
   trickle() {
@@ -82,10 +101,16 @@ class TopProgressManager {
     this.notify();
   }
 
-  done() {
+  done(force = false) {
     if (this.clickVerifyTimer) {
       clearTimeout(this.clickVerifyTimer);
       this.clickVerifyTimer = null;
+    }
+
+    // If React is actively suspended waiting for route chunk/resources,
+    // do not complete unless forced (e.g. by safety watchdog timeout)
+    if (this._isSuspended && !force) {
+      return;
     }
 
     if (this.status === 'idle') return;
@@ -160,16 +185,16 @@ class TopProgressManager {
           if (targetPath && currentPath && targetPath !== currentPath) {
             this.start();
 
-            // Safety guard: If within 400ms no pushState/popstate actually occurred
+            // Safety guard: If within 600ms no pushState/popstate actually occurred
             // (e.g. event was defaultPrevented by a router/component, or route transition was aborted),
             // auto-reset progress so the bar does not trickle to 100% while contents remain on same page.
             if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
             this.clickVerifyTimer = setTimeout(() => {
               const nowPath = cleanPath(window.location.href, window.location.origin);
-              if (nowPath === currentPath && this.status === 'loading') {
+              if (nowPath === currentPath && this.status === 'loading' && !this._isSuspended) {
                 this.done();
               }
-            }, 450);
+            }, 600);
           }
         } catch {
           // Ignore URL parsing errors

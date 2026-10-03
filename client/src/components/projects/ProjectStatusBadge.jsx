@@ -23,6 +23,9 @@ const statusConfig = {
 };
 
 export default function ProjectStatusBadge({ status }) {
+  if (!status || status === 'final_approved' || status === PROJECT_STATUSES.FINAL_APPROVED) {
+    return null;
+  }
   const config = statusConfig[status] || { label: status, variant: 'outline' };
 
   return <Badge variant={config.variant}>{config.label}</Badge>;
