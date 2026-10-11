@@ -24,28 +24,51 @@ import {
   EVALUATION_STATUSES,
 } from '@cms/shared';
 import { WorkloadOptimizationContext } from '../optimization/WorkloadOptimizationContext.js';
+import cacheService from '../../services/cache.service.js';
 
 class DashboardService {
   /**
    * Get dashboard statistics based on the user's role.
+   * Cached in Redis/Memory with a 30-second TTL to eliminate redundant DB pressure during rapid navigation.
    * @param {Object} user - The authenticated user document.
    * @returns {Promise<Object>} Role-specific dashboard data.
    */
   async getStats(user) {
+    if (!user || !user._id) {
+      return { role: user?.role, message: 'No dashboard data available.' };
+    }
+
+    const cacheKey = `dashboard:stats:${user.role}:${user._id}`;
+    const cachedStats = await cacheService.get(cacheKey);
+    if (cachedStats) {
+      return cachedStats;
+    }
+
+    let stats;
     switch (user.role) {
       case ROLES.STUDENT:
-        return this._getStudentStats(user);
+        stats = await this._getStudentStats(user);
+        break;
       case ROLES.INSTRUCTOR:
-        return this._getInstructorStats(user);
+        stats = await this._getInstructorStats(user);
+        break;
       case ROLES.ADVISER:
-        return this._getAdviserStats(user);
+        stats = await this._getAdviserStats(user);
+        break;
       case ROLES.PANELIST:
-        return this._getPanelistStats(user);
+        stats = await this._getPanelistStats(user);
+        break;
       case ROLES.FACULTY:
-        return this._getFacultyStats(user);
+        stats = await this._getFacultyStats(user);
+        break;
       default:
         return { role: user.role, message: 'No dashboard data available.' };
     }
+
+    if (stats) {
+      await cacheService.set(cacheKey, stats, 30);
+    }
+    return stats;
   }
 
   /**

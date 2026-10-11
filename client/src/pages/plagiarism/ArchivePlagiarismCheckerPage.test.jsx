@@ -2,11 +2,21 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import ArchivePlagiarismCheckerPage from './ArchivePlagiarismCheckerPage';
+import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
+}));
+
+vi.mock('@/pages/submissions/PlagiarismReportPage', () => ({
+  default: ({ fileName, onBack }) => (
+    <div data-testid="mock-plagiarism-report">
+      <span>Report for: {fileName}</span>
+      <button onClick={onBack}>Back to Upload</button>
+    </div>
+  ),
 }));
 
 vi.mock('@/services/plagiarismService', () => ({
@@ -24,6 +34,7 @@ describe('ArchivePlagiarismCheckerPage', () => {
   let root = null;
 
   beforeEach(() => {
+    usePlagiarismScanStore.getState().resetScan();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -127,5 +138,59 @@ describe('ArchivePlagiarismCheckerPage', () => {
     });
 
     expect(container.textContent).toContain('Only PDF and Word (.docx) files are accepted.');
+  });
+
+  it('resumes active scan state when re-mounted during in-flight background scan', async () => {
+    const dummyFile = new File(['dummy'], 'in_progress_manuscript.pdf', {
+      type: 'application/pdf',
+    });
+
+    usePlagiarismScanStore.setState({
+      status: 'scanning',
+      isScanning: true,
+      file: dummyFile,
+      fileName: 'in_progress_manuscript.pdf',
+      elapsedSeconds: 24,
+    });
+
+    await act(async () => {
+      root.render(<ArchivePlagiarismCheckerPage />);
+    });
+
+    expect(container.textContent).toContain('Analyzing document with BAAI/bge-m3 & Winnowing…');
+    expect(container.textContent).toContain('00:24');
+    expect(container.textContent).toContain('in_progress_manuscript.pdf');
+  });
+
+  it('renders completed report immediately when returning to page after background scan finishes', async () => {
+    const dummyFile = new File(['dummy'], 'completed_capstone.pdf', {
+      type: 'application/pdf',
+    });
+
+    usePlagiarismScanStore.setState({
+      status: 'completed',
+      isScanning: false,
+      file: dummyFile,
+      fileName: 'completed_capstone.pdf',
+      reportData: {
+        similarity_percentage: 10,
+        originalityScore: 90,
+      },
+    });
+
+    await act(async () => {
+      root.render(<ArchivePlagiarismCheckerPage />);
+    });
+
+    expect(container.querySelector('[data-testid="mock-plagiarism-report"]')).not.toBeNull();
+    expect(container.textContent).toContain('Report for: completed_capstone.pdf');
+
+    // Click back to upload resets store
+    const backBtn = container.querySelector('button');
+    await act(async () => {
+      backBtn.click();
+    });
+
+    expect(usePlagiarismScanStore.getState().reportData).toBeNull();
   });
 });

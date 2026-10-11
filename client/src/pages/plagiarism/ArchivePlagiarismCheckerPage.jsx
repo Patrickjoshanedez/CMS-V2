@@ -6,6 +6,7 @@ import PlagiarismReportPage from '@/pages/submissions/PlagiarismReportPage';
 import ScanButton from '@/components/plagiarism/ScanButton';
 import ScanHero from '@/components/plagiarism/ScanHero';
 import { plagiarismService } from '@/services/plagiarismService';
+import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const MAX_FILE_SIZE_MB = 25;
@@ -57,21 +58,20 @@ function getInlineErrorMessage(error) {
 }
 
 export default function ArchivePlagiarismCheckerPage() {
-  const [file, setFile] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState(null);
-  const [reportData, setReportData] = useState(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [semanticModel, setSemanticModel] = useState(DEFAULT_SEMANTIC_MODEL);
-  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
+  const {
+    file,
+    isScanning: scanning,
+    scanError,
+    reportData,
+    elapsedSeconds,
+    semanticModel,
+    setFile,
+    setScanError,
+    startArchiveScan,
+    resetScan,
+  } = usePlagiarismScanStore();
 
-  useEffect(() => {
-    if (!scanning) return undefined;
-    const timerId = window.setInterval(() => {
-      setElapsedSeconds((c) => c + 1);
-    }, 1000);
-    return () => window.clearInterval(timerId);
-  }, [scanning]);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
 
   const selectedFileMeta = useMemo(() => {
     if (!file) return null;
@@ -121,31 +121,15 @@ export default function ArchivePlagiarismCheckerPage() {
       return;
     }
 
-    setScanError(null);
-    setScanning(true);
-    setElapsedSeconds(0);
-
     try {
-      const response = plagiarismService.scanArchive
-        ? await plagiarismService.scanArchive(file)
-        : await plagiarismService.scanArchivedPdf(file);
-
-      const payload = response?.data?.data || response?.data || response || null;
-      if (!payload) throw new Error('Scan response did not include report data.');
-      if (payload.semanticModel) setSemanticModel(payload.semanticModel);
-      setReportData(payload);
-    } catch (error) {
-      setScanError(getInlineErrorMessage(error));
-    } finally {
-      setScanning(false);
+      await startArchiveScan(file);
+    } catch {
+      // Error is caught, formatted, and stored in usePlagiarismScanStore
     }
   };
 
   const handleBackToUpload = () => {
-    setReportData(null);
-    setScanning(false);
-    setElapsedSeconds(0);
-    setScanError(null);
+    resetScan();
   };
 
   if (reportData) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -31,7 +31,9 @@ import { useApproveTitle, useRejectTitle, useAddTitleComment } from '@/hooks/use
 import { toast } from 'sonner';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
 import ProposalRehearsalModal from './ProposalRehearsalModal';
-import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
+const SophisticatedDocumentViewer = lazy(
+  () => import('@/components/documents/SophisticatedDocumentViewer'),
+);
 import EvaluationPanel from './EvaluationPanel';
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
@@ -965,27 +967,31 @@ export default function Capstone1CollapsibleSections({
       </Card>
 
       {/* Rehearsal Pitch Deck Modal */}
-      <ProposalRehearsalModal
-        isOpen={isRehearsalOpen}
-        onClose={() => setIsRehearsalOpen(false)}
-        proposal={{
-          ...activeProposal,
-          pitchDeck: activeProposal.pitchDeck,
-        }}
-        proponentTeam={project?.teamId || { name: 'Proponents' }}
-        projectTitle={activeProposal.title}
-      />
+      {isRehearsalOpen && (
+        <ProposalRehearsalModal
+          isOpen={isRehearsalOpen}
+          onClose={() => setIsRehearsalOpen(false)}
+          proposal={{
+            ...activeProposal,
+            pitchDeck: activeProposal.pitchDeck,
+          }}
+          proponentTeam={project?.teamId || { name: 'Proponents' }}
+          projectTitle={activeProposal.title}
+        />
+      )}
 
       {/* Canonical Sophisticated Document Viewer Modal */}
       {isViewerOpen && viewerDoc && (
-        <SophisticatedDocumentViewer
-          open={isViewerOpen}
-          onOpenChange={setIsViewerOpen}
-          submission={viewerDoc.submission}
-          fileUrl={viewerDoc.fileUrl}
-          chapterTitle={viewerDoc.title}
-          embedded={false}
-        />
+        <Suspense fallback={null}>
+          <SophisticatedDocumentViewer
+            open={isViewerOpen}
+            onOpenChange={setIsViewerOpen}
+            submission={viewerDoc.submission}
+            fileUrl={viewerDoc.fileUrl}
+            chapterTitle={viewerDoc.title}
+            embedded={false}
+          />
+        </Suspense>
       )}
 
       {/* Defense Scheduling Modal for seamless inline hearing scheduling */}

@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ROLES } from '@cms/shared';
+import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
@@ -245,6 +246,10 @@ const PlagiarismChecker = ({
     },
     onSuccess: () => {
       logger.info(`Plagiarism check started for submission: ${submissionId}`);
+      usePlagiarismScanStore.getState().startSubmissionScan({
+        submissionId,
+        title: submissionTitle,
+      });
       onCheckStart?.();
       startPolling();
     },
@@ -311,6 +316,13 @@ const PlagiarismChecker = ({
     }
 
     if (status === 'completed') {
+      if (usePlagiarismScanStore.getState().submissionId === submissionId) {
+        usePlagiarismScanStore.getState().completeSubmissionScan({
+          submissionId,
+          title: submissionTitle,
+          result: plagiarismResult,
+        });
+      }
       onCheckComplete?.(plagiarismResult);
     }
   }, [status, plagiarismResult, onCheckComplete, startPolling, stopPolling]);

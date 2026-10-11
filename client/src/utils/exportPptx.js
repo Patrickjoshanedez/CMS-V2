@@ -1,5 +1,6 @@
 import PptxGenJS from 'pptxgenjs';
-import { BUKSU_COT_LOGO_BASE64, BUKSU_IT_LOGO_BASE64 } from '@/assets/logoBase64';
+import buksuCotLogoUrl from '@/assets/buksu-cot-logo.png';
+import buksuItLogoUrl from '@/assets/buksu-it-logo.png';
 
 /**
  * Domain-specific BukSU Capstone Slide Fallbacks
@@ -303,8 +304,14 @@ export async function exportProposalDeckPptx({
     const cotLogoX = isA4 ? 9.35 : 10.65;
     const itLogoX = isA4 ? 10.45 : 11.85;
 
+    // In browser runtime, pass static URL path for on-demand fetch.
+    // In headless test environments (JSDOM/Vitest), provide a tiny 1x1 PNG data URI to avoid Node fs.readFile failures on virtual web paths.
+    const isNodeTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const testPlaceholderPng =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
     slide.addImage({
-      data: BUKSU_COT_LOGO_BASE64,
+      [isNodeTest ? 'data' : 'path']: isNodeTest ? testPlaceholderPng : buksuCotLogoUrl,
       x: cotLogoX,
       y: logoY,
       w: logoSize,
@@ -312,7 +319,7 @@ export async function exportProposalDeckPptx({
     });
 
     slide.addImage({
-      data: BUKSU_IT_LOGO_BASE64,
+      [isNodeTest ? 'data' : 'path']: isNodeTest ? testPlaceholderPng : buksuItLogoUrl,
       x: itLogoX,
       y: logoY,
       w: logoSize,

@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
-import { BUKSU_COT_LOGO_BASE64, BUKSU_IT_LOGO_BASE64 } from '@/assets/logoBase64';
+import buksuCotLogo from '@/assets/buksu-cot-logo.png';
+import buksuItLogo from '@/assets/buksu-it-logo.png';
 import { cn } from '@/lib/utils';
 import { Pencil } from 'lucide-react';
 
@@ -147,12 +148,12 @@ export default function ProposalSlideCanvas({
 
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <img
-            src={BUKSU_COT_LOGO_BASE64}
+            src={buksuCotLogo}
             alt="BukSU College of Technologies Seal"
             className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 object-contain drop-shadow-xs shrink-0"
           />
           <img
-            src={BUKSU_IT_LOGO_BASE64}
+            src={buksuItLogo}
             alt="BukSU IT Department Shield"
             className="h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 object-contain drop-shadow-xs shrink-0"
           />

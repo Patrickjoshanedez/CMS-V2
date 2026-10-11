@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import {
@@ -53,7 +53,6 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TITLE_SIMILARITY_PERCENTAGE } from '@cms/shared';
-import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
 import ProposalRehearsalModal from '@/components/projects/ProposalRehearsalModal';
 import { formatPitchDeckDescription, parsePitchDeckFromDescription } from '@/utils/pitchDeckParser';
@@ -1028,6 +1027,7 @@ export default function CreateProjectPage() {
   const handleExportPptx = async () => {
     setExportingPptxIndex(activeProposalIndex);
     try {
+      const { exportProposalDeckPptx } = await import('@/utils/exportPptx');
       const filename = await exportProposalDeckPptx({
         title: currentProposal.title,
         deckData: currentProposal.pitchDeck,
@@ -2141,21 +2141,23 @@ export default function CreateProjectPage() {
                 </div>
 
                 {/* Fullscreen Rehearsal Presentation Modal */}
-                <ProposalRehearsalModal
-                  isOpen={isFullscreenDeckOpen}
-                  onClose={() => setIsFullscreenDeckOpen(false)}
-                  title={currentProposal?.title || 'Capstone Title Proposal'}
-                  slides={deckSlides}
-                  activeSlideIndex={activeSlide}
-                  onSlideChange={setActiveSlide}
-                  teamName={cleanTeamName}
-                  proponents={proponentsList}
-                  academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
-                  onExportPptx={handleExportPptx}
-                  isExportingPptx={exportingPptxIndex !== null}
-                  dataTestId="fullscreen-deck-modal"
-                  closeTestId="close-fullscreen-button"
-                />
+                {isFullscreenDeckOpen && (
+                  <ProposalRehearsalModal
+                    isOpen={isFullscreenDeckOpen}
+                    onClose={() => setIsFullscreenDeckOpen(false)}
+                    title={currentProposal?.title || 'Capstone Title Proposal'}
+                    slides={deckSlides}
+                    activeSlideIndex={activeSlide}
+                    onSlideChange={setActiveSlide}
+                    teamName={cleanTeamName}
+                    proponents={proponentsList}
+                    academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
+                    onExportPptx={handleExportPptx}
+                    isExportingPptx={exportingPptxIndex !== null}
+                    dataTestId="fullscreen-deck-modal"
+                    closeTestId="close-fullscreen-button"
+                  />
+                )}
               </div>
             )}
           </div>

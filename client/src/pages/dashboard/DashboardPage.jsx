@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboard } from '@/hooks/useDashboard';
@@ -6,8 +6,9 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import FacultyDashboardV2 from '@/components/dashboards/FacultyDashboard';
-import InstructorDashboardV2 from '@/components/dashboards/InstructorDashboard';
+
+const FacultyDashboardV2 = lazy(() => import('@/components/dashboards/FacultyDashboard'));
+const InstructorDashboardV2 = lazy(() => import('@/components/dashboards/InstructorDashboard'));
 import {
   AlertTriangle,
   ArrowRight,
@@ -864,11 +865,19 @@ function StudentDashboard({ user }) {
 }
 
 function InstructorDashboard({ user: _user }) {
-  return <InstructorDashboardV2 />;
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <InstructorDashboardV2 />
+    </Suspense>
+  );
 }
 
 function FacultyDashboard({ user }) {
-  return <FacultyDashboardV2 user={user} />;
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <FacultyDashboardV2 user={user} />
+    </Suspense>
+  );
 }
 
 function DashboardCard({ icon: Icon, title, metric, description, accent = 'text-primary' }) {

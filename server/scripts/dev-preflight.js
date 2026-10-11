@@ -47,7 +47,35 @@ const run = async () => {
   const { host, port } = parseMongoTarget(mongoUri);
   const isLocalHost = ['127.0.0.1', 'localhost', '0.0.0.0', '::1'].includes(host);
 
+  const ensureRedis = async () => {
+    const redisPort = Number(process.env.REDIS_PORT || 6379);
+    if (!(await canConnect('127.0.0.1', redisPort))) {
+      const dockerComposeAvailable =
+        spawnSync('docker', ['compose', 'version'], {
+          stdio: 'ignore',
+        }).status === 0;
+
+      if (dockerComposeAvailable) {
+        console.warn(
+          '[dev-preflight] Redis is not reachable. Attempting to start docker compose service: redis',
+        );
+        spawnSync('docker', ['compose', '-f', composeFilePath, 'up', '-d', 'redis'], {
+          cwd: process.cwd(),
+          stdio: 'ignore',
+        });
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          await wait(500);
+          if (await canConnect('127.0.0.1', redisPort)) {
+            console.warn('[dev-preflight] ✅ Redis container is ready for local dev.');
+            return;
+          }
+        }
+      }
+    }
+  };
+
   if (await canConnect(host, port)) {
+    await ensureRedis();
     return;
   }
 
@@ -77,6 +105,7 @@ const run = async () => {
           await wait(1000);
           if (await canConnect(host, port)) {
             console.warn('[dev-preflight] ✅ MongoDB container is ready for local dev.');
+            await ensureRedis();
             return;
           }
         }

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { appQueryClient } from '@/lib/queryClient';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { ROLES } from '@cms/shared';
@@ -294,10 +295,16 @@ function getActivePath(items, location) {
 function SidebarNavItem({ item, active, collapsed }) {
   const Icon = item.icon;
   const [coords, setCoords] = useState(null);
-  const queryClient = useQueryClient();
+  let queryClient = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    queryClient = useQueryClient();
+  } catch {
+    queryClient = appQueryClient;
+  }
 
   const handleShow = (e) => {
-    prefetchRoute(item.path, queryClient);
+    prefetchRoute(item.path, queryClient || appQueryClient);
     if (!collapsed) return;
     const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
     setCoords({
@@ -417,7 +424,13 @@ function SidebarNavItem({ item, active, collapsed }) {
  */
 function SidebarNavGroup({ item, activePath, collapsed }) {
   const { pathname } = useLocation();
-  const queryClient = useQueryClient();
+  let queryClient = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    queryClient = useQueryClient();
+  } catch {
+    queryClient = appQueryClient;
+  }
   const isChildActive = item.children?.some((child) =>
     pathname.startsWith(child.path.split('?')[0]),
   );
@@ -444,15 +457,15 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
         <Link
           to={item.children?.[0]?.path || item.path}
           onMouseEnter={(e) => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
             handleShow(e);
           }}
           onMouseOver={(e) => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
             handleShow(e);
           }}
           onFocus={() => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient);
+            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
             handleShow();
           }}
           onMouseLeave={handleHide}

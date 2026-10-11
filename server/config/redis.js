@@ -5,8 +5,32 @@
  * Uses ioredis under the hood. In test environments or when Redis is
  * unavailable, callers should check `isRedisAvailable` before enqueuing.
  */
+import dns from 'node:dns/promises';
 import Redis from 'ioredis';
 import env from './env.js';
+
+/**
+ * Resolve Redis host with automatic fallback to 127.0.0.1 if DNS resolution fails
+ * (e.g., when REDIS_HOST=redis is configured in .env but the app is running on the host machine).
+ */
+async function resolveRedisHost() {
+  const targetHost = env.REDIS_HOST || 'localhost';
+  if (targetHost === 'localhost' || targetHost === '127.0.0.1' || targetHost === '0.0.0.0') {
+    return targetHost;
+  }
+  try {
+    await dns.lookup(targetHost);
+    return targetHost;
+  } catch (err) {
+    if (err.code === 'ENOTFOUND') {
+      console.warn(
+        `[Redis] Configured host "${targetHost}" cannot be resolved via DNS. Falling back to 127.0.0.1 for host dev.`,
+      );
+      return '127.0.0.1';
+    }
+    return targetHost;
+  }
+}
 
 /**
  * Build the ioredis connection options.
@@ -41,6 +65,9 @@ export async function initRedis() {
     redisAvailable = false;
     return;
   }
+
+  const effectiveHost = await resolveRedisHost();
+  redisConnectionOpts.host = effectiveHost;
 
   try {
     redisClient = new Redis(redisConnectionOpts);

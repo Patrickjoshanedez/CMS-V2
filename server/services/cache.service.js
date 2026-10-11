@@ -173,6 +173,19 @@ export const cacheService = {
       this.delPattern(`project:meta:${strId}:*`),
     ]);
   },
+
+  /**
+   * Invalidate cached dashboard statistics for a specific user or across all users.
+   * @param {string} [userId]
+   * @returns {Promise<void>}
+   */
+  async invalidateDashboard(userId) {
+    if (userId) {
+      await this.delPattern(`dashboard:stats:*:${userId.toString()}`);
+    } else {
+      await this.delPattern('dashboard:stats:*');
+    }
+  },
 };
 
 export default cacheService;

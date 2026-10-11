@@ -971,6 +971,7 @@ class ProjectService {
 
     const [projects, total] = await Promise.all([
       Project.find(filter)
+        .select('-textSidecar -rawExtractedData')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

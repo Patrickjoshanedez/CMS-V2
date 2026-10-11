@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import http from 'http';
 
-const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
+const keepAliveHttpAgent = new http.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 10000,
+  maxSockets: 50,
+});
 const backendDefaultProxyTarget = 'http://localhost:43210';
 const frontendDefaultPort = 43211;
 const proxyTimeoutMs = 120000;
@@ -147,7 +151,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: apiProxyTarget,
           changeOrigin: true,
-          agent: nonKeepAliveHttpAgent,
+          agent: keepAliveHttpAgent,
           timeout: proxyTimeoutMs,
           proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
@@ -157,7 +161,7 @@ export default defineConfig(({ mode }) => {
         '/storage': {
           target: apiProxyTarget,
           changeOrigin: true,
-          agent: nonKeepAliveHttpAgent,
+          agent: keepAliveHttpAgent,
           timeout: proxyTimeoutMs,
           proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
@@ -168,7 +172,7 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
           ws: true,
-          agent: nonKeepAliveHttpAgent,
+          agent: keepAliveHttpAgent,
           timeout: proxyTimeoutMs,
           proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
@@ -178,7 +182,23 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      include: ['react-pdf-highlighter-plus', 'pdfjs-dist'],
+      include: [
+        'react-pdf-highlighter-plus',
+        'pdfjs-dist',
+        'lucide-react',
+        '@tanstack/react-query',
+        'zustand',
+        'axios',
+        'date-fns',
+        'recharts',
+        'sonner',
+        'clsx',
+        'tailwind-merge',
+        'react-hook-form',
+        '@hookform/resolvers/zod',
+        'zod',
+        'diff',
+      ],
     },
     build: {
       target: 'esnext',
@@ -206,6 +226,9 @@ export default defineConfig(({ mode }) => {
               }
               if (normalizedId.includes('/docx-preview/') || normalizedId.includes('/jszip/')) {
                 return 'engine-docx';
+              }
+              if (normalizedId.includes('/pptxgenjs/')) {
+                return 'engine-pptx';
               }
               if (
                 normalizedId.includes('/pdfjs-dist/') ||

@@ -1063,19 +1063,28 @@ projectSchema.index(
   { panelistIds: 1, isArchived: 1, createdAt: -1 },
   { background: true, name: 'idx_projects_panelist_lookup' },
 );
+projectSchema.index(
+  { titleStatus: 1, isArchived: 1, updatedAt: -1 },
+  { background: true, name: 'idx_projects_title_status_pending' },
+);
+projectSchema.index(
+  { adviserId: 1, isArchived: 1, createdAt: -1 },
+  { background: true, name: 'idx_projects_adviser_active' },
+);
 
 // Automatic Redis/Memory cache invalidation on project modifications
 projectSchema.post(
   ['save', 'findOneAndUpdate', 'findByIdAndUpdate', 'updateOne'],
   async function (doc) {
     const targetId = doc?._id || this?.getQuery?.()?._id;
-    if (targetId) {
-      try {
-        const { cacheService } = await import('../../services/cache.service.js');
+    try {
+      const { cacheService } = await import('../../services/cache.service.js');
+      if (targetId) {
         await cacheService.invalidateProject(targetId);
-      } catch {
-        // Non-blocking cache invalidation
       }
+      await cacheService.invalidateDashboard();
+    } catch {
+      // Non-blocking cache invalidation
     }
   },
 );

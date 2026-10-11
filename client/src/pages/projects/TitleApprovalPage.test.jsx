@@ -329,7 +329,11 @@ describe('TitleApprovalPage', () => {
 
     it('renders hearing session active today and in progress when defense is currently ongoing', async () => {
       const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
+      const dateStr = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0'),
+      ].join('-');
 
       const currentH = today.getHours();
       const startH12 = currentH === 0 ? 12 : currentH > 12 ? currentH - 12 : currentH;

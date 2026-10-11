@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -36,7 +36,6 @@ import { useAuthStore } from '@/stores/authStore';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import EmptyProjectState from '@/components/projects/EmptyProjectState';
 import { TITLE_STATUSES } from '@cms/shared';
-import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
 import ProposalRehearsalModal from '@/components/projects/ProposalRehearsalModal';
 import { usePresentationEditorStore } from '@/stores/presentationEditorStore';
@@ -312,20 +311,18 @@ export default function TitleApprovalPage() {
   }, [project?.defenseSchedule, now]);
 
   const isDefenseScheduled = Boolean(
-    project?.defenseSchedule?.date &&
-    project?.defenseSchedule?.status === 'scheduled' &&
-    !countdown.isPast,
+    project?.defenseSchedule?.date && project?.defenseSchedule?.status === 'scheduled',
   );
   const isApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
   const isSubmitted = project?.titleStatus === TITLE_STATUSES.SUBMITTED;
 
   useEffect(() => {
-    if (!isDefenseScheduled || isApproved) return;
+    if (!isDefenseScheduled || isApproved || countdown.isPast) return;
     const interval = setInterval(() => {
       setNow(new Date());
     }, 1000);
     return () => clearInterval(interval);
-  }, [isDefenseScheduled, isApproved]);
+  }, [isDefenseScheduled, isApproved, countdown.isPast]);
 
   const toggleProposalExpansion = (index) => {
     setExpandedProposals((prev) => ({
@@ -402,6 +399,7 @@ export default function TitleApprovalPage() {
   const handleExportPptx = async (proposalItem) => {
     setExportingPptxIndex(proposalItem.index);
     try {
+      const { exportProposalDeckPptx } = await import('@/utils/exportPptx');
       const filename = await exportProposalDeckPptx({
         title: proposalItem.title,
         deckData: proposalItem.pitchDeck,
