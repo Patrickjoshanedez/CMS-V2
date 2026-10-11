@@ -82,11 +82,19 @@ app.use(
   }),
 );
 
-// Parse JSON request bodies (limit to 50mb to allow large payloads like PDFs)
-app.use(express.json({ limit: '50mb' }));
+// High-limit parser specifically for large manuscript/archive upload routes
+const largeBodyParser = express.json({ limit: '50mb' });
+const largeUrlEncodedParser = express.urlencoded({ extended: true, limit: '50mb' });
 
-// Parse URL-encoded bodies
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Apply 50mb limit only to large payload endpoints
+app.use('/api/projects/archive/bulk-upload', largeBodyParser, largeUrlEncodedParser);
+app.use('/api/projects/archive/similarity-audit', largeBodyParser, largeUrlEncodedParser);
+app.use('/api/submissions/upload', largeBodyParser, largeUrlEncodedParser);
+app.use('/api/submissions/bulk-upload', largeBodyParser, largeUrlEncodedParser);
+
+// Global default: restrict to 2MB to protect server memory against exhaustion attacks
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Parse cookies (for JWT access/refresh tokens)
 app.use(cookieParser());
