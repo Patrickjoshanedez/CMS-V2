@@ -82,6 +82,12 @@ import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { toast } from 'sonner';
+import { useTeamManager } from './hooks/useTeamManager';
+import TeamRosterCard, {
+  STANDARD_CAPSTONE_ROLES,
+  STANDARD_CAPSTONE_ROLE_NAMES,
+  getRoleMetadata,
+} from './components/TeamRosterCard';
 
 /**
  * TeamsPage — team management page.
@@ -852,140 +858,14 @@ function InviteMemberForm({ teamId }) {
   );
 }
 
-/* ────────── 5 Standard Capstone Roles ────────── */
-
-const STANDARD_CAPSTONE_ROLES = [
-  {
-    name: 'Project Lead & Systems Analyst',
-    consolidates: 'Pitcher + Researcher',
-    focus:
-      'System requirements, defense presentations/pitching, sprint management, and panel coordination.',
-    icon: Presentation,
-    color: 'text-indigo-600 dark:text-indigo-400',
-    bg: 'bg-indigo-500/10 border-indigo-500/20',
-    badgeClass:
-      'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60',
-  },
-  {
-    name: 'Frontend & UI/UX Developer',
-    consolidates: 'Frontend Developer + UI/UX',
-    focus:
-      'User flow design, responsive layouts, accessibility, and client-side UI integration (shadcn/Tailwind).',
-    icon: Palette,
-    color: 'text-pink-600 dark:text-pink-400',
-    bg: 'bg-pink-500/10 border-pink-500/20',
-    badgeClass:
-      'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800/60',
-  },
-  {
-    name: 'Backend & Database Developer',
-    consolidates: 'Backend Developer + Programmer',
-    focus: 'Schema design, API routing, server-side business logic, and database migrations.',
-    icon: Database,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
-    badgeClass:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
-  },
-  {
-    name: 'Full-Stack Developer',
-    consolidates: 'All-Around + Programmer',
-    focus:
-      'End-to-end feature integration, Git workflow/PR reviews, deployment, and cross-layer support.',
-    icon: Layers,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10 border-amber-500/20',
-    badgeClass:
-      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
-  },
-  {
-    name: 'QA & Technical Documentor',
-    consolidates: 'QA/Tester + Documentor',
-    focus:
-      'Unit/integration testing, bug verification, and authoring Chapters 1–5 of the capstone manuscript.',
-    icon: ShieldCheck,
-    color: 'text-sky-600 dark:text-sky-400',
-    bg: 'bg-sky-500/10 border-sky-500/20',
-    badgeClass:
-      'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60',
-  },
-];
-
-const STANDARD_CAPSTONE_ROLE_NAMES = STANDARD_CAPSTONE_ROLES.map((r) => r.name);
-
-function getRoleMetadata(roleName) {
-  if (!roleName) return null;
-  const match = STANDARD_CAPSTONE_ROLES.find((r) => r.name === roleName);
-  if (match) return match;
-  if (roleName === 'Pitcher' || roleName === 'Researcher') {
-    return {
-      name: roleName,
-      consolidates: 'Legacy Role',
-      focus: 'Migrated into Project Lead & Systems Analyst',
-      icon: Presentation,
-      color: 'text-indigo-600 dark:text-indigo-400',
-      badgeClass:
-        'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300',
-    };
-  }
-  if (roleName === 'Frontend Developer' || roleName === 'UI/UX') {
-    return {
-      name: roleName,
-      consolidates: 'Legacy Role',
-      focus: 'Migrated into Frontend & UI/UX Developer',
-      icon: Palette,
-      color: 'text-pink-600 dark:text-pink-400',
-      badgeClass: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300',
-    };
-  }
-  if (roleName === 'Backend Developer' || roleName === 'Programmer') {
-    return {
-      name: roleName,
-      consolidates: 'Legacy Role',
-      focus: 'Migrated into Backend & Database Developer',
-      icon: Database,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      badgeClass:
-        'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300',
-    };
-  }
-  if (roleName === 'All-Around' || roleName === 'All-around') {
-    return {
-      name: roleName,
-      consolidates: 'Legacy Role',
-      focus: 'Migrated into Full-Stack Developer',
-      icon: Layers,
-      color: 'text-amber-600 dark:text-amber-400',
-      badgeClass:
-        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
-    };
-  }
-  if (roleName === 'QA/Tester' || roleName === 'Documentor') {
-    return {
-      name: roleName,
-      consolidates: 'Legacy Role',
-      focus: 'Migrated into QA & Technical Documentor',
-      icon: ShieldCheck,
-      color: 'text-sky-600 dark:text-sky-400',
-      badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300',
-    };
-  }
-  return {
-    name: roleName,
-    consolidates: 'Custom',
-    focus: 'Assigned capstone role',
-    icon: ShieldAlert,
-    color: 'text-muted-foreground',
-    badgeClass: 'bg-muted text-muted-foreground border-border',
-  };
-}
-
 /* ────────── Student Team Detail View ────────── */
 
 function StudentTeamDetail({ team, userId }) {
+  const teamManager = useTeamManager({ user: { _id: userId } });
   const [now] = useState(() => Date.now());
   const [showRolesGuide, setShowRolesGuide] = useState(false);
-  const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
+  const showBulkInviteModal = teamManager.isBulkInviteOpen;
+  const setShowBulkInviteModal = teamManager.setIsBulkInviteOpen;
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
@@ -1296,82 +1176,24 @@ function StudentTeamDetail({ team, userId }) {
                 const memberId = member._id || member;
                 const isThisLeader = (team.leaderId?._id || team.leaderId) === memberId;
                 const selectedRole = memberRoleMap.get(memberId) || '';
-                const roleMeta = getRoleMetadata(selectedRole);
-                const fullName = formatName(member);
-                const initials =
-                  (member.firstName?.[0] || '') + (member.lastName?.[0] || '') ||
-                  member.email?.[0]?.toUpperCase() ||
-                  '?';
 
                 return (
-                  <div
+                  <TeamRosterCard
                     key={memberId}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border/50 p-3.5 transition-colors hover:bg-muted/40"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-primary/10 text-primary font-medium text-sm">
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium leading-none truncate text-foreground">
-                            {fullName}
-                          </p>
-                          {isThisLeader && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[11px] py-0 px-1.5 gap-1 font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
-                            >
-                              <Crown className="h-3 w-3 text-amber-500" /> Leader
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          {member.email}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 self-start sm:self-center">
-                      {roleMeta ? (
-                        <div
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border shadow-2xs ${roleMeta.badgeClass}`}
-                          title={`${roleMeta.name}\nConsolidates: ${roleMeta.consolidates}\nFocus: ${roleMeta.focus}`}
-                        >
-                          <roleMeta.icon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="font-semibold">{roleMeta.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs italic text-muted-foreground px-1">
-                          No role assigned
-                        </span>
-                      )}
-
-                      {isLeader && !team.isLocked && (
-                        <select
-                          className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground font-medium shadow-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
-                          value={selectedRole}
-                          disabled={assignMemberRole.isPending}
-                          onChange={(event) => {
-                            assignMemberRole.mutate({
-                              teamId: team._id,
-                              memberId,
-                              role: event.target.value,
-                            });
-                          }}
-                        >
-                          <option value="">
-                            {selectedRole ? 'Change role...' : 'Assign role...'}
-                          </option>
-                          {TEAM_MEMBER_ROLE_OPTIONS.map((roleOption) => (
-                            <option key={roleOption} value={roleOption}>
-                              {roleOption}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  </div>
+                    member={member}
+                    isLeader={isThisLeader}
+                    role={selectedRole}
+                    canAssignRole={isLeader && !team.isLocked}
+                    roleOptions={TEAM_MEMBER_ROLE_OPTIONS}
+                    isAssignPending={assignMemberRole.isPending}
+                    onAssignRole={(newRole) => {
+                      assignMemberRole.mutate({
+                        teamId: team._id,
+                        memberId,
+                        role: newRole,
+                      });
+                    }}
+                  />
                 );
               })}
 
@@ -2550,14 +2372,29 @@ function FacultyTeamsView({ canAssignCommittee }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTeamId = searchParams.get('teamId');
 
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({});
-  const [selectedTeamId, setSelectedTeamId] = useState(urlTeamId || null);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [inspectingTeam, setInspectingTeam] = useState(null);
-  const [committeeModalTeam, setCommitteeModalTeam] = useState(null);
-  const [academicYear, setAcademicYear] = useState('');
-  const [sectionId, setSectionId] = useState('');
+  const teamManager = useTeamManager({ initialTeamId: urlTeamId || null });
+  const {
+    search,
+    setSearch,
+    filters,
+    setFilters,
+    selectedTeamId,
+    setSelectedTeamId,
+    statusFilter,
+    setStatusFilter,
+    inspectingTeam,
+    setInspectingTeam,
+    committeeModalTeam,
+    setCommitteeModalTeam,
+    academicYear,
+    setAcademicYear,
+    sectionId,
+    setSectionId,
+    openInspectRoster,
+    closeInspectRoster,
+    openAssignCommittee,
+    closeAssignCommittee,
+  } = teamManager;
 
   const { data: years = [] } = useAcademicYears();
   const { data: sections = [] } = useSections(
@@ -2584,18 +2421,17 @@ function FacultyTeamsView({ canAssignCommittee }) {
         setInspectingTeam(found);
       }
     }
-  }, [urlTeamId, teams, directTeam]);
+  }, [urlTeamId, teams, directTeam, setSelectedTeamId, setInspectingTeam]);
 
   const handleInspectTeam = (team) => {
-    setSelectedTeamId(team._id);
-    setInspectingTeam(team);
+    openInspectRoster(team);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('teamId', team._id);
     setSearchParams(newParams, { replace: true });
   };
 
   const handleCloseInspect = () => {
-    setInspectingTeam(null);
+    closeInspectRoster();
     if (urlTeamId) {
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('teamId');
@@ -2614,13 +2450,12 @@ function FacultyTeamsView({ canAssignCommittee }) {
   };
 
   const handleClearFilters = () => {
-    setSearch('');
-    setAcademicYear('');
-    setSectionId('');
-    setStatusFilter('all');
-    setFilters({ page: 1 });
-    handleCloseInspect();
-    setSelectedTeamId(null);
+    teamManager.resetFilters();
+    if (urlTeamId) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('teamId');
+      setSearchParams(newParams, { replace: true });
+    }
   };
 
   // Phase 0 metrics computed across current team catalog
@@ -3008,7 +2843,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
                   isSelected={isSelected}
                   canAssignCommittee={canAssignCommittee}
                   onInspect={handleInspectTeam}
-                  onAssign={(teamToAssign) => setCommitteeModalTeam(teamToAssign)}
+                  onAssign={(teamToAssign) => openAssignCommittee(teamToAssign)}
                 />
               </button>
             );
@@ -3050,7 +2885,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
         team={inspectingTeam}
         canAssignCommittee={canAssignCommittee}
         onAssignCommittee={(teamToAssign) => {
-          setCommitteeModalTeam(teamToAssign);
+          openAssignCommittee(teamToAssign);
         }}
       />
 
@@ -3059,7 +2894,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
         <AssignCommitteeDialog
           open={Boolean(committeeModalTeam)}
           onOpenChange={(open) => {
-            if (!open) setCommitteeModalTeam(null);
+            if (!open) closeAssignCommittee();
           }}
           teamId={committeeModalTeam._id}
           teamName={committeeModalTeam.name}
