@@ -71,4 +71,58 @@ describe('useActionDoneMatrix', () => {
     });
     expect(result.current.activeViewTab).toBe('minutes');
   });
+
+  it('should filter displayedRows according to the selected milestone (CAPSTONE_1, CAPSTONE_2, ALL)', () => {
+    const projectWithRows = {
+      _id: 'proj1',
+      capstonePhase: 1,
+      admSignatures: {},
+      actionDoneMatrix: [
+        {
+          _id: 'r1',
+          panelName: 'Dr. Smith',
+          suggestion: 'Improve methodology',
+          actionDone: 'Updated section 3',
+          milestone: 'CAPSTONE_1',
+        },
+        {
+          _id: 'r2',
+          panelName: 'Prof. Jones',
+          suggestion: 'Refine analysis',
+          actionDone: 'Added statistical tests',
+          milestone: 'CAPSTONE_2',
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useActionDoneMatrix({ project: projectWithRows, initialMilestone: 'CAPSTONE_1' }),
+    );
+
+    // Initial milestone CAPSTONE_1: only r1
+    expect(result.current.selectedMilestone).toBe('CAPSTONE_1');
+    expect(result.current.displayedRows).toHaveLength(1);
+    expect(result.current.displayedRows[0].panelName).toBe('Dr. Smith');
+    expect(result.current.displayedRows[0].milestone).toBe('CAPSTONE_1');
+
+    // Switch to CAPSTONE_2: only r2
+    act(() => {
+      result.current.setSelectedMilestone('CAPSTONE_2');
+    });
+    expect(result.current.selectedMilestone).toBe('CAPSTONE_2');
+    expect(result.current.displayedRows).toHaveLength(1);
+    expect(result.current.displayedRows[0].panelName).toBe('Prof. Jones');
+    expect(result.current.displayedRows[0].milestone).toBe('CAPSTONE_2');
+
+    // Switch to ALL: both rows
+    act(() => {
+      result.current.setSelectedMilestone('ALL');
+    });
+    expect(result.current.selectedMilestone).toBe('ALL');
+    expect(result.current.displayedRows).toHaveLength(2);
+    expect(result.current.displayedRows.map((r) => r.milestone)).toEqual([
+      'CAPSTONE_1',
+      'CAPSTONE_2',
+    ]);
+  });
 });
