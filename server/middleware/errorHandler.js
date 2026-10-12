@@ -100,6 +100,14 @@ const errorHandler = (err, req, res, _next) => {
     message = 'Malformed JSON in request body';
   }
 
+  // --- Request payload too large (body-parser limit exceeded) ---
+  if (err.type === 'entity.too.large' || (err.status === 413 && err.name !== 'MulterError')) {
+    err.isOperational = true;
+    statusCode = 413;
+    code = 'PAYLOAD_TOO_LARGE';
+    message = err.message || 'Request payload exceeds allowable limit';
+  }
+
   // Log unexpected (non-operational) errors
   if (!err.isOperational) {
     console.error('UNEXPECTED ERROR:', err);

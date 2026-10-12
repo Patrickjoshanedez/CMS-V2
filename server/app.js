@@ -87,10 +87,8 @@ const largeBodyParser = express.json({ limit: '50mb' });
 const largeUrlEncodedParser = express.urlencoded({ extended: true, limit: '50mb' });
 
 // Apply 50mb limit only to large payload endpoints
-app.use('/api/projects/archive/bulk-upload', largeBodyParser, largeUrlEncodedParser);
-app.use('/api/projects/archive/similarity-audit', largeBodyParser, largeUrlEncodedParser);
-app.use('/api/submissions/upload', largeBodyParser, largeUrlEncodedParser);
-app.use('/api/submissions/bulk-upload', largeBodyParser, largeUrlEncodedParser);
+app.use('/api/projects/archive/bulk', largeBodyParser, largeUrlEncodedParser);
+app.use('/api/submissions', largeBodyParser, largeUrlEncodedParser);
 
 // Global default: restrict to 2MB to protect server memory against exhaustion attacks
 app.use(express.json({ limit: '2mb' }));
