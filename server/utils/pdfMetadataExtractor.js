@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import pino from 'pino';
 import env from '../config/env.js';
+import cacheService from '../services/cache.service.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -39,34 +40,42 @@ function computeBufferHash(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
-function buildExtractionCacheKey(bufferHash) {
+export function buildExtractionCacheKey(bufferHash) {
   return `v2:${bufferHash}:paddleocr-vl`;
 }
 
-function getCachedExtraction(cacheKey) {
+export async function getCachedExtraction(cacheKey) {
+  if (!cacheKey) return null;
+  try {
+    const redisHit = await cacheService.get(`pdf:extract:${cacheKey}`);
+    if (redisHit) return redisHit;
+  } catch (err) {
+    logger.debug({ err: err.message }, 'Redis get error in getCachedExtraction; falling back');
+  }
+
   const hit = extractionCache.get(cacheKey);
   if (!hit) return null;
-
   if (Date.now() >= hit.expiresAt) {
     extractionCache.delete(cacheKey);
     return null;
   }
-
   return hit.value;
 }
 
-function setCachedExtraction(cacheKey, value) {
+export async function setCachedExtraction(cacheKey, value) {
   if (!cacheKey || !value) return;
+  const ttlSeconds = Math.floor(EXTRACTION_CACHE_TTL_MS / 1000);
+  try {
+    await cacheService.set(`pdf:extract:${cacheKey}`, value, ttlSeconds);
+  } catch (err) {
+    logger.debug({ err: err.message }, 'Redis set error in setCachedExtraction; falling back');
+  }
 
   if (extractionCache.size >= EXTRACTION_CACHE_MAX_ENTRIES) {
     const oldestKey = extractionCache.keys().next().value;
     if (oldestKey) extractionCache.delete(oldestKey);
   }
-
-  extractionCache.set(cacheKey, {
-    value,
-    expiresAt: Date.now() + EXTRACTION_CACHE_TTL_MS,
-  });
+  extractionCache.set(cacheKey, { value, expiresAt: Date.now() + EXTRACTION_CACHE_TTL_MS });
 }
 
 function getCachedDoiMetadata(doi) {
@@ -718,7 +727,7 @@ function sanitizeOcrResult(ocrOutput) {
  */
 export async function extractPdfMetadata(pdfBuffer) {
   const cacheKey = buildExtractionCacheKey(computeBufferHash(pdfBuffer));
-  const cached = getCachedExtraction(cacheKey);
+  const cached = await getCachedExtraction(cacheKey);
   if (cached) {
     logger.debug({ cacheKey }, 'Returning cached PDF metadata extraction result');
     return cached;
@@ -762,7 +771,7 @@ export async function extractPdfMetadata(pdfBuffer) {
       },
     };
 
-    setCachedExtraction(cacheKey, emptyResult);
+    await setCachedExtraction(cacheKey, emptyResult);
     return emptyResult;
   }
 
@@ -816,7 +825,7 @@ export async function extractPdfMetadata(pdfBuffer) {
 
   const doiEnriched = await enrichWithDoiMetadata(baseResult, text);
   const finalized = withReviewGate(doiEnriched);
-  setCachedExtraction(cacheKey, finalized);
+  await setCachedExtraction(cacheKey, finalized);
   return finalized;
 }
 
