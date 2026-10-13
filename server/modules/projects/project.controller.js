@@ -1423,7 +1423,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
   const currentSignatures = getMilestoneSignatures(project, targetMilestone);
 
   // Institutional Gate: Secretary Endorsement prerequisite
-  if (!currentSignatures?.secretary?.endorsed && role !== 'instructor') {
+  if (!currentSignatures?.secretary?.endorsed) {
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
       message: `The ${targetMilestone.replace('_', ' ')} Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.`,

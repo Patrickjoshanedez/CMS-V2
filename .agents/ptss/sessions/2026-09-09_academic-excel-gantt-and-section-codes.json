@@ -96,7 +96,7 @@
   "post_mortem": {
     "lesson": "SpreadsheetML 2003 XML (.xls) provides complete formatting control (exact border weights, cell merges, and background colors) directly from client JavaScript without bulky third-party dependencies, allowing high-fidelity exports that open cleanly in Microsoft Excel.",
     "learned": "Legacy naming anomalies like 'BSIT 4-A' vs 'BSIT-4A' easily contaminate hierarchy navigators if raw database strings are rendered directly without canonical normalization. Centralizing formatCanonicalSectionName and formatSectionWithCode across all UI surfaces ensures consistent institutional presentation (e.g. BSIT-4A (T87)).",
-    "prevention": "Always sanitize section names with regex stripping space before hyphen (/([A-Z]+)\s+(\d)-?([A-Z])/i -> '$1-$2$3'). In forms where instructors enter year and cluster (e.g. 4 and A), derive canonical section string immediately and display live preview so users see the exact formatted string before submission.",
+    "prevention": "Always sanitize section names with regex stripping space before hyphen (/([A-Z]+)\\s+(\\d)-?([A-Z])/i -> '$1-$2$3'). In forms where instructors enter year and cluster (e.g. 4 and A), derive canonical section string immediately and display live preview so users see the exact formatted string before submission.",
     "runbook": "When realigning lifecycle artifacts (e.g. moving Gantt Chart and Demo Video from Capstone 2 to Capstone 3), update both presentation copy, page architecture (ProjectSubmissionsPage.jsx phased cards), and component trigger links simultaneously.",
     "checklist": [
       "SpreadsheetML XML export with styling and borders verified",

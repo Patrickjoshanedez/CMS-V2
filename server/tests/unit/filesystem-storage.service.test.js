@@ -64,4 +64,25 @@ describe('FilesystemStorageService key resolution', () => {
       statusCode: 400,
     });
   });
+
+  it('uploads files with relative keys inside baseDir without leaking to cwd', async () => {
+    const tempKey = 'temp-extractions/extract-test-123.pdf';
+    const content = Buffer.from('%PDF-1.4 test temporary pdf');
+
+    const result = await filesystemStorageService.uploadFile(content, tempKey, 'application/pdf');
+
+    expect(result.key).toBe('temp-extractions/extract-test-123.pdf');
+    expect(result.path.startsWith(tempDir)).toBe(true);
+
+    // File must be downloadable via relative key
+    const downloaded = await filesystemStorageService.downloadFile(tempKey);
+    expect(downloaded.toString()).toBe('%PDF-1.4 test temporary pdf');
+
+    // Temporary extraction files should not have .meta.json sidecar
+    await expect(fs.access(`${result.path}.meta.json`)).rejects.toMatchObject({ code: 'ENOENT' });
+
+    // Deleting via relative key cleans up file
+    await filesystemStorageService.deleteFile(tempKey);
+    await expect(fs.access(result.path)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
 });

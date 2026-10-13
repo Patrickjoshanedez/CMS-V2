@@ -49,7 +49,11 @@ export {
   IT_DISCIPLINE_NAMES,
   getDisciplineByNameOrId,
 } from './constants/disciplines.js';
-export { STRICT_EMAIL_REGEX } from './constants/validation.js';
+export {
+  STRICT_EMAIL_REGEX,
+  BUKSU_INSTITUTIONAL_EMAIL_REGEX,
+  isBuksuInstitutionalEmail,
+} from './constants/validation.js';
 export {
   DEFAULT_TITLE_SIMILARITY_THRESHOLD,
   DEFAULT_TITLE_SIMILARITY_PERCENTAGE,

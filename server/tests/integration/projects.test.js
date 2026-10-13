@@ -1311,6 +1311,13 @@ describe('Projects API — /api/projects', () => {
       const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = createRes.body.data.project._id;
 
+      await Project.findByIdAndUpdate(projectId, {
+        capstonePhase: 4,
+        stage: 'final',
+        defenseSchedule: { status: 'completed', verdict: 'Passed' },
+        admSignatures: { secretary: { endorsed: true } },
+      });
+
       await Submission.create([
         {
           projectId,

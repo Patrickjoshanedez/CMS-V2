@@ -171,7 +171,22 @@ class ProjectTitleService {
       );
     }
 
-    // plagResult.status === COMPLETED — verify score meets threshold
+    // plagResult.status === COMPLETED — verify non-degraded coverage and score threshold
+    const fullReport = plagResult.fullReport || plagResult.rawData || null;
+    const isDegraded =
+      plagResult.scanCoverage === 'degraded' ||
+      fullReport?.scanCoverage === 'degraded' ||
+      fullReport?.scanType === 'syntactic_fallback' ||
+      fullReport?.semanticPending === true;
+
+    if (isDegraded) {
+      throw new AppError(
+        `Final ${label} version was evaluated under degraded syntactic mode (neural vector analysis failed). Full semantic clearance is required for archival. Please re-run the plagiarism check.`,
+        400,
+        'PLAGIARISM_SCAN_DEGRADED',
+      );
+    }
+
     const score = plagResult.originalityScore ?? submission.originalityScore;
     if (score === null || score === undefined) {
       throw new AppError(

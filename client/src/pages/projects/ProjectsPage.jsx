@@ -670,7 +670,7 @@ export default function ProjectsPage() {
         {/* 6. PAGINATION CONTROLS                                    */}
         {/* ========================================================= */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 pt-2">
             <Button
               variant="outline"
               size="sm"

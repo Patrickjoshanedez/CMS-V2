@@ -1,0 +1,28 @@
+{
+  "watch": [
+    "controllers",
+    "middleware",
+    "modules",
+    "routes",
+    "services",
+    "utils",
+    "config",
+    "jobs",
+    "server.js"
+  ],
+  "ignore": [
+    "uploads/**",
+    "temp-extractions/**",
+    "temp/**",
+    "tmp/**",
+    "logs/**",
+    "*.meta.json",
+    "*.txt.gz",
+    "*.pdf",
+    "*.docx",
+    "node_modules/**",
+    "tests/**",
+    "coverage/**"
+  ],
+  "ext": "js,mjs,json"
+}

@@ -52,7 +52,7 @@ export function TabsList({ children, className }) {
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-center rounded-lg border border-border bg-muted/50 p-1',
+        'inline-flex max-w-full flex-wrap items-center justify-start rounded-lg border border-border bg-muted/50 p-1',
         className,
       )}
       role="tablist"
@@ -99,7 +99,7 @@ export function TabsTrigger({
       title={locked ? lockedReason : undefined}
       onClick={handleClick}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all select-none',
+        'inline-flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all select-none sm:min-h-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isActive
           ? 'bg-card text-foreground shadow-xs font-semibold'

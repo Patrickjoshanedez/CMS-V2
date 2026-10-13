@@ -17,6 +17,7 @@ import {
   Printer,
   Search,
   Sparkles,
+  Info,
   ExternalLink,
   ShieldAlert,
   ZoomIn,
@@ -1055,6 +1056,37 @@ function PlagiarismReportPage({
   const processedAt = payload?.processedAt || payload?.fullReport?.checked_at || null;
   const status = getSimilarityStatus(overallScore);
 
+  const scanCoverage =
+    payload?.scanCoverage ||
+    payload?.fullReport?.scanCoverage ||
+    submission?.plagiarismResult?.scanCoverage ||
+    'full';
+
+  const semanticStatus =
+    payload?.semanticStatus ||
+    payload?.fullReport?.semanticStatus ||
+    submission?.plagiarismResult?.semanticStatus ||
+    'completed';
+
+  const coverageConfig = useMemo(() => {
+    if (scanCoverage === 'degraded') {
+      return {
+        label: 'Degraded (Syntactic Fallback)',
+        badgeClass: 'border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10',
+      };
+    }
+    if (scanCoverage === 'lexical_only') {
+      return {
+        label: 'Lexical Only (<5% Overlap · Semantic Skipped)',
+        badgeClass: 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10',
+      };
+    }
+    return {
+      label: 'Full Dual-Engine',
+      badgeClass: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    };
+  }, [scanCoverage]);
+
   const wordCount = useMemo(() => {
     if (!text) return 0;
     return text.trim().split(/\s+/).filter(Boolean).length;
@@ -1157,6 +1189,13 @@ function PlagiarismReportPage({
                 <Badge variant={status.badgeVariant} className="text-xs">
                   {status.statusText}
                 </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn('text-xs font-medium', coverageConfig.badgeClass)}
+                  data-testid="scan-coverage-badge"
+                >
+                  {coverageConfig.label}
+                </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {submissionFileName} · Phase {submission?.capstonePhase ?? '1–4'}
@@ -1199,6 +1238,35 @@ function PlagiarismReportPage({
             </Button>
           </div>
         </header>
+
+        {/* Coverage Alert Banners */}
+        {scanCoverage === 'degraded' && (
+          <div
+            data-testid="scan-coverage-degraded-banner"
+            className="flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-900 dark:text-rose-200"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            <div>
+              <span className="font-semibold">Degraded Scan Coverage:</span> Neural vector analysis
+              was unavailable or encountered an error. This report is based on syntactic lexical
+              matching only and <strong>cannot be used for final defense clearance</strong>.
+            </div>
+          </div>
+        )}
+
+        {scanCoverage === 'lexical_only' && (
+          <div
+            data-testid="scan-coverage-lexical-banner"
+            className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200"
+          >
+            <Info className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <span className="font-semibold">Fast-Path Lexical Clearance:</span> Document exhibited
+              low lexical overlap (&lt;5%). Deep neural analysis was omitted for this draft. Final
+              submissions require full neural coverage.
+            </div>
+          </div>
+        )}
 
         {/* ── Executive KPI Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

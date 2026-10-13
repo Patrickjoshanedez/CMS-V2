@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-08-24T14:31:20.426015+00:00",
-  "workspace": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\CMS-V2",
+  "generated_at": "2026-10-13T13:46:29.962835+00:00",
+  "workspace": "C:\\Users\\patri\\dev\\CMS-V2",
   "thresholds": {
     "stale_days": 30,
     "archive_days": 45
   },
   "summary": {
-    "active": 0,
-    "stale": 0,
+    "active": 27,
+    "stale": 2,
     "archived": 0,
-    "never_used": 50,
+    "never_used": 33,
     "skipped": 10
   },
-  "ptss_sessions_indexed": 0,
+  "ptss_sessions_indexed": 215,
   "skills": [
     {
       "skill": "aif-loop",
@@ -35,14 +35,44 @@
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
     },
     {
+      "skill": "anti-regression-and-ci-governance",
+      "state": "active",
+      "last_used": "2026-10-13T21:24:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 11,
+      "age_days": -1,
+      "action_recommended": "none"
+    },
+    {
       "skill": "anti-slop",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-30T17:46:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
+      "patched_count": 25,
+      "age_days": 12,
+      "action_recommended": "none"
+    },
+    {
+      "skill": "asdlc-task-orchestrator",
+      "state": "active",
+      "last_used": "2026-09-29T01:15:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 3,
+      "age_days": 14,
+      "action_recommended": "none"
+    },
+    {
+      "skill": "automated-qa-tester",
+      "state": "active",
+      "last_used": "2026-10-03T04:50:00.000Z",
+      "triggered_count": 0,
+      "written_count": 2,
       "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "age_days": 10,
+      "action_recommended": "none"
     },
     {
       "skill": "azure-ai-textanalytics-py",
@@ -55,6 +85,16 @@
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
     },
     {
+      "skill": "capstone-lifecycle-orchestrator",
+      "state": "active",
+      "last_used": "2026-10-13T20:47:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 27,
+      "age_days": -1,
+      "action_recommended": "none"
+    },
+    {
       "skill": "content-analysis",
       "state": "never_used",
       "last_used": null,
@@ -63,6 +103,16 @@
       "patched_count": 0,
       "age_days": null,
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "context-gathering-and-ast-triage",
+      "state": "stale",
+      "last_used": "2026-09-03T01:19:40.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 0,
+      "age_days": 40,
+      "action_recommended": "add _STALE.md marker (will archive in 5d)"
     },
     {
       "skill": "context7-agent-ops",
@@ -76,6 +126,16 @@
     },
     {
       "skill": "continual-learning",
+      "state": "active",
+      "last_used": "2026-10-13T21:24:00.000Z",
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 28,
+      "age_days": -1,
+      "action_recommended": "none"
+    },
+    {
+      "skill": "deep-dive-code-search",
       "state": "never_used",
       "last_used": null,
       "triggered_count": 0,
@@ -145,14 +205,24 @@
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
     },
     {
+      "skill": "frontend-mythos",
+      "state": "active",
+      "last_used": "2026-10-03T13:43:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 6,
+      "age_days": 10,
+      "action_recommended": "none"
+    },
+    {
       "skill": "frontend-patterns",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-10-03T14:30:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 100,
+      "age_days": 9,
+      "action_recommended": "none"
     },
     {
       "skill": "frontend-specialist",
@@ -206,23 +276,23 @@
     },
     {
       "skill": "i-arrange",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-28T23:25:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 8,
+      "age_days": 14,
+      "action_recommended": "none"
     },
     {
       "skill": "i-audit",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T03:10:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 1,
+      "age_days": 18,
+      "action_recommended": "none"
     },
     {
       "skill": "i-bolder",
@@ -236,33 +306,33 @@
     },
     {
       "skill": "i-clarify",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T18:45:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 5,
+      "age_days": 17,
+      "action_recommended": "none"
     },
     {
       "skill": "i-colorize",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T05:27:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 2,
+      "age_days": 18,
+      "action_recommended": "none"
     },
     {
       "skill": "i-critique",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T21:33:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 4,
+      "age_days": 17,
+      "action_recommended": "none"
     },
     {
       "skill": "i-delight",
@@ -276,13 +346,13 @@
     },
     {
       "skill": "i-distill",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-28T21:24:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 4,
+      "age_days": 14,
+      "action_recommended": "none"
     },
     {
       "skill": "i-extract",
@@ -296,33 +366,33 @@
     },
     {
       "skill": "i-frontend-design",
-      "state": "never_used",
-      "last_used": null,
+      "state": "stale",
+      "last_used": "2026-09-06T16:30:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 1,
+      "age_days": 36,
+      "action_recommended": "add _STALE.md marker (will archive in 9d)"
     },
     {
       "skill": "i-harden",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-28T23:25:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 4,
+      "age_days": 14,
+      "action_recommended": "none"
     },
     {
       "skill": "i-normalize",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T12:20:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 4,
+      "age_days": 18,
+      "action_recommended": "none"
     },
     {
       "skill": "i-onboard",
@@ -336,13 +406,13 @@
     },
     {
       "skill": "i-optimize",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T02:05:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 2,
+      "age_days": 18,
+      "action_recommended": "none"
     },
     {
       "skill": "i-overdrive",
@@ -356,23 +426,23 @@
     },
     {
       "skill": "i-polish",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-28T23:25:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 6,
+      "age_days": 14,
+      "action_recommended": "none"
     },
     {
       "skill": "i-quieter",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T12:20:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 1,
+      "age_days": 18,
+      "action_recommended": "none"
     },
     {
       "skill": "i-teach-impeccable",
@@ -386,13 +456,13 @@
     },
     {
       "skill": "i-typeset",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-25T18:45:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 3,
+      "age_days": 17,
+      "action_recommended": "none"
     },
     {
       "skill": "long-agent",
@@ -416,6 +486,16 @@
     },
     {
       "skill": "mongoose-mongodb",
+      "state": "active",
+      "last_used": "2026-09-25T21:05:00.000Z",
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 1,
+      "age_days": 17,
+      "action_recommended": "none"
+    },
+    {
+      "skill": "non-technical-test-case-generator",
       "state": "never_used",
       "last_used": null,
       "triggered_count": 0,
@@ -446,13 +526,13 @@
     },
     {
       "skill": "plagiarism-engine",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-10-13T20:47:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 1,
+      "age_days": -1,
+      "action_recommended": "none"
     },
     {
       "skill": "ptss",
@@ -546,13 +626,13 @@
     },
     {
       "skill": "sre-engineer",
-      "state": "never_used",
-      "last_used": null,
+      "state": "active",
+      "last_used": "2026-09-26T16:40:00.000Z",
       "triggered_count": 0,
       "written_count": 0,
-      "patched_count": 0,
-      "age_days": null,
-      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+      "patched_count": 2,
+      "age_days": 16,
+      "action_recommended": "none"
     },
     {
       "skill": "sre-reliability-engineering",
@@ -565,6 +645,26 @@
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
     },
     {
+      "skill": "system-auditor",
+      "state": "active",
+      "last_used": "2026-10-03T11:27:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 3,
+      "age_days": 10,
+      "action_recommended": "none"
+    },
+    {
+      "skill": "system-implementor",
+      "state": "active",
+      "last_used": "2026-10-02T22:18:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 0,
+      "age_days": 10,
+      "action_recommended": "none"
+    },
+    {
       "skill": "tanstack-query",
       "state": "never_used",
       "last_used": null,
@@ -573,6 +673,16 @@
       "patched_count": 0,
       "age_days": null,
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "ui-design-principles",
+      "state": "active",
+      "last_used": "2026-10-03T13:43:00.000Z",
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 9,
+      "age_days": 10,
+      "action_recommended": "none"
     },
     {
       "skill": "verification-loop",
@@ -593,6 +703,16 @@
       "patched_count": 0,
       "age_days": null,
       "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "workspace-evidence-maintenance",
+      "state": "active",
+      "last_used": "2026-10-13T21:42:00.000Z",
+      "triggered_count": 0,
+      "written_count": 1,
+      "patched_count": 0,
+      "age_days": -1,
+      "action_recommended": "none"
     },
     {
       "skill": "xlsx",

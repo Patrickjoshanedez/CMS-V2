@@ -1079,7 +1079,7 @@ export default function UsersPage() {
 
         {/* Primary Sub-Navigation: Horizontal Pill Tabs */}
         <Tabs value={activePanel} onValueChange={setActivePanel} className="space-y-6">
-          <TabsList className="bg-muted/40 p-1 border border-border/60 rounded-lg inline-flex h-10">
+          <TabsList className="bg-muted/40 p-1 border border-border/60 rounded-lg inline-flex h-auto">
             <TabsTrigger value="hierarchy" className="gap-2 text-xs">
               <FolderTree className="h-3.5 w-3.5" /> Academic Hierarchy
             </TabsTrigger>

@@ -80,11 +80,64 @@ class ProjectArchiveService {
    * @param {Object} data - { completionNotes? }
    * @returns {Object} { project }
    */
-  async archiveProject(projectId, instructorId, data) {
+  async archiveProject(projectId, instructorOrData, maybeData) {
     const project = await this._getProjectOrFail(projectId);
+    const data =
+      maybeData !== undefined && typeof maybeData === 'object'
+        ? maybeData
+        : typeof instructorOrData === 'object' && instructorOrData !== null
+          ? instructorOrData
+          : {};
 
-    if (project.projectStatus === PROJECT_STATUSES.ARCHIVED) {
+    if (project.projectStatus === PROJECT_STATUSES.ARCHIVED || project.isArchived) {
       throw new AppError('Project is already archived.', 400, 'ALREADY_ARCHIVED');
+    }
+
+    // Institutional Capstone Phase Prerequisite:
+    // Only projects in the final capstone phase (Phase 4 in 4-phase progression, or Phase 3 / final stage in legacy mappings)
+    // that have satisfied defense and ADM requirements are eligible for archival.
+    const isFinalPhase =
+      project.capstonePhase === 4 ||
+      project.stage === 'final' ||
+      (project.capstonePhase === 3 && (project.stage === 'capstone_3' || !project.stage));
+
+    if (!isFinalPhase && (project.capstonePhase || 1) < 3) {
+      throw new AppError(
+        'Only projects in the final capstone phase that have completed defense requirements are eligible for archival.',
+        400,
+        'PHASE_PREREQUISITE_UNMET',
+      );
+    }
+
+    // Final Defense Prerequisite:
+    // If a defense schedule verdict is recorded, verify it is a passing decision.
+    if (project.defenseSchedule?.verdict) {
+      const verdict = String(project.defenseSchedule.verdict).toLowerCase();
+      const isPassed = ['passed', 'passed_with_revision', 'approved'].includes(verdict);
+      if (!isPassed) {
+        throw new AppError(
+          'Project defense must have a passing verdict prior to archival.',
+          400,
+          'DEFENSE_VERDICT_UNMET',
+        );
+      }
+    }
+
+    // Secretary ADM Endorsement Gate:
+    // If Action Done Matrix (ADM) rows exist, secretary endorsement must be fulfilled.
+    const hasADMRows =
+      Array.isArray(project.actionDoneMatrix) && project.actionDoneMatrix.length > 0;
+    const isSecretaryEndorsed = Boolean(
+      project.admSignatures?.secretary?.endorsed ||
+      project.admSignaturesByMilestone?.CAPSTONE_3?.secretary?.endorsed ||
+      project.admSignaturesByMilestone?.FINAL?.secretary?.endorsed,
+    );
+    if (hasADMRows && !isSecretaryEndorsed && project.admStatus !== 'approved') {
+      throw new AppError(
+        'Action Done Matrix (ADM) must be endorsed by the committee secretary before archival.',
+        400,
+        'SECRETARY_ENDORSEMENT_REQUIRED',
+      );
     }
 
     // Verify both final versions are submitted

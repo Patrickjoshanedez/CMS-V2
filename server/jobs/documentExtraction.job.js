@@ -43,7 +43,7 @@ export async function processDocumentExtractionJob(job) {
     }
 
     const redis = getRedisClient();
-    if (redis) {
+    if (redis && percent < 100) {
       try {
         await redis.setex(
           `extraction:job:${job.id}`,
@@ -98,13 +98,15 @@ export async function processDocumentExtractionJob(job) {
       }
     }
 
-    // Stage 5: Clean up temporary file from storage
-    try {
-      if (typeof storageService.deleteFile === 'function') {
-        await storageService.deleteFile(storageKey);
+    // Stage 5: Clean up temporary file from storage (only for transient temp-extractions)
+    if (typeof storageKey === 'string' && storageKey.includes('temp-extractions')) {
+      try {
+        if (typeof storageService.deleteFile === 'function') {
+          await storageService.deleteFile(storageKey);
+        }
+      } catch (delErr) {
+        console.warn(`[DocumentExtraction Worker] Temp file cleanup warning: ${delErr.message}`);
       }
-    } catch (delErr) {
-      console.warn(`[DocumentExtraction Worker] Temp file cleanup warning: ${delErr.message}`);
     }
 
     // Final Stage: 100% completion notification
@@ -122,8 +124,12 @@ export async function processDocumentExtractionJob(job) {
   } catch (error) {
     console.error(`[DocumentExtraction Worker] Job ${job.id} failed:`, error.message);
 
+    const maxAttempts = job?.opts?.attempts || 1;
+    const isLastAttempt = (job?.attemptsMade || 1) >= maxAttempts;
+    const isTempFile = typeof storageKey === 'string' && storageKey.includes('temp-extractions');
+
     const redis = getRedisClient();
-    if (redis) {
+    if (redis && isLastAttempt) {
       try {
         await redis.setex(
           `extraction:job:${job.id}`,
@@ -140,16 +146,18 @@ export async function processDocumentExtractionJob(job) {
       }
     }
 
-    // Clean up temp file on failure as well
-    try {
-      if (typeof storageService.deleteFile === 'function') {
-        await storageService.deleteFile(storageKey);
+    // Clean up temp file only on the final failure attempt (preserving file for retries)
+    if (isLastAttempt && isTempFile) {
+      try {
+        if (typeof storageService.deleteFile === 'function') {
+          await storageService.deleteFile(storageKey);
+        }
+      } catch {
+        // Non-fatal
       }
-    } catch {
-      // Non-fatal
     }
 
-    if (userId) {
+    if (userId && isLastAttempt) {
       emitToUser(userId, 'ocr:error', {
         jobId: job.id,
         error: error.message,

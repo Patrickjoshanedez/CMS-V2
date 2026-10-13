@@ -950,9 +950,9 @@ function StudentTeamDetail({ team, userId }) {
     <div className="space-y-6">
       {/* Top Header & Global Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="min-w-0 break-all text-2xl font-bold tracking-tight text-foreground">
               {team.name || 'Team Workspace'}
             </h1>
             {team.isLocked ? (
@@ -2739,7 +2739,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
 
         {/* Quick Team Jump Dropdown & Tabs */}
         <div className="pt-1 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 pb-1 sm:pb-0">
             <Button
               type="button"
               variant={statusFilter === 'all' ? 'secondary' : 'ghost'}
@@ -2834,7 +2834,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
                 onClick={() => {
                   setSelectedTeamId(team._id);
                 }}
-                className="text-left rounded-lg transition-transform focus:outline-none"
+                className="min-w-0 max-w-full text-left rounded-lg transition-transform focus:outline-none"
                 aria-pressed={isSelected}
                 aria-label={`View details for ${team.name || 'team'}`}
               >

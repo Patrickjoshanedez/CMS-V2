@@ -887,9 +887,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
     <div className="min-h-screen flex flex-col bg-background text-foreground select-none">
       {/* ── Sleek Consolidated Top App Bar ── */}
       <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border shadow-xs">
-        <div className="w-full px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 overflow-x-auto">
+        <div className="w-full px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
           {/* Left: Breadcrumb Back to Search & Document Title */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 w-full lg:w-auto lg:flex-1">
             <Button
               variant="ghost"
               size="sm"
@@ -955,7 +955,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
           </div>
 
           {/* Right: Consolidated Manuscript Actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
             {/* 1. Zoom Controls */}
             <div className="hidden lg:flex items-center gap-0.5 mr-2 border-r border-border pr-2">
               <Button

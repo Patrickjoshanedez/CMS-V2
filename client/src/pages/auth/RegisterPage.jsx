@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { GoogleLogin } from '@react-oauth/google';
-import { STRICT_EMAIL_REGEX } from '@cms/shared';
+import { STRICT_EMAIL_REGEX, isBuksuInstitutionalEmail } from '@cms/shared';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
@@ -35,7 +35,11 @@ const registerSchema = z
       .string()
       .trim()
       .email('Please enter a valid email address.')
-      .regex(STRICT_EMAIL_REGEX, 'Please enter a valid email address.'),
+      .regex(STRICT_EMAIL_REGEX, 'Please enter a valid email address.')
+      .refine(
+        (email) => isBuksuInstitutionalEmail(email),
+        'Only BukSU institutional email accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
+      ),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters.')

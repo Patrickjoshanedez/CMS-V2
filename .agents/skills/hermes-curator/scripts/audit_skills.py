@@ -51,13 +51,14 @@ def load_ptss_index(workspace: Path) -> list[dict]:
     if not index_path.exists():
         return []
     records = []
-    for line in index_path.read_text(encoding="utf-8").splitlines():
+    for idx, line in enumerate(index_path.read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()
-        if line:
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                pass
+        if not line or line.startswith("#"):
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError as err:
+            print(f"[hermes-curator] WARNING: Malformed JSON at {PTSS_INDEX}:{idx} ({err})", file=sys.stderr)
     return records
 
 

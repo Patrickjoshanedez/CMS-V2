@@ -33,6 +33,7 @@ import { getSocket } from '@/services/socket';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { useAuthStore } from '@/stores/authStore';
+import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 
@@ -701,7 +702,10 @@ export default function ExistingCapstoneUploadPage() {
             try {
               const statusRes = await metadataService.getExtractionStatus(jobId);
               const jobData = statusRes?.data;
-              if (jobData?.status === 'active' && jobData?.progress !== undefined) {
+              if (
+                ['active', 'processing'].includes(jobData?.status) &&
+                jobData?.progress !== undefined
+              ) {
                 setExtractionProgress(jobData.progress);
                 if (jobData.stage) setExtractionStage(jobData.stage);
               }
@@ -1002,6 +1006,18 @@ export default function ExistingCapstoneUploadPage() {
 
       setPlagiarismResult(result);
       setPlagiarismStatus('success');
+
+      // Sync to usePlagiarismScanStore so View Report navigates to the detailed interactive report
+      usePlagiarismScanStore.setState({
+        status: 'completed',
+        isScanning: false,
+        file: targetFile,
+        fileName: targetFile.name,
+        fileSize: targetFile.size,
+        reportData: payload,
+        isDismissed: false,
+      });
+
       toast.success(
         `Plagiarism check on ${targetLabel}: ${result.originalityScore}% Original (${result.overallScore}% Similarity).`,
       );
@@ -1615,6 +1631,20 @@ export default function ExistingCapstoneUploadPage() {
                             </span>
                           </div>
                         )}
+                        <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                          <span className="text-[11px] text-muted-foreground">
+                            Detailed Corpus Match
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs text-primary font-medium hover:underline p-0 gap-1"
+                            onClick={() => navigate('/plagiarism-checker')}
+                          >
+                            View Report ↗
+                          </Button>
+                        </div>
                       </div>
                     )}
 

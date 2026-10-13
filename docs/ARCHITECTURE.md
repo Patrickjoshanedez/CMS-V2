@@ -296,6 +296,16 @@ The plagiarism detection subsystem employs a calibrated **Two-Stage HybridSource
 | **Composite Score Formula** | $S_{\text{comp}} = 0.50 \cdot S_{\text{winnow}} + 0.30 \cdot S_{\text{dense}} + 0.20 \cdot S_{\text{sparse}}$ | Calibrated multi-source score |
 | **Resilient Fast Fallback** | In-process Node.js Winnowing | Guarantees instant sub-second scan completion |
 
+#### Scan Coverage Classification & Institutional Archival Gates
+
+Every completed scan derives and persists explicit coverage indicators to prevent unverified or degraded results from being mistaken for full neural clearance:
+
+| `scanCoverage` | `semanticStatus` | `scanType` | Semantic Description | Final Archival Clearance |
+| :--- | :--- | :--- | :--- | :--- |
+| `full` | `completed` | `hybrid_source_tracker` | Dual-engine: Winnowing lexical matching + `BAAI/bge-m3` neural embeddings. | **Eligible** (if originality $\ge 75\%$) |
+| `lexical_only` | `skipped` | `lexical_prefilter_cleared` | Fast-path: $<5\%$ lexical overlap on non-final drafts. Omitted deep neural inference. | **Ineligible** for final papers (`final_academic`, `final_journal`) |
+| `degraded` | `failed` | `syntactic_fallback` | Resilient fallback: Python microservice unavailable or circuit breaker tripped. | **Strictly Blocked** (`PLAGIARISM_SCAN_DEGRADED`) |
+
 ### Notification Hooks (`useNotifications.js`)
 
 - `notificationKeys` factory for cache key management

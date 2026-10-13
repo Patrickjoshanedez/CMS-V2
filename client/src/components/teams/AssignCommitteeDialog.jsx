@@ -11,6 +11,7 @@ import { useAssignCommittee, useTeamById } from '@/hooks/useTeams';
 import { ROLES } from '@cms/shared';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 /**
  * Maps system roles to institutional display nomenclature:
@@ -218,16 +219,6 @@ export function AssignCommitteeDialog({
     setPanelist3Id(id);
   };
 
-  // Lock body scroll while modal is open
-  useEffect(() => {
-    if (!open || typeof document === 'undefined') return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [open]);
-
   // Fetch candidate faculty users (faculty, adviser, panelist accounts — strictly excluding instructors)
   const { data: facultyData, isLoading: isFacultyLoading } = useUsers(
     {
@@ -275,16 +266,12 @@ export function AssignCommitteeDialog({
   });
 
   // Handle ESC key press to close modal (only if no combobox dropdown is open)
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !assignCommitteeMutation.isPending) {
-        onOpenChange(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, assignCommitteeMutation.isPending, onOpenChange]);
+  // Lock body scroll while modal is open
+  const modalRef = useModalAccessibility({
+    open,
+    onClose: () => onOpenChange(false),
+    busy: assignCommitteeMutation.isPending,
+  });
 
   const filledSlotsCount = [
     Boolean(adviserId),
@@ -338,6 +325,7 @@ export function AssignCommitteeDialog({
 
   const modalContent = (
     <div
+      ref={modalRef}
       className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
@@ -349,19 +337,25 @@ export function AssignCommitteeDialog({
       }}
     >
       <Card
-        className="w-full max-w-lg border-border/80 bg-card shadow-2xl overflow-hidden my-auto max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] flex flex-col animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg border-border/80 bg-card shadow-2xl overflow-hidden my-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col max-h-[inherit] overflow-hidden">
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-col max-h-[inherit] overflow-hidden"
+        >
           {/* Header - Fixed and permanently visible at top */}
           <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 pb-4 bg-card">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 id="committee-dialog-title" className="text-base font-semibold text-foreground">
                   Assign Faculty Committee
                 </h3>
                 {teamName && (
-                  <Badge variant="secondary" className="text-[11px] font-medium">
+                  <Badge
+                    variant="secondary"
+                    className="max-w-full break-all whitespace-normal text-[11px] font-medium"
+                  >
                     {teamName}
                   </Badge>
                 )}
@@ -375,7 +369,7 @@ export function AssignCommitteeDialog({
               type="button"
               onClick={() => onOpenChange(false)}
               disabled={assignCommitteeMutation.isPending}
-              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
+              className="min-h-[44px] min-w-[44px] shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
@@ -383,7 +377,7 @@ export function AssignCommitteeDialog({
           </div>
 
           {/* Body Content - Scrollable when vertical viewport is constrained */}
-          <CardContent className="flex-1 overflow-y-auto space-y-3.5 p-5 pb-36">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto space-y-3.5 p-5 pb-8">
             {/* Committee Assignment Progress Meter */}
             <div
               className={cn(
@@ -551,7 +545,7 @@ export function AssignCommitteeDialog({
           </CardContent>
 
           {/* Footer - Fixed and permanently visible at bottom */}
-          <div className="shrink-0 flex items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3.5">
+          <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3.5">
             <Button
               type="button"
               variant="ghost"

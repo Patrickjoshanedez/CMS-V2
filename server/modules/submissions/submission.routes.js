@@ -17,14 +17,14 @@ import {
   saveSecretaryMinutes,
 } from './secretary.controller.js';
 import authenticate from '../../middleware/authenticate.js';
-import authorize from '../../middleware/authorize.js';
+import authorize, { authorizeSecretaryCapability } from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload, { chapterUpload } from '../../middleware/upload.js';
 import streamUploadMiddleware from '../../middleware/upload.stream.js';
 import validateFile from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
 import { uploadLimiter, readLimiter } from '../../middleware/rateLimiter.js';
-import { ROLES } from '@cms/shared';
+import { ROLES, SECRETARY_CAPABILITIES } from '@cms/shared';
 import {
   projectIdParamSchema,
   submissionIdParamSchema,
@@ -515,6 +515,7 @@ router.post(
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
+  authorizeSecretaryCapability(SECRETARY_CAPABILITIES.MATRIX_PUBLISH),
   validateFile,
   extractMinutesToADM,
 );
@@ -524,6 +525,7 @@ router.post(
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
+  authorizeSecretaryCapability(SECRETARY_CAPABILITIES.MATRIX_PUBLISH),
   validateFile,
   extractMinutesToADM,
 );
@@ -548,6 +550,7 @@ router.post(
 router.post(
   '/secretary/save-minutes',
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
+  authorizeSecretaryCapability(SECRETARY_CAPABILITIES.MATRIX_PUBLISH),
   saveSecretaryMinutes,
 );
 

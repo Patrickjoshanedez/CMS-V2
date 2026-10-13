@@ -457,16 +457,16 @@ export default function SophisticatedDocumentViewer({
   const viewerContent = (
     <div
       ref={modalRef}
-      className={`flex flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
+      className={`flex min-w-0 flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
         isFullscreen
           ? 'fixed inset-0 z-50 w-full h-full rounded-none border-0'
           : embedded
             ? `relative w-full h-[780px] rounded-xl border border-border/60 shadow-sm ${className}`
-            : 'relative w-full max-w-6xl h-[95vh] sm:h-[92vh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
+            : 'relative w-full max-w-6xl h-[95dvh] sm:h-[92dvh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
       }`}
     >
       {/* ── Top Control Bar ── */}
-      <header className="shrink-0 flex items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 overflow-x-auto min-h-[48px]">
+      <header className="shrink-0 flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 min-h-[48px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
         {/* Left: Document Identity (Shown only for submission tracking; hidden on archive/plagiarism checker) */}
         {shouldShowIdentity ? (
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
@@ -543,7 +543,7 @@ export default function SophisticatedDocumentViewer({
         )}
 
         {/* Center: View Mode Toggle & Zoom / Annotation Controls */}
-        <div className="flex items-center gap-2 shrink min-w-0 justify-center">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
           {/* Revision Diff (+/-) Switch — rendered only when submission tracking requires revision comparison */}
           {shouldShowRevisionDiff && (
             <div className="flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs shrink-0">
@@ -588,7 +588,7 @@ export default function SophisticatedDocumentViewer({
 
           {/* Zoom Controls (DOCX only & in manuscript mode) */}
           {isDocx && viewMode === 'manuscript' && (
-            <div className="hidden lg:flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs shrink-0">
+            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs shrink-0">
               <button
                 type="button"
                 onClick={handleZoomOut}
@@ -656,7 +656,7 @@ export default function SophisticatedDocumentViewer({
 
           {/* Multi-Layer Annotation & Plagiarism Indicator Controls */}
           {viewMode === 'manuscript' && (
-            <div className="hidden md:flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
               {shouldShowLayers ? (
                 /* Layer Filter Buttons for Multi-layer Submission Review */
                 <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
@@ -864,7 +864,7 @@ export default function SophisticatedDocumentViewer({
       {/* ── Main Canvas Area ── */}
       <div className="relative flex-1 flex overflow-hidden bg-muted/20">
         {/* Document Content Canvas */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
           {viewMode === 'diff' ? (
             <RevisionDiffViewer
               diffData={diffData}
@@ -982,7 +982,7 @@ export default function SophisticatedDocumentViewer({
 
         {/* ── Collapsible Metadata Drawer (Right Side) ── */}
         {showMetadata && (
-          <aside className="w-72 sm:w-80 shrink-0 border-l border-border/60 bg-card p-4 sm:p-5 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200">
+          <aside className="absolute inset-y-0 right-0 z-20 w-72 max-w-full lg:static sm:w-80 shrink-0 border-l border-border/60 bg-card p-4 sm:p-5 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200">
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Info className="h-3.5 w-3.5 text-primary" />
@@ -1601,13 +1601,12 @@ export function DocxPreviewRenderer({
       {/* docx-preview render target — scrollable canvas with zoom */}
       <div className="flex-1 overflow-auto bg-[#f0f0f0] dark:bg-neutral-800">
         <div
-          className="docx-zoom-wrapper origin-top transition-transform duration-150"
+          className="docx-zoom-wrapper w-max min-w-full origin-top-left"
           style={{
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top center',
+            zoom: zoom / 100,
+            width: 'max-content',
             // Expand the wrapper dimensions so scrollbar reflects zoomed size
-            minHeight: zoom !== 100 ? `${zoom}%` : undefined,
-            minWidth: zoom > 100 ? `${zoom}%` : undefined,
+            minWidth: '100%',
           }}
         >
           {/* docx-preview injects .docx-wrapper > .docx > pages here */}

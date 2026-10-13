@@ -179,6 +179,20 @@ const plagiarismResultSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    scanCoverage: {
+      type: String,
+      enum: ['full', 'lexical_only', 'degraded'],
+      default: null,
+    },
+    semanticStatus: {
+      type: String,
+      enum: ['completed', 'skipped', 'failed', 'pending'],
+      default: null,
+    },
+    scanType: {
+      type: String,
+      default: null,
+    },
     /**
      * Full PlagiarismReport JSON from the Python microservice.
      * Stored as Mixed to preserve the complete matches array with spans,

@@ -41,6 +41,7 @@ import useActionDoneMatrix, {
 } from './adm/useActionDoneMatrix';
 import ADMRemarkRow, { AutoResizeTextarea } from './adm/ADMRemarkRow';
 import ADMTableView from './adm/ADMTableView';
+import { ADM_MILESTONES } from './adm/admWorkflow';
 
 export {
   formatFullName,
@@ -59,10 +60,10 @@ export default function ActionDoneMatrixTab({
   project,
   isFaculty: isFacultyProp = false,
   isStudent: isStudentProp = false,
-  isSecretary: isSecretaryProp = false,
   user: userProp,
   onRefresh,
   initialMilestone,
+  initialView = 'adm',
 }) {
   const {
     activeViewTab,
@@ -146,8 +147,8 @@ export default function ActionDoneMatrixTab({
     user: userProp,
     isFaculty: isFacultyProp,
     isStudent: isStudentProp,
-    isSecretary: isSecretaryProp,
     initialMilestone,
+    initialView,
     onRefresh,
   });
 
@@ -221,6 +222,7 @@ export default function ActionDoneMatrixTab({
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('projectId', project._id);
+      formData.append('milestone', targetMilestone);
 
       const res = await projectService.uploadSecretaryMinutes(formData);
       toast.success(
@@ -339,13 +341,22 @@ export default function ActionDoneMatrixTab({
   // Secretary confirm Endorsement (milestone-isolated)
   const handleConfirmEndorsement = async () => {
     if (!projectId) return;
+    const name = (endorsementTypedName || formatFullName(user, 'Committee Secretary')).trim();
+    const sigToUse = signatureDataUrl || user?.digitalSignature;
+    if (!name) {
+      toast.error('Please type your legal full name.');
+      return;
+    }
+    if (!sigToUse) {
+      toast.error('Please draw or configure your digital signature.');
+      return;
+    }
     setIsSubmittingEndorsement(true);
     try {
-      const name = endorsementTypedName || formatFullName(user, 'Committee Secretary');
       const res = await projectService.endorseADM(projectId, {
         notes: endorsementNotes,
         signatoryName: name,
-        signatureDataUrl: user?.digitalSignature || null,
+        signatureDataUrl: sigToUse,
         milestone: targetMilestone,
       });
       if (res?.data?.data?.admSignatures) {
@@ -354,15 +365,37 @@ export default function ActionDoneMatrixTab({
       if (res?.data?.data?.admSignaturesByMilestone) {
         setMilestoneSignatures(res.data.data.admSignaturesByMilestone);
       }
+      if (saveSignatureForFuture && (!user?.digitalSignature || isDrawingNewSignature)) {
+        try {
+          await userService.updateMe({ digitalSignature: sigToUse });
+          await fetchUser?.();
+        } catch {
+          // Non-blocking
+        }
+      }
       toast.success('Action Done Matrix successfully endorsed by Committee Secretary.');
       setIsEndorsementModalOpen(false);
       setEndorsementNotes('');
+      setSignatureDataUrl(null);
       if (onRefresh) onRefresh();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to endorse Action Done Matrix.');
     } finally {
       setIsSubmittingEndorsement(false);
     }
+  };
+
+  const handleOpenEndorsementModal = () => {
+    setEndorsementTypedName(formatFullName(user, 'Committee Secretary'));
+    if (user?.digitalSignature) {
+      setSignatureDataUrl(user.digitalSignature);
+      setIsDrawingNewSignature(false);
+    } else {
+      setSignatureDataUrl(null);
+      setIsDrawingNewSignature(true);
+    }
+    setSaveSignatureForFuture(true);
+    setIsEndorsementModalOpen(true);
   };
 
   const handlePrint = () => {
@@ -377,6 +410,72 @@ export default function ActionDoneMatrixTab({
     }, 1500);
   };
 
+  // Shared by the committee signing and secretary endorsement dialogs
+  const renderSignatureSelector = (typedName) => (
+    <div className="space-y-2 pt-1" data-testid="adm-signature-selector">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium">Official Digital Signature</Label>
+        {user?.digitalSignature && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsDrawingNewSignature((prev) => {
+                const next = !prev;
+                setSignatureDataUrl(next ? null : user.digitalSignature);
+                return next;
+              });
+            }}
+            className="text-xs text-primary hover:underline font-medium"
+          >
+            {isDrawingNewSignature ? 'Use Saved Signature' : 'Draw New / Custom Signature'}
+          </button>
+        )}
+      </div>
+
+      {user?.digitalSignature && !isDrawingNewSignature ? (
+        <div className="rounded-lg border border-border bg-muted/20 p-4 flex flex-col items-center justify-center space-y-2">
+          <div className="h-14 flex items-center justify-center">
+            <img
+              src={user.digitalSignature}
+              alt="Saved Signature"
+              className="max-h-12 max-w-[240px] object-contain filter drop-shadow-xs"
+            />
+          </div>
+          <p className="text-xs font-bold uppercase text-foreground">
+            {typedName || formatFullName(user)}
+          </p>
+          <Badge
+            variant="secondary"
+            className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
+          >
+            <CheckCircle2 className="h-3 w-3" /> Configured in Account Settings
+          </Badge>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <SignaturePad
+            defaultSignatoryName={typedName || formatFullName(user)}
+            onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
+            onClear={() => setSignatureDataUrl(null)}
+            height={140}
+          />
+
+          <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+            <input
+              type="checkbox"
+              checked={saveSignatureForFuture}
+              onChange={(e) => setSaveSignatureForFuture(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            />
+            <span className="text-xs text-muted-foreground select-none">
+              Save this signature to my account settings for future one-click endorsements
+            </span>
+          </label>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* ── View Switcher: Action Done Matrix vs Secretary Minutes ── */}
@@ -384,6 +483,7 @@ export default function ActionDoneMatrixTab({
         <button
           type="button"
           onClick={() => setActiveViewTab('adm')}
+          data-testid="adm-view-tab-adm"
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
             activeViewTab === 'adm'
@@ -397,6 +497,7 @@ export default function ActionDoneMatrixTab({
         <button
           type="button"
           onClick={() => setActiveViewTab('minutes')}
+          data-testid="adm-view-tab-minutes"
           className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
             activeViewTab === 'minutes'
@@ -413,6 +514,7 @@ export default function ActionDoneMatrixTab({
         <SecretaryMinutesDocumentSheet
           project={project}
           user={user}
+          milestone={targetMilestone}
           onMinutesSynced={() => {
             if (onRefresh) onRefresh();
           }}
@@ -624,11 +726,7 @@ export default function ActionDoneMatrixTab({
 
               {/* Milestone Switcher Pills (Capstone 1 / ADM v1, Capstone 2 / ADM v2, Capstone 3 / ADM v3) */}
               <div className="flex items-center gap-1 p-0.5 bg-muted/40 rounded-lg border border-border/60 text-xs">
-                {[
-                  { id: 'CAPSTONE_1', label: 'Cap 1 (ADM v1)' },
-                  { id: 'CAPSTONE_2', label: 'Cap 2 (ADM v2)' },
-                  { id: 'CAPSTONE_3', label: 'Cap 3 (ADM v3)' },
-                ].map((m) => (
+                {Object.values(ADM_MILESTONES).map((m) => (
                   <button
                     key={m.id}
                     type="button"
@@ -640,7 +738,7 @@ export default function ActionDoneMatrixTab({
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    {m.label}
+                    {m.pillLabel}
                   </button>
                 ))}
               </div>
@@ -684,7 +782,13 @@ export default function ActionDoneMatrixTab({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => setIsEndorsementModalOpen(true)}
+                  onClick={handleOpenEndorsementModal}
+                  disabled={!allRowsAddressed}
+                  title={
+                    allRowsAddressed
+                      ? undefined
+                      : 'Every remark must be addressed by the student team first.'
+                  }
                   className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
@@ -1000,7 +1104,13 @@ export default function ActionDoneMatrixTab({
                               {canEndorse && !isSecretaryEndorsed && (
                                 <Button
                                   size="sm"
-                                  onClick={() => setIsEndorsementModalOpen(true)}
+                                  onClick={handleOpenEndorsementModal}
+                                  disabled={!allRowsAddressed}
+                                  title={
+                                    allRowsAddressed
+                                      ? undefined
+                                      : 'Every remark must be addressed by the student team first.'
+                                  }
                                   className="gap-1.5 text-xs h-7 font-medium no-print print:hidden"
                                 >
                                   <ShieldCheck className="h-3.5 w-3.5" />
@@ -1313,77 +1423,7 @@ export default function ActionDoneMatrixTab({
                     />
                   </div>
 
-                  {/* Signature Selector / Canvas */}
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-medium">Official Digital Signature</Label>
-                      {user?.digitalSignature && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDrawingNewSignature((prev) => {
-                              const next = !prev;
-                              if (next) {
-                                setSignatureDataUrl(null);
-                              } else {
-                                setSignatureDataUrl(user.digitalSignature);
-                              }
-                              return next;
-                            });
-                          }}
-                          className="text-xs text-primary hover:underline font-medium"
-                        >
-                          {isDrawingNewSignature
-                            ? 'Use Saved Signature'
-                            : 'Draw New / Custom Signature'}
-                        </button>
-                      )}
-                    </div>
-
-                    {user?.digitalSignature && !isDrawingNewSignature ? (
-                      <div className="rounded-lg border border-border bg-muted/20 p-4 flex flex-col items-center justify-center space-y-2">
-                        <div className="h-14 flex items-center justify-center">
-                          <img
-                            src={user.digitalSignature}
-                            alt="Saved Signature"
-                            className="max-h-12 max-w-[240px] object-contain filter drop-shadow-xs"
-                          />
-                        </div>
-                        <p className="text-xs font-bold uppercase text-foreground">
-                          {signatoryTypedName || formatFullName(user)}
-                        </p>
-                        <Badge
-                          variant="secondary"
-                          className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
-                        >
-                          <CheckCircle2 className="h-3 w-3" /> Configured in Account Settings
-                        </Badge>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <SignaturePad
-                          defaultSignatoryName={signatoryTypedName || formatFullName(user)}
-                          onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
-                          onClear={() => setSignatureDataUrl(null)}
-                          height={140}
-                        />
-
-                        {/* Save to Settings Checkbox */}
-                        <label className="flex items-center gap-2 cursor-pointer pt-0.5">
-                          <input
-                            type="checkbox"
-                            checked={saveSignatureForFuture}
-                            onChange={(e) => setSaveSignatureForFuture(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                          />
-                          <span className="text-xs text-muted-foreground select-none">
-                            Save this signature to my account settings for future one-click
-                            endorsements
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
+                  {renderSignatureSelector(signatoryTypedName)}
 
                   {/* Action Buttons */}
                   <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
@@ -1506,6 +1546,8 @@ export default function ActionDoneMatrixTab({
                     </div>
                   </div>
 
+                  {renderSignatureSelector(endorsementTypedName)}
+
                   <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
                     <Button
                       type="button"
@@ -1520,7 +1562,9 @@ export default function ActionDoneMatrixTab({
                     <Button
                       size="sm"
                       onClick={handleConfirmEndorsement}
-                      disabled={isSubmittingEndorsement}
+                      disabled={
+                        isSubmittingEndorsement || (!signatureDataUrl && !user?.digitalSignature)
+                      }
                       className="gap-1.5 h-8 text-xs font-medium"
                     >
                       {isSubmittingEndorsement ? (

@@ -62,9 +62,10 @@ export function PlagiarismProgressModal() {
   }, [socket]);
 
   // Determine if archive scan should display floating modal
-  // Hide when on the dedicated plagiarism page since the page itself displays the scan
   const isArchivePage =
-    location.pathname === '/plagiarism' || location.pathname === '/archive/plagiarism';
+    location.pathname === '/plagiarism' ||
+    location.pathname === '/plagiarism-checker' ||
+    location.pathname === '/archive/plagiarism';
 
   const showArchiveFloating =
     !isDismissed &&

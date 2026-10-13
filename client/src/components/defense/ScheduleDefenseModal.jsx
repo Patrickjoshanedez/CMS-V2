@@ -23,6 +23,7 @@ import { projectService } from '@/services/authService';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/useProjects';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 const VENUE_PRESETS = [
   'COT Conference Room',
@@ -75,6 +76,7 @@ export default function ScheduleDefenseModal({
   const [defenseType, setDefenseType] = useState('progress');
   const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const modalRef = useModalAccessibility({ open: isOpen, onClose, busy: isSubmitting });
 
   const handleUnschedule = async () => {
     if (!project?._id) return;
@@ -185,8 +187,14 @@ export default function ScheduleDefenseModal({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl max-h-[88vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col">
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-defense-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200"
+    >
+      <div className="relative w-full max-w-xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -194,8 +202,11 @@ export default function ScheduleDefenseModal({
               <CalendarIcon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3
+                  id="schedule-defense-title"
+                  className="min-w-0 text-sm sm:text-base font-bold text-foreground truncate"
+                >
                   Schedule Defense Hearing
                 </h3>
                 <Badge
@@ -249,7 +260,10 @@ export default function ScheduleDefenseModal({
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4 text-xs"
+        >
           {/* Committee Readiness Advisory Warning Banner */}
           {!hasFullCommittee && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1 text-amber-800 dark:text-amber-300">
@@ -443,7 +457,7 @@ export default function ScheduleDefenseModal({
         </form>
 
         {/* Pinned Action Footer */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-t border-border bg-muted/30 shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 border-t border-border bg-muted/30 shrink-0">
           <div>
             {Boolean(
               project?.defenseSchedule?.date || project?.defenseSchedule?.status === 'scheduled',
@@ -460,7 +474,7 @@ export default function ScheduleDefenseModal({
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -475,7 +489,7 @@ export default function ScheduleDefenseModal({
               size="sm"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="text-xs h-8 px-3.5 font-semibold gap-1.5 shadow-xs"
+              className="text-xs h-auto min-h-[44px] max-w-full whitespace-normal px-3.5 py-2 font-semibold gap-1.5 shadow-xs"
             >
               {isSubmitting ? (
                 <>

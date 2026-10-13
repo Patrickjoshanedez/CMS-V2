@@ -174,7 +174,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
       <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3">
         {/* 1. Top Badges & Metadata Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
             {/* Phase Pill */}
             <span
               className={cn(
@@ -194,9 +194,9 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
             </span>
 
             {/* Team Name */}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-medium">
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-medium">
               <Users className="h-3 w-3 shrink-0" />
-              <span>Team {cleanTeamName}</span>
+              <span className="min-w-0 break-all">Team {cleanTeamName}</span>
             </span>
           </div>
 
@@ -210,7 +210,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
         {/* 2. Main Title & Review Banner */}
         <div className="space-y-2">
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className="break-all text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
               {displayTitle}
             </h3>
             {isProposalPhase && project.title && project.title !== displayTitle && (
@@ -227,9 +227,9 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
         {/* 3. Bottom Roster, Adviser & Action Trigger Row */}
         <div className="pt-2.5 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-muted-foreground">
           {/* Roster & Adviser Info */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-4 gap-y-1">
             {/* Members */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 break-all">
               <Users className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
               <span>
                 {leaderName ? (
@@ -247,7 +247,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
             </div>
 
             {/* Adviser */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 break-all">
               <UserCheck className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
               {adviserName ? (
                 <span>
@@ -265,7 +265,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-3 text-xs font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0 self-end sm:self-auto cursor-pointer"
+            className="min-h-8 h-auto max-w-full whitespace-normal px-3 py-1 text-xs font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0 self-end sm:self-auto cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               onNavigate?.(project._id);

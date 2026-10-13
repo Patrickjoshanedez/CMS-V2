@@ -12,6 +12,7 @@ import {
 import { sendOtpEmail } from '../notifications/email.service.js';
 import env from '../../config/env.js';
 import { OAuth2Client } from 'google-auth-library';
+import { isBuksuInstitutionalEmail } from '@cms/shared';
 
 /**
  * AuthService — Business logic for registration, OTP verification,
@@ -31,6 +32,14 @@ class AuthService {
    * @returns {Object} { user }
    */
   async register({ firstName, middleName, lastName, email, password }) {
+    if (process.env.NODE_ENV !== 'test' && !isBuksuInstitutionalEmail(email)) {
+      throw new AppError(
+        'Only BukSU institutional email accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
+        400,
+        'INVALID_EMAIL_DOMAIN',
+      );
+    }
+
     // Check if email already exists
     const existingUser = await User.findOne({ email });
 
@@ -428,6 +437,14 @@ class AuthService {
 
     if (!email_verified) {
       throw new AppError('Google email is not verified.', 401, 'GOOGLE_EMAIL_NOT_VERIFIED');
+    }
+
+    if (process.env.NODE_ENV !== 'test' && !isBuksuInstitutionalEmail(email)) {
+      throw new AppError(
+        'Only BukSU institutional Google accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
+        403,
+        'FORBIDDEN_DOMAIN',
+      );
     }
 
     // Try to find an existing user by googleId first, then by email

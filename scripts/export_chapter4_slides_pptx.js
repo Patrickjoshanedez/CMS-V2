@@ -23,6 +23,27 @@ async function generateChapter4Presentation() {
 
   const cotLogoPath = path.resolve(__dirname, '../assets/cot-logo.png');
   const buksuLogoPath = path.resolve(__dirname, '../assets/buksu-shield-logo.png');
+  const evidence = {
+    freshLanding: path.resolve(__dirname, '../scratch/chapter4_evidence/landing_desktop_light.png'),
+    proposal: path.resolve(
+      __dirname,
+      '../scratch/screenshots/proposal_approval_studio/proposal_approval_studio_desktop_light.png',
+    ),
+    rubrics: path.resolve(__dirname, '../scratch/screenshots/03_instructor_rubrics.png'),
+    gantt: path.resolve(
+      __dirname,
+      '../scratch/screenshots/academic_gantt_v2/02_desktop_light_academic_excel_gantt.png',
+    ),
+    secretary: path.resolve(
+      __dirname,
+      '../scratch/screenshots/adm-audit/secretary_adm_tab_desktop_light.png',
+    ),
+    viewer: path.resolve(
+      __dirname,
+      '../scratch/screenshots/committee_and_viewer_audit/05_desktop_light_document_viewer.png',
+    ),
+    plagiarism: path.resolve(__dirname, '../scratch/screenshots/05_instructor_plagiarism.png'),
+  };
 
   // Helper: Exact Orange Footer Banner matching user's uploaded template
   function addOrangeFooter(slide, slideNum, slideLabel) {
@@ -115,11 +136,11 @@ async function generateChapter4Presentation() {
   s1.addText(
     [
       {
-        text: 'Eleccion, Stephanie Jane P.  ·  Gales, Prixane Jade F.\n',
+        text: 'Añedez, Patrick Josh  ·  Antipuesto, Throylan\n',
         options: { fontSize: 30, bold: true, color: GOLD, fontFace: 'Poppins' },
       },
       {
-        text: 'Maraya, Genesis  ·  Rendon, Jhib Lourence\n\n',
+        text: 'Bautista, Steven Joe  ·  Canoy, Chijay\n\n',
         options: { fontSize: 30, bold: true, color: GOLD, fontFace: 'Poppins' },
       },
       {
@@ -127,7 +148,7 @@ async function generateChapter4Presentation() {
         options: { fontSize: 28, color: GOLD, fontFace: 'Poppins' },
       },
       {
-        text: 'Capstone Adviser: Rov Japheth G. Oracion',
+        text: 'Capstone Adviser: Glaiza Mae Libe',
         options: { fontSize: 28, bold: true, color: GOLD, fontFace: 'Poppins' },
       },
     ],
@@ -505,7 +526,7 @@ async function generateChapter4Presentation() {
     bold: true,
     color: DARK_NAVY,
   });
-  s4.addText('Proponents: Eleccion, S. · Gales, P. · Maraya, G. · Rendon, J.', {
+  s4.addText('Proponents: Añedez, P. · Antipuesto, T. · Bautista, S. · Canoy, C.', {
     x: 1.5,
     y: 3.7,
     w: 8.4,
@@ -555,6 +576,25 @@ async function generateChapter4Presentation() {
     fontSize: 22,
     bold: true,
     color: GREEN,
+  });
+
+  s4.addImage({
+    path: evidence.proposal,
+    x: 1.2,
+    y: 2.6,
+    w: 9.0,
+    h: 6.2,
+    transparency: 3,
+  });
+  s4.addText('Playwright evidence capture · proposal workspace', {
+    x: 1.35,
+    y: 8.48,
+    w: 8.6,
+    h: 0.25,
+    fontSize: 12,
+    italic: true,
+    color: MUTED,
+    align: 'right',
   });
 
   // Feature Explanation Cards
@@ -726,6 +766,25 @@ async function generateChapter4Presentation() {
     colW: [7.0, 2.5, 3.7, 5.0],
     align: 'left',
     valign: 'middle',
+  });
+
+  s5.addImage({
+    path: evidence.rubrics,
+    x: 12.45,
+    y: 2.0,
+    w: 5.95,
+    h: 4.55,
+    transparency: 4,
+  });
+  s5.addText('Playwright evidence · rubric workspace', {
+    x: 12.5,
+    y: 6.58,
+    w: 5.8,
+    h: 0.25,
+    fontSize: 12,
+    italic: true,
+    color: MUTED,
+    align: 'right',
   });
 
   const fCards = [
@@ -1080,7 +1139,7 @@ async function generateChapter4Presentation() {
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
-        text: 'Computed Alpha (α)',
+        text: 'Alpha (verification status)',
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
@@ -1094,7 +1153,10 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, bold: true, fill: { color: WHITE } },
       },
       { text: '8', options: { fontSize: 22, fill: { color: WHITE } } },
-      { text: '0.924', options: { fontSize: 22, bold: true, fill: { color: WHITE } } },
+      {
+        text: '0.924 (existing; not recalculated)',
+        options: { fontSize: 18, bold: true, fill: { color: WHITE } },
+      },
       {
         text: 'Excellent Reliability',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
@@ -1106,7 +1168,10 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } },
       },
       { text: '6', options: { fontSize: 22, fill: { color: ALT_ROW } } },
-      { text: '0.912', options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } } },
+      {
+        text: '0.912 (existing; not recalculated)',
+        options: { fontSize: 18, bold: true, fill: { color: ALT_ROW } },
+      },
       {
         text: 'Excellent Reliability',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
@@ -1118,7 +1183,10 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, bold: true, fill: { color: WHITE } },
       },
       { text: '10', options: { fontSize: 22, fill: { color: WHITE } } },
-      { text: '0.895', options: { fontSize: 22, bold: true, fill: { color: WHITE } } },
+      {
+        text: '0.895 (existing; not recalculated)',
+        options: { fontSize: 18, bold: true, fill: { color: WHITE } },
+      },
       {
         text: 'Good / High Reliability',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
@@ -1130,7 +1198,10 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } },
       },
       { text: '5', options: { fontSize: 22, fill: { color: ALT_ROW } } },
-      { text: '0.887', options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } } },
+      {
+        text: '0.887 (existing; not recalculated)',
+        options: { fontSize: 18, bold: true, fill: { color: ALT_ROW } },
+      },
       {
         text: 'Good / High Reliability',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
@@ -1146,8 +1217,8 @@ async function generateChapter4Presentation() {
         options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
       {
-        text: '0.938',
-        options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
+        text: '0.938 (existing; not recalculated)',
+        options: { fontSize: 18, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
       {
         text: 'Excellent Internal Consistency',
@@ -1176,7 +1247,7 @@ async function generateChapter4Presentation() {
     line: { color: BORDER, width: 2 },
     rectRadius: 0.1,
   });
-  s8.addText('Methodological Note & Institutional Cohort (N = 45):', {
+  s8.addText('Corrected respondent matrix and Cronbach verification note:', {
     x: 1.3,
     y: 7.55,
     w: 17.4,
@@ -1186,7 +1257,7 @@ async function generateChapter4Presentation() {
     color: DARK_NAVY,
   });
   s8.addText(
-    'Evaluated by 45 BukSU respondents (30 IT Capstone Students, 12 Faculty Panelists, 3 College Administrators). All subscales substantially exceeded the established institutional benchmark of α ≥ 0.70, statistically validating the survey instrument for formal software quality evaluation.',
+    'Students: 45/71 responses (63.38%) · Instructor: 1/1 response (100%) · Faculty: 0 responses (excluded because subgroup n < 30). Raw item-level responses were not available in the repository, so alpha was not recalculated; existing manuscript alpha values are retained only as historical reference.',
     {
       x: 1.3,
       y: 8.05,
@@ -1215,7 +1286,7 @@ async function generateChapter4Presentation() {
     bold: true,
     color: ORANGE,
   });
-  s9.addText('Table 4.3. Vector Cosine Similarity & Fingerprinting Accuracy Metrics', {
+  s9.addText('Table 4.3. Plagiarism Detection Binary Benchmark Metrics (N = 2,450)', {
     x: 0.9,
     y: 1.05,
     w: 18.2,
@@ -1250,87 +1321,87 @@ async function generateChapter4Presentation() {
     ],
     [
       {
-        text: 'Top-1 Title Match Accuracy',
+        text: 'Verbatim-copy recall',
         options: { fontSize: 22, bold: true, fill: { color: WHITE } },
       },
       {
-        text: 'Candidate Title Pre-Scan (Dense Vector)',
+        text: '600 verbatim manuscript copies',
         options: { fontSize: 22, fill: { color: WHITE } },
       },
-      { text: '≥ 95.0%', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: 'Empirical', options: { fontSize: 22, fill: { color: WHITE } } },
       {
-        text: '98.4%',
+        text: '99.67%',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
-      { text: '500 proposal titles', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: 'TP 598 · FN 2', options: { fontSize: 22, fill: { color: WHITE } } },
     ],
     [
       {
-        text: 'Cosine Similarity Correlation',
+        text: 'Complex-paraphrase recall',
         options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } },
       },
       {
-        text: 'BAAI/bge-m3 1024-dim Embeddings',
+        text: '500 paraphrased passages',
         options: { fontSize: 22, fill: { color: ALT_ROW } },
       },
-      { text: 'r ≥ 0.85', options: { fontSize: 22, fill: { color: ALT_ROW } } },
+      { text: 'Empirical', options: { fontSize: 22, fill: { color: ALT_ROW } } },
       {
-        text: 'Pearson r = 0.941',
+        text: '94.40%',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
-      { text: '1,200 paragraph pairs', options: { fontSize: 22, fill: { color: ALT_ROW } } },
+      { text: 'TP 472 · FN 28', options: { fontSize: 22, fill: { color: ALT_ROW } } },
     ],
     [
       {
-        text: 'Verbatim Plagiarism Precision',
+        text: 'Structural-reordering recall',
         options: { fontSize: 22, bold: true, fill: { color: WHITE } },
       },
       {
-        text: 'Winnowing Fingerprinting Algorithm',
+        text: '400 reordered paragraphs',
         options: { fontSize: 22, fill: { color: WHITE } },
       },
-      { text: '≥ 95.0%', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: 'Empirical', options: { fontSize: 22, fill: { color: WHITE } } },
       {
-        text: '99.1% Precision',
+        text: '95.25%',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
-      { text: '350 manuscript sections', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: 'TP 381 · FN 19', options: { fontSize: 22, fill: { color: WHITE } } },
     ],
     [
       {
-        text: 'Paraphrase Recall Rate',
+        text: 'Synthesized-text recall',
         options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } },
       },
       {
-        text: 'Dense + Sparse Hybrid Retrieval',
+        text: '450 cross-discipline abstracts',
         options: { fontSize: 22, fill: { color: ALT_ROW } },
       },
-      { text: '≥ 90.0%', options: { fontSize: 22, fill: { color: ALT_ROW } } },
+      { text: 'Empirical', options: { fontSize: 22, fill: { color: ALT_ROW } } },
       {
-        text: '94.6% Recall',
+        text: '94.67%',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
-      { text: '400 synthetic paraphrases', options: { fontSize: 22, fill: { color: ALT_ROW } } },
+      { text: 'TP 426 · FN 24', options: { fontSize: 22, fill: { color: ALT_ROW } } },
     ],
     [
       {
-        text: 'Overall Macro F1-Score',
+        text: 'Composite binary benchmark',
         options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
       {
-        text: 'Combined Plagiarism Engine Pipeline',
+        text: 'All plagiarized + genuine samples',
         options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
       {
-        text: '≥ 90.0%',
+        text: 'N = 2,450',
         options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
       {
-        text: '96.8% Macro F1',
+        text: '97.81% F1 · 99.42% precision',
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
       {
-        text: '2,450 total test cases',
+        text: '96.57% accuracy · 96.26% recall',
         options: { fontSize: 24, bold: true, fill: { color: 'FEF3C7' }, color: '92400E' },
       },
     ],
@@ -1386,6 +1457,25 @@ async function generateChapter4Presentation() {
       color: TEXT,
       lineSpacingMultiple: 1.25,
     });
+  });
+
+  s9.addImage({
+    path: evidence.plagiarism,
+    x: 0.9,
+    y: 7.35,
+    w: 8.9,
+    h: 1.8,
+    transparency: 5,
+  });
+  s9.addText('Playwright evidence · plagiarism review workspace', {
+    x: 1.1,
+    y: 8.72,
+    w: 8.5,
+    h: 0.25,
+    fontSize: 12,
+    italic: true,
+    color: MUTED,
+    align: 'right',
   });
 
   addOrangeFooter(s9, 9, 'Table 4.3 · AI Similarity Accuracy');
@@ -1544,7 +1634,7 @@ async function generateChapter4Presentation() {
     color: DARK_NAVY,
   });
   s10.addText(
-    'Receiver Operating Characteristic (ROC) curve analysis confirms that the 25% similarity threshold achieves the optimal balance between catching academic dishonesty (96.8% sensitivity) and minimizing false accusations against genuine literature citations (97.8% specificity).',
+    'Receiver Operating Characteristic (ROC) curve analysis confirms that the 25% similarity threshold achieves the optimal balance between catching academic dishonesty (96.26% sensitivity) and minimizing false accusations against genuine literature citations (97.80% specificity).',
     {
       x: 1.3,
       y: 8.05,
@@ -1815,13 +1905,13 @@ async function generateChapter4Presentation() {
     },
     {
       title: 'Questionnaire Reliability',
-      status: 'DONE (α = 0.938)',
-      desc: 'Cronbach alpha α = 0.938 confirming high instrument consistency and statistical validity.',
+      status: 'BASE CORRECTED',
+      desc: 'Respondent base corrected to Students 45/71, Instructor 1/1, Faculty 0 excluded; alpha not recalculated without raw item responses.',
     },
     {
       title: 'AI Accuracy & Plagiarism',
-      status: 'DONE (98.4% Acc)',
-      desc: '98.4% Top-1 similarity accuracy and 96.8% Macro F1-score across 2,450 test manuscripts.',
+      status: 'DONE (96.57% Acc)',
+      desc: 'Binary benchmark across 2,450 samples: 96.57% accuracy, 96.26% recall, 97.80% specificity, 99.42% precision, and 97.81% F1.',
     },
     {
       title: 'Real-Time WebSockets',
@@ -1963,7 +2053,7 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, fill: { color: ALT_ROW } },
       },
       {
-        text: '98.4% Top-1 accuracy; 240ms inference latency',
+        text: '184 ms proposal pre-scan mean; 220 ms p95',
         options: { fontSize: 22, fill: { color: ALT_ROW } },
       },
       {
@@ -1981,7 +2071,7 @@ async function generateChapter4Presentation() {
         options: { fontSize: 22, fill: { color: WHITE } },
       },
       {
-        text: '96.8% Macro F1; 99.1% verbatim precision',
+        text: '96.57% accuracy; 97.81% composite F1',
         options: { fontSize: 22, fill: { color: WHITE } },
       },
       {
@@ -2038,10 +2128,10 @@ async function generateChapter4Presentation() {
     valign: 'middle',
   });
 
-  addOrangeFooter(s13, 13, 'Table 4.6 · Research Objectives Achievement');
+  addOrangeFooter(s13, 13, 'Research Objectives Achievement');
 
   // ==========================================
-  // SLIDE 14: ISO 25010 EVALUATION (Table 4.7)
+  // SLIDE 14: ISO 25010 EVALUATION (Table 4.6)
   // ==========================================
   const s14 = pptx.addSlide();
   s14.background = { color: WHITE };
@@ -2055,7 +2145,7 @@ async function generateChapter4Presentation() {
     bold: true,
     color: ORANGE,
   });
-  s14.addText('Table 4.7. ISO/IEC 25010 Software Quality Evaluation Summary (N=45)', {
+  s14.addText('Table 4.6. ISO/IEC 25010 Software Quality Evaluation Summary (Pilot N=15)', {
     x: 0.9,
     y: 1.05,
     w: 18.2,
@@ -2072,15 +2162,15 @@ async function generateChapter4Presentation() {
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
-        text: 'Proponents Mean (n=30)',
+        text: 'Student Mean (n=10)',
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
-        text: 'Faculty Mean (n=12)',
+        text: 'Faculty Mean (n=4)',
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
-        text: 'Overall Mean (N=45)',
+        text: 'Composite Mean (N=15)',
         options: { bold: true, fill: { color: DARK_NAVY }, color: WHITE, fontSize: 24 },
       },
       {
@@ -2109,6 +2199,19 @@ async function generateChapter4Presentation() {
       { text: '4.78', options: { fontSize: 22, fill: { color: ALT_ROW } } },
       { text: '4.75', options: { fontSize: 22, fill: { color: ALT_ROW } } },
       { text: '4.77', options: { fontSize: 22, bold: true, fill: { color: ALT_ROW } } },
+      {
+        text: 'Highly Acceptable',
+        options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
+      },
+    ],
+    [
+      {
+        text: 'Compatibility (Cross-Browser)',
+        options: { fontSize: 22, bold: true, fill: { color: WHITE } },
+      },
+      { text: '4.82', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: '4.78', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: '4.81', options: { fontSize: 22, bold: true, fill: { color: WHITE } } },
       {
         text: 'Highly Acceptable',
         options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
@@ -2168,11 +2271,24 @@ async function generateChapter4Presentation() {
     ],
     [
       {
+        text: 'Portability (Device Adaptability)',
+        options: { fontSize: 22, bold: true, fill: { color: WHITE } },
+      },
+      { text: '4.79', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: '4.76', options: { fontSize: 22, fill: { color: WHITE } } },
+      { text: '4.78', options: { fontSize: 22, bold: true, fill: { color: WHITE } } },
+      {
+        text: 'Highly Acceptable',
+        options: { fontSize: 22, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
+      },
+    ],
+    [
+      {
         text: 'COMPOSITE GRAND MEAN',
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
       {
-        text: '4.82',
+        text: '4.81',
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
       {
@@ -2180,11 +2296,11 @@ async function generateChapter4Presentation() {
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
       {
-        text: '4.82 / 5.00',
+        text: '4.81 / 5.00',
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
       {
-        text: 'Highly Acceptable (Excellent)',
+        text: 'Highly Acceptable',
         options: { fontSize: 24, bold: true, fill: { color: 'DCFCE7' }, color: '166534' },
       },
     ],
@@ -2201,7 +2317,7 @@ async function generateChapter4Presentation() {
     valign: 'middle',
   });
 
-  addOrangeFooter(s14, 14, 'Table 4.7 · ISO 25010 Quality Evaluation');
+  addOrangeFooter(s14, 14, 'Table 4.6 · ISO 25010 Quality Evaluation');
 
   // ==========================================
   // SLIDE 15: FINDINGS & LIMITATIONS
@@ -2254,7 +2370,7 @@ async function generateChapter4Presentation() {
         options: { bold: true, fontSize: 24, color: DARK_NAVY },
       },
       {
-        text: 'Pre-scan prevented duplicate title proposals by 89%, eliminating wasted faculty committee defense cycles.\n\n',
+        text: 'In a trial of 30 candidate titles, 8 exceeded 65% semantic overlap and were flagged for refinement before formal defense.\n\n',
         options: { fontSize: 22, color: TEXT },
       },
       {
@@ -2270,7 +2386,7 @@ async function generateChapter4Presentation() {
         options: { bold: true, fontSize: 24, color: DARK_NAVY },
       },
       {
-        text: 'Real-time milestone Gantt charts increased on-time prototype submissions by 42% across cohort sections.',
+        text: 'The pilot cohort recorded 88% of sub-tasks on schedule; late deviations were routed through the mandatory justification gate.',
         options: { fontSize: 22, color: TEXT },
       },
     ],
@@ -2362,7 +2478,7 @@ async function generateChapter4Presentation() {
     {
       title: 'Proven',
       subtitle: 'Statistically Verified',
-      desc: 'Overall ISO 25010 rating of 4.82/5.00 ("Highly Acceptable") and Cronbach\'s Alpha α = 0.938 validate departmental acceptance.',
+      desc: 'The manuscript reports a 4.81 ± 0.34 ISO/IEC 25010 composite ("Highly Acceptable"). Existing alpha values remain historical because raw item responses were unavailable for recalculation.',
     },
     {
       title: 'Ready',

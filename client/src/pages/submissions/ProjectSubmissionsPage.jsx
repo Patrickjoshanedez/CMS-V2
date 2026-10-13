@@ -14,7 +14,7 @@ import UploadChapterModal from '@/components/submissions/UploadChapterModal';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import PrototypeShowcaseAndDemo from '@/components/projects/PrototypeShowcaseAndDemo';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
-import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
+import ActionDoneMatrixSection from '@/components/projects/ActionDoneMatrixSection';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
@@ -29,15 +29,11 @@ import {
   Loader2,
   Clock,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Code,
   TestTube,
-  CheckCircle2,
   Paintbrush,
   LineChart,
   FileSpreadsheet,
-  ShieldCheck,
   Layers,
   Sparkles,
   Lock,
@@ -146,143 +142,6 @@ function ProposalSection({ submissions, canCompile, isReadOnly, searchSuffix }) 
   );
 }
 
-/* ────────── Action Done Matrix (ADM) Card ────────── */
-
-function ActionDoneMatrixSection({
-  project,
-  onOpenModal,
-  isInlineOpen,
-  onToggleInline,
-  isStudent,
-  isFaculty,
-  user,
-  onRefresh,
-}) {
-  const rows = project?.actionDoneMatrix || [];
-  const capstone2Rows = rows.filter((r) => !r.milestone || r.milestone === 'CAPSTONE_2');
-  const verifiedCount = capstone2Rows.filter((r) => r.status === 'verified').length;
-  const isApproved = project?.admStatus === 'approved';
-  const isSecretaryEndorsed = Boolean(project?.admSignatures?.secretary?.endorsed);
-  const isSubmitted = project?.admStatus === 'submitted';
-
-  return (
-    <Card
-      className={cn(
-        'transition-colors duration-200',
-        capstone2Rows.length > 0 || isApproved
-          ? 'border-primary/20 bg-primary/[0.02]'
-          : 'border-border/70 bg-card/40',
-      )}
-      data-testid="adm-section-card"
-    >
-      <CardContent className="p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
-              <FileSpreadsheet className="h-4.5 w-4.5" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-foreground">Action Done Matrix (ADM)</p>
-                <Badge
-                  variant="outline"
-                  className="font-mono text-[10px] text-muted-foreground border-border/60"
-                >
-                  v1 Midterm
-                </Badge>
-                {isApproved ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-[10px] font-medium">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Approved
-                  </Badge>
-                ) : isSecretaryEndorsed ? (
-                  <Badge className="bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30 gap-1 text-[10px] font-medium">
-                    <ShieldCheck className="h-3 w-3" />
-                    Secretary Endorsed
-                  </Badge>
-                ) : isSubmitted ? (
-                  <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-1 text-[10px] font-medium">
-                    <Clock className="h-3 w-3" />
-                    Under Review
-                  </Badge>
-                ) : capstone2Rows.length > 0 ? (
-                  <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 text-[10px] font-medium">
-                    <Clock className="h-3 w-3" />
-                    In Progress
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="text-muted-foreground border-border/60 text-[10px]"
-                  >
-                    Defense Revisions
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {capstone2Rows.length > 0
-                  ? `${capstone2Rows.length} panel remarks recorded • ${verifiedCount}/${capstone2Rows.length} verified by committee • Multi-signatory sign-off`
-                  : 'Official BukSU Form RU-F-033 for midterm defense panel remarks, action taken citations, and committee sign-off.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onToggleInline}
-              className="gap-1.5 text-xs border-border/60 hover:bg-muted"
-              data-testid="toggle-adm-inline-btn"
-              aria-expanded={isInlineOpen}
-              aria-label={isInlineOpen ? 'Collapse ADM Matrix' : 'Expand ADM Matrix'}
-            >
-              {isInlineOpen ? (
-                <>
-                  <ChevronUp className="h-3.5 w-3.5" />
-                  <span>Collapse</span>
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-3.5 w-3.5" />
-                  <span>Expand Inline</span>
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenModal}
-              className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
-              data-testid="view-adm-btn"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
-              <span>View ADM</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Inline Expanded ADM Viewer */}
-        {isInlineOpen && (
-          <div
-            className="pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2 duration-200"
-            data-testid="adm-inline-container"
-          >
-            <ActionDoneMatrixTab
-              project={project}
-              isStudent={isStudent}
-              isFaculty={isFaculty}
-              user={user}
-              onRefresh={onRefresh}
-              initialMilestone="CAPSTONE_2"
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 /* ────────── Empty State ────────── */
 
 function EmptySubmissionsState({ canUpload, canCompileProposal }) {
@@ -333,7 +192,6 @@ export default function ProjectSubmissionsPage() {
   const hasTeam = Boolean(user?.teamId);
   const [showGanttModal, setShowGanttModal] = useState(false);
   const [showAdmModal, setShowAdmModal] = useState(false);
-  const [isAdmInlineExpanded, setIsAdmInlineExpanded] = useState(false);
   const [uploadModalConfig, setUploadModalConfig] = useState({
     isOpen: false,
     chapter: 1,
@@ -749,15 +607,15 @@ export default function ProjectSubmissionsPage() {
             searchSuffix={searchSuffix}
           />
 
-          {/* Action Done Matrix (ADM) Card */}
+          {/* Action Done Matrix (ADM) Card — shared single ADM interface */}
           <ActionDoneMatrixSection
             project={activeProject}
-            onOpenModal={() => setShowAdmModal(true)}
-            isInlineOpen={isAdmInlineExpanded}
-            onToggleInline={() => setIsAdmInlineExpanded((prev) => !prev)}
+            milestone="CAPSTONE_2"
             isStudent={isStudent}
             isFaculty={isFaculty}
             user={user}
+            isModalOpen={showAdmModal}
+            onModalOpenChange={setShowAdmModal}
             onRefresh={() => {
               refetchProject?.();
               refetchSubs?.();
@@ -899,64 +757,6 @@ export default function ProjectSubmissionsPage() {
             lockMessage={capstone4LockMessage}
           />
         </div>
-
-        {/* Full Action Done Matrix (ADM) Viewer Dialog */}
-        {showAdmModal &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="adm-viewer-dialog-title"
-            >
-              <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <FileSpreadsheet className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3
-                        id="adm-viewer-dialog-title"
-                        className="text-base font-bold text-foreground"
-                      >
-                        Capstone 2: Action Done Matrix (ADM)
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Official BukSU Form RU-F-033 — Panel Recommendations, Action Taken, and
-                        Committee Digital Signatures.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowAdmModal(false)}
-                    aria-label="Close ADM Dialog"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto pt-4 min-h-0">
-                  <ActionDoneMatrixTab
-                    project={activeProject}
-                    isStudent={isStudent}
-                    isFaculty={isFaculty}
-                    user={user}
-                    onRefresh={() => {
-                      refetchProject?.();
-                      refetchSubs?.();
-                    }}
-                    initialMilestone="CAPSTONE_2"
-                  />
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )}
 
         {/* Full Interactive Academic Gantt Chart Dialog */}
         {showGanttModal &&

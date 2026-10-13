@@ -45,6 +45,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.mcp.json
+.playwright-mcp/
 
 # Testing
 coverage/

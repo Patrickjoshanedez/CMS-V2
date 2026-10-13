@@ -1,0 +1,250 @@
+{
+  "schema_version": "1.0.0",
+  "description": "CMS-V2 Authoritative Document and Artifact Classification Manifest",
+  "last_updated": "2026-10-13",
+  "authority_order": [
+    "1. Approved institutional requirements and role boundaries",
+    "2. Approved API contracts and intended user behavior",
+    "3. Implementation verified against those requirements",
+    "4. Tests enforcing verified behavior",
+    "5. Supporting documentation",
+    "6. Historical agent records and session logs"
+  ],
+  "categories": [
+    "institutional-contract",
+    "architecture-specification",
+    "operational-runbook",
+    "testing-and-benchmarking",
+    "academic-manuscript-and-slides",
+    "historical-and-superseded",
+    "generated-artifact",
+    "agent-governance-and-memory"
+  ],
+  "statuses": ["current", "needs-review", "superseded", "historical", "generated"],
+  "artifacts": [
+    {
+      "path": "docs/RESPONSIVE_LAYOUT_AUDIT.md",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "AGENTS.md responsive visual verification contract",
+      "verification_evidence": "scratch/responsive-layout/ browser captures and focused client tests; remaining coverage documented",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "AGENTS.md",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "BukSU Capstone Management System V2 Runtime Contract & Boundaries",
+      "verification_evidence": "npm run validate:agentic, npm run validate:governance",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "GEMINI.md",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "Supreme Cognitive Protocols [v2.1] & 8-Stage Bounded Lifecycle",
+      "verification_evidence": "npm run validate:governance",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/AUTHORITATIVE_INDEX.md",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Authoritative Document Index & Order of Precedence",
+      "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/EVIDENCE_INVENTORY.md",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Maintained Evidence Inventory & Audit Ledger",
+      "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/TEST_QUARANTINE.md",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Test Quarantine Ledger & Exclusion Registry",
+      "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "README.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Monorepo Overview and Developer Quickstart",
+      "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Technical Architecture & Microservices Specification",
+      "verification_evidence": "npm run check:endpoints",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/API.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 REST API Contract & Route Specifications",
+      "verification_evidence": "npm run check:endpoints (222 server routes, 202 client routes)",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/DATABASE.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "MongoDB Schema & Index Specifications",
+      "verification_evidence": "server/modules/**/*.model.js",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/DEPLOYMENT.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "Production Docker Deployment Guide",
+      "verification_evidence": "docker-compose.prod.yml",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/plagiarism-benchmark-spec.md",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Plagiarism Benchmark Specification & Evaluation Protocol",
+      "verification_evidence": "ISO-BUKSU-V1 and PAN-SPANS-V1 evaluation protocols",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/action-done-matrix.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "Action Done Matrix Multi-Tier Digital Signature Specification",
+      "verification_evidence": "client/src/components/projects/adm/admWorkflow.test.js",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/ihsa-specification.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "Interconnected Harness Scaling Architecture Specification",
+      "verification_evidence": "npm run validate:governance",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/multi-chapter-streaming-and-storage-spec.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "Multi-Chapter Streaming & Storage Specification",
+      "verification_evidence": "server/tests/unit/filesystem-storage.service.test.js",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/Chapter-4-Results-and-Discussion.md",
+      "category": "academic-manuscript-and-slides",
+      "status": "current",
+      "governing_requirement_or_replacement": "BukSU IT Department Capstone Chapter 4 Manuscript",
+      "verification_evidence": "scripts/compute_survey_stats.py, scripts/export_chapter4_docx.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/Chapter-5-Conclusions-Recommendations.md",
+      "category": "academic-manuscript-and-slides",
+      "status": "current",
+      "governing_requirement_or_replacement": "BukSU IT Department Capstone Chapter 5 Manuscript",
+      "verification_evidence": "Reviewed against Phase 4 institutional guidelines",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/CMS_V2_Chapter_4_Story_Deck.pptx",
+      "category": "academic-manuscript-and-slides",
+      "status": "current",
+      "governing_requirement_or_replacement": "BukSU IT Department Oral Defense Presentation Slides",
+      "verification_evidence": "scripts/export_chapter4_story_deck.js",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/Chapter_4_Results_and_Discussion_Revised.docx",
+      "category": "academic-manuscript-and-slides",
+      "status": "current",
+      "governing_requirement_or_replacement": "BukSU IT Department Capstone Chapter 4 OOXML Manuscript",
+      "verification_evidence": "scripts/export_chapter4_docx.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/CMS_V2_Test_Cases.xlsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Comprehensive Functional & Non-Functional Test Case Matrix",
+      "verification_evidence": "scripts/generate_test_cases.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/TECHNOLOGY_DECISION_MATRIX.md",
+      "category": "architecture-specification",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/ARCHITECTURE.md",
+      "verification_evidence": "Historical decision matrix; needs review against active BullMQ/Redis/PaddleOCR stack",
+      "retirement_or_quarantine_reason": "Early architectural decision draft pending full stack reconciliation"
+    },
+    {
+      "path": "docs/ARCHITECTURE_CRITIQUE_AND_IMPROVEMENT_PROPOSAL.md",
+      "category": "architecture-specification",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/ARCHITECTURE.md",
+      "verification_evidence": "Historical critique proposal; needs review to verify which refactors are completed in V2",
+      "retirement_or_quarantine_reason": "Historical critique proposal superseded in part by ASDLC v2.0 improvements"
+    },
+    {
+      "path": "FILES_INDEX.md",
+      "category": "historical-and-superseded",
+      "status": "superseded",
+      "governing_requirement_or_replacement": "docs/AUTHORITATIVE_INDEX.md",
+      "verification_evidence": "docs/AUTHORITATIVE_INDEX.md Section 2.C",
+      "retirement_or_quarantine_reason": "Superseded by authoritative index and machine-readable classification manifest"
+    },
+    {
+      "path": "docs/delivery/DELIVERY_MANIFEST.md",
+      "category": "historical-and-superseded",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/EVIDENCE_INVENTORY.md",
+      "verification_evidence": "docs/EVIDENCE_INVENTORY.md audit ledger",
+      "retirement_or_quarantine_reason": "Historical delivery snapshot from 2026-03-26 sprint"
+    },
+    {
+      "path": "docs/archive/plagiarism_benchmark_report.md",
+      "category": "historical-and-superseded",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/benchmarks/plagiarism-benchmark-spec.md",
+      "verification_evidence": "docs/benchmarks/plagiarism-benchmark-spec.md Section 1",
+      "retirement_or_quarantine_reason": "Historical benchmark run from 2026-04-14 with uncalibrated mock responses"
+    },
+    {
+      "path": "docs/HOOKS_CONTINUAL_LEARNING.md",
+      "category": "historical-and-superseded",
+      "status": "superseded",
+      "governing_requirement_or_replacement": "docs/specs/ihsa-specification.md",
+      "verification_evidence": "npm run validate:governance (.github/hooks/ runtime)",
+      "retirement_or_quarantine_reason": "Superseded by canonical IHSA specification and active .github/hooks/ implementation"
+    },
+    {
+      "path": "docs/LARAVEL_SUBMISSION_REVIEW_REFERENCE.md",
+      "category": "historical-and-superseded",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/ARCHITECTURE.md",
+      "verification_evidence": "Express/React native submission review architecture in client/src/pages/submissions/",
+      "retirement_or_quarantine_reason": "Historical reference from V1 Laravel architecture migration"
+    },
+    {
+      "path": ".agents/skills/workspace-evidence-maintenance/SKILL.md",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 Systematic Workspace Organization and Evidence Maintenance Skill",
+      "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    }
+  ]
+}

@@ -493,7 +493,10 @@ class StorageService {
     this._validateConfiguration();
 
     try {
-      if (contentType === 'application/pdf') {
+      const isTemporary =
+        key.includes('temp-extractions') || key.startsWith('temp/') || key.startsWith('tmp/');
+
+      if (contentType === 'application/pdf' && !isTemporary) {
         try {
           const text = await extractText(buffer, contentType);
           if (text) {

@@ -16,16 +16,21 @@ A full-stack **Capstone Management and Archiving System** with plagiarism checki
 
 ---
 
-## Plagiarism Pipeline
+## Plagiarism Detection & Similarity Architecture
 
-The plagiarism checker now runs as a native Node.js workflow in this monorepo.
+The plagiarism verification system employs a calibrated **Two-Stage Hybrid Architecture** balancing low-latency candidate retrieval with deep transformer neural vector scoring:
 
-- Queue + worker orchestration: `server/jobs/plagiarism.job.js` (BullMQ + Redis)
-- Core scoring engine: `server/services/plagiarism.service.js` (winnowing fingerprints + span-union scoring)
-- Inverted index candidate retrieval: `server/services/fingerprintIndex.service.js`
-- Fingerprint persistence model: `server/modules/plagiarism/documentFingerprint.model.js`
-
-This architecture avoids full corpus scans for each request and does not require an external Python plagiarism microservice for the active check path.
+- **Stage 1 (Node.js Winnowing & Candidate Inverted Index)**:
+  - Worker: `server/jobs/plagiarism.job.js` via BullMQ (`plagiarism-check` queue with Redis broker)
+  - Fingerprint candidate retrieval: `server/services/fingerprintIndex.service.js`
+  - Persistence: `server/modules/plagiarism/documentFingerprint.model.js`
+  - Fast-Path Pre-filter: Non-final drafts with strictly <5% lexical overlap short-circuit to save GPU/CPU cycles, explicitly tagged with `scanCoverage: 'lexical_only'` (`semanticStatus: 'skipped'`).
+- **Stage 2 (Python HybridSourceTracker Microservice)**:
+  - Deep vector engine: `plagiarism_engine/` running `BAAI/bge-m3` (1024-dim dense + sparse representation) with Winnowing composite scoring.
+  - Resilience: Delegated through an `Opossum` circuit breaker (`hstCircuitBreaker`, 120s timeout, 50% error threshold).
+- **Graceful Fallback & Institutional Gating**:
+  - If the Python microservice is offline or trips the circuit breaker, the worker seamlessly engages Node.js in-process syntactic matching, explicitly tagged with `scanCoverage: 'degraded'` (`semanticStatus: 'failed'`).
+  - **Archival Security Gate**: Degraded scans are strictly rejected for final defense and archival clearance (`PLAGIARISM_SCAN_DEGRADED`), requiring full neural vector verification.
 
 ---
 
@@ -351,10 +356,12 @@ docker compose -f docker-compose.prod.yml -p cms-v2-lan logs -f
 
 ## Documentation
 
-- [Phase 1 Strategy](docs/PHASE_1_STRATEGY.md) — Sprint plan, DB design, API spec, risk register
-- [Database Schema](docs/DATABASE.md) — MongoDB collections and relationships
-- [API Reference](docs/API.md) — Detailed endpoint documentation
+- [Authoritative Index](docs/AUTHORITATIVE_INDEX.md) — Order of precedence and document registry
+- [Evidence Inventory](docs/EVIDENCE_INVENTORY.md) — Maintained audit ledger and status verification
 - [Architecture](docs/ARCHITECTURE.md) — System design and data flow
+- [API Reference](docs/API.md) — Detailed endpoint documentation
+- [Database Schema](docs/DATABASE.md) — MongoDB collections and relationships
+- [Phase 1 Strategy (Historical)](docs/archive/PHASE_1_STRATEGY.md) — Sprint plan, DB design, API spec, risk register
 
 ---
 

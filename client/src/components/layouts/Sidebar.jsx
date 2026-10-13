@@ -336,7 +336,7 @@ function SidebarNavItem({ item, active, collapsed }) {
         onMouseLeave={handleHide}
         onMouseOut={handleHide}
         onBlur={handleHide}
-        className={`relative w-full min-h-[2.5rem] flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+        className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
           collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
         } ${
           active
@@ -471,7 +471,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
           onMouseLeave={handleHide}
           onMouseOut={handleHide}
           onBlur={handleHide}
-          className={`relative w-full min-h-[2.5rem] flex items-center justify-center px-0 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+          className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center justify-center px-0 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
             isChildActive
               ? 'text-blue-700 dark:text-blue-400 font-semibold'
               : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
@@ -505,7 +505,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative w-full min-h-[2.5rem] flex items-center min-w-0 gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+        className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center min-w-0 gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
           isChildActive
             ? 'text-blue-700 dark:text-blue-400 font-semibold'
             : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
@@ -527,7 +527,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
         className="grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
-        <div className="overflow-hidden">
+        <div className="overflow-hidden" inert={open ? undefined : ''} aria-hidden={!open}>
           <div className="ml-4 mt-0.5 space-y-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
             {item.children?.map((child) => {
               const isActive = activePath === child.path;
@@ -550,7 +550,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
 /**
  * Modern Animated Sidebar with Dual-State Expansion & Floating Slide Indicator
  */
-export function Sidebar({ open = true, onToggle }) {
+export function Sidebar({ open = true, mobileView = false, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const authState = useAuthStore();
@@ -648,10 +648,13 @@ export function Sidebar({ open = true, onToggle }) {
 
   return (
     <aside
-      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-700 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 overflow-hidden ${
+      role={mobileView && open ? 'dialog' : undefined}
+      aria-modal={mobileView && open ? true : undefined}
+      aria-label="Main navigation"
+      className={`lg:relative flex flex-col justify-between h-dvh bg-card border-r border-border transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 overflow-hidden ${
         collapsed
-          ? 'hidden md:flex w-20 min-w-[5rem]'
-          : 'fixed inset-y-0 left-0 z-50 w-72 min-w-[16.5rem] max-w-[85vw] md:max-w-[21rem] md:relative shadow-2xl md:shadow-none'
+          ? 'hidden lg:flex w-20 min-w-[5rem]'
+          : 'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] lg:max-w-[21rem] lg:relative shadow-2xl lg:shadow-none'
       }`}
     >
       {/* 1. Header & Collapse Toggle */}
@@ -690,7 +693,7 @@ export function Sidebar({ open = true, onToggle }) {
         <button
           type="button"
           onClick={onToggle}
-          className="p-2 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center"
+          className="min-h-[44px] min-w-[44px] lg:min-h-0 lg:min-w-0 p-2 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -807,7 +810,7 @@ export function Sidebar({ open = true, onToggle }) {
           }}
           onMouseLeave={() => setSignOutCoords(null)}
           onBlur={() => setSignOutCoords(null)}
-          className={`relative w-full min-h-[2.5rem] flex items-center px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none select-none ${
+          className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none select-none ${
             collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
           }`}
           title={collapsed ? 'Sign out' : undefined}
@@ -847,6 +850,7 @@ export function Sidebar({ open = true, onToggle }) {
 Sidebar.propTypes = {
   open: PropTypes.bool,
   onToggle: PropTypes.func,
+  mobileView: PropTypes.bool,
 };
 
 export const AppSidebar = Sidebar;

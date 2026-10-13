@@ -1886,19 +1886,19 @@ export default function AcademicExcelGanttChart({
               <tr className="border-b border-slate-900 dark:border-slate-400">
                 <th
                   rowSpan={4}
-                  className="sticky left-0 z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[75px] min-w-[75px]"
+                  className="lg:sticky lg:left-0 z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[75px] min-w-[75px]"
                 >
                   TASK ID
                 </th>
                 <th
                   rowSpan={4}
-                  className="sticky left-[75px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[240px] min-w-[240px]"
+                  className="lg:sticky lg:left-[75px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[240px] min-w-[240px]"
                 >
                   TASK TITLE
                 </th>
                 <th
                   rowSpan={4}
-                  className="sticky left-[315px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[130px] min-w-[130px]"
+                  className="lg:sticky lg:left-[315px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[130px] min-w-[130px]"
                 >
                   TASK OWNER
                 </th>
@@ -2041,8 +2041,8 @@ export default function AcademicExcelGanttChart({
                   <React.Fragment key={sec}>
                     {/* SECTION DIVIDER */}
                     <tr className="border-y-2 border-slate-900 dark:border-slate-400">
-                      <td className="sticky left-0 z-20 bg-slate-300 dark:bg-slate-700 p-2 px-3 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase whitespace-nowrap border-r border-slate-400 dark:border-slate-500" />
-                      <td className="sticky left-[75px] z-20 bg-slate-300 dark:bg-slate-700 p-2 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase border-r border-slate-400 dark:border-slate-500">
+                      <td className="lg:sticky lg:left-0 z-20 bg-slate-300 dark:bg-slate-700 p-2 px-3 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase whitespace-nowrap border-r border-slate-400 dark:border-slate-500" />
+                      <td className="lg:sticky lg:left-[75px] z-20 bg-slate-300 dark:bg-slate-700 p-2 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase border-r border-slate-400 dark:border-slate-500">
                         <div className="flex items-center justify-between pr-2">
                           <span>{sec}</span>
                           {!isReadOnly && (
@@ -2067,7 +2067,7 @@ export default function AcademicExcelGanttChart({
                           )}
                         </div>
                       </td>
-                      <td className="sticky left-[315px] z-20 bg-slate-300 dark:bg-slate-700 border-r border-slate-400 dark:border-slate-500" />
+                      <td className="lg:sticky lg:left-[315px] z-20 bg-slate-300 dark:bg-slate-700 border-r border-slate-400 dark:border-slate-500" />
                       <td colSpan={65} className="bg-slate-300 dark:bg-slate-700" />
                     </tr>
 
@@ -2115,7 +2115,7 @@ export default function AcademicExcelGanttChart({
                           {/* 1. Task ID (Sticky) with color picker pill */}
                           <td
                             className={cn(
-                              'sticky left-0 z-20 border-r border-slate-300 dark:border-slate-700 p-1 font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap',
+                              'lg:sticky lg:left-0 z-20 border-r border-slate-300 dark:border-slate-700 p-1 font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap',
                               isAlt
                                 ? 'bg-slate-50 dark:bg-slate-800'
                                 : 'bg-white dark:bg-[#111827]',
@@ -2156,7 +2156,7 @@ export default function AcademicExcelGanttChart({
                           {/* 2. Task Title (Sticky) */}
                           <td
                             className={cn(
-                              'sticky left-[75px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 font-medium text-slate-900 dark:text-slate-100',
+                              'lg:sticky lg:left-[75px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 font-medium text-slate-900 dark:text-slate-100',
                               isAlt
                                 ? 'bg-slate-50 dark:bg-slate-800'
                                 : 'bg-white dark:bg-[#111827]',
@@ -2176,7 +2176,7 @@ export default function AcademicExcelGanttChart({
                           {/* 3. Task Owner (Sticky) */}
                           <td
                             className={cn(
-                              'sticky left-[315px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap',
+                              'lg:sticky lg:left-[315px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap',
                               isAlt
                                 ? 'bg-slate-50 dark:bg-slate-800'
                                 : 'bg-white dark:bg-[#111827]',

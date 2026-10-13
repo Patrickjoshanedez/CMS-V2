@@ -266,7 +266,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     const admCard = container.querySelector('[data-testid="adm-section-card"]');
     expect(admCard).toBeTruthy();
     expect(admCard.textContent).toContain('Action Done Matrix (ADM)');
-    expect(admCard.textContent).toContain('v1 Midterm');
+    expect(admCard.textContent).toContain('Cap 2 (ADM v2)');
 
     // Verify header button in Capstone 2 card
     const phase2HeaderBtn = container.querySelector('[data-testid="capstone2-open-adm-btn"]');

@@ -23,6 +23,7 @@ import { DOCUMENT_TYPES, SUBMISSION_STATUSES } from '@cms/shared';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
+import { resolveAdmStatus } from './adm/admWorkflow';
 import EvaluationPanel from './EvaluationPanel';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 
@@ -94,12 +95,9 @@ export default function Capstone3CollapsibleSections({
   const latestAcademicPaper = academicPaperSubs[0];
   const latestAcademicJournal = academicJournalSubs[0];
 
-  const admRows = project?.actionDoneMatrix || [];
-  const capstone3AdmRows = admRows.filter(
-    (r) => r.milestone === 'CAPSTONE_3' || r.milestone === 'capstone_3',
-  );
-  const isAdmApproved = project?.admStatus === 'approved';
-  const isSecretaryEndorsed = Boolean(project?.admSignatures?.secretary?.endorsed);
+  const admStatus = resolveAdmStatus(project, 'CAPSTONE_3');
+  const isAdmApproved = admStatus.key === 'approved';
+  const isSecretaryEndorsed = admStatus.secretaryEndorsed;
 
   const isInstructor = user?.role === 'instructor';
   const isAssignedAdviser =
@@ -426,7 +424,7 @@ export default function Capstone3CollapsibleSections({
                   variant="outline"
                   className="font-mono text-[10px] text-muted-foreground border-border/60"
                 >
-                  {capstone3AdmRows.length} Items
+                  {admStatus.total} Items
                 </Badge>
                 {isAdmApproved ? (
                   <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold gap-1">

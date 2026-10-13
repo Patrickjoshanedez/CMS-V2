@@ -1,0 +1,35 @@
+{
+  "session_id": "2026-10-13_cms-v2-reliability-assessment",
+  "timestamp": "2026-10-13T20:47:00+08:00",
+  "status": "completed",
+  "role": "Lead Implementation & Reliability Architect",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "task_description": "Execute full CMS-V2 Reliability Assessment across 6 Work Packages: Plagiarism pipeline coverage and reporting, document extraction BullMQ retry and recovery, institutional authorization enforcement (secretary endorsement gate, phase-3 archival prerequisite, committee composition), architecture documentation alignment, agentic governance restoration, and deterministic verification battery.",
+  "work_packages": {
+    "wp1_baseline": "Preflight completed, PTSS index recalled, git status baselined, finding table generated.",
+    "wp2_plagiarism_coverage": "Surgically patched server/jobs/plagiarism.job.js, submission.model.js, plagiarism.model.js, projectTitle.service.js, and client/src/pages/submissions/PlagiarismReportPage.jsx. Differentiated final papers/forced scans from normal drafts. Explicitly persisted scanCoverage (full, lexical_only, degraded), semanticStatus (completed, skipped, failed), and scanType. Strictly rejected degraded scans from archival clearance. Rendered coverage badges and informative warning/guidance banners.",
+    "wp3_document_extraction_recovery": "Surgically patched server/jobs/documentExtraction.job.js and client/src/pages/archive/ExistingCapstoneUploadPage.jsx. Preserved storage files on non-final BullMQ retry attempts, scoped unlinking strictly to temp-extractions, and updated client polling progress check to handle ['active', 'processing'].",
+    "wp4_institutional_workflow": "Removed instructor exemption from secretary endorsement in project.controller.js:1426 and authorize.js:311. Enforced capstonePhase >= 3 prerequisite before archival in projectArchive.service.js. Enforced complete panelist existence and uniqueness in team.service.js:1880.",
+    "wp5_documentation_governance": "Restored 28 tracked .github governance files. Updated README.md and docs/ARCHITECTURE.md with two-stage hybrid plagiarism architecture, circuit breaker resilience, and explicit scan coverage taxonomy.",
+    "wp6_integration_verification": "Passed 100% of targeted client and server suites (13 client tests, 19 server tests), check:endpoints (0 unmatched), validate:agentic (60/60 checks), validate:governance (100%), workspace_guardrail (pristine), and Playwright visual audit across 4 viewports."
+  },
+  "verification_evidence": {
+    "endpoint_check": "SERVER_ENDPOINT_COUNT=222, CLIENT_ENDPOINT_COUNT=202, UNMATCHED_COUNT=0 (Passed)",
+    "agentic_governance": "60/60 checks PASSED (100%)",
+    "governance_pipeline": "11 agents, 8 edges, 0 errors, 0 warnings (Passed)",
+    "workspace_guardrail": "Pristine, 0 cognitive load violations (Passed)",
+    "client_tests": "src/pages/submissions/PlagiarismReportPage.test.jsx (13/13 passed)",
+    "server_tests": [
+      "tests/unit/plagiarism.coverage.test.js (9/9 passed)",
+      "tests/unit/documentExtraction.retry.test.js (4/4 passed)",
+      "tests/unit/institutionalWorkflow.reliability.test.js (6/6 passed)"
+    ],
+    "playwright_visual_audit": "4 viewports captured in scratch/ (desktop_light, desktop_dark, mobile_light, mobile_dark) with zero layout shifts or visual regressions"
+  },
+  "lessons_learned": [
+    "Lesson: BullMQ worker retries will fail with 404/file not found if temporary storage cleanup runs on attempt 1 of 2. Prevention: Worker cleanup must strictly condition storageService.deleteFile on (attemptsMade >= attempts) and verify key belongs to temp storage.",
+    "Lesson: Polling logic must match both BullMQ active state and controller processing state. Checking only jobData.status === 'active' causes progress freezes when controllers cache 'processing' status.",
+    "Lesson: Low lexical overlap fast-paths must never present omitted neural checks as full dual-engine clearance. Explicit scanCoverage ('full', 'lexical_only', 'degraded') provides clear auditability and blocks unverified papers from final archival.",
+    "Lesson: Secretary compliance endorsement is an institutional gate for all signatories without role exemption; course instructors must not bypass committee endorsements."
+  ]
+}

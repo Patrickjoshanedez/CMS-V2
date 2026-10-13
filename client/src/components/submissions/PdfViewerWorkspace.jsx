@@ -96,7 +96,7 @@ export function HighlightPopupContent({
     <div
       role="dialog"
       aria-label="Annotation details"
-      className="bg-popover text-popover-foreground border border-border/80 shadow-2xl rounded-xl p-3.5 w-80 sm:w-96 text-xs space-y-3 z-50 animate-in fade-in-50 zoom-in-95 pointer-events-auto"
+      className="bg-popover text-popover-foreground border border-border/80 shadow-2xl rounded-xl p-3.5 w-80 sm:w-96 max-w-full break-words text-xs space-y-3 z-50 animate-in fade-in-50 zoom-in-95 pointer-events-auto [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Popover Header */}
@@ -546,9 +546,9 @@ function CustomHighlightRenderer({
       {/* Popover Card */}
       {(showPopup || isMatchSelected) && firstRect && (
         <div
-          className="absolute z-50 pointer-events-auto"
+          className="absolute z-50 max-w-full pointer-events-auto"
           style={{
-            left: `${firstRect.left}px`,
+            left: `min(${firstRect.left}px, max(0px, calc(100% - 24rem)))`,
             top: `${firstRect.top + firstRect.height + 6}px`,
           }}
         >

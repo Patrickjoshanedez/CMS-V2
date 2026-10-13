@@ -1,43 +1,17 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
-import { Textarea } from '@/components/ui/Textarea';
-import SignaturePad from '@/components/ui/SignaturePad';
 import { useAuthStore } from '@/stores/authStore';
-import { projectService, userService } from '@/services/authService';
 import { getSocket, connectSocket } from '@/services/socket';
 import { useProjects, useProject, usePrefetchProject } from '@/hooks/useProjects';
-import { ROLES, PROJECT_STATUSES } from '@cms/shared';
-import { toast } from 'sonner';
-import {
-  FileSignature,
-  Upload,
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Search,
-  RefreshCw,
-  Plus,
-  Trash2,
-  Check,
-  ShieldCheck,
-  Lock,
-  Unlock,
-  Users,
-  ChevronRight,
-  ExternalLink,
-  BookOpen,
-  FileSpreadsheet,
-} from 'lucide-react';
+import { FileSignature, Search, RefreshCw, ChevronRight, ExternalLink } from 'lucide-react';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
-import SecretaryMinutesDocumentSheet from '@/components/secretary/SecretaryMinutesDocumentSheet';
+import { resolveAdmStatus } from '@/components/projects/adm/admWorkflow';
 
 export default function SecretaryReviewPage() {
   const navigate = useNavigate();
@@ -49,25 +23,9 @@ export default function SecretaryReviewPage() {
 
   const initialProjectId = searchParams.get('projectId');
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId || '');
-  const initialTab = searchParams.get('tab') === 'adm' ? 'adm_matrix' : 'minutes_sheet';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const initialView = searchParams.get('tab') === 'adm' ? 'adm' : 'minutes';
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-
-  // Minutes upload state
-  const [minutesFile, setMinutesFile] = useState(null);
-  const [isUploadingMinutes, setIsUploadingMinutes] = useState(false);
-
-  // Endorsement modal state
-  const [isEndorseModalOpen, setIsEndorseModalOpen] = useState(false);
-  const [signatoryName, setSignatoryName] = useState('');
-  const [endorsementNotes, setEndorsementNotes] = useState(
-    'I hereby verify that all committee remarks, critiques, and recommendations recorded during the hearing defense have been satisfactorily addressed by the student team.',
-  );
-  const [signatureDataUrl, setSignatureDataUrl] = useState(null);
-  const [isDrawingSignature, setIsDrawingSignature] = useState(false);
-  const [saveSignatureToProfile, setSaveSignatureToProfile] = useState(true);
-  const [isSubmittingEndorsement, setIsSubmittingEndorsement] = useState(false);
 
   // Fetch projects where user is Secretary
   const {
@@ -101,17 +59,6 @@ export default function SecretaryReviewPage() {
     setSearchParams(nextParams);
   };
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    const nextParams = new URLSearchParams(searchParams);
-    if (tab === 'adm_matrix') {
-      nextParams.set('tab', 'adm');
-    } else {
-      nextParams.delete('tab');
-    }
-    setSearchParams(nextParams, { replace: true });
-  };
-
   // Fetch full details of selected project with shared cache and placeholderData
   const {
     data: selectedProjectData,
@@ -120,20 +67,6 @@ export default function SecretaryReviewPage() {
   } = useProject(selectedProjectId);
 
   const project = selectedProjectData || projects.find((p) => p._id === selectedProjectId);
-
-  // Prefill signatory name from user
-  useEffect(() => {
-    if (user) {
-      const full = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-      setSignatoryName(full || user.fullName || '');
-      if (user.digitalSignature) {
-        setSignatureDataUrl(user.digitalSignature);
-        setIsDrawingSignature(false);
-      } else {
-        setIsDrawingSignature(true);
-      }
-    }
-  }, [user]);
 
   // Filter project list
   const filteredProjects = useMemo(() => {
@@ -145,8 +78,9 @@ export default function SecretaryReviewPage() {
 
       if (!matchesSearch) return false;
 
-      const hasMinutes = p.actionDoneMatrix?.length > 0;
-      const isEndorsed = p.admSignatures?.secretary?.endorsed === true;
+      const { key: admKey, total } = resolveAdmStatus(p);
+      const hasMinutes = total > 0 || (p.actionDoneMatrixCount ?? 0) > 0;
+      const isEndorsed = admKey === 'endorsed' || admKey === 'approved';
 
       if (statusFilter === 'NEEDS_MINUTES') return !hasMinutes;
       if (statusFilter === 'IN_REVISION') return hasMinutes && !isEndorsed;
@@ -201,123 +135,10 @@ export default function SecretaryReviewPage() {
     };
   }, [selectedProjectId, refetchProjectDetails, queryClient]);
 
-  // Upload Minutes Handler
-  const handleUploadMinutes = async (e) => {
-    e.preventDefault();
-    if (!minutesFile || !selectedProjectId) {
-      toast.error('Please select a defense minutes PDF or DOCX file.');
-      return;
-    }
-
-    try {
-      setIsUploadingMinutes(true);
-      const formData = new FormData();
-      formData.append('file', minutesFile);
-      formData.append('projectId', selectedProjectId);
-
-      const res = await projectService.uploadSecretaryMinutes(formData);
-      toast.success(
-        res?.data?.message || 'Defense minutes uploaded! Action Done Matrix rows generated.',
-      );
-      setMinutesFile(null);
-      await Promise.all([refetchProjectDetails(), refetchProjects()]);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to process defense minutes file.');
-    } finally {
-      setIsUploadingMinutes(false);
-    }
-  };
-
-  // Add ADM Item Manually
-  const handleAddRow = async () => {
-    if (!selectedProjectId) return;
-    const phase = Number(project?.capstonePhase || 1);
-    const defaultMilestone = phase >= 3 ? 'CAPSTONE_3' : phase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_1';
-    try {
-      await projectService.createActionDoneMatrixItem(selectedProjectId, {
-        panelName: 'Committee Secretary',
-        suggestion: 'Additional hearing observation / compliance remark',
-        expectedAction: 'Address remark in manuscript and document page reference',
-        milestone: defaultMilestone,
-      });
-      toast.success('New ADM row added.');
-      refetchProjectDetails();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to add row.');
-    }
-  };
-
-  // Update single row
-  const handleUpdateRow = async (itemId, patch) => {
-    try {
-      await projectService.updateActionDoneMatrixItem(selectedProjectId, itemId, patch);
-      refetchProjectDetails();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to update row.');
-    }
-  };
-
-  // Delete single row
-  const handleDeleteRow = async (itemId) => {
-    try {
-      await projectService.deleteActionDoneMatrixItem(selectedProjectId, itemId);
-      toast.info('ADM row removed.');
-      refetchProjectDetails();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to delete row.');
-    }
-  };
-
-  // Endorse ADM Handler
-  const handleConfirmEndorsement = async () => {
-    if (!signatoryName.trim()) {
-      toast.error('Please enter your full legal name as Secretary signatory.');
-      return;
-    }
-    const sig = signatureDataUrl || user?.digitalSignature;
-    if (!sig) {
-      toast.error('Please draw or configure your digital signature.');
-      return;
-    }
-
-    try {
-      setIsSubmittingEndorsement(true);
-      await projectService.endorseADM(selectedProjectId, {
-        signatoryName: signatoryName.trim(),
-        notes: endorsementNotes.trim(),
-        signatureDataUrl: sig,
-      });
-
-      // Optionally save to profile
-      if (saveSignatureToProfile && (!user?.digitalSignature || isDrawingSignature)) {
-        try {
-          await userService.updateMe({ digitalSignature: sig });
-        } catch {
-          // non-blocking
-        }
-      }
-
-      toast.success(
-        'Action Done Matrix successfully endorsed! Committee signatures are now unlocked.',
-      );
-      setIsEndorseModalOpen(false);
-      await Promise.all([refetchProjectDetails(), refetchProjects()]);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to endorse Action Done Matrix.');
-    } finally {
-      setIsSubmittingEndorsement(false);
-    }
-  };
-
-  // Matrix items and metrics
-  const admRows = project?.actionDoneMatrix || [];
-  const addressedCount = admRows.filter(
-    (r) => r.actionDone && String(r.actionDone).trim().length > 0,
-  ).length;
-  const verifiedCount = admRows.filter((r) => r.status === 'verified').length;
-  const totalRows = admRows.length;
-  const isEndorsed = project?.admSignatures?.secretary?.endorsed === true;
-  const canEndorse = totalRows > 0 && addressedCount === totalRows;
+  // Matrix metrics for the project's active milestone (same resolver as every other ADM surface)
+  const admStatus = resolveAdmStatus(project);
+  const addressedCount = admStatus.addressed;
+  const totalRows = admStatus.total;
 
   return (
     <DashboardLayout>
@@ -365,7 +186,7 @@ export default function SecretaryReviewPage() {
         {/* Studio Split Workspace */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           {/* Left Column: Assigned Secretary Teams Queue (3 cols) */}
-          <div className="space-y-4 lg:col-span-3 xl:col-span-3 no-print">
+          <div className="min-w-0 space-y-4 lg:col-span-3 xl:col-span-3 no-print">
             <Card className="shadow-sm">
               <CardHeader className="p-4 pb-3">
                 <div className="flex items-center justify-between">
@@ -424,8 +245,9 @@ export default function SecretaryReviewPage() {
                 ) : (
                   filteredProjects.map((p) => {
                     const isSelected = p._id === selectedProjectId;
-                    const pHasMinutes = p.actionDoneMatrix?.length > 0;
-                    const pIsEndorsed = p.admSignatures?.secretary?.endorsed === true;
+                    const pStatus = resolveAdmStatus(p);
+                    const pHasMinutes = pStatus.total > 0 || (p.actionDoneMatrixCount ?? 0) > 0;
+                    const pIsEndorsed = pStatus.key === 'endorsed' || pStatus.key === 'approved';
 
                     return (
                       <div
@@ -465,7 +287,7 @@ export default function SecretaryReviewPage() {
                               variant="outline"
                               className="text-[9px] font-bold text-sky-600 bg-sky-500/10 border-sky-500/30"
                             >
-                              In Revision ({p.actionDoneMatrix.length} items)
+                              {pStatus.label} ({pStatus.total || p.actionDoneMatrixCount} items)
                             </Badge>
                           ) : (
                             <Badge
@@ -485,7 +307,7 @@ export default function SecretaryReviewPage() {
           </div>
 
           {/* Right Column: Active Project Workspace (9 cols) */}
-          <div className="space-y-6 lg:col-span-9 xl:col-span-9">
+          <div className="min-w-0 space-y-6 lg:col-span-9 xl:col-span-9">
             {!project && isProjectDetailsLoading ? (
               <Card className="p-12 text-center text-muted-foreground shadow-sm">
                 Loading project details and Action Done Matrix...
@@ -551,9 +373,7 @@ export default function SecretaryReviewPage() {
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
                           Matrix Status
                         </span>
-                        <p className="font-medium text-foreground capitalize">
-                          {project.admStatus?.replace(/_/g, ' ') || 'Not Started'}
-                        </p>
+                        <p className="font-medium text-foreground capitalize">{admStatus.label}</p>
                       </div>
                       <div>
                         <span className="text-[10px] font-semibold text-muted-foreground uppercase">
@@ -569,80 +389,17 @@ export default function SecretaryReviewPage() {
                   </CardContent>
                 </Card>
 
-                {/* Studio Mode Navigation */}
-                <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3 no-print">
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('minutes_sheet')}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      activeTab === 'minutes_sheet'
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'border border-border/70 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                    }`}
-                    data-testid="tab-minutes-sheet"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    <span>Secretary Minutes (Form OVPAA-F-INS-032)</span>
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] font-mono uppercase tracking-wider py-0 px-1.5 ${
-                        activeTab === 'minutes_sheet'
-                          ? 'border-primary-foreground/30 text-primary-foreground'
-                          : 'text-primary border-primary/30'
-                      }`}
-                    >
-                      Official Form
-                    </Badge>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('adm_matrix')}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      activeTab === 'adm_matrix'
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'border border-border/70 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                    }`}
-                    data-testid="tab-adm-matrix"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span>Action Done Matrix & Endorsement Gate</span>
-                    {totalRows > 0 && (
-                      <Badge
-                        variant="secondary"
-                        className={`text-[9px] font-mono py-0 px-1.5 ${
-                          activeTab === 'adm_matrix'
-                            ? 'bg-primary-foreground/20 text-primary-foreground'
-                            : ''
-                        }`}
-                      >
-                        {addressedCount}/{totalRows}
-                      </Badge>
-                    )}
-                  </button>
-                </div>
-
-                {activeTab === 'minutes_sheet' ? (
-                  <SecretaryMinutesDocumentSheet
-                    project={project}
-                    user={user}
-                    onMinutesSynced={async () => {
-                      await Promise.all([refetchProjectDetails(), refetchProjects()]);
-                      toast.success('Matrix synced! Switching to Action Done Matrix review.');
-                      handleTabChange('adm_matrix');
-                    }}
-                  />
-                ) : (
-                  <ActionDoneMatrixTab
-                    project={project}
-                    user={user}
-                    isFaculty={true}
-                    isSecretary={true}
-                    onRefresh={async () => {
-                      await Promise.all([refetchProjectDetails(), refetchProjects()]);
-                    }}
-                  />
-                )}
+                {/* Single ADM interface: same document, minutes view and sign-off gate as every other role */}
+                <ActionDoneMatrixTab
+                  key={project._id}
+                  project={project}
+                  user={user}
+                  isFaculty
+                  initialView={initialView}
+                  onRefresh={async () => {
+                    await Promise.all([refetchProjectDetails(), refetchProjects()]);
+                  }}
+                />
               </>
             )}
           </div>

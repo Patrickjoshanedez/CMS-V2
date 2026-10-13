@@ -433,6 +433,7 @@ export default function ProjectDetailPage() {
                 <ActionDoneMatrixTab
                   project={project}
                   isFaculty={isFaculty}
+                  isStudent={isStudent}
                   user={user}
                   onRefresh={() => refetch()}
                 />

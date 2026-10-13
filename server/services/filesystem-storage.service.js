@@ -192,17 +192,21 @@ class FilesystemStorageService {
    */
   async uploadFile(buffer, key, contentType, metadata = {}) {
     try {
-      await this._ensureDirectory(key);
+      const resolvedPath = this._resolveStoragePath(key);
+      await this._ensureDirectory(resolvedPath);
 
       // Write the file
-      await fs.writeFile(key, buffer);
+      await fs.writeFile(resolvedPath, buffer);
 
-      if (contentType === 'application/pdf') {
+      const isTemporary =
+        key.includes('temp-extractions') || key.startsWith('temp/') || key.startsWith('tmp/');
+
+      if (contentType === 'application/pdf' && !isTemporary) {
         try {
           const text = await extractText(buffer, contentType);
           if (text) {
             const compressed = await gzipAsync(Buffer.from(text, 'utf-8'));
-            const sidecarPath = `${key}.txt.gz`;
+            const sidecarPath = `${resolvedPath}.txt.gz`;
             await fs.writeFile(sidecarPath, compressed);
             metadata.hasTextSidecar = true;
           }
@@ -211,21 +215,23 @@ class FilesystemStorageService {
         }
       }
 
-      // Store metadata alongside the file
-      const metadataPath = `${key}.meta.json`;
-      const metadataContent = {
-        contentType,
-        uploadedAt: new Date().toISOString(),
-        size: buffer.length,
-        ...metadata,
-      };
-      await fs.writeFile(metadataPath, JSON.stringify(metadataContent, null, 2));
+      // Store metadata alongside the file (skip for transient temp files)
+      if (!isTemporary) {
+        const metadataPath = `${resolvedPath}.meta.json`;
+        const metadataContent = {
+          contentType,
+          uploadedAt: new Date().toISOString(),
+          size: buffer.length,
+          ...metadata,
+        };
+        await fs.writeFile(metadataPath, JSON.stringify(metadataContent, null, 2));
+      }
 
       // Return relative path from base directory for consistency with S3
-      const relativePath = path.relative(this.baseDir, key);
+      const relativePath = path.relative(path.resolve(this.baseDir), resolvedPath);
       return {
-        key: relativePath,
-        path: key,
+        key: relativePath.replace(/\\/g, '/'),
+        path: resolvedPath,
         bucket: this.baseDir,
       };
     } catch (error) {

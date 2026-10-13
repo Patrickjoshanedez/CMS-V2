@@ -28,7 +28,7 @@ router.use(authenticate);
  */
 router.post(
   '/extract-pdf-metadata',
-  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER, ROLES.FACULTY),
   uploadLimiter,
   pdfMetadataUpload.single('file'),
   validateFile,
@@ -40,14 +40,14 @@ router.post(
  */
 router.get(
   '/extraction-status/:jobId',
-  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER, ROLES.FACULTY),
   validate(extractionJobIdParamSchema, 'params'),
   documentController.getExtractionStatusHandler,
 );
 
 router.post(
   '/metadata-feedback',
-  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER, ROLES.FACULTY),
   validate(submitMetadataFeedbackSchema),
   documentController.submitMetadataFeedback,
 );

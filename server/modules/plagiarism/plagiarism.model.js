@@ -88,6 +88,20 @@ const plagiarismResultSchema = new mongoose.Schema(
       type: [textMatchSchema],
       default: [],
     },
+    scanCoverage: {
+      type: String,
+      enum: ['full', 'lexical_only', 'degraded'],
+      default: 'full',
+    },
+    semanticStatus: {
+      type: String,
+      enum: ['completed', 'skipped', 'failed', 'pending'],
+      default: 'completed',
+    },
+    scanType: {
+      type: String,
+      default: null,
+    },
     rawData: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

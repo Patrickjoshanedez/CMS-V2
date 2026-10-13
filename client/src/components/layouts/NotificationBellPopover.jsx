@@ -180,10 +180,10 @@ export default function NotificationBellPopover() {
           ref={popoverRef}
           role="dialog"
           aria-label="Notifications Popover"
-          className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+          className="fixed inset-x-2 top-16 mt-2 flex max-h-[calc(100dvh-5rem)] flex-col sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:w-96 rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 bg-muted/40">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3 bg-muted/40">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm text-foreground">Notifications</span>
               {unreadCount > 0 && (
@@ -209,7 +209,7 @@ export default function NotificationBellPopover() {
           </div>
 
           {/* Segmented Filter Pills */}
-          <div className="flex items-center gap-1 border-b border-border/50 px-3 py-1.5 bg-muted/20">
+          <div className="flex shrink-0 items-center gap-1 border-b border-border/50 px-3 py-1.5 bg-muted/20">
             <button
               type="button"
               onClick={() => setActiveTab('all')}
@@ -237,7 +237,7 @@ export default function NotificationBellPopover() {
           </div>
 
           {/* Notification List */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-border/40 scrollbar-thin">
+          <div className="min-h-0 max-h-80 overflow-y-auto divide-y divide-border/40 scrollbar-thin">
             {isLoading ? (
               <div className="p-6 text-center text-xs text-muted-foreground space-y-2">
                 <div className="h-4 w-3/4 mx-auto bg-muted animate-pulse rounded" />
@@ -323,7 +323,7 @@ export default function NotificationBellPopover() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border/60 p-2 bg-muted/30">
+          <div className="shrink-0 border-t border-border/60 p-2 bg-muted/30">
             <Button
               variant="ghost"
               size="sm"

@@ -69,7 +69,10 @@ export const ROUTE_TITLE_RULES = [
   { pattern: /^\/archive\/upload\/academic-paper\/?$/, title: 'Upload Academic Paper' },
   { pattern: /^\/archive\/upload\/academic-journal\/?$/, title: 'Upload Academic Journal' },
   { pattern: /^\/archive\/?$/, title: 'Research Archive' },
-  { pattern: /^\/plagiarism-checker\/?$/, title: 'Plagiarism Checker' },
+  {
+    pattern: /^\/(?:plagiarism-checker|plagiarism|archive\/plagiarism)\/?$/,
+    title: 'Plagiarism Checker',
+  },
 
   // 9. Reports
   { pattern: /^\/reports\/bulk-upload\/?$/, title: 'Bulk Upload' },
@@ -216,17 +219,17 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   return (
     <header
       className={[
-        'relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-700 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
+        'relative z-30 flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-card px-2 py-2 sm:px-6',
         'transition-transform duration-300 ease-in-out',
         hidden ? '-translate-y-full' : 'translate-y-0',
       ].join(' ')}
     >
       {/* Left side: menu button + page title */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
         {!sidebarOpen && (
           <button
             onClick={onMenuClick}
-            className="md:hidden rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="lg:hidden min-h-[44px] min-w-[44px] shrink-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label="Open sidebar"
           >
             <Menu className="h-5 w-5" />
@@ -236,7 +239,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         {backDestination && (
           <button
             onClick={() => navigate(backDestination.to)}
-            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="min-h-[44px] min-w-[44px] shrink-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:min-w-0"
             aria-label={backDestination.label}
             title={backDestination.label}
           >
@@ -244,11 +247,16 @@ export default function Header({ sidebarOpen, onMenuClick }) {
           </button>
         )}
 
-        <h2 className="text-lg font-semibold text-foreground">{pageTitle}</h2>
+        <h2
+          className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-lg"
+          title={pageTitle}
+        >
+          {pageTitle}
+        </h2>
       </div>
 
       {/* Right side: notifications popover, theme toggle, text scale dropdown, user avatar */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {/* Notifications Popover */}
         <NotificationBellPopover />
 
@@ -261,7 +269,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         {/* User avatar */}
         <button
           onClick={() => navigate('/profile')}
-          className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent"
+          className="flex min-h-[44px] min-w-[44px] items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent sm:min-h-0 sm:min-w-0"
           aria-label="Go to profile"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground overflow-hidden">
@@ -277,8 +285,10 @@ export default function Header({ sidebarOpen, onMenuClick }) {
               initials
             )}
           </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium leading-tight">{user?.fullName}</p>
+          <div className="hidden lg:block min-w-0 max-w-40 text-left">
+            <p className="truncate text-sm font-medium leading-tight" title={user?.fullName}>
+              {user?.fullName}
+            </p>
             <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
         </button>

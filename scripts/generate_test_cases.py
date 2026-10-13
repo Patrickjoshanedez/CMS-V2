@@ -1215,7 +1215,7 @@ ws_sum.column_dimensions["C"].width = 14
 ws_sum.column_dimensions["D"].width = 25
 
 def main() -> None:
-   output_path = Path(__file__).resolve().parent / "CMS_V2_Test_Cases.xlsx"
+   output_path = Path(__file__).resolve().parent.parent / "docs" / "CMS_V2_Test_Cases.xlsx"
    wb.save(output_path)
    print(f"Test cases saved to {output_path}")
    print(f"Functional:     {len(functional)} test cases")

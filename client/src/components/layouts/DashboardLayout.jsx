@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -20,6 +20,11 @@ const SIDEBAR_STATE_KEY = 'cms.sidebar.open';
  */
 export default function DashboardLayout({ children }) {
   useSocket();
+  const layoutRef = useRef(null);
+  const mainAreaRef = useRef(null);
+  const [mobileView, setMobileView] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 1024,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
     if (window.innerWidth < 1024) return false;
@@ -27,17 +32,18 @@ export default function DashboardLayout({ children }) {
     if (savedState === null) return true;
     return savedState === 'true';
   });
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { isSkeleton } = useNavigationSkeleton(180);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || window.innerWidth < 1024) return;
     window.localStorage.setItem(SIDEBAR_STATE_KEY, String(sidebarOpen));
   }, [sidebarOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleResize = () => {
+      setMobileView(window.innerWidth < 1024);
       if (window.innerWidth < 1024) {
         setSidebarOpen(false);
       }
@@ -46,19 +52,83 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (window.innerWidth < 1024) setSidebarOpen(false);
+  }, [pathname, search]);
+
+  useEffect(() => {
+    if (!sidebarOpen || !mobileView) return;
+    const sidebar = layoutRef.current?.querySelector('aside');
+    const mainArea = mainAreaRef.current;
+    if (!sidebar || !mainArea) return;
+    const focusable = () =>
+      Array.from(
+        sidebar.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"]'),
+      ).filter((element) => element.getClientRects().length > 0);
+    const previouslyFocused = document.activeElement;
+    const wasInert = mainArea.inert;
+    mainArea.inert = true;
+    focusable()[0]?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSidebarOpen(false);
+      }
+      if (event.key === 'Tab') {
+        const items = focusable();
+        const first = items[0];
+        const last = items.at(-1);
+        if (
+          event.shiftKey &&
+          (document.activeElement === first || !sidebar.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          last?.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last || !sidebar.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      mainArea.inert = wasInert;
+      const menuButton = mainArea.querySelector('[aria-label="Open sidebar"]');
+      if (menuButton) menuButton.focus();
+      else if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [sidebarOpen, mobileView]);
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#060b13]">
+    <div ref={layoutRef} className="flex h-dvh overflow-hidden bg-background">
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          tabIndex={-1}
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-foreground/40 lg:hidden"
+        />
+      )}
       {/* Sidebar — passes collapsed state for icon-rail mode */}
-      <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((prev) => !prev)} />
+      <Sidebar
+        open={sidebarOpen}
+        mobileView={mobileView}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+      />
 
       {/* Main area */}
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden min-h-0">
+      <div ref={mainAreaRef} className="flex flex-1 flex-col min-w-0 overflow-hidden min-h-0">
         <Header sidebarOpen={sidebarOpen} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
         {/* Announcement banner — only rendered when there is content */}
         <AnnouncementBanner />
 
-        <main className="relative flex-1 min-w-0 overflow-y-auto p-6 bg-slate-100 dark:bg-[#060b13]">
+        <main className="relative flex-1 min-h-0 min-w-0 overflow-y-auto p-3 sm:p-6 bg-background">
           {/* Page content — skeleton on navigation, real content otherwise */}
           {isSkeleton ? (
             <PageSkeleton key={`skeleton-${pathname}`} />

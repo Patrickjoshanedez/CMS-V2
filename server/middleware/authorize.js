@@ -309,6 +309,16 @@ export const verifyAdmSignatoryRole = () => {
 
       // 2. Course Instructor
       if (role === 'instructor' || (tier === 1 && req.user.role === ROLES.INSTRUCTOR)) {
+        if (!isSecretaryEndorsed) {
+          return next(
+            new AppError(
+              'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+              403,
+              'SECRETARY_ENDORSEMENT_REQUIRED',
+            ),
+          );
+        }
+
         const section = project.sectionId || project.teamId?.sectionId;
         const sectionInstructorId = (section?.instructorId || section?.createdBy)?.toString();
         const isDesignated =

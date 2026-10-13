@@ -26,6 +26,7 @@ const { mockProject, mockAuthState } = vi.hoisted(() => ({
       fullName: 'Glaiza Mae A. Libe',
     },
     capstonePhase: 2,
+    secretaryId: 'sec-user-1',
     projectStatus: 'active',
     admStatus: 'pending_secretary_endorsement',
     admSignatures: {
@@ -197,8 +198,8 @@ describe('SecretaryReviewPage Studio', () => {
   it('switches to Action Done Matrix tab and renders remarks extracted from minutes', () => {
     const view = renderComponent();
 
-    const admTabBtn = view.container.querySelector('[data-testid="tab-adm-matrix"]');
-    expect(admTabBtn).toBeDefined();
+    const admTabBtn = view.container.querySelector('[data-testid="adm-view-tab-adm"]');
+    expect(admTabBtn).not.toBeNull();
 
     act(() => {
       admTabBtn.click();
@@ -237,5 +238,21 @@ describe('SecretaryReviewPage Studio', () => {
     expect(document.body.textContent).toContain('Confirm & Sign Endorsement');
 
     view.unmount();
+  });
+
+  it('keeps the minutes sheet read-only and hides secretary actions for faculty who are not the appointed secretary', () => {
+    const original = mockProject.secretaryId;
+    mockProject.secretaryId = 'someone-else';
+    const view = renderComponent();
+
+    expect(view.container.textContent).not.toContain('Upload Secretary Minutes (OCR Scan)');
+    expect(
+      view.container
+        .querySelector('[data-testid="secretary-minutes-fieldset"]')
+        .getAttribute('data-readonly'),
+    ).toBe('true');
+
+    view.unmount();
+    mockProject.secretaryId = original;
   });
 });

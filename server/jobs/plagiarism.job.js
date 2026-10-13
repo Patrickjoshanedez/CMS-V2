@@ -661,8 +661,13 @@ async function processJob(job) {
   let legacyMatchedSources = [];
 
   // If lexical overlap across entire candidate corpus is strictly less than 5%,
-  // short-circuit immediately to bypass heavy neural vector inference.
-  const bypassNeuralPipeline = lexicalScore < 5 && !job.data?.forceNeuralScan;
+  // short-circuit immediately to bypass heavy neural vector inference,
+  // UNLESS explicitly forced or this is a final submission requiring deep vector clearance.
+  const isFinalSubmissionType =
+    Boolean(job.data?.isFinalSubmission) ||
+    Boolean(job.data?.forceNeuralScan) ||
+    ['final_academic', 'final_journal'].includes(String(type || '').toLowerCase());
+  const bypassNeuralPipeline = lexicalScore < 5 && !isFinalSubmissionType;
 
   if (bypassNeuralPipeline) {
     console.log(
@@ -755,6 +760,10 @@ async function processJob(job) {
   const isManualReview = hstReport ? Boolean(hstReport.manual_review_required) : false;
   const finalWarningFlag = isCriticalWarning || isManualReview || similarityPercentage >= 50;
 
+  const scanCoverage = bypassNeuralPipeline ? 'lexical_only' : isFallback ? 'degraded' : 'full';
+
+  const semanticStatus = bypassNeuralPipeline ? 'skipped' : isFallback ? 'failed' : 'completed';
+
   const fullReport = {
     submissionId,
     overallScore: similarityPercentage,
@@ -765,6 +774,8 @@ async function processJob(job) {
     matchedWords: Number(result?.matchedWords || 0),
     textMatches: effectiveTextMatches,
     matches: normalizedMatches,
+    scanCoverage,
+    semanticStatus,
     scanType: bypassNeuralPipeline
       ? 'lexical_prefilter_cleared'
       : isFallback
@@ -788,6 +799,9 @@ async function processJob(job) {
   await Submission.findByIdAndUpdate(submissionId, {
     originalityScore,
     'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+    'plagiarismResult.scanCoverage': scanCoverage,
+    'plagiarismResult.semanticStatus': semanticStatus,
+    'plagiarismResult.scanType': fullReport.scanType,
     'plagiarismResult.originalityScore': originalityScore,
     'plagiarismResult.overallScore': similarityPercentage,
     'plagiarismResult.textMatches': effectiveTextMatches,
@@ -802,6 +816,8 @@ async function processJob(job) {
       $set: {
         taskId: String(job.id),
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage,
+        semanticStatus,
         overallScore: similarityPercentage,
         similarityPercentage,
         textMatches: effectiveTextMatches,

@@ -11,6 +11,12 @@ import {
 import AppError from '../../utils/AppError.js';
 import env from '../../config/env.js';
 
+/** Normalise a requested milestone to one of the three ADM milestones (final defense → CAPSTONE_3). */
+function resolveAdmMilestone(requested) {
+  if (requested === 'CAPSTONE_4') return 'CAPSTONE_3';
+  return ['CAPSTONE_1', 'CAPSTONE_2', 'CAPSTONE_3'].includes(requested) ? requested : 'CAPSTONE_2';
+}
+
 /**
  * Fallback parser when Ollama is unavailable or returns non-JSON text.
  * Parses lines looking for Panelist names and bulleted remarks/suggestions.
@@ -174,21 +180,24 @@ export const extractMinutesToADM = async (req, res, next) => {
     // Automatically consolidate repeated panel rows into multi-bulleted rows per panelist
     parsedData = consolidateInstitutionalADMRows(parsedData);
 
-    // 3. Update the Project Document's ADM array field
-    const project = await Project.findByIdAndUpdate(
-      projectId,
-      {
-        $set: {
-          actionDoneMatrix: parsedData,
-          admStatus: 'pending_developer_action',
-        },
-      },
-      { new: true },
-    );
-
-    if (!project) {
+    const targetMilestone = resolveAdmMilestone(req.body.milestone);
+    const existingProject = await Project.findById(projectId);
+    if (!existingProject) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
+
+    // 3. Update only the target milestone's ADM rows
+    existingProject.actionDoneMatrix = mergeMilestoneAdmRows(
+      existingProject.actionDoneMatrix,
+      parsedData,
+      targetMilestone,
+    );
+    existingProject.admStatus = 'pending_developer_action';
+    if (typeof existingProject.markModified === 'function') {
+      existingProject.markModified('actionDoneMatrix');
+    }
+    const project = await existingProject.save();
+    await invalidateProjectCache(project._id);
 
     try {
       emitToRoom(`project:${project._id}`, 'adm:row_created', {
@@ -240,6 +249,48 @@ export const extractMinutesToADM = async (req, res, next) => {
 };
 
 /**
+ * Replace only the target milestone's ADM rows with freshly parsed rows. Rows of other milestones
+ * are untouched, and student progress (action taken, pages, status) on a row for the same panelist
+ * is carried over so re-syncing minutes never wipes work already done.
+ */
+export function mergeMilestoneAdmRows(existingRows, incomingRows, milestone) {
+  const existing = Array.isArray(existingRows) ? existingRows : [];
+  const toPlain = (row) => (typeof row?.toObject === 'function' ? row.toObject() : { ...row });
+  const kept = existing.filter((row) => (row.milestone || 'CAPSTONE_1') !== milestone);
+  const previous = new Map(
+    existing
+      .filter((row) => (row.milestone || 'CAPSTONE_1') === milestone)
+      .map((row) => [
+        String(row.panelName || '')
+          .trim()
+          .toLowerCase(),
+        toPlain(row),
+      ]),
+  );
+
+  const merged = incomingRows.map((row) => {
+    const prior = previous.get(
+      String(row.panelName || '')
+        .trim()
+        .toLowerCase(),
+    );
+    if (!prior) return { ...row, milestone };
+    return {
+      ...row,
+      _id: prior._id,
+      actionDone: prior.actionDone || row.actionDone || '',
+      pageNumbers: prior.pageNumbers || row.pageNumbers || '',
+      status: prior.status || row.status,
+      isLocked: prior.isLocked,
+      signatures: prior.signatures,
+      milestone,
+    };
+  });
+
+  return [...kept.map(toPlain), ...merged];
+}
+
+/**
  * Save / Synchronize Secretary Minutes Form into Project ADM & Defense Minutes.
  */
 export const saveSecretaryMinutes = async (req, res, next) => {
@@ -269,77 +320,30 @@ export const saveSecretaryMinutes = async (req, res, next) => {
       final: 'CAPSTONE_4',
     };
     const milestone =
-      minutesData?.milestone || milestoneMap[minutesData?.defenseType] || 'CAPSTONE_2';
+      req.body.milestone ||
+      minutesData?.milestone ||
+      milestoneMap[minutesData?.defenseType] ||
+      'CAPSTONE_2';
+    // ADM milestones are CAPSTONE_1, 2, 3 (final defense lives in CAPSTONE_3)
+    const targetMilestoneKey = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone;
 
-    // 1. Save Secretary Minutes Document Model to Project
+    // 1. Save Secretary Minutes Document Model to Project (scoped by milestone)
     if (minutesData) {
       project.secretaryMinutes = minutesData;
       if (!project.secretaryMinutesByMilestone) {
         project.secretaryMinutesByMilestone = {};
       }
-      project.secretaryMinutesByMilestone[milestone] = minutesData;
+      project.secretaryMinutesByMilestone[targetMilestoneKey] = minutesData;
       if (typeof project.markModified === 'function') {
         project.markModified('secretaryMinutes');
         project.markModified('secretaryMinutesByMilestone');
       }
-
-      // 2. Consistent Digital Signature with ADM
-      if (minutesData.signature?.signed) {
-        const secSig = {
-          endorsed: true,
-          endorsedAt: minutesData.signature.signedAt || new Date(),
-          signatoryName:
-            minutesData.signature.signatoryName ||
-            minutesData.secretarySignatoryName ||
-            minutesData.secretary ||
-            'Committee Secretary',
-          notes:
-            minutesData.overallRecommendations ||
-            'Official Secretary Minutes verified and digitally signed.',
-          signatureDataUrl: minutesData.signature.signatureDataUrl || null,
-          userId: req.user?._id || minutesData.signature.userId || null,
-        };
-
-        if (!project.admSignatures) {
-          project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
-        }
-        project.admSignatures.secretary = secSig;
-
-        if (!project.admSignaturesByMilestone) {
-          project.admSignaturesByMilestone = {};
-        }
-        const targetMilestoneKey = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone; // ADM milestones are CAPSTONE_1, 2, 3
-        if (!project.admSignaturesByMilestone[targetMilestoneKey]) {
-          project.admSignaturesByMilestone[targetMilestoneKey] = {
-            adviser: {},
-            instructor: {},
-            panelists: [],
-            chair: {},
-          };
-        }
-        project.admSignaturesByMilestone[targetMilestoneKey].secretary = secSig;
-
-        if (typeof project.markModified === 'function') {
-          project.markModified('admSignatures');
-          project.markModified('admSignaturesByMilestone');
-        }
-
-        try {
-          emitToRoom(`project:${project._id}`, 'adm:endorsed', {
-            projectId: project._id,
-            milestone: targetMilestoneKey,
-            admSignatures: project.admSignatures,
-            admSignaturesByMilestone: project.admSignaturesByMilestone,
-          });
-        } catch {
-          // non-fatal
-        }
-      }
+      // Signing the minutes does not endorse the ADM: endorsement is a separate gate that
+      // requires every remark to be addressed by the student team (see endorseADMBySecretary).
     }
 
     // 3. Convert panelRemarks into ADM rows if requested (1 row per panel member with multi-bullet suggestions)
     if (syncToADM && Array.isArray(minutesData?.panelRemarks)) {
-      const targetMilestoneKey = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone;
       const panelGroupMap = new Map();
 
       for (const panel of minutesData.panelRemarks) {
@@ -383,7 +387,11 @@ export const saveSecretaryMinutes = async (req, res, next) => {
       }
 
       if (admRows.length > 0) {
-        project.actionDoneMatrix = admRows;
+        project.actionDoneMatrix = mergeMilestoneAdmRows(
+          project.actionDoneMatrix,
+          admRows,
+          targetMilestoneKey,
+        );
         project.admStatus = 'pending_developer_action';
         if (typeof project.markModified === 'function') {
           project.markModified('actionDoneMatrix');

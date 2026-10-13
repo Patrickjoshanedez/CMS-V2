@@ -359,20 +359,22 @@ export default function RevisionDiffViewer({
   }
 
   return (
-    <div className="flex flex-col h-full bg-background select-text" ref={containerRef}>
+    <div className="flex min-w-0 flex-col h-full bg-background select-text" ref={containerRef}>
       {/* ── Top Bar: Comparison Metadata & Granularity Selector ── */}
-      <div className="shrink-0 border-b border-border/60 bg-muted/20 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div className="shrink-0 border-b border-border/60 bg-muted/20 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
         {/* Left: Versions & Comparison Selector */}
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 py-1 text-xs">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 py-1 text-xs">
             <span className="text-muted-foreground font-medium">Comparing:</span>
             <span className="font-semibold text-foreground">v{current?.version}</span>
-            <span className="text-[10px] text-muted-foreground">({current?.fileName})</span>
+            <span className="min-w-0 max-w-full break-all text-[10px] text-muted-foreground">
+              ({current?.fileName})
+            </span>
             <ArrowRight className="h-3 w-3 text-muted-foreground" />
             <select
               value={previous?.id || ''}
               onChange={(e) => onSelectCompareVersion?.(e.target.value)}
-              className="bg-transparent font-semibold text-primary cursor-pointer focus:outline-none border-b border-primary/40 hover:border-primary pb-0.5 text-xs"
+              className="min-w-0 max-w-full min-h-[44px] sm:min-h-0 bg-transparent font-semibold text-primary cursor-pointer focus:outline-none border-b border-primary/40 hover:border-primary pb-0.5 text-xs"
               aria-label="Select previous version to compare with"
             >
               {availableVersions.map((v) => (
@@ -384,7 +386,7 @@ export default function RevisionDiffViewer({
           </div>
 
           {/* Granularity Toggle */}
-          <div className="hidden md:flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-[11px]">
+          <div className="flex flex-wrap items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-[11px]">
             <button
               type="button"
               onClick={() => setGranularity('words')}
@@ -472,8 +474,8 @@ export default function RevisionDiffViewer({
       </div>
 
       {/* ── Sub-header: Search & Quick Filters ── */}
-      <div className="shrink-0 border-b border-border/40 bg-muted/10 px-3 sm:px-4 py-1.5 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2 flex-1 max-w-sm">
+      <div className="shrink-0 border-b border-border/40 bg-muted/10 px-3 sm:px-4 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
+        <div className="flex min-w-0 items-center gap-2 flex-1 max-w-sm">
           <div className="relative w-full">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
@@ -481,7 +483,7 @@ export default function RevisionDiffViewer({
               placeholder="Search in revisions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 pr-7 py-1 text-xs rounded-md border border-border/60 bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full min-h-[44px] sm:min-h-0 pl-7 pr-7 py-1 text-xs rounded-md border border-border/60 bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
             />
             {searchQuery && (
               <button

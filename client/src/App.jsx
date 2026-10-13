@@ -176,10 +176,11 @@ const PROTECTED_ROUTES = [
     Component: SecretaryReviewPage,
     allowedRoles: [ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER],
   },
-  // Archive & Reports
   { path: '/archive', Component: ArchiveSearchPage },
   { path: '/archive/document/:projectId', Component: ArchiveDocumentViewerPage },
   { path: '/plagiarism-checker', Component: ArchivePlagiarismCheckerPage },
+  { path: '/plagiarism', Component: ArchivePlagiarismCheckerPage },
+  { path: '/archive/plagiarism', Component: ArchivePlagiarismCheckerPage },
   {
     path: '/archive/upload/capstone',
     Component: ExistingCapstoneUploadPage,

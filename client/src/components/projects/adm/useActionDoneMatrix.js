@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { ROLES, PANEL_ROLES } from '@cms/shared';
 import { getSocket, connectSocket } from '@/services/socket';
 import { toast } from 'sonner';
+import { isAppointedSecretary } from './admWorkflow';
 
 /**
  * Format populated user full name
@@ -370,8 +371,8 @@ export function useActionDoneMatrix({
   user: userProp,
   isFaculty: isFacultyProp = false,
   isStudent: isStudentProp = false,
-  isSecretary: isSecretaryProp = false,
   initialMilestone,
+  initialView = 'adm',
   onRefresh,
 } = {}) {
   const storeUser = useAuthStore((s) => s?.user);
@@ -380,7 +381,7 @@ export function useActionDoneMatrix({
   const isStudent = isStudentProp || user?.role === ROLES?.STUDENT;
 
   // Navigation tabs: 'adm' (Action Done Matrix) or 'minutes' (Secretary Minutes Form)
-  const [activeViewTab, setActiveViewTab] = useState('adm');
+  const [activeViewTab, setActiveViewTab] = useState(initialView === 'minutes' ? 'minutes' : 'adm');
 
   // Multi-page document sheet state (consistent with Secretary Minutes)
   const [rowPageMap, setRowPageMap] = useState({}); // { [rowId]: pageIndex }
@@ -659,16 +660,18 @@ export function useActionDoneMatrix({
       }
     };
 
+    const handleRefresh = () => onRefresh?.();
+
     s.on('adm:row_updated', handleRowUpdated);
     s.on('adm:row_created', handleRowCreated);
     s.on('adm:row_deleted', handleRowDeleted);
     s.on('adm:signed', handleSigned);
     s.on('adm:endorsed', handleEndorsed);
     s.on('adm:metadata_updated', handleMetadataUpdated);
-    s.on('defense:minutes_updated', () => onRefresh?.());
-    s.on('project:defense_scheduled', () => onRefresh?.());
-    s.on('project:phase_advanced', () => onRefresh?.());
-    s.on('project:updated', () => onRefresh?.());
+    s.on('defense:minutes_updated', handleRefresh);
+    s.on('project:defense_scheduled', handleRefresh);
+    s.on('project:phase_advanced', handleRefresh);
+    s.on('project:updated', handleRefresh);
 
     return () => {
       s.off('adm:row_updated', handleRowUpdated);
@@ -677,10 +680,10 @@ export function useActionDoneMatrix({
       s.off('adm:signed', handleSigned);
       s.off('adm:endorsed', handleEndorsed);
       s.off('adm:metadata_updated', handleMetadataUpdated);
-      s.off('defense:minutes_updated');
-      s.off('project:defense_scheduled');
-      s.off('project:phase_advanced');
-      s.off('project:updated');
+      s.off('defense:minutes_updated', handleRefresh);
+      s.off('project:defense_scheduled', handleRefresh);
+      s.off('project:phase_advanced', handleRefresh);
+      s.off('project:updated', handleRefresh);
     };
   }, [project?._id, onRefresh]);
 
@@ -837,14 +840,9 @@ export function useActionDoneMatrix({
 
   const secretaryIdStr = (secretary?._id || secretary)?.toString();
   const userIdStr = user?._id?.toString();
+  // Only the appointed secretary gets secretary actions; the server enforces the same rule.
   const isUserSecretary = Boolean(
-    isSecretaryProp ||
-    (userIdStr &&
-      (secretaryIdStr === userIdStr ||
-        rawPanelists.some((p) => {
-          const pid = (p.userId?._id || p.userId || p._id)?.toString();
-          return pid === userIdStr && (p.role === PANEL_ROLES?.SECRETARY || p.role === 'secretary');
-        }))),
+    isAppointedSecretary(project, user) || (userIdStr && secretaryIdStr === userIdStr),
   );
   const adviserIdStr = (adviser?._id || adviser)?.toString();
   const isUserAdviser = Boolean(userIdStr && adviserIdStr === userIdStr);

@@ -6,7 +6,6 @@ import {
   Award,
   ChevronDown,
   CheckCircle2,
-  Clock,
   ShieldCheck,
   Code2,
 } from 'lucide-react';
@@ -16,6 +15,7 @@ import { cn } from '@/lib/utils';
 import InteractiveGanttChart from './InteractiveGanttChart';
 import PrototypeShowcaseAndDemo from './PrototypeShowcaseAndDemo';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
+import { resolveAdmStatus } from './adm/admWorkflow';
 import EvaluationPanel from './EvaluationPanel';
 
 /**
@@ -46,12 +46,9 @@ export default function Capstone2CollapsibleSections({
     }));
   };
 
-  const admRows = project?.actionDoneMatrix || [];
-  const capstone2AdmRows = admRows.filter(
-    (r) => !r.milestone || r.milestone === 'CAPSTONE_2' || r.milestone === 'capstone_2',
-  );
-  const isAdmApproved = project?.admStatus === 'approved';
-  const isSecretaryEndorsed = Boolean(project?.admSignatures?.secretary?.endorsed);
+  const admStatus = resolveAdmStatus(project, 'CAPSTONE_2');
+  const isAdmApproved = admStatus.key === 'approved';
+  const isSecretaryEndorsed = admStatus.secretaryEndorsed;
 
   return (
     <div className="space-y-3" data-testid="capstone2-collapsible-workspace">
@@ -162,7 +159,7 @@ export default function Capstone2CollapsibleSections({
                   variant="outline"
                   className="font-mono text-[10px] text-muted-foreground border-border/60"
                 >
-                  {capstone2AdmRows.length} Items
+                  {admStatus.total} Items
                 </Badge>
                 {isAdmApproved ? (
                   <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold gap-1">

@@ -323,4 +323,59 @@ describe('PlagiarismReportPage', () => {
 
     expect(onBackMock).toHaveBeenCalledTimes(1);
   });
+
+  it('renders default Full Dual-Engine coverage badge', () => {
+    act(() => {
+      root.render(<PlagiarismReportPage />);
+    });
+
+    const badge = container.querySelector('[data-testid="scan-coverage-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toBe('Full Dual-Engine');
+    expect(container.querySelector('[data-testid="scan-coverage-degraded-banner"]')).toBeNull();
+  });
+
+  it('renders Lexical Only coverage badge and banner when scanCoverage is lexical_only', () => {
+    act(() => {
+      root.render(
+        <PlagiarismReportPage
+          reportData={{
+            overallScore: 2,
+            scanCoverage: 'lexical_only',
+            semanticStatus: 'skipped',
+            extractedText: 'low overlap sample',
+            textMatches: [],
+          }}
+        />,
+      );
+    });
+
+    const badge = container.querySelector('[data-testid="scan-coverage-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('Lexical Only');
+    expect(container.querySelector('[data-testid="scan-coverage-lexical-banner"]')).not.toBeNull();
+    expect(container.textContent).toContain('Fast-Path Lexical Clearance');
+  });
+
+  it('renders Degraded coverage badge and banner when scanCoverage is degraded', () => {
+    act(() => {
+      root.render(
+        <PlagiarismReportPage
+          reportData={{
+            overallScore: 12,
+            scanCoverage: 'degraded',
+            semanticStatus: 'failed',
+            extractedText: 'sample text',
+            textMatches: [],
+          }}
+        />,
+      );
+    });
+
+    const badge = container.querySelector('[data-testid="scan-coverage-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('Degraded');
+    expect(container.querySelector('[data-testid="scan-coverage-degraded-banner"]')).not.toBeNull();
+    expect(container.textContent).toContain('cannot be used for final defense clearance');
+  });
 });

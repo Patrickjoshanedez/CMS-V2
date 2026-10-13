@@ -1,0 +1,20 @@
+{
+  "active_scenario_id": "2026-10-13_cms-v2-evidence-cleanup-and-trust-restoration",
+  "completed_subgoals": [
+    "record_working_tree_and_startup_preflight",
+    "investigate_and_repair_session_memory_index",
+    "reconcile_archival_and_institutional_workflow",
+    "audit_and_reconcile_governance_files",
+    "build_durable_evidence_inventory_and_authority_index",
+    "separate_and_version_benchmarks_and_datasets",
+    "add_prevention_checks_and_drift_safeguards",
+    "verify_targeted_and_comprehensive_quality_battery",
+    "capture_playwright_visual_audit_evidence",
+    "deliver_cleanup_audit_report_and_dual_persistence"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "All subgoals completed: session memory index repaired (213 sessions), archival workflow hardened with passing defense verdict & ADM secretary endorsement gates, benchmarks separated & versioned, authoritative index & evidence inventory published, 23-point automated evidence verification suite implemented, and full quality gate battery + Playwright authentic visual audit passed.",
+  "progress_delta": 8,
+  "loop_count": 0,
+  "state": "COMPLETED"
+}

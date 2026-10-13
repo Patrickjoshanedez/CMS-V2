@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
 import { useUploadChapter } from '@/hooks/useSubmissions';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 const MAX_FILE_SIZE_MB = 25;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -100,15 +101,7 @@ export default function UploadChapterModal({
   }, [isOpen, initialChapter, isCap2ADMApproved]);
 
   // Handle escape key to close
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  const modalRef = useModalAccessibility({ open: isOpen, onClose });
 
   const uploadMutation = useUploadChapter({
     onSuccess: () => {
@@ -245,11 +238,12 @@ export default function UploadChapterModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+      ref={modalRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="upload-chapter-modal-title"
     >
-      <div className="relative flex flex-col w-full max-w-xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-2xl overflow-hidden">
+      <div className="relative flex flex-col w-full max-w-xl max-h-[calc(100dvh-2rem)] rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-3">
@@ -298,7 +292,10 @@ export default function UploadChapterModal({
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 pt-4 pr-1">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 overflow-y-auto space-y-4 pt-4 pr-1"
+        >
           {/* Adviser Remarks Callout (if revising and feedback is present) */}
           {isLocked && adviserFeedback && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-1.5">

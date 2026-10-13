@@ -91,13 +91,16 @@ The runner filters raw Playwright logs through a deduplication filter:
 ## 6. On-Demand Reference Specifications (Level 3)
 
 Load reference specifications explicitly only when needed for the active task:
-* [`@references/aesthetic-benchmarks.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/aesthetic-benchmarks.md): Linear 8pt grid, Stripe tabular numbers & subtle badges, Vercel negative space.
-* [`@references/common-layout-pitfalls.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/common-layout-pitfalls.md): Hydration mismatches, mobile flex squishing, FOIT, and radius warping.
-* [`@references/token-compression.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/token-compression.md): Minified Playwright JSON schema & LLMLingua-2 DOM tuning.
-* [`@references/design-tokens.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/design-tokens.md): Spatial scales, 4-tier color layers, WCAG 2.2 contrast, nested radius math ($R_{\text{inner}} = R_{\text{outer}} - \text{Padding}$).
-* [`@references/state-machine.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/state-machine.md): Discriminated unions, enterprise form reducer, optimistic rollback mutations.
-* [`@references/a11y-wcag.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/a11y-wcag.md): Focus traps (`useFocusTrap`), roving tabindex, 44x44px touch geometry.
-* [`@references/security-xss.md`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/skills/frontend-mythos/references/security-xss.md): DOMPurify sanitization, rel="noopener noreferrer", protocol allowlisting.
+* [`@references/aesthetic-benchmarks.md`](references/aesthetic-benchmarks.md): Linear 8pt grid, Stripe tabular numbers & subtle badges, Vercel negative space.
+* [`@references/common-layout-pitfalls.md`](references/common-layout-pitfalls.md): Hydration mismatches, mobile flex squishing, FOIT, and radius warping.
+* [`@references/token-compression.md`](references/token-compression.md): Minified Playwright JSON schema & LLMLingua-2 DOM tuning.
+* [`@references/design-tokens.md`](references/design-tokens.md): Spatial scales, 4-tier color layers, WCAG 2.2 contrast, nested radius math ($R_{\text{inner}} = R_{\text{outer}} - \text{Padding}$).
+* [`@references/state-machine.md`](references/state-machine.md): Discriminated unions, enterprise form reducer, optimistic rollback mutations.
+* [`@references/a11y-wcag.md`](references/a11y-wcag.md): Focus traps (`useFocusTrap`), roving tabindex, 44x44px touch geometry.
+* [`@references/security-xss.md`](references/security-xss.md): DOMPurify sanitization, rel="noopener noreferrer", protocol allowlisting.
+
+### Responsive evidence contract
+Capture real application components at 1440x900 and 390x844 in both themes. Record fixtures and rendered states; empty states do not certify populated tables or loaded manuscripts. Inspect clipped controls and intentional local scrolling even when root scrollWidth fits. Keep failing fixture evidence separate from corrected captures. When sandbox network isolation blocks browser access, run the local server and browser in the same permitted execution environment. See [current scoped layout audit](../../../docs/RESPONSIVE_LAYOUT_AUDIT.md) for remaining coverage.
 
 ---
 

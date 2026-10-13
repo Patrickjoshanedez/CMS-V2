@@ -1880,6 +1880,13 @@ class TeamService {
       const panelists = await User.find({ _id: { $in: panelistIds } }).select(
         '_id firstName lastName role',
       );
+      if (panelists.length !== panelistIds.length) {
+        throw new AppError(
+          'One or more specified panelists were not found.',
+          400,
+          'INVALID_PANELIST',
+        );
+      }
       for (const p of panelists) {
         if (p.role === ROLES.INSTRUCTOR || p.role === 'instructor') {
           throw new AppError(
