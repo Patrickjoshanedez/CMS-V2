@@ -64,7 +64,6 @@ export default function ArchivePlagiarismCheckerPage() {
     scanError,
     reportData,
     elapsedSeconds,
-    semanticModel,
     setFile,
     setScanError,
     startArchiveScan,
@@ -149,14 +148,14 @@ export default function ArchivePlagiarismCheckerPage() {
     <DashboardLayout>
       {/* Responsive layout: hero + upload form */}
       <div className="mx-auto max-w-5xl">
-        <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:gap-8 items-start">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-8 items-start">
           {/* Top Left on Desktop / Step 1 on Mobile: Scan Hero */}
-          <div className="order-1 lg:col-start-1 lg:row-start-1">
-            <ScanHero semanticModel={semanticModel} />
+          <div className="order-1 xl:col-start-1 xl:row-start-1">
+            <ScanHero />
           </div>
 
           {/* Top Right on Desktop / Step 2 on Mobile (Prioritized above fold): Upload Card */}
-          <div className="order-2 lg:col-start-2 lg:row-start-1">
+          <div className="order-2 xl:col-start-2 xl:row-start-1">
             <div className="rounded-xl border border-border/70 bg-card p-6 shadow-xs">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
               <p className="mb-4 text-xs text-muted-foreground">
@@ -195,7 +194,7 @@ export default function ArchivePlagiarismCheckerPage() {
           </div>
 
           {/* Bottom Left on Desktop / Step 3 on Mobile: Collapsible How It Works */}
-          <div className="order-3 lg:col-start-1 lg:row-start-2">
+          <div className="order-3 xl:col-start-1 xl:row-start-2">
             <div className="rounded-xl border border-border/70 bg-card shadow-xs overflow-hidden transition-all">
               <button
                 type="button"
@@ -232,13 +231,13 @@ export default function ArchivePlagiarismCheckerPage() {
                       },
                       {
                         step: '02',
-                        title: 'Dual-Engine Comparison',
-                        desc: 'Runs Winnowing lexical fingerprinting and BAAI/bge-m3 dense semantic embeddings against the institutional archive.',
+                        title: 'Compare with the Archive',
+                        desc: 'The checker looks for matching text and similar passages in archived research.',
                       },
                       {
                         step: '03',
-                        title: 'Review Originality Intelligence',
-                        desc: 'Inspect Turnitin-style annotated highlights, source breakdown, and overall similarity index.',
+                        title: 'Review Matches and Sources',
+                        desc: 'Read highlighted passages, check their sources, and review the similarity score.',
                       },
                     ].map(({ step, title, desc }) => (
                       <li key={step} className="flex items-start gap-3">
@@ -258,7 +257,7 @@ export default function ArchivePlagiarismCheckerPage() {
           </div>
 
           {/* Bottom Right on Desktop / Step 4 on Mobile: Disclaimer */}
-          <div className="order-4 lg:col-start-2 lg:row-start-2">
+          <div className="order-4 xl:col-start-2 xl:row-start-2">
             <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">

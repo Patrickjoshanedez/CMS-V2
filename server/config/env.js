@@ -654,7 +654,7 @@ const env = Object.freeze({
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 
   // OTP
-  OTP_EXPIRES_MINUTES: parseInt(process.env.OTP_EXPIRES_MINUTES, 10) || 10,
+  OTP_EXPIRES_MINUTES: parseInt(process.env.OTP_EXPIRES_MINUTES, 10) || 5,
 
   // Email
   SMTP_HOST: process.env.SMTP_HOST || 'smtp.mailtrap.io',

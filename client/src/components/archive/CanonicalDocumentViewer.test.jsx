@@ -35,6 +35,19 @@ vi.mock('@/components/submissions/PdfViewerWorkspace', () => ({
   ),
 }));
 
+vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
+  default: ({ fileBlob, fileName, chapterTitle, showArchiveIdentity }) => (
+    <div
+      data-testid="canonical-manuscript-viewer"
+      data-file-type={fileBlob?.type || ''}
+      data-file-name={fileName || ''}
+      data-archive-identity={String(Boolean(showArchiveIdentity))}
+    >
+      {chapterTitle}
+    </div>
+  ),
+}));
+
 describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
   let container;
   let root;
@@ -130,8 +143,8 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       // 1. Back to Search Results breadcrumb
       expect(container.textContent).toContain('Search Results');
 
-      // 2. Download PDF
-      expect(container.textContent).toContain('Download PDF');
+      // 2. Download manuscript
+      expect(container.textContent).toContain('Download Document');
 
       // 3. Cite trigger
       expect(container.textContent).toContain('Cite');
@@ -457,9 +470,10 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(drawer.textContent).toContain('Match Overview');
     });
 
-    it('toggles canvas view mode between Clean Manuscript and Integrity Highlights', async () => {
+    it('routes PDF manuscripts through the canonical reader and keeps integrity highlights available', async () => {
       api.get.mockResolvedValueOnce({
         data: new Blob(['%PDF-1.4 mock content'], { type: 'application/pdf' }),
+        headers: { 'content-type': 'application/pdf' },
       });
 
       await renderViewer({
@@ -467,7 +481,7 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
         manuscriptUrl: '/projects/archived-doc-101/manuscript',
       });
 
-      // Clean mode by default - renders iframe
+      // Clean mode by default - renders the shared document viewer
       const cleanBtn = Array.from(container.querySelectorAll('button')).find((b) =>
         b.textContent.includes('Clean Manuscript'),
       );
@@ -477,7 +491,10 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
 
       expect(cleanBtn).toBeTruthy();
       expect(integrityBtn).toBeTruthy();
-      expect(container.querySelector('iframe')).toBeTruthy();
+      const canonicalViewer = container.querySelector('[data-testid="canonical-manuscript-viewer"]');
+      expect(canonicalViewer).toBeTruthy();
+      expect(canonicalViewer.getAttribute('data-file-type')).toBe('application/pdf');
+      expect(canonicalViewer.getAttribute('data-archive-identity')).toBe('true');
       expect(container.querySelector('[data-testid="pdf-viewer-workspace"]')).toBeFalsy();
 
       // Switch to Integrity Highlights mode
@@ -487,6 +504,31 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
 
       // Now renders PdfViewerWorkspace
       expect(container.querySelector('[data-testid="pdf-viewer-workspace"]')).toBeTruthy();
+    });
+
+    it('preserves TXT manuscript type and filename in the canonical reader', async () => {
+      api.get.mockResolvedValueOnce({
+        data: new Blob(['Synthetic archived manuscript text.'], { type: 'text/plain' }),
+        headers: {
+          'content-type': 'text/plain; charset=utf-8',
+          'content-disposition': 'inline; filename="synthetic-manuscript.txt"',
+        },
+      });
+
+      await renderViewer({
+        ...mockProject,
+        manuscriptUrl: '/projects/archived-doc-101/manuscript',
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const canonicalViewer = container.querySelector('[data-testid="canonical-manuscript-viewer"]');
+      expect(canonicalViewer).toBeTruthy();
+      expect(canonicalViewer.getAttribute('data-file-type')).toBe('text/plain');
+      expect(canonicalViewer.getAttribute('data-file-name')).toBe('synthetic-manuscript.txt');
+      expect(canonicalViewer.getAttribute('data-archive-identity')).toBe('true');
+      expect(container.querySelector('iframe')).toBeFalsy();
     });
   });
 });

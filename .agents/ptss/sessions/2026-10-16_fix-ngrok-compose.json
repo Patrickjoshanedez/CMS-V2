@@ -1,0 +1,29 @@
+{
+  "session_id": "2026-10-16_fix-ngrok-compose",
+  "date": "2026-10-16T12:45:00.000Z",
+  "task_category": "infrastructure_and_tunnel_repair",
+  "task_summary": "Fixed Docker Compose ngrok tunnel setup: resolved external network naming mismatch ('cms-v2_cms_network'), isolated compose project ('cms-v2-tunnel') to prevent core stack orphan warnings, fixed token clobbering by loading .env/.env.deploy/.env.prod, removed deprecated bind_tls, copied ngrok.yml into Dockerfile with web_addr 0.0.0.0:4040, added domain sanitization and --log=stdout.",
+  "root_causes_identified": [
+    "External network name mismatch: 'networks.cms_network' was declared with 'external: true' without an explicit name, causing Docker Compose to look for 'cms_network' instead of the active 'cms-v2_cms_network' created by docker-compose.yml.",
+    "Project name collision: Without an explicit project name, docker-compose.ngrok.yml defaulted to 'cms-v2' and flagged all running core containers (client, server, mongodb, redis, minio, ollama, etc.) as orphan containers.",
+    "Environment variable clobbering: 'NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}' in the environment block clobbered tokens from .env.deploy/.env.prod with empty string if not exported in host shell.",
+    "Web inspector binding refusal: Ngrok defaulted web inspection to 127.0.0.1:4040 inside container; binding web_addr: 0.0.0.0:4040 and copying ngrok.yml into image enables access via http://localhost:4040.",
+    "Deprecated config field: Ngrok v3 rejected 'bind_tls: true' in docker/ngrok.yml during config check.",
+    "Silent logs in detached mode: Without --log=stdout, ngrok did not output tunnel connection details to docker logs."
+  ],
+  "files_modified": [
+    "docker-compose.ngrok.yml",
+    "docker/docker-compose.ngrok.yml",
+    "docker/Dockerfile.ngrok",
+    "docker/ngrok.yml",
+    "docker-compose.yml"
+  ],
+  "verification_evidence": {
+    "docker_tunnel_started": true,
+    "ngrok_tunnels_api_response": "200 OK with public tunnel active and inspector healthy",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=222, CLIENT_ENDPOINT_COUNT=202, UNMATCHED_COUNT=0",
+    "agentic_validation": "60/60 passed"
+  },
+  "skills_written": [],
+  "skills_patched": []
+}

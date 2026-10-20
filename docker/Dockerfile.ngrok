@@ -15,6 +15,9 @@ RUN apk add --no-cache curl
 # Create unprivileged working directory for config if needed
 RUN mkdir -p /etc/ngrok /var/lib/ngrok && chown -R 1000:1000 /etc/ngrok /var/lib/ngrok
 
+# Copy default config template
+COPY --chown=1000:1000 ngrok.yml /etc/ngrok/ngrok.yml
+
 USER 1000:1000
 
 # Expose internal web dashboard / inspector

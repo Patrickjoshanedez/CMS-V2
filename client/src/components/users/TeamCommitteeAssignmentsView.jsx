@@ -291,13 +291,13 @@ export default function TeamCommitteeAssignmentsView() {
     selectedPanelistIds.length + (selectedAdviserId ? 1 : 0) + (selectedSecretaryId ? 1 : 0);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 lg:space-y-8">
       {/* Page Header */}
       <div className="flex flex-col gap-1 border-b pb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Committee Assignments
-          </h2>
+          </h1>
           <Badge variant="secondary" className="text-xs font-normal">
             Faculty Coordination
           </Badge>
@@ -311,16 +311,16 @@ export default function TeamCommitteeAssignmentsView() {
       {/* ============================================================ */}
       {/* 1. CONSOLIDATED FILTER & SEARCH TOOLBAR */}
       {/* ============================================================ */}
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3 shadow-xs">
+      <div className="flex flex-col xl:flex-row items-start justify-between gap-3 rounded-lg border border-border/60 bg-card p-3 shadow-xs">
         {/* Left Side: Search + Academic Year + Section */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <div className="relative w-full min-w-0 xl:flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search team name, leader, or code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 text-xs bg-background/50 border-border/60"
+              className="pl-8 min-h-11 text-base sm:text-sm bg-background/50 border-border/60"
             />
           </div>
 
@@ -330,7 +330,7 @@ export default function TeamCommitteeAssignmentsView() {
               setAcademicYear(e.target.value);
               setSectionId('');
             }}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px]"
+            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px]"
           >
             <option value="">All Academic Years</option>
             {years.map((year) => (
@@ -344,7 +344,7 @@ export default function TeamCommitteeAssignmentsView() {
             value={sectionId}
             disabled={!academicYear}
             onChange={(e) => setSectionId(e.target.value)}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px] disabled:opacity-50"
+            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px] disabled:opacity-50"
           >
             <option value="">All Sections</option>
             {sections.map((sec) => (
@@ -358,7 +358,7 @@ export default function TeamCommitteeAssignmentsView() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[130px]"
+            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[130px]"
           >
             <option value="all">All Statuses</option>
             <option value="needs-assignment">Needs Assignment</option>
@@ -372,7 +372,7 @@ export default function TeamCommitteeAssignmentsView() {
           <select
             value={selectedTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[220px] max-w-xs"
+            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[220px] max-w-xs"
           >
             {filteredTeams.length === 0 ? (
               <option value="">No teams available</option>
@@ -421,11 +421,11 @@ export default function TeamCommitteeAssignmentsView() {
       {/* 2. MAIN WORKSPACE GRID (1 COL LEFT / 2 COLS RIGHT) */}
       {/* ============================================================ */}
       {selectedTeam && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* ========================================================== */}
           {/* LEFT COLUMN: TEAM PROFILE & MEMBER ROSTER (1 COLUMN) */}
           {/* ========================================================== */}
-          <div className="space-y-6 lg:col-span-1">
+          <div className="min-w-0 space-y-6 xl:col-span-1">
             <Card className="border-border/60 shadow-xs">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -554,7 +554,7 @@ export default function TeamCommitteeAssignmentsView() {
           {/* ========================================================== */}
           {/* RIGHT COLUMN: FACULTY COMMITTEE ASSIGNMENT (2 COLUMNS) */}
           {/* ========================================================== */}
-          <div className="space-y-6 lg:col-span-2">
+          <div className="min-w-0 space-y-6 xl:col-span-2">
             {/* Prerequisite Gate Alert */}
             {!hasApprovedProject && (
               <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -593,7 +593,7 @@ export default function TeamCommitteeAssignmentsView() {
 
               <CardContent className="p-6 space-y-6">
                 {/* TOP TIER: Capstone Adviser & Committee Secretary (Grid of 2) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 min-[1500px]:grid-cols-2 gap-4">
                   {/* Capstone Adviser Card */}
                   <div className="space-y-2 rounded-lg border border-border/60 p-3.5 bg-muted/10">
                     <div className="flex items-center justify-between">
@@ -719,7 +719,7 @@ export default function TeamCommitteeAssignmentsView() {
                         Defense Panelists
                       </span>
                       <p className="text-[11px] text-muted-foreground">
-                        Assign up to 3 faculty evaluators (Lead Chair + Members).
+                        Assign 3 faculty evaluators: one lead chair and two members.
                       </p>
                     </div>
                     <Badge variant="secondary" className="text-[10px]">
@@ -744,7 +744,7 @@ export default function TeamCommitteeAssignmentsView() {
                   )}
 
                   {/* Selected Panelist Chips / Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div className="grid grid-cols-1 min-[1500px]:grid-cols-3 gap-3 pt-1">
                     {selectedPanelistIds.map((panId, index) => {
                       const panObj = facultyMap.get(panId);
                       const panName = formatFullName(panObj);

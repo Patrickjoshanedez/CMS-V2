@@ -2,7 +2,11 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Users, FileText, Code2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
+import {
+  PROJECT_STATUSES,
+  CAPSTONE_PHASES,
+  resolveWorkflowPhase,
+} from '@cms/shared';
 import CapstoneWorkflowStepper, {
   resolveCurrentStep,
   isADMApproved,
@@ -22,27 +26,31 @@ export const PHASES = [
     isComplete: (project) => Boolean(project?.teamId ?? project?.team ?? null),
   },
   {
-    key: 'capstone_1',
-    label: 'Capstone 1 (Proposal & Ch 1–3)',
+    key: 'title_proposal',
+    label: 'Title Proposals & Committee',
     icon: FileText,
-    isComplete: (project) =>
-      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_2,
+    isComplete: (project) => resolveWorkflowPhase(project) >= CAPSTONE_PHASES.PHASE_2,
+  },
+  {
+    key: 'capstone_1',
+    label: 'Capstone 1 (Chapters 1–3 & Proposal Defense)',
+    icon: FileText,
+    isComplete: (project) => resolveWorkflowPhase(project) >= CAPSTONE_PHASES.PHASE_3,
   },
   {
     key: 'capstone_2',
     label: 'Capstone 2 (System Dev & Gantt)',
     icon: Code2,
-    isComplete: (project) =>
-      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_3 &&
-      isADMApproved(project),
+    isComplete: (project) => resolveWorkflowPhase(project) >= CAPSTONE_PHASES.PHASE_4,
   },
   {
     key: 'capstone_3',
-    label: 'Capstone 3 (Final Manuscript, Journal & Archival)',
+    label: 'Capstone 3 (Final Manuscript, Defense & Archival)',
     icon: ShieldCheck,
     isComplete: (project) =>
-      (project?.projectStatus ?? project?.status) === PROJECT_STATUSES.DEFENDED ||
-      (project?.projectStatus ?? project?.status) === 'archived',
+      resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_4 &&
+      ((project?.projectStatus ?? project?.status) === PROJECT_STATUSES.DEFENDED ||
+        (project?.projectStatus ?? project?.status) === 'archived'),
   },
 ];
 
@@ -56,6 +64,7 @@ export function getActivePhaseIndex(project) {
  */
 export default function WorkflowPhaseTracker({
   project,
+  evaluationCount,
   currentStep,
   onStepClick,
   onSelectProposal,
@@ -71,6 +80,7 @@ export default function WorkflowPhaseTracker({
   return (
     <CapstoneWorkflowStepper
       project={project}
+      evaluationCount={evaluationCount}
       currentStep={currentStep}
       onStepClick={onStepClick}
       onSelectProposal={onSelectProposal}
@@ -88,6 +98,7 @@ export default function WorkflowPhaseTracker({
 
 WorkflowPhaseTracker.propTypes = {
   project: PropTypes.object,
+  evaluationCount: PropTypes.number,
   currentStep: PropTypes.number,
   onStepClick: PropTypes.func,
   onSelectProposal: PropTypes.func,

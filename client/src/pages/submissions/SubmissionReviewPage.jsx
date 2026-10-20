@@ -687,7 +687,7 @@ export default function SubmissionReviewPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* ── Top Navigation Bar ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
@@ -818,10 +818,10 @@ export default function SubmissionReviewPage() {
         </Card>
 
         {/* ── Main Content: Sidebar + Content Area ── */}
-        <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid items-start gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
           {/* ── Left Sidebar ── */}
           {/* ── Left Sidebar: Unified Review Inspector Card ── */}
-          <div className="space-y-3">
+          <div className="order-2 min-w-0 space-y-3 xl:order-1">
             <Card className="border border-border/60 bg-card shadow-xs rounded-xl overflow-hidden">
               <CardHeader className="px-4 py-3 border-b border-border/50 bg-muted/20">
                 <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground flex items-center justify-between">
@@ -975,16 +975,17 @@ export default function SubmissionReviewPage() {
           </div>
 
           {/* ── Right Content Area ── */}
-          <div className="space-y-4">
+          <div className="order-1 min-w-0 space-y-4 xl:order-2">
             {/* Custom Pill Tab Bar */}
-            <div className="flex gap-1 rounded-xl bg-muted/30 p-1 border">
+            <div role="group" aria-label="Review workspace" className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-1 rounded-xl bg-muted/30 p-1 border">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setActiveTab(id)}
+                  aria-pressed={activeTab === id || (id === 'reader' && activeTab === 'text')}
                   className={[
-                    'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200',
+                    'flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                     activeTab === id || (id === 'reader' && activeTab === 'text')
                       ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
                       : 'text-muted-foreground hover:text-foreground hover:bg-background/60',

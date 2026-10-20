@@ -261,7 +261,7 @@ function HierarchyView() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Filter by Course</Label>
               <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedCourseId}
                 onChange={(e) => {
                   setSelectedCourseId(e.target.value);
@@ -280,7 +280,7 @@ function HierarchyView() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Filter by Academic Year</Label>
               <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedAcademicYear}
                 onChange={(e) => {
                   setSelectedAcademicYear(e.target.value);
@@ -299,7 +299,7 @@ function HierarchyView() {
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Filter by Section</Label>
               <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedSectionId}
                 onChange={(e) => setSelectedSectionId(e.target.value)}
               >
@@ -597,7 +597,7 @@ function HierarchyView() {
                             .filter(Boolean)
                             .join(' ')}
                         </p>
-                        <p className="text-muted-foreground">{member.email}</p>
+                        <p className="break-all text-muted-foreground">{member.email}</p>
                       </div>
                     ))}
                 </div>
@@ -1068,23 +1068,23 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 max-w-[1600px] mx-auto min-w-0 w-full">
+      <div className="flex-1 space-y-6 lg:space-y-8 max-w-7xl mx-auto min-w-0 w-full">
         {/* Page header */}
         <div className="flex flex-col gap-1 border-b border-border/60 pb-5">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground">
-            Administer platform access, academic structures, and role-based permissions.
+            Manage academic structures, user accounts, and access.
           </p>
         </div>
 
         {/* Primary Sub-Navigation: Horizontal Pill Tabs */}
         <Tabs value={activePanel} onValueChange={setActivePanel} className="space-y-6">
-          <TabsList className="bg-muted/40 p-1 border border-border/60 rounded-lg inline-flex h-auto">
-            <TabsTrigger value="hierarchy" className="gap-2 text-xs">
+          <TabsList className="bg-muted/40 p-1 border border-border/60 rounded-lg grid grid-cols-2 sm:inline-flex h-auto">
+            <TabsTrigger value="hierarchy" className="min-h-11 min-w-0 gap-2 whitespace-normal text-xs sm:text-sm">
               <FolderTree className="h-3.5 w-3.5" /> Academic Hierarchy
             </TabsTrigger>
-            <TabsTrigger value="rbac" className="gap-2 text-xs">
-              <Shield className="h-3.5 w-3.5" /> Role Management (RBAC)
+            <TabsTrigger value="rbac" className="min-h-11 min-w-0 gap-2 whitespace-normal text-xs sm:text-sm">
+              <Shield className="h-3.5 w-3.5" /> Account Roles
             </TabsTrigger>
           </TabsList>
 
@@ -1093,7 +1093,7 @@ export default function UsersPage() {
             <HierarchyView />
           </TabsContent>
 
-          {/* Tab 2: Role Management (RBAC) */}
+          {/* Tab 2: Account Roles */}
           <TabsContent value="rbac" className="space-y-6 min-w-0 w-full">
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1123,7 +1123,7 @@ export default function UsersPage() {
                   <Input
                     id="search"
                     placeholder="Search users by name or email..."
-                    className="pl-9 h-9 text-xs"
+                    className="pl-9 min-h-11 text-base sm:text-sm"
                     value={search}
                     onChange={handleSearch}
                   />
@@ -1137,7 +1137,7 @@ export default function UsersPage() {
                   </Label>
                   <select
                     id="roleFilter"
-                    className="h-9 w-full sm:w-[150px] rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="min-h-11 w-full sm:w-[150px] rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     value={roleFilter}
                     onChange={handleRoleFilter}
                   >

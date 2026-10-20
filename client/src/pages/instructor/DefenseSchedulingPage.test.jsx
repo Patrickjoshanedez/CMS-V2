@@ -228,7 +228,7 @@ describe('DefenseSchedulingPage', () => {
     });
 
     expect(container.textContent).toContain('Scheduling Center');
-    expect(container.textContent).toContain('Instructor Command');
+    expect(container.textContent).toContain('Schedule defenses, set submission deadlines, and review team readiness.');
 
     // KPI cards
     expect(container.textContent).toContain('Total Teams');
@@ -407,7 +407,7 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).toContain('Section / Capstone');
     expect(container.textContent).toContain('Capstone 2');
     expect(container.textContent).toContain('Capstone 1');
-    expect(container.textContent).not.toContain('Phase 2');
+    expect(container.textContent).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
   });
 
   it('displays team leader and Capstone terminology in Grid View', async () => {
@@ -427,7 +427,7 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).toContain('Yuji Itadori');
     expect(container.textContent).toContain('Capstone 2');
     expect(container.textContent).toContain('Capstone 1');
-    expect(container.textContent).not.toContain('Phase 2');
+    expect(container.textContent).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
   });
 
   it('direct drag-and-drop onto a day column schedules defense directly with 30-min slot without modal', async () => {
@@ -623,7 +623,7 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).toContain('Milestone Deadlines Modal');
   });
 
-  it('renders cascading filter dropdowns without Capstone 4 and strictly supports 4-phase capstone lifecycle', async () => {
+  it('renders the three course defense filters with Phase 4 archival included', async () => {
     await act(async () => {
       renderComponent();
     });
@@ -636,10 +636,9 @@ describe('DefenseSchedulingPage', () => {
       (o) => o.textContent,
     );
     expect(optionsText).toContain('All Stages');
-    expect(optionsText).toContain('Capstone 1 (Title Defense)');
-    expect(optionsText).toContain('Capstone 2 (Midterm Defense)');
-    expect(optionsText).toContain('Capstone 3 (Progress Defense)');
-    expect(optionsText).toContain('Final Capstone (Oral Defense)');
+    expect(optionsText).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
+    expect(optionsText).toContain('Phase 3 — Capstone 2 (System Defense)');
+    expect(optionsText).toContain('Phase 4 — Capstone 3 (Final Defense & Archival)');
 
     // Immutable requirement: Under no circumstances should "Capstone 4" be used
     expect(optionsText.some((text) => text.includes('Capstone 4'))).toBe(false);
@@ -783,21 +782,21 @@ describe('DefenseSchedulingPage', () => {
       renderComponent();
     });
 
-    // Unscheduled team EcoSort has titleStatus: null, capstonePhase: 1 -> should render 'Capstone 1: Title Proposal'
-    expect(container.textContent).toContain('Capstone 1: Title Proposal');
+    // Unscheduled team EcoSort has titleStatus: null -> pre-course topic review.
+    expect(container.textContent).toContain('Phase 1: Title Proposal Review');
 
-    // Helper logic assertions across 4 phases
+    // Topic review is pre-course; numeric phases represent the three capstone courses.
     expect(getTeamCapstoneLabel({ titleStatus: null, capstonePhase: 1 })).toBe(
-      'Capstone 1: Title Proposal',
+      'Phase 1: Title Proposal Review',
     );
     expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 2 })).toBe(
-      'Capstone 2: Midterm Defense',
+      'Phase 3: Capstone 2 System Defense',
     );
     expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 3 })).toBe(
-      'Capstone 3: Progress Defense',
+      'Phase 4: Capstone 3 Final Defense & Archival',
     );
-    expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 4 })).toBe(
-      'Capstone 4: Final Defense',
+    expect(getTeamCapstoneLabel({ workflowPhase: 4, capstonePhase: 3 })).toBe(
+      'Phase 4: Capstone 3 Final Defense & Archival',
     );
   });
 

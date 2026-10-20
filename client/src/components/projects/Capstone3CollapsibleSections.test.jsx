@@ -127,7 +127,7 @@ describe('Capstone3CollapsibleSections Component Suite', () => {
 
     expect(container.textContent).toContain('Chapters 4–5 & Final Manuscript Submissions');
     expect(container.textContent).toContain('Academic Paper & Academic Journal');
-    expect(container.textContent).toContain('Action Done Matrix (ADM v3)');
+    expect(container.textContent).toContain('Action Done Matrix (ADM v2)');
     expect(container.textContent).toContain('Final Oral Defense Evaluation & Grade Sign-Off');
   });
 

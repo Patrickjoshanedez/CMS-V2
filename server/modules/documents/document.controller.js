@@ -239,12 +239,20 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
 export const getExtractionStatus = catchAsync(async (req, res) => {
   const { jobId } = req.params;
   const redis = getRedisClient();
+  const requesterId = (req.user?._id || req.user?.id || '').toString();
+  const isPrivileged = req.user?.role === 'instructor' || req.user?.role === 'admin';
 
   if (redis) {
     try {
       const cached = await redis.get(`extraction:job:${jobId}`);
       if (cached) {
         const parsed = JSON.parse(cached);
+        if (parsed.userId && requesterId && parsed.userId.toString() !== requesterId && !isPrivileged) {
+          return res.status(HTTP_STATUS.FORBIDDEN).json({
+            success: false,
+            message: 'You do not have permission to view this extraction job.',
+          });
+        }
         return res.status(HTTP_STATUS.OK).json(parsed);
       }
     } catch (err) {
@@ -256,6 +264,12 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
   if (queue) {
     const job = await queue.getJob(jobId);
     if (job) {
+      if (job.data?.userId && requesterId && job.data.userId.toString() !== requesterId && !isPrivileged) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'You do not have permission to view this extraction job.',
+        });
+      }
       const state = await job.getState();
       const progress = job.progress || 0;
 

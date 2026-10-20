@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { AlertTriangle, CheckCircle2, Eye, Loader2, Search } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
@@ -35,7 +35,12 @@ export default function TitleSimilarityChecker({
   onScanStatusChange,
 }) {
   const [selectedProject, setSelectedProject] = useState(null);
+  const onScanStatusChangeRef = useRef(onScanStatusChange);
   const debouncedTitle = useDebounce(title, debounceMs);
+
+  useEffect(() => {
+    onScanStatusChangeRef.current = onScanStatusChange;
+  }, [onScanStatusChange]);
 
   const isDebouncing = Boolean(title && title.trim().length >= 10 && title !== debouncedTitle);
 
@@ -58,7 +63,7 @@ export default function TitleSimilarityChecker({
   // Notify parent of live clearance lifecycle and matches
   useEffect(() => {
     if (!title || title.trim().length < 10) {
-      onScanStatusChange?.({
+      onScanStatusChangeRef.current?.({
         isLoading: false,
         isFetching: false,
         isDebouncing: false,
@@ -72,7 +77,7 @@ export default function TitleSimilarityChecker({
     }
 
     if (isChecking) {
-      onScanStatusChange?.({
+      onScanStatusChangeRef.current?.({
         isLoading: true,
         isFetching: isFetching || isDebouncing,
         isDebouncing,
@@ -86,7 +91,7 @@ export default function TitleSimilarityChecker({
     }
 
     if (isError) {
-      onScanStatusChange?.({
+      onScanStatusChangeRef.current?.({
         isLoading: false,
         isFetching: false,
         isDebouncing: false,
@@ -102,7 +107,7 @@ export default function TitleSimilarityChecker({
 
     if (data) {
       const { similarProjects = [], threshold = DEFAULT_TITLE_SIMILARITY_THRESHOLD } = data;
-      onScanStatusChange?.({
+      onScanStatusChangeRef.current?.({
         isLoading: false,
         isFetching: false,
         isDebouncing: false,
@@ -121,7 +126,6 @@ export default function TitleSimilarityChecker({
     isDebouncing,
     isError,
     data,
-    onScanStatusChange,
   ]);
 
   // ----- Idle: title too short to check -----

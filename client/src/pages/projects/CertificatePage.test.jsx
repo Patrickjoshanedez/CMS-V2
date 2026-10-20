@@ -104,4 +104,22 @@ describe('CertificatePage', () => {
     expect(container.textContent).toContain('Replace Certificate');
     expect(container.textContent).toContain('Accepted format: PDF only');
   });
+
+  it('shows the sealed QR verification state and removes replacement upload controls', () => {
+    mockCertData = {
+      url: 'https://example.com/certificate.pdf',
+      verificationHash: 'a'.repeat(64),
+      generatedAt: '2026-10-16T00:00:00.000Z',
+    };
+
+    act(() => {
+      root.render(<CertificatePage />);
+    });
+
+    expect(container.textContent).toContain('QR verified');
+    expect(container.textContent).toContain('sealed and includes a QR verification link');
+    expect(container.textContent).toContain('public verification record');
+    expect(container.textContent).not.toContain('Accepted format: PDF only');
+    expect(container.textContent).not.toContain('Replace Certificate');
+  });
 });

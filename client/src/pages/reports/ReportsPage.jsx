@@ -508,7 +508,7 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="reports-dashboard-container space-y-6 max-w-7xl mx-auto pb-12 print:pb-0">
+      <div className="reports-dashboard-container min-w-0 space-y-6 lg:space-y-8 max-w-7xl mx-auto pb-12 print:pb-0">
         {/* Printable Institutional Report Header (Only visible on physical print/PDF) */}
         <div className="reports-print-header hidden print:block">
           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
@@ -536,26 +536,19 @@ export default function ReportsPage() {
         </div>
 
         {/* Page Executive Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/80 pb-5 print:hidden">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b border-border/80 pb-5 print:hidden">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
-                Institutional Command
-              </span>
-              <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">BukSU IT Department</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">
               Capstone Analytics &amp; Reports
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Comprehensive cohort progression, research specialization distributions, faculty
-              workload matrix, and sealed archives.
+              Review cohort progress, research areas, faculty
+              workload, and archived projects.
             </p>
           </div>
 
           {/* Quick Action Export Buttons */}
-          <div className="reports-quick-actions flex items-center gap-2 self-start sm:self-auto print:hidden">
+          <div className="reports-quick-actions flex flex-wrap items-center gap-3 self-start sm:self-auto print:hidden">
             <Button
               variant="outline"
               size="sm"
@@ -665,13 +658,14 @@ export default function ReportsPage() {
 
         {/* 3. Visualization Studios Bento Grid */}
         {!isLoading && !error && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Dynamic Metric Replacement 1: Milestone Progression & Headcount Distribution */}
             <DynamicChartWidget
               title="Milestone Progression & Headcount Distribution"
               subtitle="Dynamic student headcounts and active teams across Capstone 1 (Proposal), Capstone 2 (Dev), and Capstone 3 (Final Defense)"
               data={milestoneDistributionData}
               xKey="milestone"
+              xTickFormatter={(value) => String(value).replace(/\s*\(.*/, '')}
               dataKeys={[
                 { key: 'students', label: 'Proponent Headcount', color: 'hsl(var(--primary))' },
                 { key: 'teams', label: 'Active Teams', color: '#10b981' },
@@ -811,7 +805,7 @@ export default function ReportsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full min-w-[760px] text-left text-xs border-collapse print:min-w-0">
                     <thead>
                       <tr className="border-b border-border/80 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider print:bg-slate-100 print:text-[#111827]">
                         <th className="py-2.5 px-3">Project Title</th>

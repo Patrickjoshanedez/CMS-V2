@@ -6,6 +6,8 @@ import { useSocket } from '@/hooks/useSocket';
 import AnnouncementBanner from './AnnouncementBanner';
 import { useNavigationSkeleton } from '@/hooks/useNavigationSkeleton';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import { useAuthStore } from '@/stores/authStore';
+import { ROLES } from '@cms/shared';
 
 const SIDEBAR_STATE_KEY = 'cms.sidebar.open';
 
@@ -20,6 +22,9 @@ const SIDEBAR_STATE_KEY = 'cms.sidebar.open';
  */
 export default function DashboardLayout({ children }) {
   useSocket();
+  const hasPortalSpacing = useAuthStore((state) =>
+    [ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR].includes(state.user?.role),
+  );
   const layoutRef = useRef(null);
   const mainAreaRef = useRef(null);
   const [mobileView, setMobileView] = useState(
@@ -128,12 +133,21 @@ export default function DashboardLayout({ children }) {
         {/* Announcement banner — only rendered when there is content */}
         <AnnouncementBanner />
 
-        <main className="relative flex-1 min-h-0 min-w-0 overflow-y-auto p-3 sm:p-6 bg-background">
+        <main
+          className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto bg-background ${
+            hasPortalSpacing ? 'p-4 sm:p-6 xl:p-8' : 'p-3 sm:p-6'
+          }`}
+        >
           {/* Page content — skeleton on navigation, real content otherwise */}
           {isSkeleton ? (
             <PageSkeleton key={`skeleton-${pathname}`} />
           ) : (
-            <div key={pathname} className="cms-route-enter">
+            <div
+              key={pathname}
+              className={`cms-route-enter min-w-0 ${
+                hasPortalSpacing ? 'mx-auto w-full max-w-7xl' : ''
+              }`}
+            >
               {children || <Outlet />}
             </div>
           )}

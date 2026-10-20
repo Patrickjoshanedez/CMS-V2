@@ -53,48 +53,44 @@ The academic workflow operates as a "lock-step" state machine, preventing studen
 ```
  ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
  │    PHASE 0    │     │    PHASE 1    │     │    PHASE 2    │
- │Team Formation │────►│ Capstone 1    │────►│  Capstone 2   │
- │ & Roster Lock │     │Title Proposals│     │Chapters 1–3   │
+ │ Registration  │────►│    Topics     │────►│  Capstone 1   │
+ │ & Team Lock   │     │ & Committee   │     │Chapters 1–3   │
  └───────────────┘     └───────────────┘     └───────┬───────┘
                                                      │
  ┌───────────────┐     ┌───────────────┐             │
  │    PHASE 4    │     │    PHASE 3    │     ┌───────▼───────┐
- │  Capstone 4   │◄────│  Capstone 3   │◄────│   ADM v1      │
- │ Final Defense │     │  System Dev   │     │  Sign-off     │
- │ & Archival    │     │ & Gantt Chart │     └───────────────┘
+ │  Capstone 3   │◄────│  Capstone 2   │◄────│   ADM v1      │
+ │ Ch. 4–5 &     │     │ System Dev &  │     │  Sign-off     │
+ │ Final Archive │     │ Gantt / ADM v2│     └───────────────┘
  └───────────────┘     └───────────────┘
 ```
 
-### Phase 0: Team Formation, Discipline Alignment & Roster Locking
-*   **Team Capacity Constraint:** Students initiate team profiles under `TeamsPage.jsx`, generating secure invitation tokens [738]. In alignment with BukSU IT department mandates, teams are capped at a **minimum of 2 and a maximum of 4 members** [251, 504].
-*   **5 Standard Proponent Roles:** Teams assign standardized roles: (1) `Project Lead & Systems Analyst`, (2) `Frontend & UI/UX Developer`, (3) `Backend & Database Developer`, (4) `Full-Stack Developer`, (5) `QA & Technical Documentor`.
-*   **Academic Taxonomy Tagging:** Teams are bound to a strict relational hierarchy: `Academic Year` → `Course (e.g., BSIT)` → `Section` [251, 951].
-*   **The Team Lock Protocol:** Once the student group roster is complete, the Team Leader locks the group via `PATCH /api/teams/:id/lock` [251, 954]. This sets `isLocked: true`, freezes the team membership, and updates a **sticky, color-coded visual banner at the top of the interface** (Emerald Green for Open, Crimson Red for Locked) [140, 251, 812].
-*   **Committee Appointment:** Instructors assign committee members via `AssignCommitteeDialog`: Adviser, Secretary, and 3 Panelists (Panelist 1 designated as Chair).
+### Phase 0: Registration, Profile Setup & Team Locking
+*   **Profile Completion:** Students verify their accounts and provide Student ID, section, and assigned Capstone Instructor; degree program, section code, and academic year are resolved from the selected section.
+*   **Team Capacity:** Invitation-based teams contain 2–4 students. A student may belong to only one active project per academic term, and incomplete student profiles prevent roster lock.
+*   **Roster Lock:** The Team Leader locks the completed team through the team API; locked membership cannot be changed.
 
-### Phase 1: Capstone 1 — Dynamic Title Proposals, Similarity Pre-Scan & Proposal Defense
-*   **Dynamic Title Proposals:** Proponents submit between **1 and 10** title proposals with dynamic "Add More" / "Done" UI actions. Proposals are categorized by IT Field of Discipline with matching UN SDG alignments (1..17).
-*   **Real-Time Title Similarity Pre-Scan:** As students draft titles inside `CreateProjectPage.jsx`, the system queries `POST /api/projects/title-check` to calculate cosine similarity against past approved BukSU capstones, rendering an interactive live compliance meter.
-*   **Proposal Defense Hearing & Rubric Scoring:** Committee evaluates proposals using institutional rubrics (`DEFENSE_TYPES.PROPOSAL`). Scoring $\ge 75\%$ yields `titleStatus = 'approved'`, atomically advancing the project to Phase 2 (`capstonePhase = 2`).
+### Phase 1: Title Proposals, Similarity Screening & Committee Assignment
+*   **Dynamic Proposals:** Teams submit 1–10 topics with discipline, problem statement, objectives, technical stack, and SDG mapping.
+*   **Similarity Pre-Scan:** `CreateProjectPage.jsx` checks titles against approved archive records and warns at the configured similarity threshold.
+*   **Instructor Review:** The Capstone Instructor accepts or requests revisions; faculty Adviser, Panel Chair, Panelists, and Secretary appointments are made for the project.
 
-### Phase 2: Capstone 2 — Chapters 1–3 Manuscript Ingestion, Plagiarism Scan v1 & ADM v1
-*   **Manuscript Upload & Validation:** Students upload Chapters 1–3. Binary magic-byte validation enforces `%PDF` (0x25 0x50 0x44 0x46) signatures.
-*   **Dual-Engine Plagiarism Screening (v1):** Fast Karp-Rabin $k$-gram Winnowing fingerprinting combined with PyTorch SentenceTransformers (`all-MiniLM-L6-v2`) via Celery/FastAPI. The institutional threshold (`< 25%`) is validated before defense endorsement.
-*   **Midterm Oral Defense Hearing:** Committee conducts the oral proposal hearing (`DEFENSE_TYPES.MIDTERM`). Secretary logs panel minutes and recommendations.
-*   **Action Done Matrix (ADM v1):** Panel suggestions auto-populate into ADM rows. Students log `actionsTaken` and `pageNumbers`. Multi-signatory digital sign-off (Tier 1: Adviser, Tier 2: Panelists, Tier 3: Chair) clears the milestone, advancing to Phase 3 (`capstonePhase = 3`).
+### Phase 2: Capstone 1 — Chapters 1–3 & Proposal Defense
+*   **Sequential Adviser Review:** Chapter 1 approval unlocks Chapter 2; Chapter 2 approval unlocks Chapter 3; Chapter 3 approval unlocks proposal compilation.
+*   **Defense Clearance:** The compiled manuscript passes plagiarism review and receives Adviser endorsement before proposal defense scheduling.
+*   **Minutes, ADM v1 & Grades:** The Secretary records minutes and ADM concerns. Required panel, Secretary, Adviser, and Instructor sign-offs and official Instructor grade release complete the semester.
 
-### Phase 3: Capstone 3 — System Implementation, Interactive Gantt Tracker & Progress Defense
-*   **Interactive Gantt Chart Tracker:** Tracks build velocity across 4 institutional sections: Planning & Research, Architecture & Design, System Dev & Infrastructure, Testing & Optimization.
-*   **Late Justification Interceptor:** If uploads occur past deadline dates configured in system settings, submissions are flagged with `isLate: true`, rendering a `JustificationCard` locking further submissions until the adviser reviews and endorses the justification.
-*   **Chapters 4–5 Progress & System Demo Defense:** Students submit working prototypes and draft Chapter 4 (Results & Discussion) and Chapter 5 (Conclusions & Recommendations). Committee conducts progress defense evaluation (`DEFENSE_TYPES.PAPER`).
-*   **ADM v2 Sign-off:** Panel feedback from the prototype/progress defense is verified and signed off via `ADM v2`, advancing to Phase 4 (`capstonePhase = 4`).
+### Phase 3: Capstone 2 — System Development & Prototype Defense
+*   **Adviser-Approved Gantt:** The assigned Adviser approves the schedule before students record daily progress; weekly check-ins follow the approved dates.
+*   **Late Gate & Evidence:** Late progress requires an editable justification, Adviser review, and Instructor waiver. GitHub and uploaded media remain visible to authorized faculty.
+*   **Prototype Defense:** Adviser clearance gates scheduling. The Secretary records system concerns in ADM v2; official grades remain hidden until Instructor release.
 
-### Phase 4: Capstone 4 — Final Defense, Multi-Tier ADM Sign-Off, Auto-Archiving & Certificates
-*   **Full Manuscript Compilation:** Chapters 1–5 merged into final institutional manuscript with title defense approval gating.
-*   **Deep Vector Plagiarism Scan:** Deep indexing and cross-corpus verification across ChromaDB.
-*   **Blind Evaluation Shield & Final Defense:** Committee scores the final oral defense (`DEFENSE_TYPES.FINAL`). Panelist rubrics remain masked until the Chair concludes deliberations.
-*   **3-Tier Multi-Signatory Sign-Off:** Digital signatures captured across Adviser, Panel Members, Panel Chair, and Dean.
-*   **Auto-Archiving Database Hook:** Atomic transition setting `isArchived = true`, `projectStatus = 'archived'`, populating the public read-only **Research Archive** (`GET /api/archive/:id/view`), and issuing cryptographically sealed **Capstone Completion Certificates** with BUKSU seals via `CertificatePage.jsx`.
+### Phase 4: Capstone 3 — Chapters 4–5, Final Defense & Archival
+*   **Sequential Review & Dual Deliverables:** Chapters 4 and 5 require Adviser approval before compiling the full manuscript and journal paper; both pass plagiarism screening before defense clearance.
+*   **Final Defense & ADM v3:** The Secretary records minutes and final concerns; grades stay hidden until Instructor release and required signatories complete ADM v3.
+*   **Completion:** Generate the approval sheet, archive and index the approved documents, and issue the completion certificate. Preserve prior drafts, annotations, consultation logs, and minutes for audit.
+
+Capstone 1, Capstone 2, and Capstone 3 each occupy one academic semester. In APIs and stored records, `workflowPhase` is the overall Phase 0–4 state; `capstonePhase` remains the legacy course counter 1–3.
 
 ---
 

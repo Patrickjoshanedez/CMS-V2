@@ -101,6 +101,7 @@ export default function SophisticatedDocumentViewer({
   useLegacyIframe = false,
   isPlagiarismReport = false,
   isArchive = false,
+  showArchiveIdentity = false,
   hideIdentity = false,
   showRevisionDiff = null,
   showComments = null,
@@ -111,6 +112,9 @@ export default function SophisticatedDocumentViewer({
   const [showMetadata, setShowMetadata] = useState(false);
   const [docxLoading, setDocxLoading] = useState(false);
   const [docxError, setDocxError] = useState(null);
+  const [textContent, setTextContent] = useState('');
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState(null);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [pdfData, setPdfData] = useState(null);
@@ -152,7 +156,9 @@ export default function SophisticatedDocumentViewer({
         );
 
   const shouldShowIdentity =
-    !hideIdentity && !isPlagiarismOrArchive && (Boolean(propChapterTitle) || isSubmissionTracking);
+    !hideIdentity &&
+    (showArchiveIdentity ||
+      (!isPlagiarismOrArchive && (Boolean(propChapterTitle) || isSubmissionTracking)));
 
   const shouldShowRevisionDiff =
     showRevisionDiff !== null
@@ -224,6 +230,9 @@ export default function SophisticatedDocumentViewer({
     if (!open && !embedded) {
       setDocxLoading(false);
       setDocxError(null);
+      setTextContent('');
+      setTextLoading(false);
+      setTextError(null);
       setIframeLoading(true);
       setPdfError(null);
       setPdfBlobUrl(null);
@@ -256,6 +265,11 @@ export default function SophisticatedDocumentViewer({
     fileName.toLowerCase().endsWith('.pdf') ||
     effectiveFile?.type?.includes('pdf') ||
     submission?.fileType?.includes('pdf'),
+  );
+  const isText = Boolean(
+    fileName.toLowerCase().endsWith('.txt') ||
+    effectiveFile?.type === 'text/plain' ||
+    submission?.fileType === 'text/plain',
   );
 
   const streamFileUrl =
@@ -291,9 +305,28 @@ export default function SophisticatedDocumentViewer({
     let objectUrl = null;
 
     const shouldFetch =
-      (isPdf || isDocx || Boolean(submission?.convertedPdfKey)) &&
+      (isPdf || isDocx || isText || Boolean(submission?.convertedPdfKey)) &&
       (effectiveSubmissionId || streamFileUrl) &&
       (open || embedded);
+
+    if (isText && typeof Blob !== 'undefined' && effectiveFile instanceof Blob) {
+      setTextLoading(true);
+      setTextError(null);
+      effectiveFile
+        .text()
+        .then((text) => {
+          if (active) setTextContent(text);
+        })
+        .catch((err) => {
+          if (active) setTextError(err.message || 'Failed to read text manuscript.');
+        })
+        .finally(() => {
+          if (active) setTextLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }
 
     // Direct client-side File/Blob for PDF: convert to buffer & object URL directly
     if (isPdf && effectiveFile) {
@@ -340,6 +373,26 @@ export default function SophisticatedDocumentViewer({
         streamFileUrl &&
         (streamFileUrl.startsWith('http://') || streamFileUrl.startsWith('https://'))
       ) {
+        if (isText) {
+          setTextLoading(true);
+          fetch(streamFileUrl)
+            .then((response) => {
+              if (!response.ok) throw new Error('Failed to retrieve text manuscript.');
+              return response.text();
+            })
+            .then((text) => {
+              if (active) setTextContent(text);
+            })
+            .catch((err) => {
+              if (active) setTextError(err.message || 'Failed to retrieve text manuscript.');
+            })
+            .finally(() => {
+              if (active) setTextLoading(false);
+            });
+          return () => {
+            active = false;
+          };
+        }
         if (streamFileUrl.includes('.pdf')) {
           setPdfBlobUrl(streamFileUrl);
           setIsConvertedPdf(Boolean(isDocx || submission?.convertedPdfKey));
@@ -360,15 +413,27 @@ export default function SophisticatedDocumentViewer({
           setIframeLoading(false);
           return;
         }
-        setPdfError('No document endpoint available.');
+        if (isText) setTextError('No document endpoint available.');
+        else setPdfError('No document endpoint available.');
+        setTextLoading(false);
         setIframeLoading(false);
         return;
       }
 
+      if (isText) {
+        setTextLoading(true);
+        setTextError(null);
+      }
       api
         .get(fetchEndpoint, { responseType: 'blob' })
         .then(async (res) => {
           if (!active) return;
+          if (isText) {
+            setTextContent(await res.data.text());
+            setTextLoading(false);
+            setIframeLoading(false);
+            return;
+          }
           const mimeType = res.data?.type || res.headers?.['content-type'] || '';
           const isPdfStream =
             mimeType.includes('pdf') || isPdf || Boolean(submission?.convertedPdfKey);
@@ -396,6 +461,11 @@ export default function SophisticatedDocumentViewer({
         .catch((err) => {
           if (!active) return;
           console.error('[SophisticatedDocumentViewer] Document fetch failed:', err);
+          if (isText) {
+            setTextError(err.message || 'Failed to retrieve text manuscript.');
+            setTextLoading(false);
+            return;
+          }
           const errorMsg =
             err.response?.status === 401
               ? 'Server returned 401: Unauthorized'
@@ -414,6 +484,7 @@ export default function SophisticatedDocumentViewer({
   }, [
     isPdf,
     isDocx,
+    isText,
     effectiveFile,
     submission?._id,
     submission?.convertedPdfKey,
@@ -491,26 +562,34 @@ export default function SophisticatedDocumentViewer({
                 >
                   {versionBadge}
                 </Badge>
-                {(!embedded || isFullscreen) && isDocx && (
+                {(!embedded || isFullscreen || showArchiveIdentity) && isDocx && (
                   <Badge
                     variant="secondary"
-                    className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
                   >
                     Word Document
                   </Badge>
                 )}
-                {(!embedded || isFullscreen) && isPdf && (
+                {(!embedded || isFullscreen || showArchiveIdentity) && isPdf && (
                   <Badge
                     variant="secondary"
-                    className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
                   >
                     PDF Manuscript
                   </Badge>
                 )}
-                {(!embedded || isFullscreen) && originalityScore !== null && (
+                {(!embedded || isFullscreen || showArchiveIdentity) && isText && (
+                  <Badge
+                    variant="secondary"
+                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
+                  >
+                    Text Document
+                  </Badge>
+                )}
+                {(!embedded || isFullscreen || showArchiveIdentity) && originalityScore !== null && (
                   <Badge
                     variant="outline"
-                    className={`hidden 2xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
+                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden 2xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
                       originalityScore >= 75
                         ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                         : 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
@@ -963,6 +1042,30 @@ export default function SophisticatedDocumentViewer({
               layerFilter={layerFilter}
               plagiarismOpacity={plagiarismOpacity}
             />
+          ) : isText ? (
+            <div
+              className="flex-1 min-h-0 overflow-auto rounded-lg border border-border/60 bg-background p-4 sm:p-6"
+              data-testid="text-document-preview"
+              aria-busy={textLoading}
+            >
+              {textLoading ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading text manuscript...
+                </div>
+              ) : textError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {textError}
+                </p>
+              ) : (
+                <pre
+                  className="whitespace-pre-wrap break-words font-serif text-foreground"
+                  style={{ fontSize: `${zoom}%` }}
+                >
+                  {textContent}
+                </pre>
+              )}
+            </div>
           ) : (
             /* ── Fallback: Download prompt ── */
             <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto p-6 rounded-2xl border border-dashed border-border/80 bg-card/60 m-8">
@@ -1663,6 +1766,7 @@ SophisticatedDocumentViewer.propTypes = {
   useLegacyIframe: PropTypes.bool,
   isPlagiarismReport: PropTypes.bool,
   isArchive: PropTypes.bool,
+  showArchiveIdentity: PropTypes.bool,
   hideIdentity: PropTypes.bool,
   showRevisionDiff: PropTypes.bool,
   showComments: PropTypes.bool,

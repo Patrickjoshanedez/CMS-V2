@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-10-16_seeded-account-runtime-recheck",
+  "date": "2026-10-16",
+  "status": "active-partial",
+  "task_summary": "Rechecked the authorized localhost E2E run with the supplied seeded-account report and synchronized the QR dependency into the API container. Account/profile/team state was already populated; the current project has inconsistent phase fields and the client is stuck in Vite dependency optimization.",
+  "changes": [
+    "Authenticated the synthetic student through the app using the seeded account; credentials were not copied into task notes.",
+    "Confirmed the student profile already has BSIT-4A and the seeded course instructor assigned; confirmed an existing two-member E2E team and avoided creating duplicates.",
+    "Read the project and submission state through official authenticated API routes: proposal and Chapters 1–3 are locked, while capstonePhase=3 conflicts with stage=capstone_1 and projectStatus=proposal_approved.",
+    "Installed the already-added qrcode dependency inside cms-server and restarted only the local API and client containers to load mounted changes.",
+    "Removed temporary certificate preview pages after the client optimizer stalled; no project workflow state was changed."
+  ],
+  "verification": [
+    "Seeded login succeeded; API health returned 200 after restart.",
+    "cms-server is healthy; cms-client remains unhealthy and Vite has continued dependency scanning/bundling beyond the expected startup window.",
+    "Playwright used the installed system Chrome because the bundled Chromium executable was absent; login-page navigation timed out while the client optimizer was busy.",
+    "Previous focused checks remain passing: weekly check-in client tests 3/3, archive/index/certificate server tests 3/3, ADM progression tests 9/9, endpoint parity 0 unmatched."
+  ],
+  "live_state": "Synthetic student has section and instructor assignments; the E2E team and project already exist. The existing project state is inconsistent. The API is available, but browser workflows cannot resume until the client is healthy. Synthetic ADM sign-off and archival remain authorized but have not been applied in this recheck.",
+  "remaining": [
+    "Restore the client dev server without resetting test data; finish the required light/dark desktop/mobile visual audit.",
+    "Resolve the phase mismatch through supported application service actions or use a clean synthetic project if the existing project cannot be repaired through those actions.",
+    "Complete and verify the authorized final workflow: manuscript submissions, committee sign-offs, archive creation, QR verification, and Chroma indexing."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

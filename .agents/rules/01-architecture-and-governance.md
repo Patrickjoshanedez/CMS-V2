@@ -1,7 +1,7 @@
 # 🏛️ SYSTEM ARCHITECTURE, INSTITUTIONAL ROLES & CAPSTONE PROGRESSION
 
 **Rule File:** `.agents/rules/01-architecture-and-governance.md`  
-**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/workspace-rules.md)  
+**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/workspace-rules.md)  
 **Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
 ---
@@ -11,7 +11,8 @@
 CMS-V2 is an integrated capstone lifecycle platform organized as an npm monorepo with containerized services:
 * **Server Backend (`server/`)**: Express.js 5 REST API + Mongoose 9 ODM + Redis + BullMQ Asynchronous Task Queues.
 * **Client Frontend SPA (`client/`)**: React 18 + Vite (dev server inside Docker container `cms-client`, port 43211) + Tailwind CSS + Zustand Store + TanStack React Query.
-* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`all-MiniLM-L6-v2`) + Winnowing Fingerprinting.
+* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`BAAI/bge-m3` 1024-dim dense + sparse vector core) + Winnowing Fingerprinting.
+* **OCR & Ingestion Microservice (`cms-ocr-engine`)**: Python FastAPI + PaddleOCR-VL (0.9B) vision-language model (`cms-ocr-engine:8000`) for automated PDF layout analysis and metadata extraction, integrated with BullMQ asynchronous queueing (`document-extraction`).
 * **Shared Library (`shared/`)**: Canonical JSON schemas, role constants, and cross-platform validation utilities.
 * **Tooling & Environment**: Node.js via `npm` workspaces; Python runtime via root `.venv/` virtual environment.
 
@@ -19,30 +20,30 @@ CMS-V2 is an integrated capstone lifecycle platform organized as an npm monorepo
 
 ## 2. CANONICAL ACADEMIC CAPSTONE PROGRESSION (GROUND TRUTH)
 
-The BukSU IT Department capstone progression operates under a strictly sequenced **4-Phase Progression** preceded by Phase 0:
+The BukSU IT Department capstone progression operates under Phase 0 followed by three one-semester Capstone courses:
 
-* **Phase 0: Team Formation & Roster Locking**:
-  - Teams of 2–4 members assemble, bind to Academic Year / Course / Section.
-  - Assign exactly 5 standardized proponent roles:
+* **Phase 0: Registration & Team Scaffolding**:
+  - Students verify institutional accounts and complete Student ID, Degree Program, Academic Term/Year, Section, and assigned Instructor profile data.
+  - Teams of 1–4 members assemble, may hold only one active project per academic term, and assign 5 standardized proponent roles:
     1. `Project Lead & Systems Analyst`
     2. `Frontend & UI/UX Developer`
     3. `Backend & Database Developer`
     4. `Full-Stack Developer`
     5. `QA & Technical Documentor`
-  - Roster locked via `PATCH /api/teams/:id/lock`. Course Instructor appoints committee.
-* **Phase 1: Capstone 1 (Title Defense & Proposal Pre-Scan)**:
-  - Proponents draft 1..10 candidate proposals tagged with UN SDGs (1..17) and IT disciplines (1..10).
-  - Live archive cosine similarity pre-scan. Proposal defense hearing rubrics determine title approval (`titleStatus = 'approved'`).
-* **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense)**:
-  - Chapters 1–3 uploaded. Dual plagiarism scan (Winnowing + SentenceTransformers, `< 25%`).
-  - Midterm oral defense evaluation. Action Done Matrix (`ADM v1`) logs panel remarks and multi-signatory digital sign-off.
-* **Phase 3: Capstone 3 (System Development & Progress Defense)**:
-  - Full prototype implementation with Interactive Gantt Tracker (4 milestone sections).
-  - Late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress demo, and `ADM v2` sign-off.
-* **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival)**:
-  - Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing.
-  - 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean) strictly gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed === true`).
-  - Atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
+  - Roster locked via `PATCH /api/teams/:id/lock` before proposal submission.
+* **Phase 1: Topic Proposals & Committee Assignment**:
+  - Teams submit 1..10 candidate title proposals with discipline, problem statement, objectives, technical stack, and UN SDG tags (1..17).
+  - Similarity screening warns at the configured threshold; the Capstone Instructor reviews proposals (`titleStatus = 'approved'`) and faculty committee roles are assigned.
+* **Phase 2: Capstone 1 (Chapters 1–3 & Proposal Defense)**:
+  - Chapters 1–3 pass sequential Adviser review before compilation.
+  - Plagiarism clearance (`< 25%`), Adviser endorsement, scheduled defense, Secretary minutes, Action Done Matrix (`ADM v1`), panel evaluation, Instructor grade release, and required signatures gate course completion.
+* **Phase 3: Capstone 2 (System Development & Prototype Defense)**:
+  - The Adviser approves the Gantt schedule before daily progress logging.
+  - Teams submit weekly progress and late justifications (`isLate`), link GitHub and media evidence, obtain Adviser prototype clearance, then complete the system defense, `ADM v2`, and guarded grade release.
+* **Phase 4: Capstone 3 (Chapters 4–5 & Final Defense)**:
+  - Chapters 4–5 pass sequential Adviser review. The team compiles the full academic manuscript and journal paper; both pass plagiarism checks before final defense.
+  - 3-Tier Multi-Signatory `ADM v3` verification (Adviser, Panelists, Chair, Dean) strictly gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed === true`).
+  - Instructor grade release, approval sheet generation, atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and completion certificate issuance.
 
 ---
 
@@ -68,7 +69,7 @@ To prevent conflicts of interest and preserve institutional academic hierarchy:
 ## 4. HIGH-PERFORMANCE CODEBASE NAVIGATION DIRECTIVES
 
 To preserve cognitive context and avoid unbounded scans:
-1. **Index-First Orientation**: Check [FILES_INDEX.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/FILES_INDEX.md) and route definitions before running symbol searches.
+1. **Index-First Orientation**: Check [FILES_INDEX.md](file:///c:/Users/patri/dev/CMS-V2/FILES_INDEX.md) and route definitions before running symbol searches.
 2. **Bounded Line-Slice Inspection**: View target symbols using `StartLine` and `EndLine` slices. Never dump full files into prompts.
 3. **Caller-Callee Chain Tracing**: Trace call chains end-to-end: UI Component $\to$ Hook/Store $\to$ API Service $\to$ Express Route $\to$ Controller $\to$ Mongoose Model.
 4. **Endpoint Parity Assurance**: Verify that every client API call has an exact matching server route via `npm run check:endpoints` (`UNMATCHED_COUNT = 0`).

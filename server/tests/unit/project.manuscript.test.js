@@ -29,7 +29,7 @@ describe('projectService.getProjectManuscript', () => {
     vi.restoreAllMocks();
   });
 
-  it('allows any authenticated user to stream manuscript for an archived project', async () => {
+  it('rejects an outsider student from streaming an archived academic manuscript', async () => {
     const archivedProject = {
       _id: projectId,
       title: 'Archived Capstone on IoT Sensor Networks',
@@ -38,37 +38,17 @@ describe('projectService.getProjectManuscript', () => {
       teamId: { members: [teamMemberId], leaderId: teamMemberId },
     };
 
-    const mockSubmission = {
-      _id: '65e000000000000000000099',
-      projectId,
-      type: 'final_academic',
-      storageKey: 'archives/projects/10/final/final_academic/v1/paper.pdf',
-      fileName: 'paper.pdf',
-    };
-
     vi.spyOn(Project, 'findById').mockImplementation(() => createQueryMock(archivedProject));
-    vi.spyOn(Submission, 'findOne').mockImplementation(() => createQueryMock(mockSubmission));
-    vi.spyOn(submissionService, 'getSubmissionFileBuffer').mockResolvedValue({
-      buffer: mockFileBuffer,
-      fileName: 'paper.pdf',
-      fileType: 'application/pdf',
-      fileSize: mockFileBuffer.length,
-    });
+    const findSubmissionSpy = vi.spyOn(Submission, 'findOne');
+    const getFileSpy = vi.spyOn(submissionService, 'getSubmissionFileBuffer');
 
     const user = { _id: outsiderStudentId, role: ROLES.STUDENT };
-    const result = await projectService.getProjectManuscript(projectId, user, {
-      isDownload: false,
-    });
+    await expect(
+      projectService.getProjectManuscript(projectId, user, { isDownload: false }),
+    ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
 
-    expect(result).toBeDefined();
-    expect(result.buffer).toEqual(mockFileBuffer);
-    expect(result.fileName).toBe('paper.pdf');
-    expect(result.fileType).toBe('application/pdf');
-    expect(submissionService.getSubmissionFileBuffer).toHaveBeenCalledWith(
-      mockSubmission._id,
-      outsiderStudentId,
-      { isDownload: false },
-    );
+    expect(findSubmissionSpy).not.toHaveBeenCalled();
+    expect(getFileSpy).not.toHaveBeenCalled();
   });
 
   it('rejects an outsider student accessing an active (non-archived) capstone manuscript with 403', async () => {
@@ -148,6 +128,7 @@ describe('projectService.getProjectManuscript', () => {
       _id: '65e000000000000000000077',
       projectId,
       type: 'final_journal',
+      status: 'approved',
       storageKey: 'archives/projects/10/final/final_journal/v1/journal.pdf',
       fileName: 'journal.pdf',
     };
@@ -190,7 +171,7 @@ describe('projectService.getProjectManuscript', () => {
     vi.spyOn(Project, 'findById').mockImplementation(() => createQueryMock(archivedProject));
     vi.spyOn(Submission, 'findOne').mockImplementation(() => createQueryMock(null));
 
-    const user = { _id: outsiderStudentId, role: ROLES.STUDENT };
+    const user = { _id: teamMemberId, role: ROLES.STUDENT };
 
     await expect(
       projectService.getProjectManuscript(projectId, user, { isDownload: false }),

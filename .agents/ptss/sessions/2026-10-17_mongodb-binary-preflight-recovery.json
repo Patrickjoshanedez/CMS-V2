@@ -1,0 +1,66 @@
+{
+  "session_id": "2026-10-17_mongodb-binary-preflight-recovery",
+  "date": "2026-10-17T07:02:13Z",
+  "task_summary": "Verified completed indexing for both final manuscripts through the official project API; recorded the MongoMemoryServer empty-binary-cache startup stall and patched verification guidance with a bounded binary preflight.",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "files_modified": [
+    ".agents/skills/verification-loop/SKILL.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    ".agents/ptss/tasks/2026-10-17_four-phase-workflow-refactor.json",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/sessions/2026-10-17_mongodb-binary-preflight-recovery.json"
+  ],
+  "skills_triggered": [
+    "capstone-lifecycle-orchestrator",
+    "documents:documents",
+    "verification-loop",
+    "skill-write-or-patch",
+    "ptss",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [
+    {
+      "name": "verification-loop",
+      "change": "Bumped to 1.6.0; added MongoMemoryServer binary-cache preflight, bounded startup stop, and process-cleanup checks."
+    }
+  ],
+  "key_decisions": [
+    "Treat the reseed report as account reference data; use the local app API as the current-state source.",
+    "Use only read-only official project API calls for archive indexing verification and leave the project unchanged.",
+    "Do not treat synthetic signatures or a completed test fixture as evidence that a real oral defense occurred.",
+    "Stop the comprehensive suite before the 120-second watchdog because MongoMemoryServer did not progress to assertions; do not repeat without a diagnostic change."
+  ],
+  "lessons_learned": [
+    "Archive search visibility does not prove vector indexing; check the project's completed status and both final manuscript IDs through GET /api/projects/:id.",
+    "Approved loopback access and workspace-local temp storage do not resolve a missing MongoMemoryServer binary; check the cache and process cleanup before retrying."
+  ],
+  "live_state": {
+    "project_id": "6ad2933789cfdaa77f6049f9",
+    "project_status": "archived",
+    "archive_indexing_status": "completed",
+    "indexed_document_ids": ["6ad29e85ea6bd94f8f609fd0", "6ad29e8bea6bd94f8f60a053"],
+    "completed_at_present": true,
+    "last_error_empty": true,
+    "database_mutated": false,
+    "credentials_recorded": false
+  },
+  "comprehensive_suite_recheck": {
+    "test": "server/tests/integration/comprehensive-all-workflows.test.js",
+    "result": "Stopped at 108 seconds before any assertions; the runner reached Vitest startup but made no MongoMemoryServer progress.",
+    "isolation": "The suite's setup creates an in-memory MongoDB instance and clears only that isolated fixture database; TEMP/TMP and the configured MongoDB binary cache were confined to scratch/.",
+    "diagnostic": "The configured scratch binary cache remained empty. No matching Node or mongod process remained after stopping the run.",
+    "follow_up": "A compatible MongoDB binary must be available before another attempt. The verification-loop skill now includes this preflight and cleanup procedure.",
+    "application_database_touched": false
+  },
+  "verification_status": "partial",
+  "verification_notes": "The archive search returned the synthetic project, and a read-only GET /api/projects/6ad2933789cfdaa77f6049f9 returned archiveIndexing.status=completed for both final manuscripts, completedAt present, and lastError empty. Workspace evidence validation passed 34/34; workspace guardrail, scoped diff check, JSON/PTSS parsing passed. The comprehensive Mongo-backed suite stopped before assertions at 108 seconds, and the full client suite remains unverified after its earlier watchdog. Registration-page visual review still needs an unauthenticated browser context with available Chromium. A fresh registration-to-Capstone 1 run is not proven; the seeded account and project are already provisioned/archived. No account or project data was changed in this follow-up.",
+  "open_threads": [
+    "Full client suite and registration public-page visual review remain open; the existing authenticated browser context redirects /register and the isolated Chromium browser is unavailable.",
+    "The comprehensive Mongo-backed server suite remains unverified until a compatible MongoMemoryServer binary can be provided without routing tests to the application database.",
+    "A fresh registration-to-Capstone 1 lifecycle remains unproven because the selected latest seeded account is already provisioned with a locked team and archived project; no account reset or duplicate workflow was created."
+  ]
+}

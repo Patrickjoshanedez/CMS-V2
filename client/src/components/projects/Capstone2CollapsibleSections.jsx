@@ -23,7 +23,7 @@ import EvaluationPanel from './EvaluationPanel';
  *
  * Compact, organized, and sectionized workspace for Capstone 2:
  * 1. System Development & Academic Gantt Chart (Prototype sprints & milestones)
- * 2. Action Done Matrix (ADM v2) (Panel recommendations & verification)
+ * 2. Action Done Matrix (ADM v1) (Panel recommendations & verification)
  * 3. Midterm Defense Evaluation & Grade Sign-Off (Rubrics & verdict)
  */
 export default function Capstone2CollapsibleSections({
@@ -109,7 +109,7 @@ export default function Capstone2CollapsibleSections({
         {openSections.gantt && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-6 animate-in fade-in duration-200">
             <div className="pt-2">
-              <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
+              <InteractiveGanttChart project={project} />
             </div>
 
             <div className="pt-4 border-t border-border/50">
@@ -131,7 +131,7 @@ export default function Capstone2CollapsibleSections({
       </Card>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {/* SECTION 2: ACTION DONE MATRIX (ADM v2)                               */}
+      {/* SECTION 2: ACTION DONE MATRIX (ADM v1)                               */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       <Card
         className={cn(
@@ -153,7 +153,7 @@ export default function Capstone2CollapsibleSections({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-bold text-foreground">
-                  Action Done Matrix (ADM v2)
+                  Action Done Matrix (ADM v1)
                 </span>
                 <Badge
                   variant="outline"

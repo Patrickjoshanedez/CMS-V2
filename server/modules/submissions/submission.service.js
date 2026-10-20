@@ -18,12 +18,18 @@
  */
 import Submission from './submission.model.js';
 import SubmissionRound from './submissionRound.model.js';
+import { reserveChapterVersion } from './chapterVersion.service.js';
+import submissionRevisionDiffService from './services/submissionRevisionDiff.service.js';
+import submissionAnnotationService from './services/submissionAnnotation.service.js';
+import submissionReviewWorkspaceService from './services/submissionReviewWorkspace.service.js';
+import { createLogger } from '../../utils/logger.js';
 import Project from '../projects/project.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import Section from '../academics/section.model.js';
+import MilestoneDeadline from '../settings/milestoneDeadline.model.js';
 import storageService from '../../services/storage.index.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import auditService from '../audit/audit.service.js';
@@ -46,17 +52,52 @@ import {
   ROLES,
   SUBMISSION_STATUSES,
   TITLE_STATUSES,
-  DELIVERABLE_TYPES,
+  CAPSTONE_PHASES,
+  resolveWorkflowPhase,
 } from '@cms/shared';
 import { extractDocxComments } from '../../utils/docxComments.js';
 import { extractPdfComments } from '../../utils/pdfComments.js';
 import { extractText } from '../../utils/extractText.js';
+import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 
+const baseLogger = createLogger('SubmissionService');
 const logger = {
-  info: (...args) => console.info(...args), // eslint-disable-line no-console
-  warn: (...args) => console.warn(...args),
-  error: (...args) => console.error(...args),
+  info: (msg, meta) => baseLogger.info(String(msg), meta),
+  warn: (msg, meta) => baseLogger.warn(String(msg), meta),
+  error: (msg, meta) =>
+    baseLogger.error(
+      String(msg),
+      meta instanceof Error ? { error: meta.message, stack: meta.stack } : meta,
+    ),
 };
+
+const ACTIVE_PROJECT_SUBMISSION_STATUSES = new Set([
+  PROJECT_STATUSES.ACTIVE,
+  PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+  PROJECT_STATUSES.PENDING_IN_REVIEW,
+  PROJECT_STATUSES.REVISION_NEEDED,
+]);
+
+const SCHEDULED_DELIVERABLE_BY_DEADLINE_FIELD = Object.freeze({
+  titleProposal: 'title_proposal',
+  proposal: 'capstone_1_proposal',
+  chapter1: 'chapter_1',
+  chapter2: 'chapter_2',
+  chapter3: 'chapter_3',
+  chapter4: 'chapter_4',
+  chapter5: 'chapter_5',
+  finalAcademic: 'full_academic_paper',
+  finalJournal: 'condensed_journal_paper',
+});
+
+export function isProjectSubmittableForPhase(project, minimumPhase = 1) {
+  if (ACTIVE_PROJECT_SUBMISSION_STATUSES.has(project?.projectStatus)) return true;
+
+  return (
+    project?.projectStatus === PROJECT_STATUSES.PROPOSAL_APPROVED &&
+    Number(project?.capstonePhase ?? 1) >= minimumPhase
+  );
+}
 
 class SubmissionService {
   async _extractUploadedPdfMetadata(file) {
@@ -272,6 +313,7 @@ class SubmissionService {
 
     const project = await Project.findById(projectId).populate('teamId');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    assertProjectWritable(project);
 
     if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
       throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
@@ -296,17 +338,28 @@ class SubmissionService {
    * @param {string|undefined} remarks - Student-provided late remarks
    * @returns {{ isLate: boolean }}
    */
-  _detectLateSubmission(
+  async _detectLateSubmission(
     project,
     deadlineField,
     remarks,
     justificationLetterFile = null,
     requireLetter = false,
   ) {
-    const deadline = project.deadlines?.[deadlineField];
+    const scheduledDeadline = await this._findScheduledMilestoneDeadline(
+      project,
+      deadlineField,
+    );
+    const deadline = scheduledDeadline?.deadlineDate || project.deadlines?.[deadlineField];
     const isLate = deadline ? new Date() > new Date(deadline) : false;
 
     if (isLate) {
+      if (scheduledDeadline?.allowLateSubmission === false) {
+        throw new AppError(
+          'The scheduled deadline has passed and late uploads are closed for this milestone.',
+          400,
+          'LATE_SUBMISSION_CLOSED',
+        );
+      }
       if (!remarks || remarks.trim().length === 0) {
         throw new AppError(
           'This submission is past the deadline. You must provide a late-justification note explaining the delay.',
@@ -324,6 +377,30 @@ class SubmissionService {
     }
 
     return { isLate };
+  }
+
+  async _findScheduledMilestoneDeadline(project, deadlineField) {
+    const deliverable = SCHEDULED_DELIVERABLE_BY_DEADLINE_FIELD[deadlineField];
+    const team = project?.teamId && typeof project.teamId === 'object'
+      ? project.teamId
+      : project?.team || {};
+    const batchYear = String(project?.academicYear || team.academicYear || '').trim();
+    if (!deliverable || !batchYear) return null;
+
+    const sectionValue = project?.sectionId || team.sectionId;
+    const sectionId = sectionValue?._id || sectionValue?.id || sectionValue;
+    const scope = { batchYear, deliverable };
+
+    if (sectionId) {
+      const sectionDeadline = await MilestoneDeadline.findOne({
+        ...scope,
+        targetType: 'section',
+        sectionId,
+      }).lean();
+      if (sectionDeadline) return sectionDeadline;
+    }
+
+    return MilestoneDeadline.findOne({ ...scope, targetType: 'batch' }).lean();
   }
 
   /**
@@ -404,8 +481,7 @@ class SubmissionService {
   /**
    * Resolve which project deadline applies to a specific submission.
    *
-   * Chapter uploads for chapters 4-5 still map to the proposal deadline,
-   * matching existing late-submission rules.
+   * Every chapter and final manuscript uses its matching project deadline.
    *
    * @param {Object} submission
    * @param {Object} project
@@ -416,11 +492,13 @@ class SubmissionService {
 
     let deadlineField = null;
     if (submission?.type === 'chapter') {
-      deadlineField = submission.chapter <= 3 ? `chapter${submission.chapter}` : 'proposal';
+      deadlineField = `chapter${submission.chapter}`;
     } else if (submission?.type === 'proposal') {
       deadlineField = 'proposal';
-    } else if (submission?.type === 'final_academic' || submission?.type === 'final_journal') {
-      deadlineField = 'defense';
+    } else if (submission?.type === 'final_academic') {
+      deadlineField = 'finalAcademic';
+    } else if (submission?.type === 'final_journal') {
+      deadlineField = 'finalJournal';
     }
 
     const deadlineAt = deadlineField ? deadlines?.[deadlineField] || null : null;
@@ -878,21 +956,38 @@ class SubmissionService {
     const userId = String(user?._id || user);
     const { allowArchivedFinalJournalPublicView = false } = options;
 
-    // Central archiving exception: any authenticated user can view approved submissions/manuscripts for archived projects
     const isArchived = Boolean(
       project.isArchived || project.projectStatus === PROJECT_STATUSES.ARCHIVED,
     );
     if (isArchived) {
-      if (!submission) return;
+      const isArchiveFaculty = [ROLES.INSTRUCTOR, ROLES.FACULTY].includes(user?.role);
+      const isProjectAuthor = Boolean(
+        project.teamId?.members
+          ?.map((memberId) => String(memberId?._id || memberId))
+          .includes(userId),
+      );
+      const isReleasedJournal = Boolean(
+        submission?.type === 'final_journal' &&
+          [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.ACCEPTED, SUBMISSION_STATUSES.LOCKED].includes(
+            submission.status,
+          ),
+      );
+
+      // The journal paper is the public archive deliverable; the full academic manuscript
+      // and all draft material remain limited to faculty and the project's own team.
       if (
-        allowArchivedFinalJournalPublicView ||
-        submission.type === 'final_journal' ||
-        submission.type === 'final_academic' ||
-        submission.type === 'final_paper' ||
-        submission.status === 'approved'
+        isArchiveFaculty ||
+        isProjectAuthor ||
+        (isReleasedJournal && allowArchivedFinalJournalPublicView)
       ) {
         return;
       }
+
+      throw new AppError(
+        'Archived academic manuscripts are available to faculty and the project team; only approved journal papers are publicly viewable.',
+        403,
+        'FORBIDDEN',
+      );
     }
 
     if (user.role === ROLES.INSTRUCTOR) return;
@@ -963,17 +1058,19 @@ class SubmissionService {
    * @returns {Promise<{ reviewer: Object, project: Object }>}
    */
   async _getModerationContext(submission, reviewerId, options = {}) {
-    const reviewer = await User.findById(reviewerId).select('role firstName lastName email');
+    const [reviewer, project] = await Promise.all([
+      User.findById(reviewerId).select('role firstName lastName email'),
+      Project.findById(submission.projectId).select(
+        'adviserId panelistIds secretaryId title teamId isArchived projectStatus',
+      ),
+    ]);
     if (!reviewer) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
-
-    const project = await Project.findById(submission.projectId).select(
-      'adviserId panelistIds secretaryId title teamId',
-    );
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
+    assertProjectWritable(project);
 
     this._assertCanModerateSubmission(reviewer, project, options);
 
@@ -994,12 +1091,13 @@ class SubmissionService {
     const { submissionSelect = 'projectId type', allowArchivedFinalJournalPublicView = false } =
       options;
 
-    const submission = await Submission.findById(submissionId).select(submissionSelect);
+    const [submission, user] = await Promise.all([
+      Submission.findById(submissionId).select(submissionSelect),
+      User.findById(requesterId).select('role teamId'),
+    ]);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
-
-    const user = await User.findById(requesterId).select('role teamId');
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
@@ -1035,6 +1133,30 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadChapter(userId, projectId, data, file, justificationLetterFile = null) {
+    const pendingStorageKeys = new Set([file?.storageKey || file?.key].filter(Boolean));
+    try {
+      return await this._uploadChapterWithReservedVersion(
+        userId, projectId, data, file, justificationLetterFile, pendingStorageKeys,
+      );
+    } catch (error) {
+      await this._cleanupUncommittedChapterFiles(pendingStorageKeys);
+      throw error;
+    }
+  }
+
+  async _cleanupUncommittedChapterFiles(storageKeys) {
+    const keys = [...storageKeys];
+    const results = await Promise.allSettled(keys.map((key) => storageService.deleteFile(key)));
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        logger.error('[SubmissionService] Uncommitted chapter file cleanup failed:', keys[index], result.reason);
+      }
+    });
+  }
+
+  async _uploadChapterWithReservedVersion(
+    userId, projectId, data, file, justificationLetterFile, pendingStorageKeys,
+  ) {
     const { user, project } = await this._authorizeStudentUpload(
       userId,
       projectId,
@@ -1066,14 +1188,7 @@ class SubmissionService {
     }
 
     // --- Project state checks (chapter-specific) ---
-    if (
-      ![
-        PROJECT_STATUSES.ACTIVE,
-        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
-        PROJECT_STATUSES.PENDING_IN_REVIEW,
-        PROJECT_STATUSES.REVISION_NEEDED,
-      ].includes(project.projectStatus)
-    ) {
+    if (!isProjectSubmittableForPhase(project)) {
       throw new AppError('Cannot upload to a non-active project.', 400, 'PROJECT_NOT_ACTIVE');
     }
     if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
@@ -1098,7 +1213,10 @@ class SubmissionService {
     }
 
     if (Number(chapter) > 1) {
-      if (Number(chapter) >= 4 && project.capstonePhase < 3) {
+      if (
+        Number(chapter) >= 4 &&
+        resolveWorkflowPhase(project) < CAPSTONE_PHASES.PHASE_4
+      ) {
         throw new AppError(
           'You must complete Capstone 2 (System Development) before submitting Chapters 4 and 5.',
           400,
@@ -1171,7 +1289,7 @@ class SubmissionService {
 
     // --- Late submission detection ---
     const deadlineField = `chapter${chapter}`;
-    const { isLate } = this._detectLateSubmission(
+    const { isLate } = await this._detectLateSubmission(
       project,
       deadlineField,
       remarks,
@@ -1180,8 +1298,9 @@ class SubmissionService {
     );
 
     // --- Auto-increment version ---
-    const nextVersion = latestSubmission ? latestSubmission.version + 1 : 1;
-    const revisionRound = latestSubmission ? (latestSubmission.revisionRound || 0) + 1 : 0;
+    const { version: nextVersion, revisionRound } = await reserveChapterVersion(
+      projectId, chapter, latestSubmission,
+    );
 
     // --- Upload to S3 (if not already streamed to S3 by streamUploadMiddleware) ---
     const effectiveMime = file.validatedMime || file.mimeType || file.mimetype || 'application/pdf';
@@ -1190,6 +1309,7 @@ class SubmissionService {
       file.key ||
       storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
     if (!file.storageKey && !file.key && file.buffer) {
+      pendingStorageKeys.add(storageKey);
       try {
         await storageService.uploadFile(file.buffer, storageKey, effectiveMime, {
           projectId,
@@ -1224,6 +1344,7 @@ class SubmissionService {
         nextVersion,
         `late-justification-${justificationLetterFile.originalname}`,
       );
+      pendingStorageKeys.add(letterKey);
       try {
         await storageService.uploadFile(justificationLetterFile.buffer, letterKey, letterMime, {
           projectId,
@@ -1240,6 +1361,8 @@ class SubmissionService {
           uploadedAt: new Date(),
         };
       } catch (letterErr) {
+        await this._cleanupUncommittedChapterFiles([letterKey]);
+        pendingStorageKeys.delete(letterKey);
         logger.error(
           '[SubmissionService] Failed to upload late justification letter:',
           letterErr?.message,
@@ -1290,6 +1413,9 @@ class SubmissionService {
       annotations: await this._processFileComments(file, userId),
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
+
+    // Once committed, downstream failures must never delete a stored manuscript.
+    pendingStorageKeys.clear();
 
     await this._syncPendingRoundForUpload(submission);
 
@@ -1411,7 +1537,7 @@ class SubmissionService {
     }
 
     // --- Late submission detection ---
-    const { isLate } = this._detectLateSubmission(project, 'proposal', remarks);
+    const { isLate } = await this._detectLateSubmission(project, 'proposal', remarks);
 
     // --- Auto-increment version for proposals ---
     const latestProposal = await Submission.findOne({
@@ -1582,7 +1708,7 @@ class SubmissionService {
     notifTitle,
     docLabelPrefix,
   }) {
-    const { isLate } = this._detectLateSubmission(project, 'proposal', remarks);
+    const { isLate } = await this._detectLateSubmission(project, 'proposal', remarks);
 
     const latest = await Submission.findOne({ projectId, type }).sort({ version: -1 });
     const nextVersion = latest ? latest.version + 1 : 1;
@@ -1748,16 +1874,10 @@ class SubmissionService {
    *
    * @param {Object} project
    */
-  _assertFinalPaperEligible(project, deliverableType = 'final_academic') {
+  async _assertFinalPaperEligible(project) {
     if (
-      ![
-        PROJECT_STATUSES.ACTIVE,
-        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
-        PROJECT_STATUSES.PENDING_IN_REVIEW,
-        PROJECT_STATUSES.REVISION_NEEDED,
-        PROJECT_STATUSES.FINAL_APPROVED,
-        'final_approved',
-      ].includes(project.projectStatus)
+      resolveWorkflowPhase(project) < CAPSTONE_PHASES.PHASE_4 &&
+      ![PROJECT_STATUSES.FINAL_APPROVED, 'final_approved'].includes(project.projectStatus)
     ) {
       throw new AppError(
         'Final paper uploads are only allowed for active projects.',
@@ -1766,7 +1886,7 @@ class SubmissionService {
       );
     }
 
-    if (project.capstonePhase !== 4 && project.capstonePhase !== 3 && project.stage !== 'final') {
+    if (resolveWorkflowPhase(project) < CAPSTONE_PHASES.PHASE_4) {
       throw new AppError(
         'Final paper uploads are only allowed in the Final Capstone stage.',
         400,
@@ -1781,28 +1901,23 @@ class SubmissionService {
       );
     }
 
-    // Post-Approval Hard Gate Enforcement
-    const deliverableKey =
-      deliverableType === 'final_academic'
-        ? DELIVERABLE_TYPES.FULL_ACADEMIC_PAPER
-        : deliverableType === 'final_journal'
-          ? DELIVERABLE_TYPES.CONDENSED_JOURNAL_PAPER
-          : null;
-
-    if (deliverableKey) {
-      const isUnlocked =
-        project.projectStatus === PROJECT_STATUSES.FINAL_APPROVED ||
-        project.projectStatus === 'final_approved' ||
-        (Array.isArray(project.unlockedDeliverables) &&
-          project.unlockedDeliverables.includes(deliverableKey));
-
-      if (!isUnlocked) {
-        throw new AppError(
-          'Post-approval deliverables are locked. The final defense verdict must be Passed or Passed with Revisions, and all Action Done Matrix (ADM) items signed by Adviser and Chair.',
-          403,
-          'SUBMISSION_LOCKED_PENDING_APPROVAL',
-        );
-      }
+    const chapterSubmissions = await Promise.all(
+      [1, 2, 3, 4, 5].map((chapter) =>
+        Submission.findOne({ projectId: project._id, type: 'chapter', chapter })
+          .sort({ version: -1 })
+          .select('status'),
+      ),
+    );
+    if (
+      chapterSubmissions.some(
+        (submission) => !submission || !['approved', 'accepted', 'locked'].includes(submission.status),
+      )
+    ) {
+      throw new AppError(
+        'Chapters 1–5 must each be approved by the adviser before the final manuscripts can be compiled.',
+        400,
+        'FINAL_CHAPTERS_NOT_APPROVED',
+      );
     }
   }
 
@@ -1837,7 +1952,8 @@ class SubmissionService {
     docLabelPrefix,
   }) {
     // --- Late submission detection ---
-    const { isLate } = this._detectLateSubmission(project, 'defense', remarks);
+    const deadlineField = type === 'final_journal' ? 'finalJournal' : 'finalAcademic';
+    const { isLate } = await this._detectLateSubmission(project, deadlineField, remarks);
 
     // --- Auto-increment version ---
     const latest = await Submission.findOne({ projectId, type }).sort({ version: -1 });
@@ -1961,7 +2077,7 @@ class SubmissionService {
       projectId,
       'upload final papers',
     );
-    this._assertFinalPaperEligible(project, 'final_academic');
+    await this._assertFinalPaperEligible(project);
 
     return this._uploadFinalPaper({
       userId,
@@ -1993,7 +2109,7 @@ class SubmissionService {
       projectId,
       'upload final papers',
     );
-    this._assertFinalPaperEligible(project, 'final_journal');
+    await this._assertFinalPaperEligible(project);
 
     return this._uploadFinalPaper({
       userId,
@@ -2431,122 +2547,12 @@ class SubmissionService {
    * @returns {Promise<Object>}
    */
   async getSubmissionRevisionDiff(submissionId, requesterId, compareWithId) {
-    const targetSubmission = await Submission.findById(submissionId).select('+extractedText');
-    if (!targetSubmission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    const user = await User.findById(requesterId).select('role teamId');
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-
-    const project = await Project.findById(targetSubmission.projectId).populate(
-      'teamId',
-      'members',
+    return submissionRevisionDiffService.getSubmissionRevisionDiff(
+      submissionId,
+      requesterId,
+      compareWithId,
+      { submissionService: this },
     );
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-
-    this._assertCanViewSubmission(user, project, targetSubmission, {
-      allowArchivedFinalJournalPublicView: true,
-    });
-
-    // Helper to extract & cache text if missing
-    const ensureExtractedText = async (sub) => {
-      if (sub && !sub.extractedText && sub.storageKey) {
-        try {
-          const buffer = await storageService.downloadFile(sub.storageKey);
-          const text = await extractText(buffer, sub.fileType || 'application/pdf');
-          if (text) {
-            sub.extractedText = text;
-            await Submission.updateOne({ _id: sub._id }, { $set: { extractedText: text } });
-          }
-        } catch (err) {
-          logger.error(
-            `[SubmissionService] Text extraction failed for submission ${sub._id}:`,
-            err,
-          );
-        }
-      }
-    };
-
-    await ensureExtractedText(targetSubmission);
-
-    // Populate annotations on target
-    await targetSubmission.populate([
-      { path: 'annotations.userId', select: 'firstName lastName email role' },
-      { path: 'annotations.replies.userId', select: 'firstName lastName email role' },
-    ]);
-
-    // Find candidate comparison versions
-    const versionFilter = {
-      projectId: targetSubmission.projectId,
-      _id: { $ne: targetSubmission._id },
-    };
-    if (targetSubmission.chapter !== null && targetSubmission.chapter !== undefined) {
-      versionFilter.chapter = targetSubmission.chapter;
-    } else {
-      versionFilter.type = targetSubmission.type;
-    }
-
-    const availableVersions = await Submission.find(versionFilter)
-      .select('_id version chapter type fileName createdAt')
-      .sort({ version: -1 });
-
-    let previousSubmission = null;
-    if (compareWithId) {
-      previousSubmission = await Submission.findById(compareWithId).select('+extractedText');
-    } else {
-      // Pick immediate previous version (version < target.version)
-      const prevFilter = {
-        ...versionFilter,
-        version: { $lt: targetSubmission.version },
-      };
-      previousSubmission = await Submission.findOne(prevFilter)
-        .sort({ version: -1 })
-        .select('+extractedText');
-    }
-
-    if (previousSubmission) {
-      await ensureExtractedText(previousSubmission);
-      await previousSubmission.populate([
-        { path: 'annotations.userId', select: 'firstName lastName email role' },
-        { path: 'annotations.replies.userId', select: 'firstName lastName email role' },
-      ]);
-    }
-
-    return {
-      current: {
-        id: targetSubmission._id,
-        version: targetSubmission.version,
-        chapter: targetSubmission.chapter,
-        type: targetSubmission.type,
-        fileName: targetSubmission.fileName,
-        fileType: targetSubmission.fileType,
-        createdAt: targetSubmission.createdAt,
-        extractedText: targetSubmission.extractedText || '',
-        annotations: targetSubmission.annotations || [],
-      },
-      previous: previousSubmission
-        ? {
-            id: previousSubmission._id,
-            version: previousSubmission.version,
-            chapter: previousSubmission.chapter,
-            type: previousSubmission.type,
-            fileName: previousSubmission.fileName,
-            fileType: previousSubmission.fileType,
-            createdAt: previousSubmission.createdAt,
-            extractedText: previousSubmission.extractedText || '',
-            annotations: previousSubmission.annotations || [],
-          }
-        : null,
-      availableVersions: availableVersions.map((v) => ({
-        id: v._id,
-        version: v.version,
-        chapter: v.chapter,
-        type: v.type,
-        fileName: v.fileName,
-        createdAt: v.createdAt,
-      })),
-    };
   }
 
   /**
@@ -2718,9 +2724,8 @@ class SubmissionService {
   /* ═══════════════════ Review Workflow ═══════════════════ */
 
   /**
-   * Review a submission — approve, request revisions, or reject.
-   * Instructors and assigned advisers can review submissions.
-   * Proposal approvals are restricted to instructors and assigned panelists.
+   * Review a submission — approve, request revisions, or reject according to
+   * the submission type's assigned committee role.
    *
    * @param {string} submissionId
    * @param {string} reviewerId - The reviewing faculty member
@@ -2754,21 +2759,19 @@ class SubmissionService {
       project.adviserId &&
       String(project.adviserId?._id || project.adviserId) === String(reviewerId),
     );
-    const isInstructor = reviewer.role === ROLES.INSTRUCTOR;
-
-    // Only assigned adviser and course instructor can endorse proposal submissions for defense
-    if (submission.type === 'proposal' && !isAssignedAdviser && !isInstructor) {
+    // The assigned adviser owns Chapter 1–3 manuscript review and defense clearance.
+    if ((submission.type === 'proposal' || submission.type === 'chapter') && !isAssignedAdviser) {
       throw new AppError(
-        'Only the assigned adviser and course instructor can endorse the proposal manuscript for defense. Other roles can view the manuscript until the defense hearing.',
+        'Only the assigned adviser can review chapter and compiled proposal manuscripts.',
         403,
         'ENDORSEMENT_FORBIDDEN_ROLE',
       );
     }
 
-    // Panelists without adviser assignment cannot review chapter submissions
-    if (!isAssignedAdviser && !isInstructor && submission.type !== 'proposal') {
+    // Other faculty roles may read chapter submissions but cannot approve or request revisions.
+    if (!isAssignedAdviser && (submission.type === 'proposal' || submission.type === 'chapter')) {
       throw new AppError(
-        'Panelists cannot review chapter submissions. Chapter reviews are conducted by the assigned adviser.',
+        'Chapter reviews are conducted by the assigned adviser.',
         403,
         'PANELIST_PROPOSAL_ONLY',
       );
@@ -2783,11 +2786,10 @@ class SubmissionService {
     if (
       submission.type === 'proposal' &&
       status === SUBMISSION_STATUSES.APPROVED &&
-      !isAssignedAdviser &&
-      !isInstructor
+      !isAssignedAdviser
     ) {
       throw new AppError(
-        'Only the assigned adviser and course instructor can endorse the proposal manuscript for defense.',
+        'Only the assigned adviser can endorse the proposal manuscript for defense.',
         403,
         'ENDORSEMENT_FORBIDDEN_ROLE',
       );
@@ -2901,31 +2903,13 @@ class SubmissionService {
       } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
         if (submission.type === 'proposal') {
           projectDoc.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
-          if (projectDoc.capstonePhase === 1) {
-            projectDoc.capstonePhase = 2;
-          }
-        } else if (
-          submission.type === 'chapter' &&
-          submission.chapter === 3 &&
-          projectDoc.capstonePhase === 1
-        ) {
-          projectDoc.capstonePhase = 2;
-          projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
-        } else if (
-          projectDoc.capstonePhase === 3 &&
-          submission.type === 'chapter' &&
-          submission.chapter === 5
-        ) {
-          projectDoc.capstonePhase = 4;
-          projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         } else {
           projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         }
 
-        // Capstone 2 Defense readiness: notify Course Instructor when compiled 1-3 proposal or chapter 3 is approved
+        // Capstone 1 proposal readiness: notify the Course Instructor after the compiled manuscript is approved.
         if (
-          submission.type === 'proposal' ||
-          (submission.type === 'chapter' && submission.chapter === 3)
+          submission.type === 'proposal'
         ) {
           if (!projectDoc.defenseSchedule) {
             projectDoc.defenseSchedule = {};
@@ -2963,7 +2947,7 @@ class SubmissionService {
               const instructorNotif = await Notification.create({
                 userId: instructorId,
                 type: 'manuscript_endorsed_for_defense',
-                title: 'Team Ready for Capstone 2 Defense Scheduling',
+                title: 'Team ready for Capstone 1 defense scheduling',
                 message: `Adviser has verified and approved the Chapter 1–3 Manuscript for "${projectDoc.title}". Team "${teamName}" is officially Ready for Defense and pending hearing scheduling.`,
                 metadata,
               });
@@ -2986,7 +2970,7 @@ class SubmissionService {
               const panelNotif = await Notification.create({
                 userId: memberId,
                 type: 'manuscript_endorsed_for_defense',
-                title: 'Team Ready for Defense — Adviser Endorsement Granted',
+                title: 'Team ready for defense — adviser endorsement granted',
                 message: `Adviser has approved and endorsed Chapter 1–3 Manuscript for "${projectDoc.title}". Team "${teamName}" is officially Ready for Defense evaluation.`,
                 metadata,
               });
@@ -3150,40 +3134,9 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async addAnnotation(submissionId, userId, data) {
-    const submission = await Submission.findById(submissionId);
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    await this._getModerationContext(submission, userId);
-
-    submission.annotations.push({
-      userId,
-      page: data.page || 1,
-      lineStart: data.lineStart || null,
-      lineEnd: data.lineEnd || null,
-      content: data.content,
-      selectedText: data.selectedText || '',
-      highlightCoords: data.highlightCoords || null,
+    return submissionAnnotationService.addAnnotation(submissionId, userId, data, {
+      submissionService: this,
     });
-
-    await submission.save();
-
-    // Notify the submitter
-    const annotNotif = await Notification.create({
-      userId: submission.submittedBy,
-      type: 'annotation_added',
-      title: 'New Comment on Submission',
-      message: `A faculty member added a comment on your Chapter ${submission.chapter} (v${submission.version}).`,
-      metadata: {
-        submissionId: submission._id,
-        projectId: submission.projectId,
-        chapter: submission.chapter,
-      },
-    });
-    emitToUser(submission.submittedBy, 'notification:new', annotNotif);
-
-    return { submission };
   }
 
   /**
@@ -3196,23 +3149,9 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async addAnnotationReply(submissionId, annotationId, userId, data) {
-    const { submission } = await this.getSubmissionViewContext(submissionId, userId, {
-      submissionSelect: 'projectId type annotations',
+    return submissionAnnotationService.addAnnotationReply(submissionId, annotationId, userId, data, {
+      submissionService: this,
     });
-
-    const annotation = submission.annotations.id(annotationId);
-    if (!annotation) {
-      throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
-    }
-
-    annotation.replies.push({
-      userId,
-      content: data.content,
-    });
-
-    await submission.save();
-
-    return { submission };
   }
 
   /**
@@ -3226,27 +3165,9 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async removeAnnotation(submissionId, annotationId, userId, userRole) {
-    const submission = await Submission.findById(submissionId);
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    await this._getModerationContext(submission, userId);
-
-    const annotation = submission.annotations.id(annotationId);
-    if (!annotation) {
-      throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
-    }
-
-    // Only author or instructor can delete
-    if (annotation.userId.toString() !== userId.toString() && userRole !== ROLES.INSTRUCTOR) {
-      throw new AppError('You can only remove your own annotations.', 403, 'FORBIDDEN');
-    }
-
-    submission.annotations.pull({ _id: annotationId });
-    await submission.save();
-
-    return { submission };
+    return submissionAnnotationService.removeAnnotation(submissionId, annotationId, userId, userRole, {
+      submissionService: this,
+    });
   }
 
   /**
@@ -3258,23 +3179,9 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async markAnnotationResolved(submissionId, annotationId, userId) {
-    const submission = await Submission.findById(submissionId);
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    await this._getModerationContext(submission, userId);
-
-    const annotation = submission.annotations.id(annotationId);
-    if (!annotation) {
-      throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
-    }
-
-    annotation.resolved = true;
-    annotation.resolvedAt = new Date();
-    await submission.save();
-
-    return { submission };
+    return submissionAnnotationService.markAnnotationResolved(submissionId, annotationId, userId, {
+      submissionService: this,
+    });
   }
 
   /**
@@ -3286,74 +3193,10 @@ class SubmissionService {
    * @param {string} userRole - User's role
    * @returns {Object} { feedback }
    */
-  async getSubmissionFeedback(submissionId, userId, _userRole) {
-    const submission = await Submission.findById(submissionId)
-      .populate('submittedBy', 'name email')
-      .populate('projectId', 'title')
-      .lean();
-
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    const user = await User.findById(userId).select('role teamId');
-    if (!user) {
-      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    }
-
-    const projectId = submission.projectId?._id || submission.projectId;
-    const project = await Project.findById(projectId).populate('teamId', 'members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
-
-    this._assertCanViewSubmission(user, project, submission);
-
-    const now = new Date();
-    const daysRemaining = submission.revisionDeadline
-      ? Math.ceil((submission.revisionDeadline - now) / (1000 * 60 * 60 * 24))
-      : null;
-
-    const feedback = {
-      submissionId: submission._id,
-      projectId: submission.projectId._id,
-      projectTitle: submission.projectId.title,
-      chapter: submission.chapter,
-      version: submission.version,
-      status: submission.status,
-      submittedBy: submission.submittedBy,
-      submittedAt: submission.createdAt,
-      reviewedAt: submission.reviewedAt,
-      reviewedBy: submission.reviewedBy,
-      reviewNote: submission.reviewNote,
-      revisionDeadline: submission.revisionDeadline,
-      daysRemaining,
-      annotations: submission.annotations.map((ann) => ({
-        _id: ann._id,
-        page: ann.page,
-        lineStart: ann.lineStart,
-        lineEnd: ann.lineEnd,
-        content: ann.content,
-        selectedText: ann.selectedText || '',
-        highlightCoords: ann.highlightCoords,
-        addedBy: ann.userId,
-        addedAt: ann.createdAt,
-        resolved: ann.resolved || false,
-        replies: (ann.replies || []).map((reply) => ({
-          _id: reply._id,
-          userId: reply.userId,
-          content: reply.content,
-          createdAt: reply.createdAt,
-        })),
-      })),
-      unaddressedCount: submission.annotations.filter((a) => !a.resolved).length,
-      plagiarism: {
-        score: submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
-        status: submission.plagiarismResult?.status || 'not_checked',
-      },
-    };
-
-    return { feedback };
+  async getSubmissionFeedback(submissionId, userId, userRole) {
+    return submissionReviewWorkspaceService.getSubmissionFeedback(submissionId, userId, userRole, {
+      submissionService: this,
+    });
   }
 
   /**
@@ -3364,174 +3207,29 @@ class SubmissionService {
    * @param {string} userRole - User's role
    * @returns {Object} { versions }
    */
-  async getSubmissionVersions(submissionId, userId, _userRole) {
-    const submission = await Submission.findById(submissionId)
-      .populate('submittedBy', 'name email')
-      .lean();
-
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
-
-    const user = await User.findById(userId).select('role teamId');
-    if (!user) {
-      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    }
-
-    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
-
-    this._assertCanViewSubmission(user, project, submission);
-
-    // Fetch all versions of this chapter from the same project
-    const allVersions = await Submission.find({
-      projectId: submission.projectId,
-      chapter: submission.chapter,
-      submittedBy: submission.submittedBy,
-    })
-      .select(
-        'version createdAt status fileName fileSize submittedBy reviewNote plagiarismResult originalityScore',
-      )
-      .populate('submittedBy', 'name')
-      .sort({ version: -1 })
-      .lean();
-
-    const versions = allVersions.map((v) => ({
-      _id: v._id,
-      version: v.version,
-      submittedAt: v.createdAt,
-      status: v.status,
-      fileName: v.fileName,
-      fileSize: v.fileSize,
-      submittedBy: v.submittedBy,
-      reviewNote: v.reviewNote,
-      plagiarismScore: v.originalityScore ?? v.plagiarismResult?.originalityScore ?? null,
-    }));
-
-    return { versions };
+  async getSubmissionVersions(submissionId, userId, userRole) {
+    return submissionReviewWorkspaceService.getSubmissionVersions(submissionId, userId, userRole, {
+      submissionService: this,
+    });
   }
 
   /**
    * Build and return the review workspace payload for split-view UI.
-   * Rounds are derived from existing submission versions, plus any pending
-   * placeholder rounds stored in SubmissionRound.
    *
    * @param {string} submissionId
    * @param {string} userId
    * @param {string} userRole
    * @returns {Object} { workspace }
    */
-  async getSubmissionReviewWorkspace(submissionId, userId, _userRole) {
-    const { submission } = await this.getSubmission(submissionId, userId);
-
-    const [project, user] = await Promise.all([
-      Project.findById(submission.projectId)
-        .populate('teamId', 'name members googleDocUrl githubLink')
-        .lean({ virtuals: true, getters: true }),
-      User.findById(userId).lean({ virtuals: true, getters: true }),
-    ]);
-
-    if (!project || !user) {
-      throw new AppError('Project or user not found.', 404, 'NOT_FOUND');
-    }
-
-    this._assertCanViewSubmission(user, project, submission);
-
-    const baseFilter = {
-      projectId: submission.projectId,
-      chapter: submission.chapter,
-      type: submission.type,
-    };
-
-    const [versionSubmissions, placeholderRounds] = await Promise.all([
-      Submission.find(baseFilter)
-        .sort({ version: 1 })
-        .select(
-          '_id chapter type version fileName fileSize fileType status createdAt originalityScore plagiarismResult reviewNote reviewClosed annotations driveWebViewLink syncedGoogleDocId syncedGoogleDocUrl',
-        )
-        .populate('annotations.userId', 'firstName middleName lastName')
-        .populate('annotations.replies.userId', 'firstName middleName lastName')
-        .lean(),
-      SubmissionRound.find({
-        ...baseFilter,
-        sourceSubmissionId: null,
-        status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
-      })
-        .sort({ roundNumber: 1 })
-        .lean(),
-    ]);
-
-    const rounds = versionSubmissions.map((item) => ({
-      roundNumber: item.version,
-      label: item.version === 1 ? 'Round 1 (Original)' : `Round ${item.version} (Revision)`,
-      status:
-        item.status === SUBMISSION_STATUSES.PENDING
-          ? SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW
-          : item.status,
-      sourceSubmissionId: item._id,
-      createdAt: item.createdAt,
-      fileName: item.fileName,
-      fileSize: item.fileSize,
-      fileType: item.fileType,
-      originalityScore: item.originalityScore,
-      reviewNote: item.reviewNote,
-      reviewClosed: item.reviewClosed || false,
-      annotations: item.annotations || [],
-      driveWebViewLink: item.driveWebViewLink || null,
-      syncedGoogleDocId: item.syncedGoogleDocId || null,
-      syncedGoogleDocUrl: item.syncedGoogleDocUrl || null,
-      isPlaceholder: false,
-    }));
-
-    placeholderRounds.forEach((placeholder) => {
-      rounds.push({
-        roundNumber: placeholder.roundNumber,
-        label: `Round ${placeholder.roundNumber} (Pending Upload)`,
-        status: placeholder.status,
-        sourceSubmissionId: null,
-        createdAt: placeholder.createdAt,
-        fileName: null,
-        fileSize: null,
-        fileType: null,
-        originalityScore: null,
-        reviewNote: placeholder.overallFeedback || null,
-        reviewClosed: false,
-        annotations: [],
-        driveWebViewLink: null,
-        syncedGoogleDocId: null,
-        syncedGoogleDocUrl: null,
-        isPlaceholder: true,
-      });
-    });
-
-    rounds.sort((a, b) => a.roundNumber - b.roundNumber);
-
-    const workspace = {
-      submissionId: submission._id,
-      projectId: project._id,
-      projectTitle: project.title,
-      projectStatus: project.projectStatus,
-      isArchived: project.isArchived || false,
-      chapter: submission.chapter,
-      type: submission.type,
-      teamName: project.teamId?.name || 'Unknown Team',
-      teamResources: {
-        googleDocUrl: project.teamId?.googleDocUrl || null,
-        githubRepoUrl: project.githubRepoUrl || project.teamId?.githubLink || null,
-        prototypes: Array.isArray(project.prototypes) ? project.prototypes : [],
+  async getSubmissionReviewWorkspace(submissionId, userId, userRole) {
+    return submissionReviewWorkspaceService.getSubmissionReviewWorkspace(
+      submissionId,
+      userId,
+      userRole,
+      {
+        submissionService: this,
       },
-      // Committee IDs for client-side reviewer role derivation
-      adviserId: project.adviserId ? String(project.adviserId) : null,
-      panelistIds: Array.isArray(project.panelistIds)
-        ? project.panelistIds.map((id) => String(id))
-        : [],
-      secretaryId: project.secretaryId ? String(project.secretaryId) : null,
-      rounds,
-    };
-
-    return { workspace };
+    );
   }
 
   /**
@@ -3730,6 +3428,7 @@ class SubmissionService {
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
+    assertProjectWritable(project);
 
     const User = (await import('../users/user.model.js')).default;
     const user = await User.findById(userId);

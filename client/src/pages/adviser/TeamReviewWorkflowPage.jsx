@@ -53,10 +53,10 @@ function StatsRow({ awaiting, underReview }) {
             <Inbox className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-mono tabular-nums text-2xl font-bold text-slate-900 dark:text-foreground">
+            <p className="font-mono tabular-nums text-2xl font-bold text-foreground">
               {awaiting.length}
             </p>
-            <p className="text-[11px] font-medium text-slate-600 dark:text-muted-foreground">
+            <p className="text-[11px] font-medium text-muted-foreground">
               Awaiting Review
             </p>
           </div>
@@ -68,10 +68,10 @@ function StatsRow({ awaiting, underReview }) {
             <RotateCw className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-mono tabular-nums text-2xl font-bold text-slate-900 dark:text-foreground">
+            <p className="font-mono tabular-nums text-2xl font-bold text-foreground">
               {underReview.length}
             </p>
-            <p className="text-[11px] font-medium text-slate-600 dark:text-muted-foreground">
+            <p className="text-[11px] font-medium text-muted-foreground">
               In Revision
             </p>
           </div>
@@ -83,14 +83,14 @@ function StatsRow({ awaiting, underReview }) {
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-mono tabular-nums text-2xl font-bold text-slate-900 dark:text-foreground">
+            <p className="font-mono tabular-nums text-2xl font-bold text-foreground">
               {
                 underReview.filter(
                   (i) => typeof i.daysRemaining === 'number' && i.daysRemaining < 0,
                 ).length
               }
             </p>
-            <p className="text-[11px] font-medium text-slate-600 dark:text-muted-foreground">
+            <p className="text-[11px] font-medium text-muted-foreground">
               Overdue
             </p>
           </div>
@@ -102,10 +102,10 @@ function StatsRow({ awaiting, underReview }) {
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-mono tabular-nums text-2xl font-bold text-slate-900 dark:text-foreground">
+            <p className="font-mono tabular-nums text-2xl font-bold text-foreground">
               {awaiting.length + underReview.length}
             </p>
-            <p className="text-[11px] font-medium text-slate-600 dark:text-muted-foreground">
+            <p className="text-[11px] font-medium text-muted-foreground">
               Total Active
             </p>
           </div>
@@ -134,7 +134,7 @@ function SubmissionCard({ item }) {
   return (
     <div
       className={[
-        'group flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-3.5 transition-all cursor-pointer hover:bg-muted/40 shadow-xs',
+        'group flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-3.5 transition-all cursor-pointer hover:bg-muted/40 shadow-xs',
         isOverdue ? 'border-red-500/40 bg-red-500/[0.03]' : '',
         isUrgent ? 'border-amber-500/40 bg-amber-500/[0.03]' : '',
       ].join(' ')}
@@ -150,8 +150,8 @@ function SubmissionCard({ item }) {
           <FileText className="h-4.5 w-4.5" />
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-bold text-slate-900 dark:text-foreground truncate">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-bold text-foreground truncate">
               {item.teamName}
             </p>
             <Badge variant="outline" className="shrink-0 text-[10px] font-medium">
@@ -163,7 +163,7 @@ function SubmissionCard({ item }) {
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground truncate">{item.projectTitle}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="font-medium text-slate-700 dark:text-muted-foreground">
+            <span className="font-medium text-muted-foreground">
               by {item.submittedBy}
             </span>
             {item.createdAt && (
@@ -191,7 +191,7 @@ function SubmissionCard({ item }) {
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
         <SubmissionStatusBadge status={item.status} />
         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -205,9 +205,9 @@ function ReviewSection({ title, icon: Icon, items, emptyMessage, accentColor }) 
   if (items.length === 0) {
     return (
       <section className="space-y-2.5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Icon className={`h-4 w-4 ${accentColor}`} />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
             {title}
           </h2>
           <Badge variant="secondary" className="text-[10px] font-mono">
@@ -223,9 +223,9 @@ function ReviewSection({ title, icon: Icon, items, emptyMessage, accentColor }) 
 
   return (
     <section className="space-y-2.5">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Icon className={`h-4 w-4 ${accentColor}`} />
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
           {title}
         </h2>
         <Badge variant="secondary" className="text-[10px] font-mono">
@@ -271,7 +271,7 @@ export default function TeamReviewWorkflowPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -285,7 +285,7 @@ export default function TeamReviewWorkflowPage() {
             size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="gap-2"
+            className="min-h-11 gap-2 self-start"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
@@ -305,7 +305,7 @@ export default function TeamReviewWorkflowPage() {
         {/* Error */}
         {error && (
           <Card className="border-destructive/30 bg-destructive/5">
-            <CardContent className="flex items-center gap-3 p-4 text-sm text-destructive">
+            <CardContent className="flex flex-wrap items-center gap-3 p-4 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>Unable to load team workflow: {error.message}</span>
               <Button variant="outline" size="sm" className="ml-auto" onClick={() => refetch()}>

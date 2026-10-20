@@ -47,7 +47,7 @@ const structuredDescriptionProject = {
     {
       title: 'LexiBridge Rural Literacy Assistant',
       description:
-        'Problem Statement: Administrative, legal, and medical documents are difficult for low-literacy and non-native readers. Proposed Solution: A mobile OCR plus LLM app that rewrites documents into simple language and dialect-ready variants. Unique Contribution / Innovation: Focuses on cognitive accessibility and supports offline mode for low-connectivity regions. Target Users / Beneficiaries: Rural community members, elderly citizens, and non-native speakers navigating government systems. Expected Impact / Value: Improves autonomy, lowers administrative errors, and increases access to healthcare and legal services.',
+        'Problem Statement: Administrative, legal, and medical documents are difficult for low-literacy and non-native readers. Objectives: Rewrite documents into simple language and dialect-ready variants. Technical Stack: Mobile OCR, a language model, and offline storage. Proposed Solution: A mobile OCR plus LLM app that rewrites documents into simple language and dialect-ready variants. Unique Contribution / Innovation: Focuses on cognitive accessibility and supports offline mode for low-connectivity regions. Target Users / Beneficiaries: Rural community members, elderly citizens, and non-native speakers navigating government systems. Expected Impact / Value: Improves autonomy, lowers administrative errors, and increases access to healthcare and legal services.',
     },
   ],
 };
@@ -62,6 +62,9 @@ const approvedProject = {
 const fieldText = {
   problemStatement:
     'High prevalence of manual incident logs and delayed routing leads to unresolved requests and poor visibility.',
+  objectives:
+    'Measure response time, routing accuracy, and the completeness of incident records.',
+  technicalStack: 'React dashboard, Express API, and a MongoDB incident store.',
   proposedSolution:
     'A centralized tracker that maps incident categories, owners, and timeline alerts for faster resolution.',
   uniqueContribution:
@@ -74,6 +77,8 @@ const fieldText = {
 
 const placeholders = [
   'Describe the high prevalence of the issue, existing gaps, and current costs...',
+  'List the specific objectives the capstone will achieve...',
+  'List the languages, frameworks, platforms, and hardware...',
   'Explain how your system solves the problem, core features...',
   'What makes this different from existing tools? Campus DB-linked, cost-effective...',
   'Primary and secondary users...',
@@ -190,13 +195,7 @@ describe('ProposalTab', () => {
       window.localStorage.getItem('cms:proposal-draft:project-1:proposal-1'),
     );
 
-    expect(storedDraft).toEqual({
-      problemStatement: values[0],
-      proposedSolution: values[1],
-      uniqueContribution: values[2],
-      targetUsers: values[3],
-      expectedImpact: values[4],
-    });
+    expect(storedDraft).toEqual(fieldText);
     expect(toastSuccess).toHaveBeenCalledWith('Proposal draft saved locally.');
 
     view.unmount();
@@ -206,15 +205,19 @@ describe('ProposalTab', () => {
     const view = renderProposalTab(structuredDescriptionProject);
 
     const textareas = view.container.querySelectorAll('textarea');
-    expect(textareas).toHaveLength(5);
+    expect(textareas).toHaveLength(7);
 
-    const values = Array.from(textareas).map((textarea) => textarea.value);
+    const valuesByField = Object.fromEntries(
+      Array.from(textareas, (textarea) => [textarea.id.split('-').at(-1), textarea.value]),
+    );
 
-    expect(values[0]).toContain('difficult for low-literacy and non-native readers');
-    expect(values[1]).toContain('mobile OCR plus LLM app');
-    expect(values[2]).toContain('cognitive accessibility and supports offline mode');
-    expect(values[3]).toContain('Rural community members, elderly citizens');
-    expect(values[4]).toContain('Improves autonomy, lowers administrative errors');
+    expect(valuesByField.problemStatement).toContain('difficult for low-literacy and non-native readers');
+    expect(valuesByField.objectives).toContain('Rewrite documents into simple language');
+    expect(valuesByField.technicalStack).toContain('Mobile OCR, a language model, and offline storage');
+    expect(valuesByField.proposedSolution).toContain('mobile OCR plus LLM app');
+    expect(valuesByField.uniqueContribution).toContain('cognitive accessibility and supports offline mode');
+    expect(valuesByField.targetUsers).toContain('Rural community members, elderly citizens');
+    expect(valuesByField.expectedImpact).toContain('Improves autonomy, lowers administrative errors');
 
     view.unmount();
   });
@@ -270,7 +273,7 @@ describe('ProposalTab', () => {
     }
 
     const textareas = view.container.querySelectorAll('textarea');
-    expect(textareas).toHaveLength(5);
+    expect(textareas).toHaveLength(7);
 
     const valueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype,
@@ -303,10 +306,12 @@ describe('ProposalTab', () => {
       title: 'Smart Incident Tracker: BukSU',
       deckData: {
         problemStatement: values[0],
-        proposedSolution: values[1],
-        uniqueContribution: values[2],
-        targetUsers: values[3],
-        expectedImpact: values[4],
+        objectives: values[1],
+        technicalStack: values[2],
+        proposedSolution: values[3],
+        uniqueContribution: values[4],
+        targetUsers: values[5],
+        expectedImpact: values[6],
       },
     });
 

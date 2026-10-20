@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { TITLE_STATUSES } from '@cms/shared';
+import { CAPSTONE_PHASES, TITLE_STATUSES, resolveWorkflowPhase } from '@cms/shared';
 import {
   BookOpen,
   Calendar,
@@ -25,7 +25,7 @@ export default function ProjectSidebarInfo({ project }) {
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
     ? capstoneRaw.join(', ')
-    : capstoneRaw || getCapstonePhaseLabel(project?.capstonePhase);
+    : capstoneRaw || getCapstonePhaseLabel(project);
 
   const isProposalPhase = project.titleStatus !== TITLE_STATUSES.APPROVED;
   const proposalTitles = Array.isArray(project.titleProposals)
@@ -225,10 +225,11 @@ export default function ProjectSidebarInfo({ project }) {
   );
 }
 
-function getCapstonePhaseLabel(phase) {
-  const normalizedPhase = Number(phase) || 0;
-  if (normalizedPhase >= 4) return 'Capstone 3 (Final Defense)';
-  if (normalizedPhase === 3) return 'Capstone 3 (Ch 4-5)';
-  if (normalizedPhase === 2) return 'Capstone 2 (Development)';
-  return 'Capstone 1 (Ch 1-3)';
+function getCapstonePhaseLabel(project) {
+  const phase = resolveWorkflowPhase(project);
+  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Capstone 3 (Final Defense & Archival)';
+  if (phase >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Capstone 2 (System Development)';
+  if (phase >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Capstone 1 (Chapters 1–3)';
+  if (phase >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposal Review';
+  return 'Phase 0: Team Formation';
 }

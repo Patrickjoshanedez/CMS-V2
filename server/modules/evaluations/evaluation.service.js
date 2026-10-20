@@ -10,15 +10,36 @@ import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToProject } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
+import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 import {
   ROLES,
   EVALUATION_STATUSES,
   DEFENSE_TYPES,
-  PROJECT_STATUSES,
+  DEFENSE_DECISIONS,
   computeBukSUGrade,
 } from '@cms/shared';
 
+const toUserId = (value) => String(value?._id || value || '');
+
+function getAssignedPanelistIds(project) {
+  const secretaryId = toUserId(project.secretaryId);
+  const assignedIds = [
+    ...(project.panelists || [])
+      .filter((panelist) => String(panelist.role || '').toLowerCase() !== 'secretary')
+      .map((panelist) => toUserId(panelist.userId)),
+    ...(project.panelistIds || []).map(toUserId),
+  ];
+
+  return [...new Set(assignedIds.filter((id) => id && id !== secretaryId))];
+}
+
 class EvaluationService {
+  async _assertEvaluationProjectWritable(evaluation) {
+    const project = await Project.findById(evaluation.projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    assertProjectWritable(project);
+  }
+
   /* ═══════════════════ Default Rubric ═══════════════════ */
 
   /**
@@ -133,6 +154,7 @@ class EvaluationService {
     });
 
     if (!evaluation) {
+      assertProjectWritable(project);
       evaluation = await Evaluation.create({
         projectId,
         panelistId,
@@ -158,6 +180,7 @@ class EvaluationService {
   async updateEvaluation(panelistId, evaluationId, data) {
     const evaluation = await Evaluation.findById(evaluationId);
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+    await this._assertEvaluationProjectWritable(evaluation);
 
     if (evaluation.panelistId.toString() !== panelistId.toString()) {
       throw new AppError('You can only edit your own evaluation.', 403, 'FORBIDDEN');
@@ -197,6 +220,7 @@ class EvaluationService {
   async submitEvaluation(panelistId, evaluationId) {
     const evaluation = await Evaluation.findById(evaluationId);
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+    await this._assertEvaluationProjectWritable(evaluation);
 
     if (evaluation.panelistId.toString() !== panelistId.toString()) {
       throw new AppError('You can only submit your own evaluation.', 403, 'FORBIDDEN');
@@ -299,6 +323,7 @@ class EvaluationService {
   async unlockEvaluation(instructorId, evaluationId, reason) {
     const evaluation = await Evaluation.findById(evaluationId);
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+    await this._assertEvaluationProjectWritable(evaluation);
 
     if (!reason || !reason.trim()) {
       throw new AppError('Unlock reason is required.', 400, 'UNLOCK_REASON_REQUIRED');
@@ -351,10 +376,11 @@ class EvaluationService {
   async releaseEvaluations(projectId, defenseType) {
     const project = await Project.findById(projectId).populate('teamId');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    assertProjectWritable(project);
 
     // --- Grade Leakage Prevention Guard ---
     // All assigned panelists must have submitted before grades can be released.
-    const assignedPanelistIds = (project.panelists || []).map((p) => String(p.userId));
+    const assignedPanelistIds = getAssignedPanelistIds(project);
     if (assignedPanelistIds.length > 0) {
       const submittedEvals = await Evaluation.find({
         projectId,
@@ -389,31 +415,36 @@ class EvaluationService {
       },
     );
 
-    // Check if passed defense verdict triggers auto-archive
+    // A released passing final evaluation is a prerequisite for archival, not an archive trigger.
     const allEvaluations = await Evaluation.find({ projectId, defenseType });
     const isPassedVerdict =
       allEvaluations.length > 0 &&
       allEvaluations.every(
         (e) =>
-          e.decision &&
-          ['passed', 'passed_with_revision', 'approved'].includes(String(e.decision).toLowerCase()),
+          [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
+            String(e.decision || '').toLowerCase(),
+          ),
       );
 
     if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
-      project.isArchived = true;
-      project.archivedAt = new Date();
-      project.projectStatus = PROJECT_STATUSES.ARCHIVED;
       project.defenseSchedule = project.defenseSchedule || {};
       project.defenseSchedule.verdict = 'Passed';
       await project.save();
 
-      // Evaluate post-approval hard gate: unlocks full academic paper & condensed journal if ADM is signed
       try {
         const { default: projectService } = await import('../projects/project.service.js');
         await projectService.evaluatePostApprovalUnlocks(projectId);
-      } catch (err) {
-        // non-fatal
+      } catch {
+        // Unlock calculation is independent of grade release and archival readiness.
       }
+    }
+
+    const { default: projectService } = await import('../projects/project.service.js');
+    if ([DEFENSE_TYPES.PROPOSAL, DEFENSE_TYPES.PROGRESS, 'midterm'].includes(defenseType)) {
+      const progression = await projectService.advanceAfterADMCompletion(project);
+      if (progression.advanced) await project.save();
+    } else if ([DEFENSE_TYPES.FINAL, 'paper'].includes(defenseType)) {
+      await projectService.tryAutoArchiveProject(projectId);
     }
 
     // Notify team members that grades are available
@@ -455,8 +486,24 @@ class EvaluationService {
 
     const query = { projectId, defenseType };
 
-    // Students can only see released evaluations
+    // Students can only see released evaluations for their own team's project
     if (user.role === ROLES.STUDENT) {
+      const Team = (await import('../teams/team.model.js')).default;
+      const team = project.teamId
+        ? await Team.findById(project.teamId).select('members leaderId').lean()
+        : null;
+      const userIdStr = (user._id || user.id || '').toString();
+      const isMember =
+        project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+        team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+        (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+      if (!isMember && !project.isArchived) {
+        throw new AppError(
+          'You do not have permission to view evaluations for this project.',
+          403,
+          'FORBIDDEN',
+        );
+      }
       query.status = EVALUATION_STATUSES.RELEASED;
     }
 
@@ -516,14 +563,45 @@ class EvaluationService {
    * Get a single evaluation by ID.
    *
    * @param {string} evaluationId
+   * @param {Object} [user] - Optional authenticated user for RBAC/team verification
    * @returns {Object} { evaluation }
    */
-  async getEvaluation(evaluationId) {
+  async getEvaluation(evaluationId, user = null) {
     const evaluation = await Evaluation.findById(evaluationId)
       .populate('panelistId', 'firstName lastName email')
-      .populate('projectId', 'title teamId');
+      .populate('projectId', 'title teamId memberRoleAssignments isArchived');
 
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+
+    if (user?.role === ROLES.STUDENT) {
+      const project = evaluation.projectId;
+      const Team = (await import('../teams/team.model.js')).default;
+      const team = project?.teamId
+        ? await Team.findById(project.teamId).select('members leaderId').lean()
+        : null;
+      const userIdStr = (user._id || user.id || '').toString();
+      const isMember =
+        project?.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+        team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+        (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+
+      if (!isMember && !project?.isArchived) {
+        throw new AppError(
+          'You do not have permission to view this evaluation.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+
+      if (evaluation.status !== EVALUATION_STATUSES.RELEASED) {
+        throw new AppError(
+          'This evaluation has not been released to students yet.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    }
+
     return { evaluation };
   }
 
@@ -535,17 +613,22 @@ class EvaluationService {
     const project = await Project.findById(projectId);
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
-    const expectedEvaluatorCount =
-      (project.panelists || []).length || (project.panelistIds || []).length || 1;
+    const assignedPanelistIds = getAssignedPanelistIds(project);
 
     // Fetch submitted or released evaluations
     const submittedEvaluations = await Evaluation.find({
       projectId,
       defenseType,
+      ...(assignedPanelistIds.length ? { panelistId: { $in: assignedPanelistIds } } : {}),
       status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
-    });
+    }).select('panelistId');
 
-    if (user.role === ROLES.STUDENT && submittedEvaluations.length < expectedEvaluatorCount) {
+    const submittedPanelistIds = new Set(submittedEvaluations.map((evaluation) => toUserId(evaluation.panelistId)));
+    const allAssignedPanelistsSubmitted = assignedPanelistIds.length
+      ? assignedPanelistIds.every((panelistId) => submittedPanelistIds.has(panelistId))
+      : submittedEvaluations.length >= 1;
+
+    if (user.role === ROLES.STUDENT && !allAssignedPanelistsSubmitted) {
       throw new AppError(
         'Defense results and grading rubrics are locked. Scores will be made visible once all panel members have submitted their criteria ratings and final remarks.',
         403,
@@ -567,25 +650,62 @@ class EvaluationService {
   async generateReport(projectId, defenseType) {
     const project = await Project.findById(projectId)
       .populate('teamId', 'name members')
-      .populate('adviserId', 'firstName lastName');
+      .populate('adviserId', 'firstName lastName')
+      .populate('panelistIds', 'firstName lastName facultyRole')
+      .populate('panelists.userId', 'firstName lastName facultyRole');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
     const evaluations = await Evaluation.find({ projectId, defenseType })
       .populate('panelistId', 'firstName lastName facultyRole')
       .sort({ createdAt: 1 });
 
-    const reportRows = evaluations.map((ev) => {
+    const assignedById = new Map();
+    for (const panelist of project.panelistIds || []) {
+      if (panelist?._id) assignedById.set(String(panelist._id), panelist);
+    }
+    // Older projects may only have the structured assignments populated.
+    for (const assignment of project.panelists || []) {
+      const user = assignment.userId;
+      if (assignment.role?.toLowerCase() !== 'secretary' && user?._id) {
+        assignedById.set(String(user._id), user);
+      }
+    }
+
+    const evaluationByPanelistId = new Map(
+      evaluations.map((evaluation) => [
+        String(evaluation.panelistId?._id || evaluation.panelistId),
+        evaluation,
+      ]),
+    );
+    const reportRows = [...assignedById.entries()].map(([panelistId, panelist]) => {
+      const ev = evaluationByPanelistId.get(panelistId);
+      const assignment = (project.panelists || []).find(
+        (item) => String(item.userId?._id || item.userId) === panelistId,
+      );
+      if (!ev) {
+        return {
+          panelistName:
+            `${panelist.firstName || ''} ${panelist.lastName || ''}`.trim() || 'Unknown',
+          panelRole: assignment?.role || 'member',
+          status: 'pending',
+          decision: null,
+          totalScore: null,
+          maxTotalScore: null,
+          percentage: null,
+          buksuGrade: null,
+          overallComment: '',
+          submittedAt: null,
+          criteria: [],
+        };
+      }
       const percentage =
         typeof ev.totalScore === 'number' && ev.maxTotalScore > 0
           ? Math.round((ev.totalScore / ev.maxTotalScore) * 10000) / 100
           : null;
       return {
-        panelistName: ev.panelistId
-          ? `${ev.panelistId.firstName} ${ev.panelistId.lastName}`
-          : 'Unknown',
-        panelRole:
-          (project.panelists || []).find((p) => String(p.userId) === String(ev.panelistId?._id))
-            ?.role || 'member',
+        panelistName:
+          `${panelist.firstName || ''} ${panelist.lastName || ''}`.trim() || 'Unknown',
+        panelRole: assignment?.role || 'member',
         status: ev.status,
         decision: ev.decision,
         totalScore: ev.totalScore,
@@ -603,14 +723,17 @@ class EvaluationService {
       };
     });
 
-    const avgScore =
-      reportRows.length > 0
-        ? reportRows.reduce((sum, r) => sum + (r.totalScore || 0), 0) / reportRows.length
-        : null;
-    const avgMax =
-      reportRows.length > 0
-        ? reportRows.reduce((sum, r) => sum + (r.maxTotalScore || 100), 0) / reportRows.length
-        : 100;
+    const submittedRows = reportRows.filter((row) =>
+      [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED].includes(row.status),
+    );
+    const avgScore = submittedRows.length
+      ? submittedRows.reduce((sum, row) => sum + (row.totalScore || 0), 0) /
+        submittedRows.length
+      : null;
+    const avgMax = submittedRows.length
+      ? submittedRows.reduce((sum, row) => sum + (row.maxTotalScore || 100), 0) /
+        submittedRows.length
+      : 100;
     const avgPercentage =
       avgScore !== null && avgMax > 0 ? Math.round((avgScore / avgMax) * 10000) / 100 : null;
 
@@ -623,16 +746,20 @@ class EvaluationService {
         panelists: reportRows,
         summary: {
           totalPanelists: reportRows.length,
-          submitted: reportRows.filter((r) => r.status !== 'draft').length,
+          submitted: submittedRows.length,
           averageScore: avgScore !== null ? Math.round(avgScore * 100) / 100 : null,
           averagePercentage: avgPercentage,
           buksuGrade: avgPercentage !== null ? computeBukSUGrade(avgPercentage) : null,
-          overallDecision: reportRows.every(
-            (r) =>
-              r.decision && ['passed', 'passed_with_revision', 'approved'].includes(r.decision),
-          )
-            ? 'passed'
-            : 'pending',
+          overallDecision:
+            assignedById.size > 0 &&
+            submittedRows.length === assignedById.size &&
+            submittedRows.every((row) =>
+              [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
+                row.decision,
+              ),
+            )
+              ? 'passed'
+              : 'pending',
         },
       },
     };

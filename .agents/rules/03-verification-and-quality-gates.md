@@ -1,7 +1,7 @@
 # 🧪 DETERMINISTIC VERIFICATION, TESTING & QUALITY GATES RECIPE
 
 **Rule File:** `.agents/rules/03-verification-and-quality-gates.md`  
-**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/workspace-rules.md)  
+**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/workspace-rules.md)  
 **Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
 ---
@@ -30,7 +30,7 @@ npm test --workspace=server -- tests/unit/<module>.test.js
 Before declaring any implementation task complete, agents **MUST** execute and pass the unified 7-point battery with zero errors:
 
 ```bash
-# 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
+# 1. API Route Parity Check (229 Server / 209 Client, UNMATCHED_COUNT = 0)
 npm run check:endpoints
 
 # 2. Agentic System Governance Audit (60/60 checks)

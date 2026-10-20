@@ -2,6 +2,9 @@ import Notification from './notification.model.js';
 import AppError from '../../utils/AppError.js';
 import deadlineNotificationService from '../settings/deadlineNotification.service.js';
 
+const DEADLINE_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
+const lastDeadlineCheckByUser = new Map();
+
 /**
  * NotificationService — Business logic for in-app notifications.
  * Handles listing, reading, and clearing notifications for authenticated users.
@@ -14,11 +17,18 @@ class NotificationService {
    * @returns {Object} { notifications, unreadCount, pagination }
    */
   async getNotifications(userId, query) {
-    // Run scoped deadline check for this user so any newly reached deadlines pop up immediately
-    try {
-      await deadlineNotificationService.checkAndDispatchDueDeadlines(userId);
-    } catch (err) {
-      // Non-blocking
+    // Run scoped deadline check with 5-minute cooldown to prevent N+1 query amplification on polls
+    const userKey = String(userId);
+    const now = Date.now();
+    const lastChecked = lastDeadlineCheckByUser.get(userKey) || 0;
+
+    if (now - lastChecked >= DEADLINE_CHECK_COOLDOWN_MS) {
+      lastDeadlineCheckByUser.set(userKey, now);
+      try {
+        await deadlineNotificationService.checkAndDispatchDueDeadlines(userId);
+      } catch (err) {
+        // Non-blocking
+      }
     }
 
     const { page = 1, limit = 20 } = query;

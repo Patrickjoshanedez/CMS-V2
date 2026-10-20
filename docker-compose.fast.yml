@@ -1,0 +1,75 @@
+services:
+  server:
+    depends_on: !override
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: npm run dev:docker --workspace=server
+    environment:
+      PLAGIARISM_ENGINE_URL: ${PLAGIARISM_ENGINE_URL:-http://host.docker.internal:8001}
+      PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      GOTENBERG_URL: ${GOTENBERG_URL:-http://host.docker.internal:3000}
+    volumes: !override
+      - ./uploads:/app/uploads
+    develop:
+      watch:
+        - action: sync
+          path: ./server
+          target: /app/server
+          ignore:
+            - node_modules/
+            - package.json
+            - uploads/
+            - temp-extractions/
+            - temp/
+            - tmp/
+            - logs/
+            - tests/
+            - coverage/
+        - action: sync+restart
+          path: ./shared
+          target: /app/shared
+          ignore:
+            - node_modules/
+            - package.json
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./package-lock.json
+        - action: rebuild
+          path: ./server/package.json
+        - action: rebuild
+          path: ./shared/package.json
+
+  client:
+    environment:
+      CHOKIDAR_USEPOLLING: "false"
+    volumes: !override []
+    develop:
+      watch:
+        - action: sync
+          path: ./client
+          target: /app/client
+          ignore:
+            - node_modules/
+            - package.json
+            - dist/
+            - coverage/
+        - action: sync
+          path: ./shared
+          target: /app/shared
+          ignore:
+            - node_modules
+            - package.json
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./package-lock.json
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./shared/package.json

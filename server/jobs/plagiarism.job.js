@@ -52,9 +52,15 @@ const _MAX_FALLBACK_REINDEX_COUNT = Number(process.env.PLAGIARISM_FALLBACK_REIND
  * Wrapped in an opossum circuit breaker to isolate the Node event loop and queue from microservice degradation.
  */
 async function callHstMicroservice({ pythonEngineUrl, submissionId, text, chapter, projectId }) {
+  const headers = { 'Content-Type': 'application/json' };
+  const engineToken = process.env.PLAGIARISM_ENGINE_API_TOKEN;
+  if (engineToken) {
+    headers.Authorization = `Bearer ${engineToken}`;
+  }
+
   const hstRes = await fetch(`${pythonEngineUrl}/check-sync`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       document_id: String(submissionId),
       text,
@@ -889,23 +895,40 @@ async function processJob(job) {
 }
 
 /**
- * Handle job failure after all retries are exhausted.
+ * Handle a failed job.
+ * If retry attempts remain, logs warning and allows BullMQ backoff retry.
+ * If all attempts are exhausted, marks the submission as failed, alerts
+ * the student via Socket.IO, and creates an in-app notification.
  *
  * @param {Object} job
  * @param {Error} err
  */
 async function handleFailedJob(job, err) {
-  const { submissionId } = job.data;
+  const { submissionId } = job?.data || {};
+  if (!submissionId) return;
+
+  const attemptsMade = job.attemptsMade || 1;
+  const maxAttempts = job.opts?.attempts || 3;
+  const isExhausted = attemptsMade >= maxAttempts;
 
   console.error(
-    `[Plagiarism Worker] Job ${job.id} FAILED for submission ${submissionId}: ${err.message}`,
+    `[Plagiarism Worker] Job ${job.id} failed attempt ${attemptsMade}/${maxAttempts} for submission ${submissionId}: ${err.message}`,
   );
 
+  // If retries remain in BullMQ, do not mark terminal failure in database yet
+  if (!isExhausted) {
+    return;
+  }
+
   try {
-    await Submission.findByIdAndUpdate(submissionId, {
-      'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
-      'plagiarismResult.error': err.message,
-    });
+    const updatedSub = await Submission.findByIdAndUpdate(
+      submissionId,
+      {
+        'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
+        'plagiarismResult.error': err.message,
+      },
+      { new: true },
+    ).select('submittedBy chapter projectId');
 
     await PlagiarismResult.findOneAndUpdate(
       { submissionId },
@@ -920,6 +943,34 @@ async function handleFailedJob(job, err) {
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
+
+    const studentId = updatedSub?.submittedBy?._id || updatedSub?.submittedBy;
+    if (studentId) {
+      const studentIdStr = String(studentId);
+      try {
+        emitToUser(studentIdStr, 'plagiarism:failed', {
+          submissionId,
+          chapter: updatedSub?.chapter,
+          error: err.message,
+        });
+
+        const failureNotif = await Notification.create({
+          userId: studentId,
+          type: 'plagiarism_failed',
+          title: 'Originality Check Failed',
+          message: `Originality check for Chapter ${updatedSub?.chapter || ''} failed: ${err.message}`,
+          metadata: {
+            submissionId,
+            projectId: updatedSub?.projectId,
+            chapter: updatedSub?.chapter,
+            error: err.message,
+          },
+        });
+        emitToUser(studentIdStr, 'notification:new', failureNotif);
+      } catch (notifErr) {
+        console.warn(`[Plagiarism Worker] Failed to dispatch failure notification: ${notifErr.message}`);
+      }
+    }
   } catch (updateErr) {
     console.error(`[Plagiarism Worker] Failed to update submission status: ${updateErr.message}`);
   }

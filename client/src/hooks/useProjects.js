@@ -381,7 +381,7 @@ export function useCertificateUrl(projectId, options = {}) {
     queryKey: projectKeys.certificate(projectId),
     queryFn: async () => {
       const { data } = await projectService.getCertificateUrl(projectId);
-      return data.data; // { url }
+      return data.data; // { url, verificationHash, generatedAt }
     },
     enabled: !!projectId,
     staleTime: 30 * 60 * 1000, // 30 min — signed URLs last 1hr

@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import mongoose from 'mongoose';
 import Project from '../project.model.js';
 import Team from '../../teams/team.model.js';
@@ -5,6 +6,7 @@ import User from '../../users/user.model.js';
 import Section from '../../academics/section.model.js';
 import Course from '../../academics/course.model.js';
 import Submission from '../../submissions/submission.model.js';
+import Evaluation from '../../evaluations/evaluation.model.js';
 import submissionService from '../../submissions/submission.service.js';
 import AppError from '../../../utils/AppError.js';
 import { extractPdfMetadata } from '../../../utils/pdfMetadataExtractor.js';
@@ -13,21 +15,75 @@ import { rankFuzzyConflicts } from '../../../utils/similarityAudit.js';
 import storageService from '../../../services/storage.index.js';
 import settingsService from '../../settings/settings.service.js';
 import pdfGeneratorService from '../../../services/pdfGenerator.service.js';
+import env from '../../../config/env.js';
 import {
   ROLES,
   TITLE_STATUSES,
   PROJECT_STATUSES,
   PLAGIARISM_STATUSES,
+  SUBMISSION_STATUSES,
+  EVALUATION_STATUSES,
+  DEFENSE_TYPES,
+  DEFENSE_DECISIONS,
   CAPSTONE_TITLE_MAPPING,
+  CAPSTONE_PHASES,
+  resolveWorkflowPhase,
 } from '@cms/shared';
 import projectCoreService from './projectCore.service.js';
 import projectTitleService from './projectTitle.service.js';
+import { getADMCompletion } from './admCompletion.js';
 
 const DEFAULT_ORIGINALITY_THRESHOLD = 75;
 const DEFAULT_SIMILARITY_THRESHOLD = 0.7;
 const DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD = 0.7;
 const MAX_ARCHIVE_SIMILARITY_CONFLICTS = 10;
 const MIN_CORPUS_TEXT_LENGTH = 50;
+const ARCHIVE_READINESS_CODES = new Set([
+  'PHASE_PREREQUISITE_UNMET',
+  'DEFENSE_VERDICT_UNMET',
+  'SECRETARY_ENDORSEMENT_REQUIRED',
+  'FINAL_ADM_NOT_VERIFIED',
+  'FINAL_ADM_SIGNATURES_INCOMPLETE',
+  'FINAL_EVALUATION_NOT_CLEARED',
+  'MISSING_ACADEMIC',
+  'MISSING_JOURNAL',
+  'FINAL_DOCUMENTS_NOT_APPROVED',
+  'PLAGIARISM_CHECK_PENDING',
+  'PLAGIARISM_CHECK_FAILED',
+  'PLAGIARISM_SCAN_DEGRADED',
+  'ORIGINALITY_BELOW_THRESHOLD',
+  'ARCHIVE_INDEX_UNAVAILABLE',
+  'ARCHIVE_INDEX_TEXT_UNAVAILABLE',
+]);
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function getFinalSignatoryRows(signatures, projectId) {
+  const rows = [];
+  const add = (role, signature, signed) => {
+    if (!signed) return;
+    const identity = {
+      projectId: String(projectId),
+      milestone: 'CAPSTONE_3',
+      role,
+      userId: String(signature.userId?._id || signature.userId || ''),
+      name: String(signature.signatoryName || '').trim(),
+      signedAt: signature.signedAt ? new Date(signature.signedAt).toISOString() : '',
+    };
+    rows.push({ ...identity, verificationHash: sha256(JSON.stringify(identity)) });
+  };
+
+  add('Committee Secretary', signatures.secretary, signatures.secretary?.endorsed);
+  add('Project Adviser', signatures.adviser, signatures.adviser?.signed);
+  add('Capstone Instructor', signatures.instructor, signatures.instructor?.signed);
+  add('Panel Chair', signatures.chair, signatures.chair?.signed);
+  (signatures.panelists || []).forEach((signature) =>
+    add(signature.role || 'Panel Member', signature, signature.signed),
+  );
+  return rows;
+}
 
 function toBoundedThreshold(value, fallback) {
   const numeric = Number(value);
@@ -71,6 +127,389 @@ class ProjectArchiveService {
     }
   }
 
+  async _generateFinalApprovalSheet(project, signatures) {
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([595.28, 841.89]);
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const mono = await pdf.embedFont(StandardFonts.Courier);
+    const safe = (value) => String(value || '').replace(/[^\x20-\x7E]/g, '?');
+    const left = 52;
+    const right = 543;
+    let y = 785;
+
+    page.drawRectangle({ x: 0, y: 785, width: 595.28, height: 56.89, color: rgb(0.08, 0.18, 0.36) });
+    page.drawText('BUKIDNON STATE UNIVERSITY', {
+      x: left,
+      y: 816,
+      size: 13,
+      font: bold,
+      color: rgb(1, 1, 1),
+    });
+    page.drawText('CAPSTONE 3 FINAL APPROVAL SHEET', {
+      x: left,
+      y: 797,
+      size: 9,
+      font: regular,
+      color: rgb(0.86, 0.91, 1),
+    });
+    y = 754;
+    page.drawText('Project', { x: left, y, size: 9, font: bold, color: rgb(0.2, 0.25, 0.32) });
+    y -= 16;
+    page.drawText(safe(project.title).slice(0, 96), {
+      x: left,
+      y,
+      size: 11,
+      font: bold,
+      color: rgb(0.08, 0.12, 0.2),
+    });
+    y -= 22;
+    page.drawText(`Project ID: ${safe(project._id)}   Academic Year: ${safe(project.academicYear)}`, {
+      x: left,
+      y,
+      size: 8,
+      font: regular,
+      color: rgb(0.35, 0.4, 0.48),
+    });
+    y -= 32;
+    page.drawText('FINAL ADM SIGNATORIES', {
+      x: left,
+      y,
+      size: 10,
+      font: bold,
+      color: rgb(0.08, 0.18, 0.36),
+    });
+    y -= 18;
+
+    const signatories = getFinalSignatoryRows(signatures, project._id);
+    signatories.forEach((signatory) => {
+      if (y < 95) return;
+      page.drawLine({ start: { x: left, y: y + 9 }, end: { x: right, y: y + 9 }, thickness: 0.5, color: rgb(0.84, 0.87, 0.91) });
+      page.drawText(`${safe(signatory.role)} — ${safe(signatory.name || 'Verified signatory')}`, {
+        x: left,
+        y,
+        size: 9,
+        font: bold,
+        color: rgb(0.12, 0.16, 0.22),
+      });
+      y -= 13;
+      page.drawText(`Signed: ${safe(signatory.signedAt || 'Timestamp unavailable')}`, {
+        x: left,
+        y,
+        size: 8,
+        font: regular,
+        color: rgb(0.35, 0.4, 0.48),
+      });
+      y -= 11;
+      page.drawText(`SHA-256: ${signatory.verificationHash}`, {
+        x: left,
+        y,
+        size: 7.2,
+        font: mono,
+        color: rgb(0.18, 0.27, 0.4),
+      });
+      y -= 22;
+    });
+
+    const generatedAt = new Date();
+    const verificationHash = sha256(
+      JSON.stringify({ projectId: String(project._id), generatedAt: generatedAt.toISOString(), signatories }),
+    );
+    page.drawLine({ start: { x: left, y: 76 }, end: { x: right, y: 76 }, thickness: 0.75, color: rgb(0.7, 0.75, 0.82) });
+    page.drawText(`Sheet generated: ${generatedAt.toISOString()}`, {
+      x: left,
+      y: 60,
+      size: 7,
+      font: regular,
+      color: rgb(0.35, 0.4, 0.48),
+    });
+    page.drawText(`Sheet verification SHA-256: ${verificationHash}`, {
+      x: left,
+      y: 47,
+      size: 7,
+      font: mono,
+      color: rgb(0.18, 0.27, 0.4),
+    });
+
+    const storageKey = storageService.buildApprovalSheetKey(String(project._id));
+    const bytes = await pdf.save();
+    await storageService.uploadFile(bytes, storageKey, 'application/pdf', {
+      projectId: String(project._id),
+      type: 'final_approval_sheet',
+      verificationHash,
+    });
+    return { storageKey, generatedAt, verificationHash };
+  }
+
+  async _indexArchiveCorpus(project, submissions) {
+    const expectedDocumentIds = submissions.map((submission) => String(submission._id));
+    const previouslyCompletedIds = new Set(
+      project.archiveIndexing?.status === 'completed' ? project.archiveIndexing.documentIds || [] : [],
+    );
+    const indexedIds = new Set(previouslyCompletedIds);
+    const team = await Team.findById(project.teamId).select('name');
+    const academicYear = String(project.academicYear || '');
+    const year = Number(academicYear.match(/20\d{2}/)?.[0]) || new Date().getUTCFullYear();
+    const engineUrl = String(env.PLAGIARISM_ENGINE_URL || '').replace(/\/+$/, '');
+
+    if (submissions.length === 0) {
+      throw new AppError(
+        'Final approved documents are required before archive indexing can complete.',
+        400,
+        'ARCHIVE_INDEX_DOCUMENTS_REQUIRED',
+      );
+    }
+
+    project.archiveIndexing = {
+      status: 'indexing',
+      documentIds: [...indexedIds],
+      queuedAt: project.archiveIndexing?.queuedAt || new Date(),
+      completedAt: null,
+      lastError: '',
+    };
+    await project.save({ validateModifiedOnly: true });
+
+    for (const submission of submissions) {
+      const documentId = String(submission._id);
+      if (indexedIds.has(documentId)) continue;
+
+      try {
+        if (!engineUrl) {
+          throw new AppError(
+            'The archive indexing service is not configured.',
+            503,
+            'ARCHIVE_INDEX_UNAVAILABLE',
+          );
+        }
+        const buffer = await storageService.downloadFile(submission.storageKey);
+        const text = await this._extractArchiveSubmissionText({
+          buffer,
+          validatedMime: submission.fileType,
+          mimetype: submission.fileType,
+        });
+        if (!text) {
+          throw new AppError(
+            'The final manuscript text could not be extracted for archive indexing.',
+            422,
+            'ARCHIVE_INDEX_TEXT_UNAVAILABLE',
+          );
+        }
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (process.env.PLAGIARISM_ENGINE_API_TOKEN) {
+          headers.Authorization = `Bearer ${process.env.PLAGIARISM_ENGINE_API_TOKEN}`;
+        }
+        const response = await fetch(`${engineUrl}/index/sync`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            document_id: documentId,
+            text,
+            metadata: {
+              document_id: documentId,
+              title: project.title,
+              author: team?.name || 'BukSU Capstone Team',
+              project_id: String(project._id),
+              year,
+              url: env.CLIENT_URL
+                ? new URL(`/archive/document/${project._id}`, env.CLIENT_URL).toString()
+                : undefined,
+            },
+          }),
+          signal: AbortSignal.timeout(60000),
+        });
+        if (!response.ok) {
+          throw new Error(`Archive index service returned HTTP ${response.status}.`);
+        }
+        const result = await response.json();
+        if (result?.document_id !== documentId || Number(result?.segments_indexed) <= 0) {
+          throw new Error('Archive index service did not confirm stored segments for the requested document.');
+        }
+
+        indexedIds.add(documentId);
+        project.archiveIndexing = {
+          status: 'indexing',
+          documentIds: [...indexedIds],
+          queuedAt: project.archiveIndexing?.queuedAt || new Date(),
+          completedAt: null,
+          lastError: '',
+        };
+        await project.save({ validateModifiedOnly: true });
+      } catch (error) {
+        project.archiveIndexing = {
+          status: 'failed',
+          documentIds: [...indexedIds],
+          queuedAt: project.archiveIndexing?.queuedAt || null,
+          completedAt: null,
+          lastError: String(error?.message || 'Archive index request failed.').slice(0, 500),
+        };
+        await project.save({ validateModifiedOnly: true });
+        if (error instanceof AppError) throw error;
+        throw new AppError(
+          'The archive indexing service could not queue the final documents. Retry archival after it is available.',
+          503,
+          'ARCHIVE_INDEX_UNAVAILABLE',
+        );
+      }
+    }
+
+    const allDocumentsIndexed = expectedDocumentIds.every((documentId) => indexedIds.has(documentId));
+    if (!allDocumentsIndexed) {
+      throw new AppError(
+        'The archive index did not confirm every final document.',
+        503,
+        'ARCHIVE_INDEX_INCOMPLETE',
+      );
+    }
+
+    project.archiveIndexing = {
+      status: 'completed',
+      documentIds: expectedDocumentIds,
+      queuedAt: project.archiveIndexing?.queuedAt || new Date(),
+      completedAt: new Date(),
+      lastError: '',
+    };
+    await project.save({ validateModifiedOnly: true });
+  }
+
+  async _generateCompletionCertificate(project, verificationHash) {
+    const [{ PDFDocument, StandardFonts, rgb }, qrcodeModule] = await Promise.all([
+      import('pdf-lib'),
+      import('qrcode'),
+    ]);
+    const QRCode = qrcodeModule.default || qrcodeModule;
+    const verificationUrl = new URL(
+      `/api/projects/${project._id}/certificate/verify/${verificationHash}`,
+      env.CLIENT_URL,
+    ).toString();
+    const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+      errorCorrectionLevel: 'Q',
+      margin: 2,
+      width: 196,
+    });
+    const qrBytes = Buffer.from(qrDataUrl.split(',')[1] || '', 'base64');
+    if (!qrBytes.length) {
+      throw new AppError('The completion certificate QR code could not be generated.', 500, 'CERTIFICATE_QR_FAILED');
+    }
+
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([612, 792]);
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const mono = await pdf.embedFont(StandardFonts.Courier);
+    const qrImage = await pdf.embedPng(qrBytes);
+    const safe = (value) => String(value || '').replace(/[^\x20-\x7E]/g, '?');
+    const title = safe(project.title).trim();
+    const words = title.split(/\s+/).filter(Boolean);
+    const titleLines = [];
+    let titleLine = '';
+    for (const word of words) {
+      const next = titleLine ? `${titleLine} ${word}` : word;
+      if (next.length > 48 && titleLine) {
+        titleLines.push(titleLine);
+        titleLine = word;
+      } else {
+        titleLine = next;
+      }
+    }
+    if (titleLine) titleLines.push(titleLine);
+
+    page.drawRectangle({ x: 0, y: 706, width: 612, height: 86, color: rgb(0.08, 0.18, 0.36) });
+    page.drawText('BUKIDNON STATE UNIVERSITY', {
+      x: 54,
+      y: 756,
+      size: 14,
+      font: bold,
+      color: rgb(1, 1, 1),
+    });
+    page.drawText('CERTIFICATE OF CAPSTONE COMPLETION', {
+      x: 54,
+      y: 730,
+      size: 10,
+      font: regular,
+      color: rgb(0.88, 0.92, 1),
+    });
+    page.drawText('This certifies that the project below completed the required final review and archival gates.', {
+      x: 54,
+      y: 666,
+      size: 10,
+      font: regular,
+      color: rgb(0.2, 0.24, 0.3),
+      maxWidth: 500,
+    });
+
+    let y = 622;
+    titleLines.slice(0, 5).forEach((line) => {
+      page.drawText(line, { x: 54, y, size: 15, font: bold, color: rgb(0.08, 0.18, 0.36) });
+      y -= 22;
+    });
+    y -= 18;
+    page.drawText(`Academic year: ${safe(project.academicYear || 'Not specified')}`, {
+      x: 54,
+      y,
+      size: 10,
+      font: regular,
+      color: rgb(0.2, 0.24, 0.3),
+    });
+    y -= 20;
+    page.drawText(`Project ID: ${safe(project._id)}`, {
+      x: 54,
+      y,
+      size: 9,
+      font: regular,
+      color: rgb(0.35, 0.4, 0.48),
+    });
+    y -= 28;
+    page.drawText(`Archived: ${new Date(project.archivedAt).toISOString().slice(0, 10)}`, {
+      x: 54,
+      y,
+      size: 10,
+      font: regular,
+      color: rgb(0.2, 0.24, 0.3),
+    });
+    y -= 34;
+    page.drawText('Verification SHA-256', {
+      x: 54,
+      y,
+      size: 8,
+      font: bold,
+      color: rgb(0.2, 0.24, 0.3),
+    });
+    page.drawText(verificationHash, {
+      x: 54,
+      y: y - 15,
+      size: 7,
+      font: mono,
+      color: rgb(0.18, 0.27, 0.4),
+    });
+    page.drawImage(qrImage, { x: 392, y: 90, width: 156, height: 156 });
+    page.drawText('Scan to verify this certificate', {
+      x: 386,
+      y: 72,
+      size: 8,
+      font: regular,
+      color: rgb(0.35, 0.4, 0.48),
+    });
+    page.drawText('Generated by the BukSU Capstone Management System', {
+      x: 54,
+      y: 58,
+      size: 8,
+      font: regular,
+      color: rgb(0.35, 0.4, 0.48),
+    });
+
+    const storageKey = storageService.buildCertificateKey(String(project._id), 'completion-certificate.pdf');
+    const generatedAt = new Date();
+    await storageService.uploadFile(await pdf.save(), storageKey, 'application/pdf', {
+      projectId: String(project._id),
+      type: 'completion_certificate',
+      verificationHash,
+      verificationUrl,
+    });
+    return { storageKey, generatedAt };
+  }
+
   /**
    * Archive a project after final defense — sets status to ARCHIVED.
    * Only an instructor can archive. Both final_academic and final_journal
@@ -93,15 +532,10 @@ class ProjectArchiveService {
       throw new AppError('Project is already archived.', 400, 'ALREADY_ARCHIVED');
     }
 
-    // Institutional Capstone Phase Prerequisite:
-    // Only projects in the final capstone phase (Phase 4 in 4-phase progression, or Phase 3 / final stage in legacy mappings)
-    // that have satisfied defense and ADM requirements are eligible for archival.
-    const isFinalPhase =
-      project.capstonePhase === 4 ||
-      project.stage === 'final' ||
-      (project.capstonePhase === 3 && (project.stage === 'capstone_3' || !project.stage));
+    // Overall Phase 4 is Capstone 3; the course counter remains 1–3 for legacy records.
+    const isFinalPhase = resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_4;
 
-    if (!isFinalPhase && (project.capstonePhase || 1) < 3) {
+    if (!isFinalPhase) {
       throw new AppError(
         'Only projects in the final capstone phase that have completed defense requirements are eligible for archival.',
         400,
@@ -123,20 +557,69 @@ class ProjectArchiveService {
       }
     }
 
-    // Secretary ADM Endorsement Gate:
-    // If Action Done Matrix (ADM) rows exist, secretary endorsement must be fulfilled.
-    const hasADMRows =
-      Array.isArray(project.actionDoneMatrix) && project.actionDoneMatrix.length > 0;
-    const isSecretaryEndorsed = Boolean(
-      project.admSignatures?.secretary?.endorsed ||
-      project.admSignaturesByMilestone?.CAPSTONE_3?.secretary?.endorsed ||
-      project.admSignaturesByMilestone?.FINAL?.secretary?.endorsed,
+    const finalMilestones = new Set(['CAPSTONE_3', 'CAPSTONE_4', 'FINAL']);
+    const finalRows = (project.actionDoneMatrix || []).filter((row) =>
+      finalMilestones.has(row.milestone),
     );
-    if (hasADMRows && !isSecretaryEndorsed && project.admStatus !== 'approved') {
+    const { signatures: finalSignatures, missing: missingFinalSignatures } = getADMCompletion(
+      project,
+      'CAPSTONE_3',
+    );
+
+    if (!finalSignatures.secretary?.endorsed) {
       throw new AppError(
-        'Action Done Matrix (ADM) must be endorsed by the committee secretary before archival.',
+        'The final Action Done Matrix must be endorsed by the committee secretary before archival.',
         400,
         'SECRETARY_ENDORSEMENT_REQUIRED',
+      );
+    }
+
+    if (finalRows.length === 0 || finalRows.some((row) => row.status !== 'verified')) {
+      throw new AppError(
+        'Every final Action Done Matrix item must be verified before archival.',
+        400,
+        'FINAL_ADM_NOT_VERIFIED',
+      );
+    }
+
+    if (missingFinalSignatures.length > 0) {
+      throw new AppError(
+        `The final Action Done Matrix is missing required signatures: ${missingFinalSignatures.join(', ')}.`,
+        400,
+        'FINAL_ADM_SIGNATURES_INCOMPLETE',
+      );
+    }
+
+    const finalEvaluations = await Evaluation.find({
+      projectId,
+      defenseType: { $in: [DEFENSE_TYPES.FINAL, 'paper'] },
+    });
+    const assignedPanelistIds = new Set(
+      (project.panelists?.length
+        ? project.panelists
+            .filter((assignment) => String(assignment.role || '').toLowerCase() !== 'secretary')
+            .map((assignment) => String(assignment.userId?._id || assignment.userId))
+        : project.panelistIds || []
+      ).map((userId) => String(userId?._id || userId)),
+    );
+    const evaluatedPanelistIds = new Set(finalEvaluations.map((evaluation) => String(evaluation.panelistId)));
+    const isPassingDecision = (decision) =>
+      [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
+        String(decision || '').toLowerCase(),
+      );
+    if (
+      finalEvaluations.length === 0 ||
+      [...assignedPanelistIds].some((panelistId) => !evaluatedPanelistIds.has(panelistId)) ||
+      finalEvaluations.some(
+        (evaluation) =>
+          evaluation.status !== EVALUATION_STATUSES.RELEASED ||
+          !isPassingDecision(evaluation.decision),
+      )
+    ) {
+      throw new AppError(
+        'Final defense evaluations must be released with a passing decision before archival.',
+        400,
+        'FINAL_EVALUATION_NOT_CLEARED',
       );
     }
 
@@ -152,6 +635,18 @@ class ProjectArchiveService {
     if (!journal) {
       throw new AppError('Final journal version has not been submitted.', 400, 'MISSING_JOURNAL');
     }
+    const approvedStatuses = [
+      SUBMISSION_STATUSES.APPROVED,
+      SUBMISSION_STATUSES.ACCEPTED,
+      SUBMISSION_STATUSES.LOCKED,
+    ];
+    if (!approvedStatuses.includes(academic.status) || !approvedStatuses.includes(journal.status)) {
+      throw new AppError(
+        'Both final manuscripts must be approved before archival.',
+        400,
+        'FINAL_DOCUMENTS_NOT_APPROVED',
+      );
+    }
 
     // --- Plagiarism clearance gate ---
     // Both final papers must have a completed plagiarism check with a passing score.
@@ -165,10 +660,39 @@ class ProjectArchiveService {
 
     this._assertPlagiarismCleared(academic, 'academic', plagiarismThreshold);
     this._assertPlagiarismCleared(journal, 'journal', plagiarismThreshold);
+    await this._indexArchiveCorpus(project, [academic, journal]);
 
+    if (!project.approvalSheetStorageKey) {
+      const approvalSheet = await this._generateFinalApprovalSheet(project, finalSignatures);
+      project.approvalSheetStorageKey = approvalSheet.storageKey;
+      project.approvalSheetGeneratedAt = approvalSheet.generatedAt;
+      project.approvalSheetVerificationHash = approvalSheet.verificationHash;
+    }
+
+    if (project.capstonePhase === 3) {
+      project.capstoneCourse = 'Capstone 3';
+      project.stage = 'capstone_3';
+    }
     project.projectStatus = PROJECT_STATUSES.ARCHIVED;
+    project.workflowPhase = CAPSTONE_PHASES.PHASE_4;
     project.isArchived = true;
     project.archivedAt = new Date();
+    const certificateVerificationHash = sha256(
+      JSON.stringify({
+        projectId: String(project._id),
+        title: String(project.title),
+        academicYear: String(project.academicYear || ''),
+        archivedAt: project.archivedAt.toISOString(),
+        approvalSheetVerificationHash: String(project.approvalSheetVerificationHash || ''),
+      }),
+    );
+    const certificate = await this._generateCompletionCertificate(
+      project,
+      certificateVerificationHash,
+    );
+    project.certificateStorageKey = certificate.storageKey;
+    project.certificateVerificationHash = certificateVerificationHash;
+    project.certificateGeneratedAt = certificate.generatedAt;
     if (data.completionNotes) {
       project.completionNotes = data.completionNotes;
     }
@@ -183,6 +707,19 @@ class ProjectArchiveService {
     });
 
     return { project };
+  }
+
+  async tryAutoArchiveProject(projectId) {
+    try {
+      const result = await this.archiveProject(projectId, {});
+      return { ...result, archived: true, blocker: null };
+    } catch (error) {
+      if (error instanceof AppError && ARCHIVE_READINESS_CODES.has(error.code)) {
+        const project = await Project.findById(projectId);
+        return { project, archived: false, blocker: error.code };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -322,10 +859,10 @@ class ProjectArchiveService {
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('teamId', 'name members githubLink')
+        .populate('teamId', 'name members githubUrl')
         .populate('adviserId', 'firstName middleName lastName')
         .select(
-          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey githubRepoUrl prototypes courseId',
+          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey approvalSheetStorageKey approvalSheetGeneratedAt approvalSheetVerificationHash githubRepoUrl prototypes courseId',
         ),
       Project.countDocuments(filter),
     ]);
@@ -353,12 +890,26 @@ class ProjectArchiveService {
     }
 
     // Format & enrich project records for Google Scholar academic layout
-    const projects = rawProjects.map((p) => {
+    const projects = await Promise.all(rawProjects.map(async (p) => {
       const obj = p.toObject ? p.toObject() : { ...p };
       const subInfo = submissionByProject.get(String(obj._id)) || {
         hasAcademic: true,
         hasJournal: false,
       };
+      const prototypes = await Promise.all(
+        (Array.isArray(obj.prototypes) ? obj.prototypes : []).map(async (prototype) => {
+          if (!prototype?.storageKey) return prototype;
+
+          try {
+            return {
+              ...prototype,
+              signedUrl: await storageService.getSignedUrl(prototype.storageKey, 900),
+            };
+          } catch {
+            return { ...prototype, signedUrl: null };
+          }
+        }),
+      );
 
       // Determine scannable proponents line
       let proponents = 'BukSU Research Team';
@@ -424,10 +975,10 @@ class ProjectArchiveService {
         similarityScore: similarity,
         hasAcademicPaper: subInfo.hasAcademic,
         hasJournalPaper: subInfo.hasJournal,
-        githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubLink || null,
-        prototypes: Array.isArray(obj.prototypes) ? obj.prototypes : [],
+        githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubUrl || null,
+        prototypes,
       };
-    });
+    }));
 
     return {
       projects,
@@ -450,6 +1001,14 @@ class ProjectArchiveService {
    */
   async uploadCertificate(projectId, instructorId, file) {
     const project = await this._getProjectOrFail(projectId);
+
+    if (project.certificateVerificationHash) {
+      throw new AppError(
+        'The QR-verified completion certificate is already sealed and cannot be replaced.',
+        409,
+        'CERTIFICATE_SEALED',
+      );
+    }
 
     if (!project.isArchived && project.projectStatus !== PROJECT_STATUSES.ARCHIVED) {
       throw new AppError(
@@ -476,6 +1035,7 @@ class ProjectArchiveService {
     }
 
     project.certificateStorageKey = storageKey;
+    project.certificateGeneratedAt = null;
     await project.save();
 
     // Notify team
@@ -489,13 +1049,63 @@ class ProjectArchiveService {
     return { project };
   }
 
+  async getApprovalSheetUrl(projectId, user) {
+    const project = await this._getProjectOrFail(projectId);
+    if (user?.role === ROLES.STUDENT) {
+      const Team = (await import('../../teams/team.model.js')).default;
+      const team = project.teamId
+        ? await Team.findById(project.teamId).select('members leaderId').lean()
+        : null;
+      const userIdStr = String(user?._id || user?.id || user);
+      const isMember =
+        project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+        team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+        (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+      if (!isMember && !project.isArchived) {
+        throw new AppError(
+          'You do not have permission to view the approval sheet for this project.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    }
+    if (!project.approvalSheetStorageKey) {
+      throw new AppError('The final approval sheet is not available yet.', 404, 'APPROVAL_SHEET_NOT_FOUND');
+    }
+    const url = await storageService.getSignedUrl(project.approvalSheetStorageKey, 3600);
+    return {
+      url,
+      generatedAt: project.approvalSheetGeneratedAt,
+      verificationHash: project.approvalSheetVerificationHash,
+    };
+  }
+
   /**
    * Get the signed download URL for the completion certificate.
    * @param {string} projectId
+   * @param {Object} [user] - Requesting user
    * @returns {Object} { url }
    */
-  async getCertificateUrl(projectId) {
+  async getCertificateUrl(projectId, user) {
     const project = await this._getProjectOrFail(projectId);
+    if (user?.role === ROLES.STUDENT) {
+      const Team = (await import('../../teams/team.model.js')).default;
+      const team = project.teamId
+        ? await Team.findById(project.teamId).select('members leaderId').lean()
+        : null;
+      const userIdStr = String(user?._id || user?.id || user);
+      const isMember =
+        project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+        team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+        (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+      if (!isMember && !project.isArchived) {
+        throw new AppError(
+          'You do not have permission to view the certificate for this project.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    }
 
     if (!project.certificateStorageKey) {
       throw new AppError(
@@ -507,7 +1117,11 @@ class ProjectArchiveService {
 
     try {
       const url = await storageService.getSignedUrl(project.certificateStorageKey, 3600);
-      return { url };
+      return {
+        url,
+        verificationHash: project.certificateVerificationHash || null,
+        generatedAt: project.certificateGeneratedAt || null,
+      };
     } catch (error) {
       if (error.isOperational) {
         console.error(
@@ -1761,7 +2375,8 @@ class ProjectArchiveService {
 
   /**
    * Stream or download the canonical manuscript for a project.
-   * If the project is archived, any authenticated user can access it.
+   * Archived academic manuscripts are restricted to faculty and project members;
+   * approved journal manuscripts remain available to authenticated archive readers.
    * If in-progress, only the team and assigned committee/instructor can access it.
    *
    * @param {string} projectId
@@ -1785,11 +2400,24 @@ class ProjectArchiveService {
       project.isArchived || project.projectStatus === PROJECT_STATUSES.ARCHIVED,
     );
     const userId = String(user?._id || user);
+    const isProjectMember = Boolean(
+      project.teamId?.members?.some((memberId) => String(memberId?._id || memberId) === userId),
+    );
+    const isArchiveFaculty = [ROLES.INSTRUCTOR, ROLES.FACULTY].includes(user?.role);
+    const isJournalRequest = ['final_journal', 'journal'].includes(String(type || '').toLowerCase());
+
+    if (isArchived && !isJournalRequest && !isArchiveFaculty && !isProjectMember) {
+      throw new AppError(
+        'Archived academic manuscripts are available to faculty and the project team.',
+        403,
+        'FORBIDDEN',
+      );
+    }
 
     if (!isArchived) {
       const isInstructor = user?.role === ROLES.INSTRUCTOR;
       const isTeamMember =
-        project.teamId?.members?.some((m) => String(m?._id || m) === userId) ||
+        isProjectMember ||
         String(project.teamId?.leaderId?._id || project.teamId?.leaderId) === userId;
       const isAdviser =
         project.adviserId && String(project.adviserId?._id || project.adviserId) === userId;
@@ -1841,20 +2469,20 @@ class ProjectArchiveService {
         storageKey: { $exists: true, $ne: null },
       }).sort({ version: -1, createdAt: -1 });
 
-      // Fallback to academic paper if journal not found
-      if (!submission) {
-        submission = await Submission.findOne({
-          projectId: project._id,
-          type: { $in: ['final_academic', 'final_paper'] },
-          storageKey: { $exists: true, $ne: null },
-        }).sort({ version: -1, createdAt: -1 });
-      }
     } else if (type) {
       submission = await Submission.findOne({
         projectId: project._id,
         type,
         storageKey: { $exists: true, $ne: null },
       }).sort({ version: -1, createdAt: -1 });
+    }
+
+    if (!submission && isArchived && isJournalRequest) {
+      throw new AppError(
+        'The approved journal manuscript is not available in the archive.',
+        404,
+        'ARCHIVED_MANUSCRIPT_UNAVAILABLE',
+      );
     }
 
     if (!submission) {
@@ -1871,6 +2499,23 @@ class ProjectArchiveService {
           storageKey: { $exists: true, $ne: null },
         }).sort({ chapter: -1, version: -1, createdAt: -1 });
       }
+    }
+
+    if (
+      isArchived &&
+      submission &&
+      (!['final_academic', 'final_paper', 'final_journal'].includes(submission.type) ||
+        ![
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+          SUBMISSION_STATUSES.LOCKED,
+        ].includes(submission.status))
+    ) {
+      throw new AppError(
+        'Only approved final manuscripts are available from the archive.',
+        404,
+        'ARCHIVED_MANUSCRIPT_UNAVAILABLE',
+      );
     }
 
     if (!submission) {
@@ -1919,6 +2564,33 @@ class ProjectArchiveService {
    */
   async _generateFallbackManuscriptPdf(project, requestedType = 'final_academic') {
     return pdfGeneratorService.generateFallbackManuscriptPdf(project, requestedType);
+  }
+
+  async verifyCertificate(projectId, verificationHash) {
+    const project = await Project.findById(projectId).select(
+      'title academicYear archivedAt projectStatus isArchived certificateStorageKey certificateVerificationHash',
+    );
+    const provided = String(verificationHash || '').toLowerCase();
+    const stored = String(project?.certificateVerificationHash || '').toLowerCase();
+    if (
+      !project ||
+      !project.certificateStorageKey ||
+      !(project.isArchived || project.projectStatus === PROJECT_STATUSES.ARCHIVED) ||
+      !/^[a-f0-9]{64}$/.test(provided) ||
+      !/^[a-f0-9]{64}$/.test(stored) ||
+      !timingSafeEqual(Buffer.from(provided, 'hex'), Buffer.from(stored, 'hex'))
+    ) {
+      throw new AppError('This completion certificate could not be verified.', 404, 'CERTIFICATE_NOT_VERIFIED');
+    }
+
+    return {
+      valid: true,
+      projectId: String(project._id),
+      title: project.title,
+      academicYear: project.academicYear || null,
+      archivedAt: project.archivedAt,
+      verificationHash: stored,
+    };
   }
 }
 

@@ -54,10 +54,11 @@ function getDeadlineStatus(dateStr) {
   return 'ok';
 }
 
-function DeadlineBadge({ dateStr }) {
+function DeadlineBadge({ dateStr, allowLateSubmission = true }) {
   const status = getDeadlineStatus(dateStr);
   const formatted = formatDeadline(dateStr);
   if (!formatted) return <span className="text-xs text-muted-foreground">No deadline</span>;
+  const isLateClosed = status === 'overdue' && !allowLateSubmission;
 
   const styles = {
     overdue: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
@@ -69,9 +70,11 @@ function DeadlineBadge({ dateStr }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${styles[status]}`}
+      data-testid="chapter-deadline-status"
+      data-status={status}
     >
       <Clock className="h-3 w-3" />
-      {status === 'overdue' ? 'Overdue' : formatted}
+      {isLateClosed ? 'Late submissions closed' : status === 'overdue' ? 'Overdue' : formatted}
     </span>
   );
 }
@@ -94,6 +97,7 @@ export default function ChapterCard({
   chapterNumber,
   submission,
   deadline,
+  allowLateSubmission = true,
   isLocked,
   canUpload,
   isStudent,
@@ -107,6 +111,8 @@ export default function ChapterCard({
   const hasSubmission = Boolean(submission);
   const status = submission?.status || null;
   const title = CHAPTER_TITLES[chapterNumber] || '';
+  const isPastDeadline = getDeadlineStatus(deadline) === 'overdue';
+  const isLateSubmissionClosed = isPastDeadline && !allowLateSubmission;
 
   const handleViewSubmission = () => {
     if (submission?._id) {
@@ -115,8 +121,8 @@ export default function ChapterCard({
   };
 
   const canUploadRevision =
-    isStudent && !isReadOnly && canUpload && submission?.status === 'revisions_required';
-  const canUploadNew = isStudent && !isReadOnly && canUpload && !hasSubmission;
+    isStudent && !isReadOnly && canUpload && !isLateSubmissionClosed && submission?.status === 'revisions_required';
+  const canUploadNew = isStudent && !isReadOnly && canUpload && !isLateSubmissionClosed && !hasSubmission;
 
   const handleUpload = (e) => {
     e.stopPropagation();
@@ -130,7 +136,7 @@ export default function ChapterCard({
       if (onUpload) {
         onUpload(chapterNumber, submission);
       } else {
-        navigate(`/project/submissions/upload?chapter=${chapterNumber}&locked=true`);
+        navigate(`/project/submissions/upload?chapter=${chapterNumber}`);
       }
     } else {
       navigate(`/project/submissions/upload?chapter=${chapterNumber}`);
@@ -181,7 +187,7 @@ export default function ChapterCard({
           ) : (
             <span className="text-xs text-muted-foreground">Not submitted</span>
           )}
-          <DeadlineBadge dateStr={deadline} />
+          <DeadlineBadge dateStr={deadline} allowLateSubmission={allowLateSubmission} />
         </div>
 
         {/* Actions */}

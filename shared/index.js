@@ -11,6 +11,8 @@ export {
   SECRETARY_CAPABILITY_VALUES,
 } from './constants/roles.js';
 export { HTTP_STATUS } from './constants/statusCodes.js';
+export { ACADEMIC_TERMS, ACADEMIC_TERM_VALUES } from './constants/academicTerms.js';
+export { ADM_MILESTONES } from './constants/admMilestones.js';
 export { TITLE_STATUSES, TITLE_STATUS_VALUES } from './constants/titleStatuses.js';
 export { PROJECT_STATUSES, PROJECT_STATUS_VALUES } from './constants/projectStatuses.js';
 export { SUBMISSION_STATUSES, SUBMISSION_STATUS_VALUES } from './constants/submissionStatuses.js';
@@ -19,6 +21,8 @@ export { PROTOTYPE_TYPES, PROTOTYPE_TYPE_VALUES } from './constants/prototypeTyp
 export {
   CAPSTONE_PHASES,
   CAPSTONE_PHASE_VALUES,
+  CAPSTONE_COURSES,
+  CAPSTONE_COURSE_VALUES,
   CAPSTONE_STAGES,
   CAPSTONE_STAGE_VALUES,
   DELIVERABLE_TYPES,
@@ -27,6 +31,7 @@ export {
   STAGE_DELIVERABLE_MAP,
   DELIVERABLE_CATEGORY_MAP,
   CAPSTONE_SEMESTER_MAP,
+  resolveWorkflowPhase,
 } from './constants/capstonePhases.js';
 export { BUKSU_GRADE_SCALE, BUKSU_GRADE_VALUES, computeBukSUGrade } from './constants/grades.js';
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
@@ -52,7 +57,9 @@ export {
 export {
   STRICT_EMAIL_REGEX,
   BUKSU_INSTITUTIONAL_EMAIL_REGEX,
+  BUKSU_STUDENT_EMAIL_REGEX,
   isBuksuInstitutionalEmail,
+  isBuksuStudentEmail,
 } from './constants/validation.js';
 export {
   DEFAULT_TITLE_SIMILARITY_THRESHOLD,
@@ -64,3 +71,4 @@ export {
   AdviserSnapshotSchema,
   WorkloadOptimizationResultSchema,
 } from './schemas/workloadOptimizationResult.schema.js';
+export { passwordSchema, studentEmailSchema } from './schemas/auth.schema.js';

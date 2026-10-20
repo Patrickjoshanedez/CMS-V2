@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-10-17_patch-windows-vitest-recovery",
+  "date": "2026-10-17T07:40:27.1342972+08:00",
+  "task_summary": "Patched the verification skill with a bounded Windows Vitest temporary-directory and MongoMemoryServer loopback recovery path.",
+  "task_category": "skill",
+  "files_modified": [
+    ".agents/skills/verification-loop/SKILL.md",
+    ".agents/ptss/sessions/2026-10-17_patch-windows-vitest-recovery.json",
+    ".agents/ptss/index.jsonl",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "verification-loop",
+    "skill-write-or-patch",
+    "ptss"
+  ],
+  "skills_written": [],
+  "skills_patched": [
+    {
+      "name": "verification-loop",
+      "change": "Added workspace-local TEMP/TMP recovery for Vitest cache rename EPERM, isolated approved localhost access for MongoMemoryServer EACCES, and per-suite watchdog guidance."
+    }
+  ],
+  "key_decisions": [
+    "Keep each server test suite isolated when a grouped run shows no progress and reaches the 120-second watchdog.",
+    "Never connect an isolated test to or mutate the running app database."
+  ],
+  "lessons_learned": [
+    "In this Windows sandbox, a targeted server suite first failed before tests with EPERM in OS temp, then with EACCES to its MongoMemoryServer loopback socket; a workspace-local test temp path and approved isolated loopback run resolved both environment failures.",
+    "Running the slow server gate files as a combined command exceeded 120 seconds without test output, while each isolated suite completed within the watchdog."
+  ],
+  "open_threads": [
+    "Finish the authorized capstone workflow goal after deadline propagation and Gantt edit permission patches, then verify targeted client suites and visuals.",
+    "The full client suite remains unverified after its documented watchdog runs."
+  ],
+  "verification_status": "partial",
+  "verification_notes": "Passed individually: weekly check-in gates 5/5; archive indexing and QR certificate 5/5; final approval unlock 2/2; defense readiness 10/10; ADM compliance 13/13; comprehensive workflow 13/13; roster lock 5/5; submission review flow 6/6. One grouped backend run was stopped at 120 seconds with no results after diagnostic."
+}

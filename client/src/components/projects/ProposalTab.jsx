@@ -20,7 +20,7 @@ import TitleStatusBadge from './TitleStatusBadge';
 import { projectService } from '@/services/authService';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/lib/utils';
-import { CAPSTONE_PHASES, TITLE_STATUSES } from '@cms/shared';
+import { CAPSTONE_PHASES, TITLE_STATUSES, resolveWorkflowPhase } from '@cms/shared';
 import {
   PITCH_DECK_FIELDS,
   emptyPitchDeck,
@@ -71,18 +71,14 @@ function sanitizeFilename(value) {
     .slice(0, 80);
 }
 
-function getCapstonePhase(project) {
-  return Number(project?.capstonePhase ?? project?.phase ?? 0) || 0;
-}
-
 function getCapstoneProgressLabel(project) {
-  const phase = getCapstonePhase(project);
+  const phase = resolveWorkflowPhase(project);
 
-  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Final Capstone';
-  if (phase >= CAPSTONE_PHASES.PHASE_3) return 'Capstone 3';
-  if (phase >= CAPSTONE_PHASES.PHASE_2) return 'Capstone 2';
-  if (phase >= CAPSTONE_PHASES.PHASE_1) return 'Capstone 1';
-  return 'Pre-capstone';
+  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Capstone 3';
+  if (phase >= CAPSTONE_PHASES.PHASE_3) return 'Capstone 2';
+  if (phase >= CAPSTONE_PHASES.PHASE_2) return 'Capstone 1';
+  if (phase >= CAPSTONE_PHASES.PHASE_1) return 'Title proposal review';
+  return 'Team formation';
 }
 
 function getDraftForProposal(projectId, proposalId, pitchDeck) {
@@ -128,7 +124,7 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
 
   const titleApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
   const isRevisionRequired = project?.titleStatus === TITLE_STATUSES.REVISION_REQUIRED;
-  const projectApproved = getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2;
+  const projectApproved = resolveWorkflowPhase(project) >= CAPSTONE_PHASES.PHASE_2;
   const capstoneProgressLabel = getCapstoneProgressLabel(project);
 
   const isLocked = titleApproved && !isEditingApproved;
@@ -335,14 +331,14 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
               Evaluation Rules
             </Badge>
             <span>
-              Plagiarism Tolerance:{' '}
-              <strong className="text-foreground">&le; {plagiarismRejectThreshold || 25}%</strong>
+              Plagiarism similarity limit:{' '}
+              <strong className="text-foreground">&le; {plagiarismRejectThreshold ?? 25}%</strong>
             </span>
             <span>•</span>
             <span>
-              Similarity Warning Threshold:{' '}
+              Title similarity review threshold:{' '}
               <strong className="text-foreground">
-                &le; {Math.round((titleSimilarityThreshold || 0.65) * 100)}%
+                &le; {Math.round((titleSimilarityThreshold ?? 0.65) * 100)}%
               </strong>
             </span>
           </div>
@@ -535,7 +531,7 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
                   </div>
                 )}
 
-                {/* 5 Pitch Deck Fields */}
+                {/* Seven Pitch Deck Fields */}
                 <div className="space-y-4">
                   {PITCH_DECK_FIELDS.map((field) => (
                     <div key={field.key} className="space-y-2">

@@ -14,9 +14,15 @@ import {
   SDG_TAG_SUGGESTIONS,
   PANEL_ROLE_VALUES,
   DEFENSE_TYPE_VALUES,
+  CAPSTONE_PHASE_VALUES,
+  CAPSTONE_COURSE_VALUES,
   CAPSTONE_STAGE_VALUES,
+  ACADEMIC_TERM_VALUES,
+  resolveWorkflowPhase,
+  ADM_MILESTONES,
 } from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
+import { getADMCompletion } from './services/admCompletion.js';
 
 const titleModificationRequestSchema = new mongoose.Schema(
   {
@@ -74,12 +80,15 @@ const titleModificationRequestSchema = new mongoose.Schema(
 
 const deadlineSchema = new mongoose.Schema(
   {
+    titleProposal: { type: Date, default: null },
     chapter1: { type: Date, default: null },
     chapter2: { type: Date, default: null },
     chapter3: { type: Date, default: null },
     proposal: { type: Date, default: null },
     chapter4: { type: Date, default: null },
     chapter5: { type: Date, default: null },
+    finalAcademic: { type: Date, default: null },
+    finalJournal: { type: Date, default: null },
     defense: { type: Date, default: null },
     /** Fields marked "To Be Announced" by the instructor. */
     tba: { type: [String], default: [] },
@@ -477,6 +486,72 @@ const ganttApprovalSchema = new mongoose.Schema(
       maxlength: 1000,
       default: '',
     },
+    scheduleHash: {
+      type: String,
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+const ganttPlanSchema = new mongoose.Schema(
+  {
+    tasks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    sections: { type: [String], default: [] },
+    updatedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+const weeklyCheckInSchema = new mongoose.Schema(
+  {
+    scheduleHash: { type: String, required: true },
+    weekKey: { type: String, required: true },
+    weekStart: { type: Date, required: true },
+    dueAt: { type: Date, required: true },
+    taskIds: { type: [String], default: [] },
+    status: {
+      type: String,
+      enum: [
+        'scheduled',
+        'submitted',
+        'revision_requested',
+        'awaiting_instructor_waiver',
+        'approved',
+        'waiver_denied',
+      ],
+      default: 'scheduled',
+    },
+    summary: { type: String, trim: true, maxlength: 2000, default: '' },
+    progressPct: { type: Number, min: 0, max: 100, default: 0 },
+    completedTaskIds: { type: [String], default: [] },
+    blockerNotes: { type: String, trim: true, maxlength: 1500, default: '' },
+    commitHash: { type: String, trim: true, maxlength: 64, default: '' },
+    justification: { type: String, trim: true, maxlength: 2000, default: '' },
+    isLate: { type: Boolean, default: false },
+    submittedAt: { type: Date, default: null },
+    adviserReview: {
+      decision: { type: String, enum: ['pending', 'approved', 'revision_requested'], default: 'pending' },
+      remarks: { type: String, trim: true, maxlength: 1500, default: '' },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedAt: { type: Date, default: null },
+    },
+    instructorWaiver: {
+      decision: { type: String, enum: ['pending', 'granted', 'denied'], default: 'pending' },
+      remarks: { type: String, trim: true, maxlength: 1500, default: '' },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedAt: { type: Date, default: null },
+    },
+  },
+  { timestamps: true },
+);
+
+const systemDefenseApprovalSchema = new mongoose.Schema(
+  {
+    approved: { type: Boolean, default: false },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewedAt: { type: Date, default: null },
+    remarks: { type: String, trim: true, maxlength: 1000, default: '' },
   },
   { _id: false },
 );
@@ -713,6 +788,11 @@ const projectSchema = new mongoose.Schema(
       required: [true, 'Academic year is required'],
       match: [/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'],
     },
+    academicTerm: {
+      type: String,
+      enum: [...ACADEMIC_TERM_VALUES, null],
+      default: null,
+    },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',
@@ -729,20 +809,27 @@ const projectSchema = new mongoose.Schema(
     },
     capstonePhase: {
       type: Number,
-      enum: [1, 2, 3, 4],
+      enum: CAPSTONE_COURSE_VALUES,
       default: 1,
+    },
+    // Overall Phase 1–4; capstonePhase remains the legacy 1–3 course counter.
+    workflowPhase: {
+      type: Number,
+      enum: CAPSTONE_PHASE_VALUES,
+      index: true,
     },
     stage: {
       type: String,
       enum: {
         values: CAPSTONE_STAGE_VALUES,
-        message: 'Invalid capstone stage. Must be capstone_1, capstone_2, capstone_3, or final.',
+        message: 'Invalid stage. Must be proposal, capstone_1, capstone_2, capstone_3, or final.',
       },
       default: 'capstone_1',
     },
+    // Post-approval final-paper deliverables only; chapter access is phase-gated separately.
     unlockedDeliverables: {
       type: [String],
-      default: ['chapter_1', 'chapter_2', 'chapter_3', 'capstone_1_proposal', 'adm_v1'],
+      default: [],
     },
     titleStatus: {
       type: String,
@@ -841,6 +928,18 @@ const projectSchema = new mongoose.Schema(
       type: ganttApprovalSchema,
       default: () => ({}),
     },
+    ganttPlan: {
+      type: ganttPlanSchema,
+      default: () => ({}),
+    },
+    weeklyCheckIns: {
+      type: [weeklyCheckInSchema],
+      default: [],
+    },
+    systemDefenseApproval: {
+      type: systemDefenseApprovalSchema,
+      default: () => ({}),
+    },
 
     demoVideoUrl: {
       type: String,
@@ -873,6 +972,38 @@ const projectSchema = new mongoose.Schema(
       default: null,
     },
     certificateStorageKey: {
+      type: String,
+      default: null,
+    },
+    certificateVerificationHash: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    certificateGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+    archiveIndexing: {
+      status: {
+        type: String,
+        enum: ['not_started', 'queued', 'indexing', 'completed', 'failed'],
+        default: 'not_started',
+      },
+      documentIds: { type: [String], default: [] },
+      queuedAt: { type: Date, default: null },
+      completedAt: { type: Date, default: null },
+      lastError: { type: String, trim: true, maxlength: 500, default: '' },
+    },
+    approvalSheetStorageKey: {
+      type: String,
+      default: null,
+    },
+    approvalSheetGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+    approvalSheetVerificationHash: {
       type: String,
       default: null,
     },
@@ -940,10 +1071,38 @@ const projectSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform(_document, result) {
+        result.workflowPhase = resolveWorkflowPhase(result);
+        return result;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform(_document, result) {
+        result.workflowPhase = resolveWorkflowPhase(result);
+        return result;
+      },
+    },
   },
 );
+
+// Normalize legacy Capstone 4 records to the final (third) course. `final` is
+// a lifecycle stage after Capstone 3, not a fourth one-semester course.
+projectSchema.pre('validate', function () {
+  if (Number(this.capstonePhase) === 4) {
+    this.capstonePhase = 3;
+    const isPostCourse =
+      this.stage === 'final' ||
+      this.isArchived === true ||
+      [PROJECT_STATUSES.FINAL_APPROVED, PROJECT_STATUSES.ARCHIVED].includes(this.projectStatus);
+    this.stage = isPostCourse ? 'final' : 'capstone_3';
+  }
+
+  // Backfill the canonical overall phase during normal service-layer saves.
+  if (this.workflowPhase == null) this.workflowPhase = resolveWorkflowPhase(this);
+});
 
 // Synchronize stage with capstonePhase if not explicitly set
 projectSchema.pre('save', function () {
@@ -951,23 +1110,14 @@ projectSchema.pre('save', function () {
     if (this.capstonePhase === 1) this.stage = 'capstone_1';
     else if (this.capstonePhase === 2) this.stage = 'capstone_2';
     else if (this.capstonePhase === 3) this.stage = 'capstone_3';
-    else if (this.capstonePhase === 4) this.stage = 'final';
   }
-  if (!Array.isArray(this.unlockedDeliverables) || this.unlockedDeliverables.length === 0) {
-    this.unlockedDeliverables = [
-      'chapter_1',
-      'chapter_2',
-      'chapter_3',
-      'capstone_1_proposal',
-      'adm_v1',
-    ];
-  }
+  if (!Array.isArray(this.unlockedDeliverables)) this.unlockedDeliverables = [];
 });
 
 /**
  * Unison Team ADM Object:
- * Consolidates all Team Action Done Matrix data across milestones (v1 = Capstone 1, v2 = Capstone 2, v3 = Capstone 3)
- * into a single unified structure to prevent uncontrolled branching.
+ * Consolidates each milestone into legacy v1/v2/v3 storage slots. Official ADM
+ * version labels are sourced from shared institutional milestone metadata.
  */
 projectSchema.methods.getUnisonADM = function () {
   const phase = Number(this.capstonePhase ?? 1);
@@ -975,11 +1125,12 @@ projectSchema.methods.getUnisonADM = function () {
 
   const allRows = Array.isArray(this.actionDoneMatrix) ? this.actionDoneMatrix : [];
 
-  const getMilestoneData = (milestoneKey, versionLabel, defaultTitle) => {
+  const getMilestoneData = (milestoneMeta) => {
+    const { id: milestoneKey, versionLabel, title: defaultTitle, officialVersion } = milestoneMeta;
     const rows = allRows.filter((r) => (r.milestone || activeMilestone) === milestoneKey);
     const signatures =
       this.admSignaturesByMilestone?.[milestoneKey] ||
-      (milestoneKey === activeMilestone && this.admSignatures ? this.admSignatures : {}) ||
+      (milestoneKey === 'CAPSTONE_1' && this.admSignatures ? this.admSignatures : {}) ||
       {};
     const reviewType =
       this.admReviewTypeByMilestone?.[milestoneKey] ||
@@ -991,7 +1142,9 @@ projectSchema.methods.getUnisonADM = function () {
       {};
     const status =
       milestoneKey === activeMilestone
-        ? this.admStatus || 'not_started'
+        ? this.admStatus === 'approved' && !getADMCompletion(this, milestoneKey).complete
+          ? 'not_started'
+          : this.admStatus || 'not_started'
         : phase > (milestoneKey === 'CAPSTONE_1' ? 1 : milestoneKey === 'CAPSTONE_2' ? 2 : 3)
           ? 'approved'
           : 'not_started';
@@ -1000,6 +1153,7 @@ projectSchema.methods.getUnisonADM = function () {
       milestone: milestoneKey,
       milestoneLabel: versionLabel,
       defaultTitle,
+      officialVersion,
       status,
       reviewType,
       signatures,
@@ -1012,16 +1166,13 @@ projectSchema.methods.getUnisonADM = function () {
   };
 
   return {
-    v1: getMilestoneData('CAPSTONE_1', 'Capstone 1 (Title Defense / Proposal)', 'ADM v1'),
-    v2: getMilestoneData('CAPSTONE_2', 'Capstone 2 (Midterm Defense / Chapters 1–3)', 'ADM v2'),
-    v3: getMilestoneData(
-      'CAPSTONE_3',
-      'Capstone 3 (Progress & Final Defense / Chapters 4–5)',
-      'ADM v3',
-    ),
+    v1: getMilestoneData(ADM_MILESTONES.CAPSTONE_1),
+    v2: getMilestoneData(ADM_MILESTONES.CAPSTONE_2),
+    v3: getMilestoneData(ADM_MILESTONES.CAPSTONE_3),
     activeMilestone,
     activeVersion:
       activeMilestone === 'CAPSTONE_3' ? 'v3' : activeMilestone === 'CAPSTONE_2' ? 'v2' : 'v1',
+    activeOfficialVersion: ADM_MILESTONES[activeMilestone]?.officialVersion,
     capstonePhase: phase,
     teamId: this.teamId,
   };

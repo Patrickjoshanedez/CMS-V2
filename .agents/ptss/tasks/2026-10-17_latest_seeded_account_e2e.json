@@ -1,0 +1,24 @@
+{
+  "active_scenario_id": "complete",
+  "completed_subgoals": [
+    "Separate the user-provided workflow request from the reseed report, which was used only as test-account data.",
+    "Authenticate the report's latest student-domain account and verify team membership in the designated active synthetic project before mutation.",
+    "Approve the four-section Capstone 2 Gantt schedule and complete four late synthetic weekly check-ins through adviser approval and instructor waiver.",
+    "Attach a clearly labeled synthetic repository URL fixture and gallery image, approve system clearance, and schedule the progress defense.",
+    "Publish synthetic progress-defense minutes, submit all three panel evaluations, verify the Secretary endorsement before committee signatures, release grades, and advance to Capstone 3.",
+    "Set Capstone 3 submission deadlines, complete Chapter 4 and 5 revision cycles, and obtain adviser approval for both manuscripts after completed originality scans.",
+    "Schedule the synthetic final hearing, publish minutes and final ADM, collect Secretary endorsement before signatures, release grades, and complete final archival.",
+    "Read back the archived manuscripts, search entry, repository and gallery references, approval sheet PDF, completion certificate PDF, and anonymous QR certificate verification."
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "Project 6ad2933789cfdaa77f6049f9 reached archived status through official APIs. Archive search returns both final papers and the synthetic repository/gallery fixtures; manuscript files and generated PDFs read back successfully, and public certificate verification passed. All grades, sign-offs, minutes, and defense outcomes were synthetic; no actual oral defense occurred.",
+  "progress_delta": 8,
+  "loop_count": 0,
+  "scenario_dag": [
+    { "id": "identify-seeded-project", "depends_on": [] },
+    { "id": "capstone2-gantt-and-clearance", "depends_on": ["identify-seeded-project"] },
+    { "id": "capstone2-defense-and-adm", "depends_on": ["capstone2-gantt-and-clearance"] },
+    { "id": "capstone3-manuscripts", "depends_on": ["capstone2-defense-and-adm"] },
+    { "id": "final-defense-and-archive", "depends_on": ["capstone3-manuscripts"] }
+  ]
+}

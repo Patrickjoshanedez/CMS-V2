@@ -63,6 +63,8 @@ const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
 
 const createEmptyPitchDeck = () => ({
   problemStatement: '',
+  objectives: '',
+  technicalStack: '',
   proposedSolution: '',
   uniqueContribution: '',
   targetUsers: '',
@@ -260,7 +262,7 @@ export default function CreateProjectPage() {
   const { data: _academicYears = [] } = useAcademicYears();
 
   const {
-    plagiarismThreshold = 15.0,
+    plagiarismRejectThreshold = 25,
     titleSimilarityThreshold = DEFAULT_TITLE_SIMILARITY_PERCENTAGE,
     fetchSettings,
   } = useSettingsStore();
@@ -391,7 +393,13 @@ export default function CreateProjectPage() {
   const winnowingScore = currentScanData ? (currentScanData.winnowingScore ?? 0) : 0;
   const semanticScore = currentScanData ? (currentScanData.semanticScore ?? 0) : 0;
 
-  const effectiveThreshold = plagiarismThreshold || 15.0;
+  const effectiveThreshold = plagiarismRejectThreshold ?? 25;
+  const plagiarismProgress =
+    effectiveThreshold > 0
+      ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+      : currentScanScore > 0
+        ? 100
+        : 0;
   const titleThreshold =
     typeof titleSimilarityThreshold === 'number' && titleSimilarityThreshold <= 1
       ? Math.round(titleSimilarityThreshold * 100)
@@ -560,7 +568,7 @@ export default function CreateProjectPage() {
           }
 
           if (Array.isArray(draft.titleProposals) && draft.titleProposals.length > 0) {
-            const normalized = draft.titleProposals.slice(0, 5).map(normalizeDraftProposal);
+            const normalized = draft.titleProposals.slice(0, 10).map(normalizeDraftProposal);
             setTitleProposals(normalized);
             if (typeof draft.expandedProposalIndex === 'number') {
               setActiveProposalIndex(
@@ -777,8 +785,8 @@ export default function CreateProjectPage() {
   };
 
   const addProposalOption = () => {
-    if (titleProposals.length >= 5) {
-      toast.info('Maximum of 5 candidate proposals allowed for Capstone 1.');
+    if (titleProposals.length >= 10) {
+      toast.info('You can add up to 10 title proposals.');
       return;
     }
     const newIdx = titleProposals.length;
@@ -890,7 +898,7 @@ export default function CreateProjectPage() {
 
   // Pitch Deck Slide Definitions (8 BukSU Institutional Slides)
   const deckSlides = useMemo(() => {
-    const title = currentProposal.title || 'Untitled Proposal Title';
+    const title = currentProposal.title || 'Untitled proposal';
     const pitch = currentProposal.pitchDeck || {};
 
     return [
@@ -909,9 +917,7 @@ export default function CreateProjectPage() {
         category: 'Problem Statement & Literature Gap',
         tag: 'Problem & Context',
         title: 'Problem Statement',
-        content:
-          pitch.problemStatement ||
-          'Current manual processes lack real-time visibility, automated validation, and institutional tracking, creating operational friction and compliance risks.',
+        content: pitch.problemStatement || 'Not provided.',
         type: 'statement',
         accent: 'border-l-4 border-amber-500/80 pl-4',
         icon: AlertTriangle,
@@ -922,9 +928,7 @@ export default function CreateProjectPage() {
         category: 'Proposed Solution & Technical Framework',
         tag: 'Technical Framework',
         title: 'Proposed Solution',
-        content:
-          pitch.proposedSolution ||
-          'An end-to-end automated platform integrating role-based workflows, automated similarity checks, and verifiable multi-signatory digital approvals.',
+        content: pitch.proposedSolution || 'Not provided.',
         type: 'solution',
         accent: 'border-l-4 border-primary pl-4',
         icon: Sparkles,
@@ -935,9 +939,7 @@ export default function CreateProjectPage() {
         category: 'Unique Technical Innovation',
         tag: 'Novelty & IP',
         title: 'Unique Technical Contribution',
-        content:
-          pitch.uniqueContribution ||
-          'Innovative dual-engine similarity detection with localized historical archiving and automated rubric-driven milestone clearance.',
+        content: pitch.uniqueContribution || 'Not provided.',
         type: 'innovation',
         accent: 'border-l-4 border-blue-500/80 pl-4',
         icon: ShieldCheck,
@@ -948,9 +950,7 @@ export default function CreateProjectPage() {
         category: 'Target Users & Stakeholders',
         tag: 'Stakeholders',
         title: 'Target Users & Beneficiaries',
-        content:
-          pitch.targetUsers ||
-          'BukSU Capstone Proponents, Faculty Advisers, Panel Reviewers, Department Secretaries, and College Leadership.',
+        content: pitch.targetUsers || 'Not provided.',
         type: 'users',
         accent: 'border-l-4 border-emerald-500/80 pl-4',
         icon: Layers,
@@ -961,9 +961,7 @@ export default function CreateProjectPage() {
         category: 'Expected Value & Operational Impact',
         tag: 'Impact & ROI',
         title: 'Expected Institutional Impact',
-        content:
-          pitch.expectedImpact ||
-          'Reduces defense turnaround times by 65%, eliminates document loss, and enforces 100% compliance with BukSU IT capstone manual standards.',
+        content: pitch.expectedImpact || 'Not provided.',
         type: 'impact',
         accent: 'border-l-4 border-indigo-500/80 pl-4',
         icon: CheckCircle2,
@@ -1150,6 +1148,17 @@ export default function CreateProjectPage() {
       return;
     }
 
+    const incompleteIndex = titleProposals.findIndex(
+      (proposal) =>
+        proposal.title?.trim() &&
+        (!proposal.pitchDeck?.objectives?.trim() || !proposal.pitchDeck?.technicalStack?.trim()),
+    );
+    if (incompleteIndex >= 0) {
+      setActiveProposalIndex(incompleteIndex);
+      toast.error('Add the objectives and technical stack for each candidate proposal.');
+      return;
+    }
+
     const normalized = filled.map((p, idx) => {
       const pKey = p.id || String(idx);
       const pScan = proposalPlagiarismResults[pKey];
@@ -1233,23 +1242,23 @@ export default function CreateProjectPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto min-w-0 bg-slate-100 dark:bg-[#060b13] text-foreground transition-colors">
+      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6 text-foreground">
         {/* 1. Header Toolbar & Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-300 dark:border-slate-800 pb-5">
+        <div className="flex flex-col justify-between gap-5 border-b border-border/60 pb-5 xl:flex-row xl:items-start">
           <div className="space-y-1.5">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => navigate('/project')}
-              className="h-7 px-2 -ml-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-slate-200/60 dark:hover:bg-slate-800/60 gap-1"
+              className="-ml-2 h-7 gap-1 px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>Back to My Capstone</span>
             </Button>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Capstone 1: Title Proposal Studio
+                Capstone 1: Title proposals
               </h1>
               {isEditMode && (
                 <Badge
@@ -1262,20 +1271,19 @@ export default function CreateProjectPage() {
               <SaveStatusIndicator status={saveStatus} />
             </div>
             <p className="text-xs text-muted-foreground">
-              Academic Year {team?.academicYear || form.academicYear} · {resolvedSectionName} ·
-              System Note: Automatically using academic year and section. Prepare up to 5 candidate
-              title pitches for committee defense.
+              Academic Year {team?.academicYear || form.academicYear} · {resolvedSectionName}. Draft
+              up to 10 title proposals for committee review.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0 [&>button]:min-h-11 [&>button]:flex-1 sm:[&>button]:flex-none">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => handleSaveProposalDraft(activeProposalIndex)}
               disabled={savingDraftIndex !== null}
-              className="h-9 text-xs gap-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0c1424] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs"
+              className="h-9 gap-1.5 border-border bg-card text-xs text-foreground shadow-xs hover:bg-accent"
             >
               {savingDraftIndex !== null ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -1347,13 +1355,13 @@ export default function CreateProjectPage() {
         )}
 
         {/* 2. Candidate Proposal Switcher & Main Studio Navigation */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/60 pb-3">
+        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 border-b border-border/60 pb-4">
           {/* Candidate Option Pills */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">
               Pitch Option:
             </span>
-            <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-1 h-9 shadow-2xs">
+            <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-border bg-muted/50 p-1 shadow-2xs">
               {titleProposals.map((prop, idx) => {
                 const isActive = activeProposalIndex === idx;
                 const isPrimary = idx === 0;
@@ -1403,7 +1411,7 @@ export default function CreateProjectPage() {
                     type="button"
                     onClick={() => setActiveProposalIndex(idx)}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 h-7 text-xs font-medium transition-all select-none',
+                      'inline-flex min-h-11 sm:min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-all select-none',
                       isActive
                         ? 'bg-card text-foreground shadow-xs font-semibold'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/80',
@@ -1415,11 +1423,11 @@ export default function CreateProjectPage() {
                 );
               })}
 
-              {titleProposals.length < 5 && (
+              {titleProposals.length < 10 && (
                 <button
                   type="button"
                   onClick={addProposalOption}
-                  className="inline-flex items-center gap-1 rounded-md px-2.5 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors select-none"
+                  className="inline-flex min-h-11 sm:min-h-9 items-center gap-1 rounded-md px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors select-none"
                 >
                   <Plus className="h-3 w-3" /> Add Proposal {titleProposals.length + 1}
                 </button>
@@ -1431,24 +1439,26 @@ export default function CreateProjectPage() {
           <Tabs
             value={activeStudioTab}
             onValueChange={setActiveStudioTab}
-            className="space-y-0 max-w-full"
+            className="w-full min-w-0 space-y-0 xl:w-auto xl:shrink-0"
           >
-            <TabsList className="bg-muted/50 border border-border h-auto sm:h-9 p-1 shadow-2xs flex flex-wrap sm:flex-nowrap gap-1 max-w-full">
+            <TabsList className="grid w-full grid-cols-3 gap-1 border border-border bg-muted/50 p-1 h-auto shadow-2xs">
               <TabsTrigger
                 value="write"
-                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+                className="min-w-0 min-h-11 sm:min-h-9 text-xs gap-1.5 px-2 sm:px-3"
               >
-                <FileText className="h-3.5 w-3.5" /> Write Proposal
+                <FileText className="h-3.5 w-3.5 shrink-0" />
+                <span>Write<span className="hidden sm:inline"> Proposal</span></span>
               </TabsTrigger>
               <TabsTrigger
                 value="similarity"
-                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+                className="min-w-0 min-h-11 sm:min-h-9 text-xs gap-1.5 px-2 sm:px-3"
               >
-                <Search className="h-3.5 w-3.5" /> Similarity Clearance
+                <Search className="h-3.5 w-3.5 shrink-0" />
+                <span>Similarity<span className="hidden sm:inline"> Clearance</span></span>
               </TabsTrigger>
               <TabsTrigger
                 value="deck"
-                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+                className="min-w-0 min-h-11 sm:min-h-9 text-xs gap-1.5 px-2 sm:px-3"
               >
                 <Presentation className="h-3.5 w-3.5" /> Pitch Deck
               </TabsTrigger>
@@ -1457,27 +1467,27 @@ export default function CreateProjectPage() {
         </div>
 
         {/* 3. Main Workspace: 2/3 Studio Canvas + 1/3 Cascaded Policy Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* ========================================================= */}
           {/* LEFT COLUMN (2 COLS): ACTIVE TAB VIEW                      */}
           {/* ========================================================= */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="min-w-0 xl:col-span-2 space-y-6">
             {/* TAB 1: WRITE PROPOSAL */}
             {activeStudioTab === 'write' && (
               <>
                 {/* Card 1: Core Pitch & Technical Scope */}
-                <div className="rounded-xl bg-white border border-slate-300 p-6 shadow-sm dark:bg-[#0c1424] dark:border-slate-700 dark:shadow-none transition-colors">
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="rounded-xl border border-border/60 bg-card p-4 sm:p-6 shadow-xs">
+                  <div className="flex flex-col items-start justify-between gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center">
                     <div>
-                      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      <h3 className="text-base font-semibold text-foreground">
                         Core Pitch & Technical Scope
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         Define the problem domain and the system architecture being proposed.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs px-2.5 py-1 font-medium rounded-full bg-slate-100 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300">
+                      <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                         Proposal {activeProposalIndex + 1} of {titleProposals.length}
                       </span>
                       {activeProposalIndex > 0 && (
@@ -1501,7 +1511,7 @@ export default function CreateProjectPage() {
                     <div>
                       <label
                         htmlFor={`proposal-${activeProposalIndex}-title`}
-                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
+                        className="mb-1.5 block text-xs font-bold text-foreground"
                       >
                         Proposed Project Title <span className="text-rose-500">*</span>
                       </label>
@@ -1512,17 +1522,17 @@ export default function CreateProjectPage() {
                           handleProposalTitleChange(activeProposalIndex, e.target.value)
                         }
                         placeholder="Enter a descriptive and technical title..."
-                        className="w-full rounded-lg px-3.5 py-2.5 text-sm bg-white border border-slate-400/80 text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:bg-[#080d18] dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-900/40 outline-none transition-all"
+                        className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
                         required
                       />
                     </div>
 
                     {/* Real-time Title Similarity Checking mini-alert */}
                     {currentProposal.title?.trim() && (
-                      <div className="space-y-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-[#080d18] p-3.5">
-                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3.5">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                           <Search className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          Title Similarity Live Clearance
+                          Title similarity check
                         </p>
                         <TitleSimilarityChecker
                           key={currentProposalKey}
@@ -1552,6 +1562,32 @@ export default function CreateProjectPage() {
                         )
                       }
                       placeholder="Define the problem domain and gaps in existing research..."
+                    />
+
+                    <AutoExpandingTextarea
+                      label="Objectives"
+                      required
+                      minRows={3}
+                      value={currentProposal.pitchDeck?.objectives || ''}
+                      onChange={(e) =>
+                        handlePitchDeckFieldChange(activeProposalIndex, 'objectives', e.target.value)
+                      }
+                      placeholder="List the specific, measurable objectives of the proposed capstone..."
+                    />
+
+                    <AutoExpandingTextarea
+                      label="Technical Stack"
+                      required
+                      minRows={2}
+                      value={currentProposal.pitchDeck?.technicalStack || ''}
+                      onChange={(e) =>
+                        handlePitchDeckFieldChange(
+                          activeProposalIndex,
+                          'technicalStack',
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Name the planned languages, frameworks, platforms, and hardware..."
                     />
 
                     {/* Proposed Solution */}
@@ -1622,13 +1658,13 @@ export default function CreateProjectPage() {
                 </div>
 
                 {/* Card 2: Field of Discipline & SDG Alignment */}
-                <div className="rounded-xl bg-white border border-slate-300 p-6 shadow-sm dark:bg-[#0c1424] dark:border-slate-700 dark:shadow-none transition-colors">
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-4">
                     <div>
-                      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      <h3 className="text-base font-semibold text-foreground">
                         Field of Discipline & SDG Alignment
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         Align your proposal with institutional IT domains and UN sustainability
                         goals.
                       </p>
@@ -1638,19 +1674,19 @@ export default function CreateProjectPage() {
                     {/* IT Field of Discipline */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <label className="text-xs font-bold text-foreground">
                           IT Field of Discipline <span className="text-rose-500">*</span>
                         </label>
                         <button
                           type="button"
                           id={`proposal-${activeProposalIndex}-discipline-btn`}
                           onClick={handleOpenDisciplineModal}
-                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                         >
                           <Plus className="h-3 w-3" /> Edit Disciplines
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px] items-center">
+                      <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
                         {(currentProposal.capstoneType || []).length === 0 ? (
                           <span className="text-xs text-muted-foreground italic px-1">
                             No IT disciplines selected. Click &quot;Edit Disciplines&quot; to
@@ -1660,14 +1696,14 @@ export default function CreateProjectPage() {
                           (currentProposal.capstoneType || []).map((disc) => (
                             <span
                               key={disc}
-                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white border border-slate-300 dark:bg-slate-800 dark:border-slate-600 text-slate-800 dark:text-slate-200 shadow-2xs"
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground shadow-2xs"
                             >
                               <Layers className="h-3 w-3 text-blue-500" />
                               <span>{disc}</span>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveDiscipline(disc)}
-                                className="text-slate-400 hover:text-rose-500 ml-0.5"
+                                className="ml-0.5 text-muted-foreground hover:text-destructive"
                                 title={`Remove ${disc}`}
                               >
                                 <X className="h-3 w-3" />
@@ -1681,19 +1717,19 @@ export default function CreateProjectPage() {
                     {/* Target UN SDGs */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <label className="text-xs font-bold text-foreground">
                           Target SDG Alignment <span className="text-rose-500">*</span>
                         </label>
                         <button
                           type="button"
                           id={`proposal-${activeProposalIndex}-sdg-btn`}
                           onClick={handleOpenSdgModal}
-                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                         >
                           <Plus className="h-3 w-3" /> Edit SDGs
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px] items-center">
+                      <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
                         {(currentProposal.sdgTags || []).length === 0 ? (
                           <span className="text-xs text-muted-foreground italic px-1">
                             No SDGs selected. Click &quot;Edit SDGs&quot; to assign.
@@ -1787,7 +1823,7 @@ export default function CreateProjectPage() {
                         <Progress
                           value={
                             hasScanned
-                              ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+                              ? plagiarismProgress
                               : 0
                           }
                           className="h-2 bg-muted"
@@ -2165,7 +2201,7 @@ export default function CreateProjectPage() {
           {/* ========================================================= */}
           {/* RIGHT COLUMN (1 COL): POLICY CLEARANCE & DEFENSE CRITERIA  */}
           {/* ========================================================= */}
-          <div className="space-y-6 lg:col-span-1">
+          <div className="min-w-0 space-y-6 xl:col-span-1">
             {/* Institutional Compliance Card */}
             <Card className="border-border bg-card shadow-xs">
               <CardHeader className="pb-3 border-b border-border/40">
@@ -2175,7 +2211,7 @@ export default function CreateProjectPage() {
                     Pre-Defense Clearance
                   </CardTitle>
                   <Badge variant="outline" className="text-[10px] border-border">
-                    Cascaded Policy
+                    Institutional policy
                   </Badge>
                 </div>
               </CardHeader>
@@ -2184,7 +2220,9 @@ export default function CreateProjectPage() {
                 {/* Dynamic Policy Meter */}
                 <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">Plagiarism Tolerance</span>
+                    <span className="font-medium text-foreground">
+                      Plagiarism similarity limit
+                    </span>
                     <span className="font-mono font-bold text-foreground">
                       ≤ {effectiveThreshold}%
                     </span>
@@ -2195,7 +2233,7 @@ export default function CreateProjectPage() {
                       !hasDetailsFilled
                         ? 0
                         : hasScanned
-                          ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+                          ? plagiarismProgress
                           : 0
                     }
                     className="h-2 bg-muted"
@@ -2250,7 +2288,7 @@ export default function CreateProjectPage() {
                         <>
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                           <span className="text-foreground">
-                            Similarity cleared below {effectiveThreshold}%
+                            Plagiarism similarity meets the {effectiveThreshold}% limit
                           </span>
                         </>
                       ) : (
@@ -2283,7 +2321,7 @@ export default function CreateProjectPage() {
                       : 'Run First Similarity Scan'}
                 </Button>
                 <p className="text-[10px] text-muted-foreground text-center">
-                  Threshold automatically synchronized across all faculty panels.
+                  This limit is used across committee reviews.
                 </p>
               </CardFooter>
             </Card>
@@ -2293,12 +2331,11 @@ export default function CreateProjectPage() {
               <CardContent className="p-4 space-y-2 text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Tag className="h-3.5 w-3.5 text-primary" />
-                  Title Ratification Rule
+                  After title approval
                 </span>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  During the proposal defense, your committee will review your candidate pitches.
-                  Upon ratifying one title, the system unlocks{' '}
-                  <strong>Capstone 2 (Chapters 1–3)</strong> and the official manuscript template.
+                  Once your committee approves a title, you can continue to{' '}
+                  <strong>Capstone 2 (Chapters 1–3)</strong> with the official manuscript template.
                 </p>
               </CardContent>
             </Card>

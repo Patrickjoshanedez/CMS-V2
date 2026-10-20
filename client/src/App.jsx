@@ -66,6 +66,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
 import LoadingScreen from './components/ui/LoadingScreen';
 import TopProgressBar from './components/ui/TopProgressBar';
 import PageSkeleton from './components/ui/PageSkeleton';
+import RouteErrorBoundary from './components/ui/RouteErrorBoundary';
 import { topProgress } from './lib/topProgress';
 
 /**
@@ -322,8 +323,9 @@ export default function App() {
     <>
       <ThemeSync />
       <TopProgressBar />
-      <Suspense fallback={<SuspenseProgressBridge />}>
-        <Routes>
+      <RouteErrorBoundary>
+        <Suspense fallback={<SuspenseProgressBridge />}>
+          <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (
             <Route
@@ -372,7 +374,8 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
-      <Toaster richColors position="top-right" style={{ zIndex: 999999 }} />
+    </RouteErrorBoundary>
+    <Toaster richColors position="top-right" style={{ zIndex: 999999 }} />
       <PlagiarismProgressModal />
     </>
   );

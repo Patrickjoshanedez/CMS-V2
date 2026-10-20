@@ -26,6 +26,9 @@ describe('Header - getPageTitle', () => {
     expect(getPageTitle('/projects')).toBe('Instructor Review');
     expect(getPageTitle('/projects', '?filter=advisees')).toBe('Adviser Reviews');
     expect(getPageTitle('/projects', '?filter=panel')).toBe('Panel Review');
+    expect(getPageTitle('/projects', '', 'faculty')).toBe('Projects Review');
+    expect(getPageTitle('/secretary-review', '', 'faculty')).toBe('Secretary Review');
+    expect(getPageTitle('/secretary/review', '', 'faculty')).toBe('Secretary Review');
     expect(getPageTitle('/project/create')).toBe('Create Project');
     expect(getPageTitle('/project/approval')).toBe('Proposal Approval');
     expect(getPageTitle('/project')).toBe('My Capstone');

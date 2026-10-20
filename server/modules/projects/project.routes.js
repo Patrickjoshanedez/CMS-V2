@@ -39,14 +39,22 @@ import {
   reportQuerySchema,
   bulkUploadSchema,
   updateGanttChartUrlSchema,
+  updateGanttPlanSchema,
   updateDemoVideoUrlSchema,
   updateGithubRepoUrlSchema,
   updateGoogleDocUrlSchema,
   updateExternalLinksSchema,
   updateGanttApprovalSchema,
+  updateWeeklyCheckInSchema,
+  reviewWeeklyCheckInSchema,
+  reviewWeeklyCheckInWaiverSchema,
+  updateSystemDefenseApprovalSchema,
 } from './project.validation.js';
 
 const router = Router();
+
+// Public, read-only endpoint embedded in the QR code on generated completion certificates.
+router.get('/:id/certificate/verify/:hash', projectController.verifyCertificate);
 
 /**
  * Project routes — /api/projects
@@ -189,6 +197,17 @@ router.patch(
     getDescription: (req) => `Updated Gantt chart URL for project ${req.params.id}`,
   }),
   projectController.updateGanttChartUrl,
+);
+
+// Save the shared Gantt plan for assigned students and the assigned adviser.
+router.patch(
+  '/:id/gantt-plan',
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateGanttPlanSchema),
+  auditLog('project.gantt_plan_updated', 'Project', {
+    getDescription: (req) => `Updated the shared Gantt plan for project ${req.params.id}`,
+  }),
+  projectController.updateGanttPlan,
 );
 
 // Update Demo video URL (team member)
@@ -397,6 +416,47 @@ router.patch(
   projectController.updateGanttApproval,
 );
 
+router.patch(
+  '/:id/weekly-check-ins/:checkInId',
+  authorize(ROLES.STUDENT),
+  validate(updateWeeklyCheckInSchema),
+  auditLog('project.weekly_checkin_submitted', 'Project', {
+    getDescription: (req) => `Updated weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
+  }),
+  projectController.updateWeeklyCheckIn,
+);
+
+router.patch(
+  '/:id/weekly-check-ins/:checkInId/adviser-review',
+  authorize(ROLES.FACULTY, ROLES.ADVISER),
+  validate(reviewWeeklyCheckInSchema),
+  auditLog('project.weekly_checkin_reviewed', 'Project', {
+    getDescription: (req) => `Reviewed weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
+  }),
+  projectController.reviewWeeklyCheckIn,
+);
+
+router.patch(
+  '/:id/weekly-check-ins/:checkInId/instructor-waiver',
+  authorize(ROLES.INSTRUCTOR),
+  validate(reviewWeeklyCheckInWaiverSchema),
+  auditLog('project.weekly_checkin_waiver_reviewed', 'Project', {
+    getDescription: (req) => `Reviewed late waiver for check-in ${req.params.checkInId} on project ${req.params.id}`,
+  }),
+  projectController.reviewWeeklyCheckInWaiver,
+);
+
+router.patch(
+  '/:id/system-defense-clearance',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateSystemDefenseApprovalSchema),
+  auditLog('project.system_defense_clearance_updated', 'Project', {
+    getDescription: (req) => `Updated system defense clearance for project ${req.params.id}`,
+    getMetadata: (req) => ({ approved: req.body.approved }),
+  }),
+  projectController.updateSystemDefenseApproval,
+);
+
 // Schedule defense hearing (Instructor only)
 router.post(
   '/:id/defense-schedule',
@@ -464,6 +524,7 @@ router.post(
 
 // Get certificate download link (any authenticated user)
 router.get('/:id/certificate', projectController.getCertificateUrl);
+router.get('/:id/approval-sheet', projectController.getApprovalSheetUrl);
 
 /* ────── Panelist routes ────── */
 

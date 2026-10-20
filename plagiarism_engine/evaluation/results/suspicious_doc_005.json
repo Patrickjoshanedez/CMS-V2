@@ -1,52 +1,33 @@
 {
   "document_id": "suspicious_doc_005",
-  "originality_score": 65.11,
-  "plagiarism_percentage": 34.89,
+  "originality_score": 97.07,
+  "plagiarism_score": 2.93,
+  "total_characters": 1708,
+  "matched_characters": 50,
   "matches": [
     {
-      "match_id": "m_test_src_280",
-      "start_index": 280,
-      "end_index": 487,
-      "similarity_score": 0.4153,
-      "winnow_score": 0.3889,
-      "semantic_score": 0.4644,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "This subject area investigates machine learning applications in natural spoken communication processing . Consequently , the algorithm utilize n-gram character fingerprint and Karp-Rabin hashing algorithms ."
-    },
-    {
-      "match_id": "m_test_src_627",
-      "start_index": 627,
-      "end_index": 652,
-      "similarity_score": 0.7598,
-      "winnow_score": 1.0,
-      "semantic_score": 0.3136,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "atural language processin"
-    },
-    {
-      "match_id": "m_test_src_774",
-      "start_index": 774,
-      "end_index": 949,
-      "similarity_score": 0.8446,
-      "winnow_score": 1.0,
-      "semantic_score": 0.5561,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms."
-    },
-    {
-      "match_id": "m_test_src_1234",
-      "start_index": 1234,
-      "end_index": 1423,
-      "similarity_score": 0.4531,
-      "winnow_score": 0.4286,
-      "semantic_score": 0.4987,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "This subject field investigates machine learning application in natural speech processing . The algorithmic rule utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms ."
+      "match_id": "05d84543-bc75-4f9b-8fcb-208a2c4b4473",
+      "match_text": "in natural language processing. The algorithm util",
+      "start_index": 828,
+      "end_index": 878,
+      "similarity_score": 0.328,
+      "winnow_score": 0.04,
+      "semantic_score": 1.0,
+      "source_metadata": {
+        "document_id": "test_src",
+        "title": "test_src",
+        "author": "Institutional Archive",
+        "url": null,
+        "chapter": 1,
+        "project_id": null,
+        "year": 2024
+      },
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms."
     }
   ],
-  "status": "completed"
+  "candidates_evaluated": 3,
+  "processing_time_ms": 517.5,
+  "metadata": {
+    "title": "suspicious_doc_005"
+  }
 }

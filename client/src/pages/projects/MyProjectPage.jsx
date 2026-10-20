@@ -47,7 +47,13 @@ const ConsultationLogWidget = lazy(() => import('@/components/projects/Consultat
 import { useMyProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { WORKFLOW_TABS, resolveActiveWorkflowTab } from './myProjectTabs';
-import { ROLES, TITLE_STATUSES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  ROLES,
+  TITLE_STATUSES,
+  CAPSTONE_PHASES,
+  PROJECT_STATUSES,
+  resolveWorkflowPhase,
+} from '@cms/shared';
 import { toast } from 'sonner';
 
 /**
@@ -81,14 +87,18 @@ export default function MyProjectPage() {
   // Derived unlock conditions (memoized)
   const titleStatus = project?.titleStatus;
   const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
-  const numericPhase = Number(project?.capstonePhase ?? project?.phase ?? 0);
+  const workflowPhase = resolveWorkflowPhase(project);
+  const capstone1Unlocked = workflowPhase >= CAPSTONE_PHASES.PHASE_2;
 
   const capstone2Unlocked = useMemo(
-    () => titleApproved || numericPhase >= CAPSTONE_PHASES.PHASE_2,
-    [titleApproved, numericPhase],
+    () => workflowPhase >= CAPSTONE_PHASES.PHASE_3,
+    [workflowPhase],
   );
 
-  const capstone3Unlocked = useMemo(() => numericPhase >= CAPSTONE_PHASES.PHASE_3, [numericPhase]);
+  const capstone3Unlocked = useMemo(
+    () => workflowPhase >= CAPSTONE_PHASES.PHASE_4,
+    [workflowPhase],
+  );
 
   const isArchivedProject = useMemo(
     () => project?.projectStatus === PROJECT_STATUSES.ARCHIVED || Boolean(project?.isArchived),
@@ -127,20 +137,20 @@ export default function MyProjectPage() {
   }, [isLoading, project, isArchivedProject, navigate, searchParams]);
 
   const unlockedTabs = useMemo(() => {
-    const tabs = ['proposal', 'capstone_1', 'adm'];
+    const tabs = ['proposal'];
+    if (capstone1Unlocked) tabs.push('capstone_1', 'adm', 'consultation');
     if (capstone2Unlocked) tabs.push('capstone_2');
     if (capstone3Unlocked) tabs.push('capstone_3');
-    if (titleApproved) tabs.push('consultation');
     return tabs;
-  }, [capstone2Unlocked, capstone3Unlocked, titleApproved]);
+  }, [capstone1Unlocked, capstone2Unlocked, capstone3Unlocked]);
 
   const defaultTab = useMemo(() => {
     if (!project) return 'proposal';
     if (capstone3Unlocked) return 'capstone_3';
     if (capstone2Unlocked) return 'capstone_2';
-    if (titleApproved) return 'capstone_1';
+    if (capstone1Unlocked) return 'capstone_1';
     return 'proposal';
-  }, [project, capstone3Unlocked, capstone2Unlocked, titleApproved]);
+  }, [project, capstone3Unlocked, capstone2Unlocked, capstone1Unlocked]);
 
   const requestedTab = searchParams.get('tab');
   const { activeTab, shouldNormalizeRequestedTab } = useMemo(
@@ -173,19 +183,24 @@ export default function MyProjectPage() {
 
   const getLockedReason = useCallback(
     (tabName) => {
-      if (tabName === 'capstone_2' && !titleApproved) {
+      if (tabName === 'capstone_1' && !capstone1Unlocked) {
         if (titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION)
-          return 'Your title was approved with revision. Submit a revised title for instructor approval to unlock Capstone 2.';
+          return 'Your title was approved with revision. Submit a revised title for instructor approval to unlock Capstone 1.';
         if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION)
-          return 'Your revised title is pending instructor approval. Capstone 2 will unlock once it is accepted.';
-        return 'Your title must be approved before you can access Capstone 2.';
+          return 'Your revised title is pending instructor approval. Capstone 1 will unlock once it is accepted.';
+        return 'Your title must be approved before you can access Capstone 1.';
       }
-      if (tabName === 'capstone_3') return 'Complete Capstone 2 to unlock Capstone 3.';
+      if (tabName === 'capstone_2' && !capstone2Unlocked) {
+        return 'Complete Capstone 1, release the grades, and finish ADM v1 to unlock Capstone 2.';
+      }
+      if (tabName === 'capstone_3' && !capstone3Unlocked) {
+        return 'Complete Capstone 2, release the grades, and finish ADM v2 to unlock Capstone 3.';
+      }
       if (tabName === 'consultation' && !titleApproved)
         return 'Your title must be approved before you can access consultation logs.';
       return 'This tab is currently locked.';
     },
-    [titleApproved, titleStatus],
+    [capstone1Unlocked, capstone2Unlocked, capstone3Unlocked, titleApproved, titleStatus],
   );
 
   const handleLockedTabClick = useCallback(
@@ -271,7 +286,7 @@ export default function MyProjectPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3 no-print">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">My Capstone</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Capstone</h1>
             <p className="text-muted-foreground">
               Draft title proposals, track capstone phase progress, and view Action Done Matrix
               (ADM) revisions.
@@ -342,7 +357,7 @@ export default function MyProjectPage() {
                 <CardContent className="p-5 sm:p-6">
                   <div className="flex justify-between items-start gap-4">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-foreground mb-2 leading-tight">
+                      <h2 className="mb-2 text-xl font-bold leading-tight text-foreground sm:text-2xl">
                         {project.title || 'Archived Project'}
                       </h2>
                       <div className="flex gap-2">
@@ -364,7 +379,7 @@ export default function MyProjectPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <BookMarked className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-foreground">
+                      <h3 className="text-lg font-bold text-foreground">
                         Official Full Manuscript Paper
                       </h3>
                     </div>
@@ -398,7 +413,7 @@ export default function MyProjectPage() {
 
                 {/* Abstract Reader */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Executive Abstract
                   </h4>
                   <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
@@ -410,7 +425,7 @@ export default function MyProjectPage() {
 
                 {/* Citation Generator */}
                 <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Academic Citation Formats
                   </h4>
                   <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
@@ -495,7 +510,7 @@ export default function MyProjectPage() {
                   </Suspense>
                 </TabsContent>
 
-                {/* Tab 2: Capstone 1 — Minimalist Collapsible Workspace */}
+                {/* Tab 2: Capstone 1 — Chapters 1–3 and proposal defense */}
                 <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none">
                   <Capstone1CollapsibleSections
                     project={project}
@@ -506,7 +521,7 @@ export default function MyProjectPage() {
                   />
                 </TabsContent>
 
-                {/* Tab 3: Capstone 2 — Interactive Gantt Chart Maker */}
+                {/* Tab 3: Capstone 2 — System development and prototype defense */}
                 <TabsContent
                   value="capstone_2"
                   className="mt-0 focus-visible:outline-none space-y-4"
@@ -516,7 +531,7 @@ export default function MyProjectPage() {
                   </Suspense>
                 </TabsContent>
 
-                {/* Tab 4: Capstone 3 — Results, Final Defense & Archival */}
+                {/* Tab 4: Capstone 3 — Final manuscript, defense, and archival */}
                 <TabsContent
                   value="capstone_3"
                   className="mt-0 focus-visible:outline-none space-y-6"
@@ -557,10 +572,10 @@ export default function MyProjectPage() {
                               variant="outline"
                               className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
                             >
-                              Phase 3
+                              Phase 4
                             </Badge>
                             <h3 className="text-lg font-bold tracking-tight text-foreground">
-                              Capstone 3: System Results, Final Defense &amp; Archival
+                              Capstone 3: Chapters 4–5, Final Defense &amp; Archival
                             </h3>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">

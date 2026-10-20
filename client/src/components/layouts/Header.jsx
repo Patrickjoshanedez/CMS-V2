@@ -48,6 +48,7 @@ export const ROUTE_TITLE_RULES = [
   },
   { pattern: /^\/committee-assignments\/?$/, title: 'Committee Assignments' },
   { pattern: /^\/adviser\/team-review\/?$/, title: 'Team Review' },
+  { pattern: /^\/secretary(?:-review|\/review)\/?$/, title: 'Secretary Review' },
 
   // 5. Cloud Documents & Templates
   { pattern: /^\/documents\/manuscripts\/?$/, title: 'Manuscript Management' },
@@ -93,6 +94,9 @@ export const ROUTE_TITLE_RULES = [
  * @returns {string}
  */
 export function getPageTitle(pathname = '', search = '', role = null) {
+  if (pathname === '/projects' && !search.includes('filter=') && role && role !== ROLES.INSTRUCTOR) {
+    return 'Projects Review';
+  }
   if (
     role &&
     role !== ROLES.STUDENT &&

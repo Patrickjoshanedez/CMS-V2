@@ -52,6 +52,20 @@ const PITCH_DECK_FIELDS = [
     color: 'text-amber-600 dark:text-amber-400',
   },
   {
+    key: 'objectives',
+    label: 'Objectives',
+    icon: CheckCircle2,
+    accent: 'border-l-4 border-primary',
+    color: 'text-primary',
+  },
+  {
+    key: 'technicalStack',
+    label: 'Technical Stack',
+    icon: Layers,
+    accent: 'border-l-4 border-border',
+    color: 'text-muted-foreground',
+  },
+  {
     key: 'proposedSolution',
     label: 'Proposed Solution & Technical Framework',
     icon: Sparkles,
@@ -84,6 +98,8 @@ const PITCH_DECK_FIELDS = [
 function parsePitchDeckFromDescription(description = '') {
   const result = {
     problemStatement: '',
+    objectives: '',
+    technicalStack: '',
     proposedSolution: '',
     uniqueContribution: '',
     targetUsers: '',
@@ -96,9 +112,19 @@ function parsePitchDeckFromDescription(description = '') {
   // Supports both camelCase (e.g., problemStatement: ...) and formatted label (e.g., Problem Statement: ...)
   const patterns = [
     {
+      key: 'objectives',
+      regex:
+        /(?:objectives|specific\s*objectives|project\s*objectives)\s*:\s*([\s\S]*?)(?=(?:technicalStack|technical\s*stack|technology\s*stack|proposedSolution|proposed\s*solution|$))/i,
+    },
+    {
+      key: 'technicalStack',
+      regex:
+        /(?:technicalStack|technical\s*stack|technology\s*stack)\s*:\s*([\s\S]*?)(?=(?:proposedSolution|proposed\s*solution|$))/i,
+    },
+    {
       key: 'problemStatement',
       regex:
-        /(?:problemStatement|problem\s*statement(?:\s*&\s*literature\s*gap)?)\s*:\s*([\s\S]*?)(?=(?:proposedSolution|proposed\s*solution|uniqueContribution|unique\s*technical|targetUsers|target\s*users|expectedImpact|expected\s*value|$))/i,
+        /(?:problemStatement|problem\s*statement(?:\s*&\s*literature\s*gap)?)\s*:\s*([\s\S]*?)(?=(?:objectives|specific\s*objectives|project\s*objectives|technicalStack|technical\s*stack|technology\s*stack|proposedSolution|proposed\s*solution|uniqueContribution|unique\s*technical|targetUsers|target\s*users|expectedImpact|expected\s*value|$))/i,
     },
     {
       key: 'proposedSolution',
@@ -347,7 +373,11 @@ export default function TitleApprovalPage() {
 
       const description =
         meta.description || (typeof rawProposal === 'object' ? rawProposal.description : '') || '';
-      const pitchDeck = meta.pitchDeck || parsePitchDeckFromDescription(description);
+      const pitchDeckData = meta.pitchDeck || parsePitchDeckFromDescription(description);
+      const pitchDeck = {
+        ...pitchDeckData,
+        expectedImpact: pitchDeckData.expectedImpact || pitchDeckData.expectedValue || '',
+      };
 
       const disciplines =
         meta.capstoneType ||
@@ -469,9 +499,7 @@ export default function TitleApprovalPage() {
         category: 'Problem Statement & Literature Gap',
         tag: 'Problem & Context',
         title: 'Problem Statement',
-        content:
-          pitch.problemStatement ||
-          'Current manual processes lack real-time visibility, automated validation, and institutional tracking, creating operational friction and compliance risks.',
+        content: pitch.problemStatement || 'Not provided.',
         type: 'statement',
         icon: AlertTriangle,
         accent: 'border-l-4 border-amber-500/80',
@@ -482,9 +510,7 @@ export default function TitleApprovalPage() {
         category: 'Proposed Solution & Technical Framework',
         tag: 'Technical Framework',
         title: 'Proposed Solution',
-        content:
-          pitch.proposedSolution ||
-          'An end-to-end automated platform integrating role-based workflows, automated similarity checks, and verifiable multi-signatory digital approvals.',
+        content: pitch.proposedSolution || 'Not provided.',
         type: 'solution',
         icon: Sparkles,
         accent: 'border-l-4 border-primary',
@@ -495,9 +521,7 @@ export default function TitleApprovalPage() {
         category: 'Unique Technical Innovation',
         tag: 'Novelty & IP',
         title: 'Unique Technical Contribution',
-        content:
-          pitch.uniqueContribution ||
-          'Innovative dual-engine similarity detection with localized historical archiving and automated rubric-driven milestone clearance.',
+        content: pitch.uniqueContribution || 'Not provided.',
         type: 'innovation',
         icon: ShieldCheck,
         accent: 'border-l-4 border-blue-500/80',
@@ -508,9 +532,7 @@ export default function TitleApprovalPage() {
         category: 'Target Users & Stakeholders',
         tag: 'Stakeholders',
         title: 'Target Users & Beneficiaries',
-        content:
-          pitch.targetUsers ||
-          'BukSU Capstone Proponents, Faculty Advisers, Panel Reviewers, Department Secretaries, and College Leadership.',
+        content: pitch.targetUsers || 'Not provided.',
         type: 'users',
         icon: Layers,
         accent: 'border-l-4 border-emerald-500/80',
@@ -521,9 +543,7 @@ export default function TitleApprovalPage() {
         category: 'Expected Value & Operational Impact',
         tag: 'Impact & ROI',
         title: 'Expected Institutional Impact',
-        content:
-          pitch.expectedImpact ||
-          'Reduces defense turnaround times by 65%, eliminates document loss, and enforces 100% compliance with BukSU IT capstone manual standards.',
+        content: pitch.expectedImpact || 'Not provided.',
         type: 'impact',
         icon: CheckCircle2,
         accent: 'border-l-4 border-indigo-500/80',
@@ -565,10 +585,10 @@ export default function TitleApprovalPage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Capstone Title Proposals & Approval
+              Title Proposals & Committee Approval
             </h1>
             <p className="text-xs text-muted-foreground">
-              BukSU College of Technologies · Phase 1 Title Defense
+              BukSU College of Technologies · Phase 1 Title Proposal Review
             </p>
           </div>
           <EmptyProjectState team={team} />
@@ -665,14 +685,14 @@ export default function TitleApprovalPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-[1600px] mx-auto min-w-0">
+      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6">
         {/* 1. Header Ribbon */}
-        <div className="rounded-2xl border border-border/70 bg-gradient-to-r from-card via-card to-primary/5 p-6 shadow-xs">
+        <div className="rounded-2xl border border-border/70 bg-gradient-to-r from-card via-card to-primary/5 p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-                  Capstone 1: Title Proposal & Approval Studio
+                  Phase 1 · Title review
                 </span>
                 <span className="text-xs text-muted-foreground">·</span>
                 <span className="text-xs font-medium text-foreground/80">{cleanTeamName}</span>
@@ -682,16 +702,14 @@ export default function TitleApprovalPage() {
                 <span className="text-xs text-muted-foreground">AY {project.academicYear}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Capstone Title Proposals & Committee Approval
+                Title proposals and approval
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-3xl leading-relaxed">
-                Review and reveal all candidate research titles proposed by your team. Track live
-                faculty committee defense deliberations, rubric reviews, and official institutional
-                clearance.
+                Review your team’s titles, committee feedback, and approval status.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center shrink-0 [&>button]:min-h-11">
               <Button
                 variant="outline"
                 size="sm"
@@ -715,11 +733,11 @@ export default function TitleApprovalPage() {
               </Button>
               {isApproved && (
                 <Button
-                  onClick={() => navigate('/project?tab=capstone_2')}
+                  onClick={() => navigate('/project?tab=capstone_1')}
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                 >
                   <Award className="h-4 w-4" />
-                  Proceed to Capstone 2 Workspace
+                  Proceed to Capstone 1 Workspace
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               )}
@@ -727,21 +745,20 @@ export default function TitleApprovalPage() {
           </div>
         </div>
 
-        {/* 2. Capstone 1 Title Defense Progression Stepper & Connected Progress Bar */}
+        {/* 2. Phase 1 Title Defense Progression Stepper & Connected Progress Bar */}
         <Card className="rounded-2xl border-border/70 shadow-xs overflow-hidden">
-          <CardContent className="p-5 sm:p-6 space-y-6">
+          <CardContent className="p-4 sm:p-6 space-y-6">
             {/* Stepper Header Bar: Title, Subtitle, and Progress Metrics */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-pulse shrink-0" />
                   <h3 className="text-base font-bold tracking-tight text-foreground">
-                    Title Defense & Approval Pipeline
+                    Title review progress
                   </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Live candidate title submission, similarity pre-scan, defense hearing & committee
-                  clearance
+                  Track proposal submission, similarity screening, defense, and approval.
                 </p>
               </div>
 
@@ -764,7 +781,7 @@ export default function TitleApprovalPage() {
                   style={{ width: `${defenseProgressPercent}%` }}
                 />
               </div>
-              <div className="flex justify-between items-center text-[10px] sm:text-xs font-medium text-muted-foreground px-1">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:flex sm:justify-between sm:items-center text-xs font-medium text-muted-foreground px-1">
                 <span className={defenseStage >= 1 ? 'text-foreground font-semibold' : ''}>
                   1. Proposals
                 </span>
@@ -781,7 +798,7 @@ export default function TitleApprovalPage() {
             </div>
 
             {/* 4 Connected Milestone Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {defenseSteps.map((step) => {
                 const Icon = step.icon;
                 const isCompleted = step.status === 'completed';
@@ -908,7 +925,7 @@ export default function TitleApprovalPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      BukSU College of Technologies · Capstone 1 Title Defense Hearing Session
+                      BukSU College of Technologies · Phase 1 Title Defense Hearing Session
                     </p>
                   </div>
                 </div>
@@ -965,9 +982,9 @@ export default function TitleApprovalPage() {
                   {/* 4 Styled Units: Days, Hours, Minutes, Seconds */}
                   <div
                     data-testid="defense-countdown-timer"
-                    className="grid grid-cols-4 gap-2 sm:gap-3 text-center shrink-0 self-center lg:self-auto"
+                    className="grid w-full min-w-0 grid-cols-4 gap-2 sm:w-auto sm:gap-3 text-center self-center lg:self-auto"
                   >
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                    <div className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-xs sm:min-w-[76px]">
                       <span
                         data-testid="defense-countdown-days"
                         className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
@@ -979,7 +996,7 @@ export default function TitleApprovalPage() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                    <div className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-xs sm:min-w-[76px]">
                       <span
                         data-testid="defense-countdown-hours"
                         className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
@@ -991,7 +1008,7 @@ export default function TitleApprovalPage() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                    <div className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-xs sm:min-w-[76px]">
                       <span
                         data-testid="defense-countdown-minutes"
                         className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
@@ -1003,7 +1020,7 @@ export default function TitleApprovalPage() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-xs min-w-[62px] sm:min-w-[76px]">
+                    <div className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-border/70 bg-card p-2 sm:p-3 shadow-xs sm:min-w-[76px]">
                       <span
                         data-testid="defense-countdown-seconds"
                         className="text-xl sm:text-2xl font-black font-mono tracking-tight text-foreground"
@@ -1019,7 +1036,7 @@ export default function TitleApprovalPage() {
               </div>
 
               {/* Hearing Schedule Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 text-xs">
                 {/* Date */}
                 <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -1145,12 +1162,12 @@ export default function TitleApprovalPage() {
             <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             <div className="space-y-1 ml-2">
               <p className="font-semibold text-sm">
-                Congratulations! Title Proposal Officially Endorsed & Approved
+                Title approved
               </p>
               <p className="text-xs text-muted-foreground">
                 The Capstone Committee has approved your research title:{' '}
                 <span className="font-semibold text-foreground">&ldquo;{project.title}&rdquo;</span>
-                . You may now proceed to Capstone 2 (Chapters 1–3 Manuscript Development).
+                . You may now proceed to Capstone 1 (Chapters 1–3 Manuscript Development).
               </p>
             </div>
           </Alert>
@@ -1161,11 +1178,10 @@ export default function TitleApprovalPage() {
           <CardHeader className="pb-3 border-b border-border/60">
             <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
-              Appointed Defense Committee & Institutional Roster
+              Defense committee
             </CardTitle>
             <CardDescription className="text-xs">
-              Committee panel authorized to conduct the proposal hearing, grade defense rubrics, and
-              approve capstone titles.
+              Committee members responsible for reviewing and approving your proposal.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
@@ -1233,11 +1249,10 @@ export default function TitleApprovalPage() {
             <div>
               <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Presentation className="h-5 w-5 text-primary" />
-                Candidate Capstone Titles Proposed by Team ({normalizedProposals.length})
+                Title proposals ({normalizedProposals.length})
               </h2>
               <p className="text-xs text-muted-foreground">
-                Expand each proposal card to reveal the complete technical blueprint, pitch deck
-                slides, and committee comments.
+                Review proposal details and committee comments.
               </p>
             </div>
 
@@ -1323,10 +1338,6 @@ export default function TitleApprovalPage() {
                               Candidate Proposal
                             </Badge>
                           )}
-                          <Badge variant="outline" className="text-[10px] gap-1 bg-muted/30">
-                            <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                            Originality Verified (&lt;15% Similarity)
-                          </Badge>
                         </div>
 
                         <h3 className="text-lg sm:text-xl font-bold text-foreground leading-snug tracking-tight">
@@ -1408,8 +1419,7 @@ export default function TitleApprovalPage() {
                                     <span>{field.label}</span>
                                   </div>
                                   <p className="text-muted-foreground leading-relaxed">
-                                    {content ||
-                                      'Specification details submitted for oral proposal defense.'}
+                                    {content?.trim() || 'Not provided.'}
                                   </p>
                                 </div>
                               );

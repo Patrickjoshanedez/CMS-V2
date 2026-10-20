@@ -61,6 +61,7 @@ def index_sources_if_needed(api_url: str, sources_dir: Path, session: requests.S
             "document_id": doc_id,
             "text": text,
             "metadata": {
+                "document_id": doc_id,
                 "title": doc_id,
                 "author": "Institutional Archive",
                 "chapter": 1,
@@ -68,8 +69,8 @@ def index_sources_if_needed(api_url: str, sources_dir: Path, session: requests.S
             },
         }
         try:
-            res = session.post(f"{api_url}/index", json=payload, timeout=30)
-            if res.status_code in (200, 201):
+            res = session.post(f"{api_url}/index/sync", json=payload, timeout=30)
+            if res.status_code in (200, 201, 202):
                 print(f"  Indexed: {doc_id}")
             else:
                 print(f"  Warning: Indexing {doc_id} returned {res.status_code}: {res.text}")
@@ -84,17 +85,17 @@ def check_document_via_api(
     session: requests.Session,
     max_poll_seconds: int = 60,
 ) -> Dict[str, Any]:
-    """Submits a document check to the FastAPI service and polls until completion."""
+    """Submits a document check to the FastAPI service synchronously."""
     payload = {
         "document_id": doc_id,
         "text": text,
         "metadata": {"title": doc_id},
     }
 
-    # 1. Submit task
-    res = session.post(f"{api_url}/check", json=payload, timeout=30)
+    # 1. Submit sync task
+    res = session.post(f"{api_url}/check-sync", json=payload, timeout=45)
     if res.status_code not in (200, 202):
-        raise RuntimeError(f"API rejection on /check ({res.status_code}): {res.text}")
+        raise RuntimeError(f"API rejection on /check-sync ({res.status_code}): {res.text}")
 
     resp_data = res.json()
     

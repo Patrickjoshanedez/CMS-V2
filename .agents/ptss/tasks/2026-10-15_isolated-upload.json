@@ -1,0 +1,17 @@
+{
+  "active_scenario_id": "2026-10-15_isolated-upload",
+  "completed_subgoals": [
+    "isolated dependencies",
+    "official-service fixture provisioning",
+    "real upload preflight",
+    "50-client burst",
+    "accepted record/version/hash verification",
+    "resource cleanup",
+    "paper and evidence update"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "Experiment completed; 15/50 burst requests accepted, 35 unique-version conflicts; all 16 accepted files verified including preflight",
+  "progress_delta": 7,
+  "loop_count": 0,
+  "state": "ExperimentComplete_DefectUnresolved"
+}

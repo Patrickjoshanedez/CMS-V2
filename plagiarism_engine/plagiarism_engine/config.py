@@ -129,6 +129,12 @@ class Settings(BaseSettings):
         le=1.0,
         description="Winnowing overlap threshold triggering an immediate critical warning flag.",
     )
+    HST_SEMANTIC_SPAN_THRESHOLD: float = Field(
+        default=0.78,
+        ge=0.0,
+        le=1.0,
+        description="Minimum segment cosine similarity for adding a semantic-only report span.",
+    )
 
     # ─── ChromaDB ─────────────────────────────────────────────────────────────
     CHROMA_HOST: str | None = Field(default=None, description="Hostname for ChromaDB HTTP client.")

@@ -8,6 +8,7 @@
     "utils",
     "config",
     "jobs",
+    "app.js",
     "server.js"
   ],
   "ignore": [

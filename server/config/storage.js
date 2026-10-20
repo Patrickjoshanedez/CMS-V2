@@ -18,25 +18,28 @@ const hasStaticS3Credentials =
   env.S3_SECRET_ACCESS_KEY.trim().length > 0;
 
 /** @type {import('@aws-sdk/client-s3').S3ClientConfig} */
-const s3Config = {
+const baseS3Config = {
   region: env.S3_REGION,
   // forcePathStyle ensures compatibility with LocalStack (localhost:4566/bucket)
   forcePathStyle: env.S3_FORCE_PATH_STYLE,
 };
 
 if (hasStaticS3Credentials) {
-  s3Config.credentials = {
+  baseS3Config.credentials = {
     accessKeyId: env.S3_ACCESS_KEY_ID.trim(),
     secretAccessKey: env.S3_SECRET_ACCESS_KEY.trim(),
   };
 }
 
-// Point at LocalStack (or any S3-compatible endpoint) when configured
-if (env.S3_ENDPOINT) {
-  s3Config.endpoint = env.S3_ENDPOINT;
-}
+/** Create an S3 client that signs requests for the supplied browser-reachable endpoint. */
+export const createStorageS3Client = (endpointOverride) => {
+  const s3Config = { ...baseS3Config };
+  const endpoint = endpointOverride || env.S3_ENDPOINT;
+  if (endpoint) s3Config.endpoint = endpoint;
+  return new S3Client(s3Config);
+};
 
-const s3Client = new S3Client(s3Config);
+const s3Client = createStorageS3Client();
 
 export { s3Client };
 export default s3Client;

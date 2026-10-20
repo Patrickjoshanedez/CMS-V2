@@ -42,6 +42,8 @@ describe('DefenseScheduleBadge', () => {
     expect(container.textContent).toContain('Pending: Sep 18, 2026');
     const badge = container.querySelector('span');
     expect(badge?.className).toContain('text-amber-600');
+    expect(badge?.title).toBe('Defense schedule is pending instructor confirmation.');
+    expect(badge?.title).not.toContain('Ready for Defense');
   });
 
   it('renders orange badge with "Pending Schedule" when no date set', () => {

@@ -12,7 +12,7 @@ import { useSections } from '@/hooks/useAcademics';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { useInstructors } from '@/hooks/useUsers';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
-import { ROLES } from '@cms/shared';
+import { ROLES, ACADEMIC_TERMS } from '@cms/shared';
 import { toast } from 'sonner';
 
 const shouldRetryAcademicLookup = (failureCount, error) => {
@@ -75,6 +75,8 @@ export default function ProfilePage() {
   const [lastName, setLastName] = useState('');
 
   // Academic info (students only)
+  const [studentId, setStudentId] = useState('');
+  const [academicTerm, setAcademicTerm] = useState('');
   const [sectionId, setSectionId] = useState('');
   const [instructorId, setInstructorId] = useState('');
   const [isSavingAcademic, setIsSavingAcademic] = useState(false);
@@ -128,6 +130,8 @@ export default function ProfilePage() {
       setFirstName(user.firstName || '');
       setMiddleName(user.middleName || '');
       setLastName(user.lastName || '');
+      setStudentId(user.studentId || '');
+      setAcademicTerm(user.academicTerm || '');
       setSectionId(user.sectionId?._id || user.sectionId || '');
       setInstructorId(user.instructorId?._id || user.instructorId || '');
     }
@@ -215,6 +219,8 @@ export default function ProfilePage() {
     setIsSavingAcademic(true);
     try {
       await userService.updateMe({
+        studentId: studentId.trim(),
+        academicTerm: academicTerm || null,
         sectionId: sectionId || null,
         instructorId: instructorId || null,
       });
@@ -252,15 +258,15 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">Profile</h3>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Profile</h1>
           <p className="text-muted-foreground">View and manage your account information.</p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-3 xl:gap-8">
           {/* Profile summary card */}
-          <Card className="lg:col-span-1">
+          <Card className="min-w-0 xl:col-span-1">
             <CardContent className="flex flex-col items-center pt-6">
               <div className="relative">
                 {user.avatarUrl && !avatarBroken ? (
@@ -299,8 +305,8 @@ export default function ProfilePage() {
               </div>
               {avatarError && <p className="mt-1 text-xs text-destructive">{avatarError}</p>}
               <h4 className="mt-4 text-lg font-semibold">{user.fullName}</h4>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-700 dark:border-slate-700 px-3 py-1 text-xs font-medium text-muted-foreground">
+              <p className="max-w-full break-words text-center text-sm text-muted-foreground">{user.email}</p>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Shield className="h-3 w-3" />
                 {roleLabel}
               </div>
@@ -308,7 +314,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Editable details */}
-          <Card className="lg:col-span-2">
+          <Card className="min-w-0 xl:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg">Account Details</CardTitle>
             </CardHeader>
@@ -327,7 +333,7 @@ export default function ProfilePage() {
                     onChange={(e) => setFirstName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
                     {user.firstName}
                   </p>
                 )}
@@ -347,7 +353,7 @@ export default function ProfilePage() {
                     onChange={(e) => setMiddleName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
                     {user.middleName || '—'}
                   </p>
                 )}
@@ -367,7 +373,7 @@ export default function ProfilePage() {
                     onChange={(e) => setLastName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
                     {user.lastName}
                   </p>
                 )}
@@ -380,7 +386,7 @@ export default function ProfilePage() {
                     Email Address
                   </span>
                 </Label>
-                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {user.email}
                   <span className="ml-2 text-xs">(cannot be changed)</span>
                 </p>
@@ -393,7 +399,7 @@ export default function ProfilePage() {
                     Role
                   </span>
                 </Label>
-                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {roleLabel}
                 </p>
               </div>
@@ -479,18 +485,31 @@ export default function ProfilePage() {
                 <div>
                   <CardTitle className="text-lg">Academic Info</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Your year & section and assigned instructor.
+                    Your Student ID, academic term, year & section, and assigned instructor.
                   </p>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-student-id">Student ID *</Label>
+                <Input
+                  id="profile-student-id"
+                  value={studentId}
+                  onChange={(event) => setStudentId(event.target.value)}
+                  maxLength={32}
+                  autoComplete="off"
+                  disabled={isSavingAcademic}
+                  placeholder="Enter your institutional Student ID"
+                />
+              </div>
+
               {/* Section */}
               <div className="space-y-2">
                 <Label htmlFor="profile-section">Year and Section *</Label>
                 <select
                   id="profile-section"
-                  className="h-10 w-full rounded-md border border-slate-700 dark:border-slate-700 bg-background px-3 text-sm disabled:opacity-50"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
                   value={sectionId}
                   onChange={(e) => setSectionId(e.target.value)}
                   disabled={sectionsLoading || isSavingAcademic}
@@ -542,9 +561,41 @@ export default function ProfilePage() {
               {/* Section Code (read-only, from section's own code) */}
               <div className="space-y-2">
                 <Label>Section Code</Label>
-                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {selectedSection?.code || '—'}
                 </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Degree Program</Label>
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                    {selectedSection?.courseId?.name || selectedSection?.courseId?.code || '—'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-academic-term">Academic Term *</Label>
+                  <select
+                    id="profile-academic-term"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                    value={academicTerm}
+                    onChange={(event) => setAcademicTerm(event.target.value)}
+                    disabled={isSavingAcademic}
+                  >
+                    <option value="">Select your academic term</option>
+                    {Object.values(ACADEMIC_TERMS).map((term) => (
+                      <option key={term} value={term}>
+                        {term}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Academic Year</Label>
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                    {selectedSection?.academicYear || '—'}
+                  </p>
+                </div>
               </div>
 
               {/* Instructor */}
@@ -552,7 +603,7 @@ export default function ProfilePage() {
                 <Label htmlFor="profile-instructor">Instructor *</Label>
                 <select
                   id="profile-instructor"
-                  className="h-10 w-full rounded-md border border-slate-700 dark:border-slate-700 bg-background px-3 text-sm disabled:opacity-50"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
                   value={instructorId}
                   onChange={(e) => setInstructorId(e.target.value)}
                   disabled={instructorsLoading || isSavingAcademic}
@@ -619,7 +670,13 @@ export default function ProfilePage() {
               )}
               <Button
                 onClick={handleSaveAcademic}
-                disabled={isSavingAcademic || (!sectionId && !instructorId)}
+                disabled={
+                  isSavingAcademic ||
+                  !studentId.trim() ||
+                  !academicTerm ||
+                  !sectionId ||
+                  !instructorId
+                }
               >
                 {isSavingAcademic && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Academic Info

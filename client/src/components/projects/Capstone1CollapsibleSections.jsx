@@ -108,7 +108,9 @@ export default function Capstone1CollapsibleSections({
         sdgs: details?.sdgs || item?.sdgs || [],
         disciplines: details?.disciplines || item?.disciplines || [],
         status: details?.status || 'pending',
-        isApproved: details?.status === 'approved' || project?.title === titleStr,
+        isApproved:
+          details?.status === 'approved' ||
+          (project?.titleStatus === TITLE_STATUSES.APPROVED && project?.title === titleStr),
       };
     });
   }, [project]);
@@ -120,7 +122,10 @@ export default function Capstone1CollapsibleSections({
     const approvedIdx = list.findIndex((item, idx) => {
       const titleStr = typeof item === 'string' ? item : item?.title;
       const details = meta.find((m) => m?.title === titleStr) || meta[idx];
-      return details?.status === 'approved' || project?.title === titleStr;
+      return (
+        details?.status === 'approved' ||
+        (project?.titleStatus === TITLE_STATUSES.APPROVED && project?.title === titleStr)
+      );
     });
     return approvedIdx >= 0 ? approvedIdx : 0;
   });
@@ -197,7 +202,7 @@ export default function Capstone1CollapsibleSections({
             setIsScheduleModalOpen(true);
           }
           toast.error(
-            'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
+            'The proponent team must have a scheduled title proposal hearing before the title can be approved.',
           );
           return;
         }
@@ -500,8 +505,8 @@ export default function Capstone1CollapsibleSections({
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span>
-                        <strong>Defense Hearing Required:</strong> The proponent team must have a
-                        scheduled defense hearing before their title proposal can be approved.
+                        <strong>Title Proposal Hearing Required:</strong> The proponent team must
+                        have a scheduled title proposal hearing before the title can be approved.
                       </span>
                     </div>
                     {isInstructor && (
@@ -513,7 +518,7 @@ export default function Capstone1CollapsibleSections({
                         className="gap-1.5 text-xs font-semibold border-amber-500/40 text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 shrink-0"
                       >
                         <CalendarIcon className="h-3.5 w-3.5" />
-                        Schedule Defense Hearing
+                        Schedule Title Hearing
                       </Button>
                     )}
                   </div>
@@ -521,7 +526,7 @@ export default function Capstone1CollapsibleSections({
                   <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span>
-                      <strong>Defense Hearing Scheduled:</strong>{' '}
+                      <strong>Title Proposal Hearing Scheduled:</strong>{' '}
                       {project?.defenseSchedule?.date
                         ? new Date(project.defenseSchedule.date).toLocaleDateString()
                         : 'Scheduled'}{' '}
@@ -851,7 +856,7 @@ export default function Capstone1CollapsibleSections({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-bold text-foreground">
-                  Action Done Matrix (ADM v1 — Proposal Defense)
+                  Proposal Defense Review Matrix
                 </span>
                 <Badge
                   variant="outline"

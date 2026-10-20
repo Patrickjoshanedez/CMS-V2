@@ -47,6 +47,8 @@ const makeStudentUser = () => ({
   fullName: 'Test Student',
   email: 'student@example.com',
   avatarUrl: null,
+  studentId: '',
+  academicTerm: null,
   sectionId: null,
   instructorId: null,
 });
@@ -187,7 +189,9 @@ describe('ProfilePage academic info dropdowns', () => {
   it('renders Year and Section label, placeholder option, and academic info description', () => {
     const view = renderProfilePage();
 
-    expect(view.container.textContent).toContain('Your year & section and assigned instructor.');
+    expect(view.container.textContent).toContain(
+      'Your Student ID, academic term, year & section, and assigned instructor.',
+    );
 
     const sectionLabel = Array.from(view.container.querySelectorAll('label')).find(
       (label) => label.getAttribute('for') === 'profile-section',
@@ -203,6 +207,8 @@ describe('ProfilePage academic info dropdowns', () => {
     expect(view.container.textContent).toContain(
       'No active year and sections are available. Ask an instructor to create or activate a section.',
     );
+    expect(view.container.querySelector('#profile-student-id')).not.toBeNull();
+    expect(view.container.querySelector('#profile-academic-term')).not.toBeNull();
 
     view.unmount();
   });

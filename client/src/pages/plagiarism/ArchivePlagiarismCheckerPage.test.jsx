@@ -60,9 +60,9 @@ describe('ArchivePlagiarismCheckerPage', () => {
 
     // Check page title and badges
     expect(container.textContent).toContain('Plagiarism & Similarity Checker');
-    expect(container.textContent).toContain('Archive Integrity Scan');
-    expect(container.textContent).toContain('lexical fingerprinting (Winnowing)');
-    expect(container.textContent).toContain('dense vector embeddings');
+    expect(container.textContent).toContain('Institutional Archive');
+    expect(container.textContent).toContain('Compare a manuscript or proposal with the institutional archive.');
+    expect(container.textContent).toContain('Review matching passages and their sources');
 
     // Check upload section
     expect(container.textContent).toContain('Upload Document');
@@ -71,8 +71,8 @@ describe('ArchivePlagiarismCheckerPage', () => {
 
     // Check How It Works section
     expect(container.textContent).toContain('How It Works');
-    expect(container.textContent).toContain('Dual-Engine Comparison');
-    expect(container.textContent).toContain('Review Originality Intelligence');
+    expect(container.textContent).toContain('Compare with the Archive');
+    expect(container.textContent).toContain('Review Matches and Sources');
 
     // Check institutional disclaimer
     expect(container.textContent).toContain(
@@ -90,7 +90,7 @@ describe('ArchivePlagiarismCheckerPage', () => {
     );
     expect(toggleBtn).not.toBeNull();
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
-    expect(container.textContent).toContain('Dual-Engine Comparison');
+    expect(container.textContent).toContain('Compare with the Archive');
 
     // Click to collapse
     await act(async () => {
@@ -99,7 +99,7 @@ describe('ArchivePlagiarismCheckerPage', () => {
 
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
     expect(toggleBtn.textContent).toContain('Show guide');
-    expect(container.textContent).not.toContain('Dual-Engine Comparison');
+    expect(container.textContent).not.toContain('Compare with the Archive');
 
     // Click to re-expand
     await act(async () => {
@@ -108,7 +108,7 @@ describe('ArchivePlagiarismCheckerPage', () => {
 
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     expect(toggleBtn.textContent).toContain('Hide guide');
-    expect(container.textContent).toContain('Dual-Engine Comparison');
+    expect(container.textContent).toContain('Compare with the Archive');
   });
 
   it('rejects zip archives and invalid documents with validation error', async () => {

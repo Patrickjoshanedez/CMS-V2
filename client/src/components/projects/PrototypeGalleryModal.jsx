@@ -160,7 +160,7 @@ export default function PrototypeGalleryModal({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {prototypes.map((item, idx) => {
-                  const mediaUrl = item.fileUrl || item.externalUrl || item.url;
+                  const mediaUrl = item.signedUrl || item.fileUrl || item.externalUrl || item.url;
                   const itemTitle = item.title || `Media Asset ${idx + 1}`;
                   const isImage =
                     item.type === 'image' ||

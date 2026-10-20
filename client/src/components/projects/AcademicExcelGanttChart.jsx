@@ -318,6 +318,56 @@ export function extractProjectMembers(project) {
   return members;
 }
 
+const getAssignedUserId = (value) => {
+  const candidate = value?.userId || value?._id || value?.id || value;
+  return candidate === null || candidate === undefined ? '' : String(candidate);
+};
+
+/**
+ * Determine who may edit the shared Gantt schedule. Approval remains a separate
+ * adviser-only capability and is enforced by its own control and API gate.
+ */
+export function canEditGanttSchedule(project, user) {
+  if (project?.isArchived === true || project?.projectStatus === 'archived') return false;
+
+  const userId = getAssignedUserId(user);
+  const role = user?.role;
+  if (!userId) return false;
+
+  const team = project?.teamId || project?.team;
+  const panelistIds = [
+    ...(Array.isArray(project?.panelistIds) ? project.panelistIds : []),
+    ...(Array.isArray(team?.panelistIds) ? team.panelistIds : []),
+    ...(Array.isArray(project?.panelists)
+      ? project.panelists.map((panelist) => panelist?.userId || panelist)
+      : []),
+  ];
+  if (
+    role === 'panelist' ||
+    panelistIds.some((panelistId) => getAssignedUserId(panelistId) === userId)
+  ) {
+    return false;
+  }
+
+  if (role === 'faculty' || role === 'adviser') {
+    const adviserId =
+      project?.adviserId || team?.adviserId;
+    return getAssignedUserId(adviserId) === userId;
+  }
+
+  if (role !== 'student') return false;
+
+  const teamMemberIds = [
+    team?.leaderId,
+    ...(Array.isArray(team?.members) ? team.members : []),
+    ...(Array.isArray(team?.memberRoles)
+      ? team.memberRoles.map((memberRole) => memberRole?.userId)
+      : []),
+    ...(Array.isArray(project?.members) ? project.members : []),
+  ];
+  return teamMemberIds.some((memberId) => getAssignedUserId(memberId) === userId);
+}
+
 /**
  * Extract adviser display name from project object.
  */
@@ -1006,22 +1056,30 @@ export default function AcademicExcelGanttChart({
   isReadOnly = false,
   onApproveGantt = null,
   onRejectGantt = null,
+  onGanttApprovalChange = null,
 }) {
   // ── BukSU Adviser Gantt Pre-Approval Gate ────────────────────────────────────
   const user = useAuthStore((state) => state.user);
-  const userRole = user?.role;
-  const isAdviser = Boolean(
-    (project?.adviserId?._id && String(project.adviserId._id) === String(user?._id)) ||
-    (project?.adviserId && String(project.adviserId) === String(user?._id)) ||
-    userRole === 'adviser',
+  const assignedAdviserId = project?.adviserId?._id || project?.adviserId;
+  const currentUserId = user?._id || user?.id;
+  const canApproveGantt = Boolean(
+    !isReadOnly &&
+      project?.isArchived !== true &&
+      project?.projectStatus !== 'archived' &&
+      assignedAdviserId &&
+      currentUserId &&
+      String(assignedAdviserId) === String(currentUserId),
   );
-  const isInstructor = userRole === 'instructor' || userRole === 'admin';
-  const canApproveGantt = isAdviser || isInstructor;
-  const isGanttApproved =
-    project?.ganttApproval !== undefined ? Boolean(project.ganttApproval?.approved) : true;
-
   const [isUpdatingApproval, setIsUpdatingApproval] = useState(false);
+
   const handleApproveSchedule = async (approved, remarks = '') => {
+    if (project?.isArchived === true || project?.projectStatus === 'archived' || isReadOnly) return;
+    if (approved && !tasks.some((task) => task?.title?.trim() && task?.section?.trim())) {
+      toast.error(
+        'Add at least one named deliverable to a milestone section before requesting approval.',
+      );
+      return;
+    }
     const pid = project?._id || project?.id;
     if (!pid) {
       toast.error('Project ID missing.');
@@ -1036,6 +1094,7 @@ export default function AcademicExcelGanttChart({
       } else {
         await projectService.updateGanttApproval(pid, { approved, remarks });
       }
+      onGanttApprovalChange?.(approved);
       toast.success(
         approved ? 'Gantt schedule approved successfully.' : 'Gantt schedule marked for revision.',
       );
@@ -1108,7 +1167,7 @@ export default function AcademicExcelGanttChart({
         return next;
       });
     },
-    [isTasksControlled, controlledSetTasks, storageKey],
+    [isTasksControlled, controlledSetTasks, storageKey, setInternalTasks],
   );
 
   const setSections = useCallback(
@@ -1127,7 +1186,7 @@ export default function AcademicExcelGanttChart({
         return next;
       });
     },
-    [isSectionsControlled, controlledSetSections, sectionsStorageKey],
+    [isSectionsControlled, controlledSetSections, sectionsStorageKey, setInternalSections],
   );
 
   // ── Canonical proponent list for dropdowns and filter ────────────────────
@@ -1248,6 +1307,11 @@ export default function AcademicExcelGanttChart({
     return allSections.filter((sec) => filteredTasks.some((t) => t.section === sec));
   }, [allSections, filteredTasks, selectedOwner]);
 
+  const hasReviewableSchedule = tasks.some(
+    (task) => task?.title?.trim() && task?.section?.trim(),
+  );
+  const isGanttApproved = Boolean(project?.ganttApproval?.approved && hasReviewableSchedule);
+
   // ── Overall accomplishment ─────────────────────────────────────────────
   const overallAccomplishment = useMemo(() => {
     const valid = tasks.filter((t) => t && (t.id || t.title));
@@ -1264,6 +1328,10 @@ export default function AcademicExcelGanttChart({
   const updateTaskField = useCallback(
     (taskId, field, value) => {
       if (isReadOnly) return;
+      if (field === 'progress' && project && !isGanttApproved && !canApproveGantt) {
+        toast.warning('Daily progress stays locked until the assigned Adviser approves the Gantt schedule.');
+        return;
+      }
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id !== taskId) return t;
@@ -1297,7 +1365,7 @@ export default function AcademicExcelGanttChart({
         }),
       );
     },
-    [isReadOnly, setTasks],
+    [isReadOnly, project, isGanttApproved, canApproveGantt, setTasks],
   );
 
   // ── Drag to paint / fill state ──────────────────────────────────────────
@@ -1571,7 +1639,9 @@ export default function AcademicExcelGanttChart({
               Academic Excel Gantt Chart
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              Strict BukSU Academic Capstone Schedule — Click any cell to edit
+              {isReadOnly
+                ? 'View-only schedule — editing is limited to assigned team members and the assigned Adviser'
+                : 'Strict BukSU Academic Capstone Schedule — Click any cell to edit'}
             </p>
           </div>
         </div>
@@ -1717,7 +1787,7 @@ export default function AcademicExcelGanttChart({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs sm:text-sm font-bold tracking-tight">
-                  {isGanttApproved
+                {isGanttApproved
                     ? 'Gantt Schedule Pre-Approved by Adviser'
                     : 'Gantt Sprints Locked — Pending Adviser Pre-Approval'}
                 </h4>
@@ -1734,9 +1804,11 @@ export default function AcademicExcelGanttChart({
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {isGanttApproved
+                  {isGanttApproved
                   ? 'The proposed sprint allocation and timeline have been pre-approved by the Capstone Adviser. Daily accomplishment logging is active.'
-                  : 'Under BukSU Capstone guidelines, the proposed milestone schedule and sprint allocation must be reviewed and pre-approved by the assigned Capstone Adviser before students can log daily accomplishments.'}
+                  : hasReviewableSchedule
+                    ? 'Under BukSU Capstone guidelines, the proposed milestone schedule and sprint allocation must be reviewed and pre-approved by the assigned Capstone Adviser before students can log daily accomplishments.'
+                    : 'Create at least one named deliverable in a milestone section before the schedule can be reviewed or approved.'}
               </p>
               {project?.ganttApproval?.remarks && (
                 <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mt-1">
@@ -1751,7 +1823,7 @@ export default function AcademicExcelGanttChart({
               {!isGanttApproved ? (
                 <Button
                   size="sm"
-                  disabled={isUpdatingApproval}
+                  disabled={isUpdatingApproval || !hasReviewableSchedule}
                   onClick={() => handleApproveSchedule(true)}
                   className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs cursor-pointer"
                 >
@@ -1780,20 +1852,20 @@ export default function AcademicExcelGanttChart({
       {/* Main Excel Sheet Canvas */}
       <div className="rounded-xl border-2 border-slate-700 dark:border-slate-700 bg-white dark:bg-card shadow-sm overflow-hidden text-slate-900 dark:text-slate-100">
         {/* 1. Editable Document Header Table */}
-        <div className="m-4 mb-0 border-2 border-slate-900 dark:border-slate-300">
+        <div className="m-4 mb-0 border-2 border-border">
           {/* Main Title Row */}
-          <div className="bg-[#FFFFFF] dark:bg-muted/30 border-b-2 border-slate-900 dark:border-slate-300 p-2.5 px-4">
-            <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 font-mono">
+          <div className="bg-card border-b-2 border-border p-2.5 px-4">
+            <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground font-mono">
               CAPSTONE PROJECT AND RESEARCH 2 GANTT CHART
             </h2>
           </div>
 
           {/* Row 1: Capstone Project Title */}
-          <div className="grid grid-cols-12 border-b border-slate-900 dark:border-slate-400">
-            <div className="col-span-3 bg-slate-100 dark:bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-slate-800 dark:text-slate-200 border-r border-slate-900 dark:border-slate-400 flex items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-border">
+            <div className="sm:col-span-3 bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-foreground sm:border-r border-border flex items-center">
               CAPSTONE PROJECT TITLE
             </div>
-            <div className="col-span-9 p-2 px-3 font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center">
+            <div className="min-w-0 sm:col-span-9 p-2 px-3 font-semibold text-xs text-foreground flex items-center">
               <InlineEditCell
                 value={projectTitle}
                 onChange={(v) => setHeaderState((h) => ({ ...(h || {}), projectTitle: v }))}
@@ -1804,11 +1876,11 @@ export default function AcademicExcelGanttChart({
           </div>
 
           {/* Row 2: Name of Students */}
-          <div className="grid grid-cols-12 border-b border-slate-900 dark:border-slate-400">
-            <div className="col-span-3 bg-slate-100 dark:bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-slate-800 dark:text-slate-200 border-r border-slate-900 dark:border-slate-400 flex items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-border">
+            <div className="sm:col-span-3 bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-foreground sm:border-r border-border flex items-center">
               NAME OF STUDENTS
             </div>
-            <div className="col-span-9 p-2 px-3 text-xs text-slate-900 dark:text-slate-100 flex items-center font-medium">
+            <div className="min-w-0 sm:col-span-9 p-2 px-3 text-xs text-foreground flex items-center font-medium">
               <InlineEditCell
                 value={students}
                 onChange={(v) => setHeaderState((h) => ({ ...(h || {}), students: v }))}
@@ -1819,11 +1891,11 @@ export default function AcademicExcelGanttChart({
           </div>
 
           {/* Row 3: Name of Adviser */}
-          <div className="grid grid-cols-12 border-b border-slate-900 dark:border-slate-400">
-            <div className="col-span-3 bg-slate-100 dark:bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-slate-800 dark:text-slate-200 border-r border-slate-900 dark:border-slate-400 flex items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-border">
+            <div className="sm:col-span-3 bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-foreground sm:border-r border-border flex items-center">
               NAME OF ADVISER
             </div>
-            <div className="col-span-9 p-2 px-3 text-xs text-slate-900 dark:text-slate-100 flex items-center font-medium">
+            <div className="min-w-0 sm:col-span-9 p-2 px-3 text-xs text-foreground flex items-center font-medium">
               <InlineEditCell
                 value={adviser}
                 onChange={(v) => setHeaderState((h) => ({ ...(h || {}), adviser: v }))}
@@ -1833,11 +1905,11 @@ export default function AcademicExcelGanttChart({
           </div>
 
           {/* Row 4: Section Code / Schedule */}
-          <div className="grid grid-cols-12 border-b border-slate-900 dark:border-slate-400">
-            <div className="col-span-3 bg-slate-100 dark:bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-slate-800 dark:text-slate-200 border-r border-slate-900 dark:border-slate-400 flex items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-border">
+            <div className="sm:col-span-3 bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-foreground sm:border-r border-border flex items-center">
               SECTION CODE / SCHEDULE
             </div>
-            <div className="col-span-9 p-2 px-3 text-xs text-slate-900 dark:text-slate-100 flex items-center font-medium">
+            <div className="min-w-0 sm:col-span-9 p-2 px-3 text-xs text-foreground flex items-center font-medium">
               <InlineEditCell
                 value={sectionCodeAndSchedule}
                 onChange={(v) =>
@@ -1849,18 +1921,18 @@ export default function AcademicExcelGanttChart({
           </div>
 
           {/* Row 5: Overall Accomplishment */}
-          <div className="grid grid-cols-12">
-            <div className="col-span-3 bg-slate-100 dark:bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-slate-800 dark:text-slate-200 border-r border-slate-900 dark:border-slate-400 flex items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12">
+            <div className="sm:col-span-3 bg-muted/60 p-2 px-3 font-bold uppercase text-[11px] text-foreground sm:border-r border-border flex items-center">
               OVERALL ACCOMPLISHMENT
             </div>
-            <div className="col-span-9 p-2 px-3 grid grid-cols-3 text-xs text-slate-900 dark:text-slate-100 font-bold items-center">
+            <div className="min-w-0 sm:col-span-9 p-2 px-3 grid grid-cols-3 gap-2 text-xs text-foreground font-bold items-center">
               <div className="text-left font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
                 {overallAccomplishment}
               </div>
               <div className="text-center font-normal text-muted-foreground italic text-[11px]">
                 as of
               </div>
-              <div className="text-right font-mono text-slate-700 dark:text-slate-300">
+              <div className="text-right font-mono text-foreground">
                 {!isReadOnly ? (
                   <InlineEditCell
                     value={asOfDate}
@@ -2486,4 +2558,7 @@ AcademicExcelGanttChart.propTypes = {
   onOwnerChange: PropTypes.func,
   onAddTask: PropTypes.func,
   isReadOnly: PropTypes.bool,
+  onApproveGantt: PropTypes.func,
+  onRejectGantt: PropTypes.func,
+  onGanttApprovalChange: PropTypes.func,
 };

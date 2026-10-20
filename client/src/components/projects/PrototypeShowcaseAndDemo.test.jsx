@@ -5,10 +5,21 @@ import PrototypeShowcaseAndDemo from './PrototypeShowcaseAndDemo';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+function setInputValue(input, value) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+  setter.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+const mockToastError = vi.hoisted(() => vi.fn());
 const mockMutateDemo = vi.fn().mockResolvedValue({});
 const mockAddMedia = vi.fn().mockResolvedValue({});
 const mockAddLink = vi.fn().mockResolvedValue({});
 const mockRemoveProto = vi.fn();
+
+vi.mock('sonner', () => ({
+  toast: { error: mockToastError, success: vi.fn() },
+}));
 
 vi.mock('@/hooks/useProjects', () => ({
   useUpdateDemoVideoUrl: () => ({
@@ -95,6 +106,55 @@ describe('PrototypeShowcaseAndDemo Component Suite', () => {
     const iframe = container.querySelector('iframe');
     expect(iframe).toBeTruthy();
     expect(iframe.getAttribute('src')).toContain('https://www.youtube.com/embed/dQw4w9WgXcQ');
+  });
+
+  it('rejects an empty demo URL without calling the update service', async () => {
+    await renderComponent({ project: { ...mockProject, demoVideoUrl: null } });
+    const saveButton = container.querySelector('[data-testid="save-demo-video-btn"]');
+
+    await act(async () => {
+      saveButton.click();
+    });
+
+    expect(mockMutateDemo).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith('Demo video link cannot be empty');
+  });
+
+  it('rejects malformed demo URLs before calling the update service', async () => {
+    await renderComponent({ project: { ...mockProject, demoVideoUrl: null } });
+    const input = container.querySelector('[data-testid="demo-video-url-input"]');
+    const saveButton = container.querySelector('[data-testid="save-demo-video-btn"]');
+
+    await act(async () => {
+      setInputValue(input, 'not-a-url');
+      saveButton.click();
+    });
+
+    expect(mockMutateDemo).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith('Enter a valid http or https demo video link.');
+  });
+
+  it('accepts a valid HTTPS demo URL and surfaces API validation messages', async () => {
+    await renderComponent({ project: { ...mockProject, demoVideoUrl: null } });
+    const input = container.querySelector('[data-testid="demo-video-url-input"]');
+    const saveButton = container.querySelector('[data-testid="save-demo-video-btn"]');
+
+    await act(async () => {
+      setInputValue(input, 'https://vimeo.com/123456789');
+      saveButton.click();
+    });
+
+    expect(mockMutateDemo).toHaveBeenCalledWith({
+      projectId: 'proj-500',
+      demoVideoUrl: 'https://vimeo.com/123456789',
+    });
+
+    mockMutateDemo.mockRejectedValueOnce({ response: { data: { message: 'URL is not allowed.' } } });
+    await act(async () => {
+      saveButton.click();
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith('URL is not allowed.');
   });
 
   it('allows clicking Add Prototype Item button to open the form', async () => {

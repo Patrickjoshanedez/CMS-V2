@@ -3,6 +3,8 @@ import compression from 'compression';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
+import { isRedisAvailable } from './config/redis.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
 import errorHandler from './middleware/errorHandler.js';
 import AppError from './utils/AppError.js';
@@ -74,7 +76,11 @@ app.use(
   compression({
     threshold: 1024,
     filter: (req, res) => {
-      if (req.headers['x-no-compression']) {
+      if (
+        req.headers['x-no-compression'] ||
+        req.headers.accept?.includes('text/event-stream') ||
+        req.path.endsWith('/stream')
+      ) {
         return false;
       }
       return compression.filter(req, res);
@@ -110,15 +116,36 @@ app.use('/api', (req, res, next) => {
 
 app.get('/api/health', (req, res) => {
   const smtp = getEmailTransportHealth();
+  const mongoStateMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+  };
+  const mongoStatus = mongoStateMap[mongoose.connection.readyState] || 'unknown';
+  const redisConnected = isRedisAvailable();
+  const isHealthy = mongoose.connection.readyState === 1;
 
-  res.status(200).json({
-    success: true,
-    message: 'CMS API is running.',
+  res.status(isHealthy ? 200 : 503).json({
+    success: isHealthy,
+    status: isHealthy ? 'healthy' : 'degraded',
+    message: isHealthy ? 'CMS API is running.' : 'CMS API is degraded.',
     environment: env.NODE_ENV,
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    services: {
+      mongodb: {
+        status: mongoStatus,
+        healthy: isHealthy,
+      },
+      redis: {
+        status: redisConnected ? 'connected' : 'disconnected',
+        healthy: redisConnected,
+      },
+    },
     integrations: {
       smtp,
     },
-    timestamp: new Date().toISOString(),
   });
 });
 
@@ -136,8 +163,18 @@ app.use('/api/auth', authRoutes);
 // Public user avatar route (allows browser <img> tags to stream avatars directly without auth headers)
 app.get('/api/users/:userId/avatar', userController.getAvatar);
 
-// Global maintenance gate for authenticated API routes.
-app.use('/api', authenticate, checkMaintenance());
+// Global maintenance gate for authenticated API routes, except public certificate verification.
+const publicCertificateVerificationPath =
+  /^\/projects\/[a-f0-9]{24}\/certificate\/verify\/[a-f0-9]{64}$/i;
+app.use(
+  '/api',
+  (req, res, next) => {
+    const isPublicCertificateVerification =
+      req.method === 'GET' && publicCertificateVerificationPath.test(req.path);
+    return isPublicCertificateVerification ? next() : authenticate(req, res, next);
+  },
+  checkMaintenance(),
+);
 
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);

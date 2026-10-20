@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { GoogleLogin } from '@react-oauth/google';
-import { STRICT_EMAIL_REGEX, isBuksuInstitutionalEmail } from '@cms/shared';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
@@ -15,44 +13,7 @@ import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
-
-const registerSchema = z
-  .object({
-    firstName: z
-      .string()
-      .min(2, 'First name must be at least 2 characters.')
-      .max(50, 'First name must not exceed 50 characters.'),
-    middleName: z
-      .string()
-      .max(50, 'Middle name must not exceed 50 characters.')
-      .optional()
-      .default(''),
-    lastName: z
-      .string()
-      .min(2, 'Last name must be at least 2 characters.')
-      .max(50, 'Last name must not exceed 50 characters.'),
-    email: z
-      .string()
-      .trim()
-      .email('Please enter a valid email address.')
-      .regex(STRICT_EMAIL_REGEX, 'Please enter a valid email address.')
-      .refine(
-        (email) => isBuksuInstitutionalEmail(email),
-        'Only BukSU institutional email accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
-      ),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters.')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must include uppercase, lowercase, and a number.',
-      ),
-    confirmPassword: z.string().min(1, 'Please confirm your password.'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match.',
-    path: ['confirmPassword'],
-  });
+import { registerSchema } from './registerSchema';
 
 const getGoogleOriginMismatchMessage = () => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'your frontend origin';

@@ -12,6 +12,8 @@ import submissionService from './submission.service.js';
 import Comment from './comment.model.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS, ROLES } from '@cms/shared';
+import mongoose from 'mongoose';
+import AppError from '../../utils/AppError.js';
 
 /* ═══════════════════ Upload ═══════════════════ */
 
@@ -493,9 +495,41 @@ export const getSubmissionVersions = catchAsync(async (req, res) => {
 
 /* ═══════════════════ Inline Document Comments ═══════════════════ */
 
+async function assertSubmissionAccess(submissionId, user) {
+  if (!user || user.role !== ROLES.STUDENT) return;
+  const Submission = mongoose.model('Submission');
+  const Project = mongoose.model('Project');
+  const Team = mongoose.model('Team');
+  const submission = await Submission.findById(submissionId).select('projectId').lean();
+  if (!submission) {
+    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+  }
+  const project = await Project.findById(submission.projectId)
+    .select('teamId memberRoleAssignments isArchived')
+    .lean();
+  if (!project) return;
+  const userIdStr = (user._id || user.id || '').toString();
+  const team = project.teamId
+    ? await Team.findById(project.teamId).select('members leaderId').lean()
+    : null;
+  const isMember =
+    project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+    team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+    (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+  if (!isMember && !project.isArchived) {
+    throw new AppError(
+      'You do not have permission to access comments on this submission.',
+      403,
+      'FORBIDDEN',
+    );
+  }
+}
+
 /** POST /api/submissions/:submissionId/comments — Create inline highlight comment */
 export const createSubmissionComment = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
+  await assertSubmissionAccess(submissionId, req.user);
+
   const {
     pageNumber,
     coordinates,
@@ -513,11 +547,14 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
   const authorName =
     [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
 
+  const resolvedRole =
+    req.user.role === ROLES.STUDENT ? 'student' : authorRole || 'faculty';
+
   const comment = await Comment.create({
     submissionId,
     authorId: req.user._id,
     authorName,
-    authorRole: authorRole || (req.user.role === ROLES.STUDENT ? 'student' : 'adviser'),
+    authorRole: resolvedRole,
     category: category || 'General',
     pageNumber: Number(pageNumber) || 1,
     position,
@@ -564,6 +601,7 @@ export const addSubmissionCommentReply = catchAsync(async (req, res) => {
       message: 'Comment not found.',
     });
   }
+  await assertSubmissionAccess(comment.submissionId, req.user);
 
   const authorName =
     [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
@@ -601,6 +639,13 @@ export const updateSubmissionCommentStatus = catchAsync(async (req, res) => {
     });
   }
 
+  if (req.user.role === ROLES.STUDENT && status === 'resolved') {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({
+      success: false,
+      message: 'Only faculty committee members can resolve inline comments.',
+    });
+  }
+
   const comment = await Comment.findById(commentId);
   if (!comment) {
     return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -608,6 +653,7 @@ export const updateSubmissionCommentStatus = catchAsync(async (req, res) => {
       message: 'Comment not found.',
     });
   }
+  await assertSubmissionAccess(comment.submissionId, req.user);
 
   comment.status = status;
   await comment.save();
@@ -622,6 +668,7 @@ export const updateSubmissionCommentStatus = catchAsync(async (req, res) => {
 /** GET /api/submissions/:submissionId/comments — Get inline comments for submission */
 export const getSubmissionComments = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
+  await assertSubmissionAccess(submissionId, req.user);
   const { pageNumber } = req.query;
 
   const query = { submissionId };

@@ -1,4 +1,5 @@
 version: "2"
+web_addr: 0.0.0.0:4040
 # Authtoken can be provided via NGROK_AUTHTOKEN environment variable or replaced here
 authtoken: ""
 
@@ -7,9 +8,7 @@ tunnels:
     proto: http
     addr: client:43211
     inspect: true
-    bind_tls: true
   cms_server:
     proto: http
     addr: server:43210
     inspect: true
-    bind_tls: true

@@ -79,7 +79,7 @@ APPROVED_ROOT_DIRS = {
 }
 
 # Known clutter patterns
-ZOMBIE_CLONES = {"staging", "dashboard-ui", "src"}
+ZOMBIE_CLONES = {"staging", "dashboard-ui", "src", "tests"}
 DUPLICATE_DOCS = {"documentation", "reference", "references"}
 LOOSE_CACHE_DIRS = {"__pycache__", "tmp", "test-results", "sampleacademicpdf"}
 

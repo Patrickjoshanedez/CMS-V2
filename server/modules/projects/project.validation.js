@@ -35,7 +35,14 @@ const titleProposalSchema = z.object({
     .array(z.enum(SDG_TAG_SUGGESTIONS))
     .min(1, 'Each proposal must include at least one SDG tag')
     .max(17, 'Each proposal can have at most 17 SDG tags'),
-  pitchDeck: z.record(z.any()).optional(),
+  pitchDeck: z
+    .object({
+      problemStatement: z.string().trim().optional(),
+      objectives: z.string().trim().optional(),
+      technicalStack: z.string().trim().optional(),
+    })
+    .passthrough()
+    .optional(),
   isFlagged: z.boolean().optional(),
   flagReason: z.string().trim().nullable().optional(),
   similarityScore: z.number().min(0).max(100).optional(),
@@ -140,6 +147,18 @@ export const createProjectSchema = z.object({
   isFlagged: z.boolean().optional(),
   flagReason: z.string().trim().nullable().optional(),
   similarityScore: z.number().min(0).max(100).optional(),
+}).superRefine((data, context) => {
+  data.titleProposals.forEach((proposal, index) => {
+    for (const field of ['problemStatement', 'objectives', 'technicalStack']) {
+      if (!proposal.pitchDeck?.[field]?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['titleProposals', index, 'pitchDeck', field],
+          message: `Each proposal must include ${field}.`,
+        });
+      }
+    }
+  });
 });
 
 /* ───── Update title (draft stage only) ───── */
@@ -260,11 +279,23 @@ export const setDeadlinesSchema = z.object({
   proposal: z.coerce.date().nullable().optional(),
   chapter4: z.coerce.date().nullable().optional(),
   chapter5: z.coerce.date().nullable().optional(),
+  finalAcademic: z.coerce.date().nullable().optional(),
+  finalJournal: z.coerce.date().nullable().optional(),
   defense: z.coerce.date().nullable().optional(),
   applyToSection: z.boolean().optional(),
   tba: z
     .array(
-      z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']),
+      z.enum([
+        'chapter1',
+        'chapter2',
+        'chapter3',
+        'proposal',
+        'chapter4',
+        'chapter5',
+        'finalAcademic',
+        'finalJournal',
+        'defense',
+      ]),
     )
     .optional(),
 });
@@ -287,7 +318,7 @@ export const listProjectsQuerySchema = z.object({
   academicYear: z.string().regex(academicYearPattern, 'Invalid academic year format').optional(),
   titleStatus: z.enum(TITLE_STATUS_VALUES).optional(),
   projectStatus: z.enum(PROJECT_STATUS_VALUES).optional(),
-  capstonePhase: z.coerce.number().int().min(1).max(4).optional(),
+  capstonePhase: z.coerce.number().int().min(1).max(3).optional(),
   actionNeeded: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
@@ -492,6 +523,11 @@ export const updateGanttChartUrlSchema = z.object({
   ganttChartUrl: z.string().trim().url('Invalid Gantt chart URL').max(2000),
 });
 
+export const updateGanttPlanSchema = z.object({
+  tasks: z.array(z.record(z.any())).max(200),
+  sections: z.array(z.string().trim().min(1).max(120)).max(30),
+});
+
 export const updateDemoVideoUrlSchema = z.object({
   demoVideoUrl: z.string().trim().url('Invalid Demo video URL').max(2000),
 });
@@ -546,6 +582,41 @@ export const updateExternalLinksSchema = z.object({
 });
 
 export const updateGanttApprovalSchema = z.object({
+  approved: z.boolean(),
+  remarks: z.string().trim().max(1000).optional().default(''),
+});
+
+export const updateWeeklyCheckInSchema = z.object({
+  summary: z.string().trim().max(2000).optional().default(''),
+  progressPct: z.coerce.number().int().min(0).max(100).optional().default(0),
+  completedTaskIds: z.array(z.string().trim().min(1).max(120)).max(200).optional().default([]),
+  blockerNotes: z.string().trim().max(1500).optional().default(''),
+  commitHash: z.string().trim().max(64).optional().default(''),
+  justification: z.string().trim().max(2000).optional().default(''),
+  submit: z.boolean().optional().default(true),
+});
+
+export const reviewWeeklyCheckInSchema = z
+  .object({
+    decision: z.enum(['approved', 'revision_requested']),
+    remarks: z.string().trim().max(1500).optional().default(''),
+  })
+  .refine(
+    (data) => data.decision !== 'revision_requested' || data.remarks.length >= 5,
+    'Add a review note when requesting revisions.',
+  );
+
+export const reviewWeeklyCheckInWaiverSchema = z
+  .object({
+    decision: z.enum(['granted', 'denied']),
+    remarks: z.string().trim().max(1500).optional().default(''),
+  })
+  .refine(
+    (data) => data.decision !== 'denied' || data.remarks.length >= 5,
+    'Add a reason when denying a late waiver.',
+  );
+
+export const updateSystemDefenseApprovalSchema = z.object({
   approved: z.boolean(),
   remarks: z.string().trim().max(1000).optional().default(''),
 });

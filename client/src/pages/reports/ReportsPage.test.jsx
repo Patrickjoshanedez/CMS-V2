@@ -203,7 +203,7 @@ describe('ReportsPage', () => {
     });
 
     expect(container.textContent).toContain('Capstone Analytics & Reports');
-    expect(container.textContent).toContain('Institutional Command');
+    expect(container.textContent).toContain('Review cohort progress, research areas, faculty');
 
     // 4 KPI metrics from CohortKPIRibbon (Milestone card removed)
     expect(container.textContent).toContain('Enrolled Proponents');

@@ -1,0 +1,48 @@
+{
+  "session_id": "2026-10-14_chapter4-reproducible-benchmarks",
+  "timestamp": "2026-10-14T04:25:00.000Z",
+  "task": "Produce REAL, reproducible measurements to fill Chapter 4 Table 4.3 (plagiarism confusion matrix) and Table 4.5 (performance/concurrency), plus verify Chapter 4 statements",
+  "status": "completed",
+  "summary": "Completed empirical measurement battery across Part 0 (Pre-Checks), Part 1 (Table 4.3 Plagiarism Benchmark on N=72 held-out test split), Part 2 (Table 4.5 Latency, Concurrency & BullMQ Ingestion with 3 repetitions), and Part 3 (Test totals, API route parity, 6/6 RBAC rules, survey psychometrics status). Created scripts/benchmarks/ with documentation and scratch/benchmarks/2026-10-14T03-22-00/ with raw telemetry. Updated docs/chapter4-measurements.md and docs/Chapter-4-Results-and-Discussion.md.",
+  "measurements": {
+    "plagiarism_table_4_3": {
+      "corpus_size": 120,
+      "validation_split": 48,
+      "test_split": 72,
+      "recall": 0.8333,
+      "specificity": 1.0,
+      "precision": 1.0,
+      "f1_score": 0.9091,
+      "accuracy": 0.9167,
+      "roc_auc": 1.0
+    },
+    "performance_table_4_5": {
+      "prescan_express_mongo_median_ms": 33.3,
+      "prescan_chroma_cpu_median_ms": 1240.0,
+      "concurrency_50vus_median_ms": 107.7,
+      "bullmq_queue_wait_median_ms": 77.0,
+      "bullmq_proc_median_ms": 36.0,
+      "redis_peak_memory_human": "2.58 MB"
+    },
+    "monorepo_statements": {
+      "client_tests": "114 suites, 699 passed (100%)",
+      "server_tests": "86 suites, 794 tests (781 passed, 13 failed)",
+      "grand_total": "200 suites, 1,493 tests, 1,480 passed (99.13%)",
+      "endpoint_parity": "222 server routes, 202 client hooks, UNMATCHED_COUNT = 0",
+      "rbac_rules_verified": "6/6 passed",
+      "survey_psychometrics": "NOT MEASURED (no raw respondent CSV; synthetic data banned)"
+    }
+  },
+  "artifacts": [
+    "scripts/benchmarks/run_table43_benchmark.py",
+    "scripts/benchmarks/k6_prescan_express.js",
+    "scripts/benchmarks/k6_prescan_chroma.js",
+    "scripts/benchmarks/k6_concurrent_submissions.js",
+    "scripts/benchmarks/run_table45_bullmq.js",
+    "scripts/benchmarks/run_table45_orchestrator.py",
+    "scripts/benchmarks/README.md",
+    "scratch/benchmarks/2026-10-14T03-22-00/",
+    "docs/chapter4-measurements.md",
+    "docs/Chapter-4-Results-and-Discussion.md"
+  ]
+}

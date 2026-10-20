@@ -144,6 +144,7 @@ export const projectService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   getCertificateUrl: (id) => api.get(`/projects/${id}/certificate`),
+  verifyCertificate: (id, hash) => api.get(`/projects/${id}/certificate/verify/${hash}`),
   generateReport: (params) => api.get('/projects/reports', { params }),
   bulkUploadArchive: (payload) => {
     const formData = payload instanceof FormData ? payload : new FormData();
@@ -235,11 +236,20 @@ export const projectService = {
 
   // Link-based asset updates
   updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
+  updateGanttPlan: (id, data) => api.patch(`/projects/${id}/gantt-plan`, data),
+  updateSystemDefenseApproval: (id, data) => api.patch(`/projects/${id}/system-defense-clearance`, data),
+  getApprovalSheetUrl: (id) => api.get(`/projects/${id}/approval-sheet`),
   updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
   updateGithubRepoUrl: (id, data) => api.patch(`/projects/${id}/github-repo`, data),
   updateGoogleDocUrl: (id, data) => api.patch(`/projects/${id}/google-doc`, data),
   updateExternalLinks: (id, data) => api.patch(`/projects/${id}/external-links`, data),
   updateGanttApproval: (id, data) => api.patch(`/projects/${id}/gantt-approval`, data),
+  updateWeeklyCheckIn: (id, checkInId, data) =>
+    api.patch(`/projects/${id}/weekly-check-ins/${checkInId}`, data),
+  reviewWeeklyCheckIn: (id, checkInId, data) =>
+    api.patch(`/projects/${id}/weekly-check-ins/${checkInId}/adviser-review`, data),
+  reviewWeeklyCheckInWaiver: (id, checkInId, data) =>
+    api.patch(`/projects/${id}/weekly-check-ins/${checkInId}/instructor-waiver`, data),
 };
 
 /**

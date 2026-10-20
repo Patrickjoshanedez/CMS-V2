@@ -1,4 +1,4 @@
-import React, { act } from 'react';
+import React, { act, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import TitleSimilarityChecker from './TitleSimilarityChecker';
@@ -82,6 +82,38 @@ describe('TitleSimilarityChecker component', () => {
     const { unmount } = renderComponent({ title: 'Unique Autonomous Drone Navigation System' });
     expect(container.textContent).toContain('No similar titles found');
     unmount();
+  });
+
+  it('does not loop when the parent recreates the scan callback after each notification', () => {
+    projectHooks.useCheckTitleSimilarity.mockReturnValue({
+      data: { similarProjects: [], threshold: 0.7 },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    });
+
+    let renderCount = 0;
+    function ParentWithInlineCallback() {
+      renderCount += 1;
+      const [, setStatus] = useState(null);
+      return (
+        <TitleSimilarityChecker
+          title="Unique Autonomous Drone Navigation System"
+          onScanStatusChange={(status) => setStatus(status)}
+        />
+      );
+    }
+
+    act(() => {
+      root.render(<ParentWithInlineCallback />);
+    });
+
+    expect(renderCount).toBeLessThan(5);
+    expect(container.textContent).toContain('No similar titles found');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
   });
 
   it('renders interactive triggers for similar projects and opens modal on click', () => {

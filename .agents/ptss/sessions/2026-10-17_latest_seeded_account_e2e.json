@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-10-17_latest_seeded_account_e2e",
+  "date": "2026-10-17",
+  "status": "completed",
+  "task_category": "synthetic_capstone_e2e_and_archive_verification",
+  "task_summary": "Completed the latest seeded synthetic project from the prepared Capstone 2 system-development state through Capstone 3 final review, grade release, archival, and artifact readback using official APIs.",
+  "test_only": true,
+  "changes": [
+    "No product source code was changed during this live run; the existing workflow implementation and API gates were exercised.",
+    "Used bounded, credential-free API runners under scratch/ for the Gantt, hearing, manuscript, and archive steps; report credentials were supplied only through process environment variables and never emitted. Removed the temporary runners after completion."
+  ],
+  "verification": [
+    "Gantt schedule approved across four sections; four synthetic late weekly check-ins were adviser-approved and received the instructor's test waiver.",
+    "System clearance and progress-defense scheduling passed; project advanced from Capstone 2 to Capstone 3 after three panel evaluations, synthetic minutes, Secretary endorsement, required committee signatures, and instructor grade release.",
+    "Chapter 4 and 5 each completed one revision cycle and were adviser-locked at version 2; chapter, final-academic, final-journal, and defense deadlines were saved through the scheduler API. The revision uploads passed using the app's mock-score fallback; their first versions had completed plagiarism jobs.",
+    "Final academic and journal submissions each completed the app plagiarism scan with originalityScore 100 and were adviser-locked at version 1.",
+    "Final minutes, three panel evaluations, verified ADM row, Secretary endorsement before committee signatures, and instructor grade release passed; all three final evaluations became visible to the student.",
+    "Project 6ad2933789cfdaa77f6049f9 is archived and searchable; archive search confirms both final manuscripts and retains one prototype artifact plus the labeled synthetic GitHub URL fixture.",
+    "Final academic and journal files read back at 1534 and 719 bytes; approval sheet and completion certificate downloads returned valid PDF headers; public QR certificate verification returned valid.",
+    "All defense outcomes, grades, ADM actions, and signatures were synthetic test records. No actual oral defense occurred; the project API did not return actualDefenseOccurred=true."
+  ],
+  "live_state": "The designated synthetic test project is archived. Archive search includes both final manuscripts and the repository/gallery fixture. The GitHub URL is a syntactic synthetic fixture, not an externally verified repository; the gallery upload is a generated image fixture. No real oral defense occurred; the live project API returned the actualDefenseOccurred field as unset/null.",
+  "remaining": [],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

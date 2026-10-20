@@ -43,17 +43,17 @@ const WorkloadHeatmap = ({ workload }) => {
 
   return (
     <section className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Faculty Committee Workload Heatmap
+            Faculty Workload
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Live assignment pressure and review distribution across advisers, panelists, and
+            Assignments and pending reviews across advisers, panelists, and
             committees.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-lg bg-muted/30 border border-border/60 px-3 py-1.5 shrink-0">
+        <div className="inline-flex flex-wrap items-center gap-2 self-start rounded-lg bg-muted/30 border border-border/60 px-3 py-1.5 shrink-0">
           <span className="font-mono text-sm font-bold text-foreground tabular-nums">
             {currentCount}
           </span>
@@ -71,14 +71,14 @@ const WorkloadHeatmap = ({ workload }) => {
       </div>
 
       {/* View Switcher Tabs & Legend */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/40 w-fit">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/40">
           {VIEW_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`inline-flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
                 activeTab === id
                   ? 'bg-background text-foreground shadow-2xs border border-border/60 font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
@@ -103,8 +103,9 @@ const WorkloadHeatmap = ({ workload }) => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-separate border-spacing-0">
+      <p className="text-xs text-muted-foreground sm:hidden">Scroll the table horizontally to see all workload details.</p>
+      <div className="max-w-full overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-muted-foreground border-b border-border/60">
               <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Video,
@@ -25,6 +25,8 @@ import {
   useAddPrototypeLink,
   useRemovePrototype,
 } from '@/hooks/useProjects';
+import { projectService } from '@/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
 
 /**
@@ -86,6 +88,9 @@ export default function PrototypeShowcaseAndDemo({
   canDelete = true,
 }) {
   const projectId = project?._id || project?.id;
+  const user = useAuthStore((state) => state.user);
+  const [systemApproval, setSystemApproval] = useState(project?.systemDefenseApproval || {});
+  const [isUpdatingSystemApproval, setIsUpdatingSystemApproval] = useState(false);
   const [demoUrl, setDemoUrl] = useState(project?.demoVideoUrl || '');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addMode, setAddMode] = useState('file'); // 'file' | 'link'
@@ -103,9 +108,54 @@ export default function PrototypeShowcaseAndDemo({
   const addLinkMutation = useAddPrototypeLink();
   const removeMutation = useRemovePrototype();
 
+  useEffect(() => {
+    setSystemApproval(project?.systemDefenseApproval || {});
+  }, [projectId, project?.systemDefenseApproval?.reviewedAt]);
+
+  const adviserId = String(project?.adviserId?._id || project?.adviserId || '');
+  const currentUserId = user?._id || user?.id;
+  const isProjectArchived =
+    project?.isArchived === true || project?.projectStatus === 'archived';
+  const canReviewSystem = Boolean(
+    !isProjectArchived && currentUserId && adviserId === String(currentUserId),
+  );
+  const hasSystemEvidence = Boolean(
+    project?.githubRepoUrl && (prototypes.length > 0 || project?.demoVideoUrl),
+  );
+
+  const handleSystemClearance = async (approved) => {
+    if (isProjectArchived) return;
+    try {
+      setIsUpdatingSystemApproval(true);
+      const response = await projectService.updateSystemDefenseApproval(projectId, { approved });
+      const savedApproval = response.data?.data?.project?.systemDefenseApproval;
+      if (savedApproval) setSystemApproval(savedApproval);
+      toast.success(approved ? 'System cleared for defense.' : 'System returned for revisions.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update system defense clearance.');
+    } finally {
+      setIsUpdatingSystemApproval(false);
+    }
+  };
+
   const handleSaveDemo = async () => {
     if (!demoUrl.trim()) {
       toast.error('Demo video link cannot be empty');
+      return;
+    }
+    if (demoUrl.trim().length > 2000) {
+      toast.error('Demo video link must be 2,000 characters or fewer.');
+      return;
+    }
+    let parsedDemoUrl;
+    try {
+      parsedDemoUrl = new URL(demoUrl.trim());
+    } catch {
+      toast.error('Enter a valid http or https demo video link.');
+      return;
+    }
+    if (!['http:', 'https:'].includes(parsedDemoUrl.protocol)) {
+      toast.error('Enter a valid http or https demo video link.');
       return;
     }
     try {
@@ -115,7 +165,9 @@ export default function PrototypeShowcaseAndDemo({
       });
       toast.success('System demo video link updated.');
     } catch (err) {
-      toast.error(err?.message || 'Failed to update demo video link');
+      toast.error(
+        err?.response?.data?.message || err?.message || 'Failed to update demo video link',
+      );
     }
   };
 
@@ -177,6 +229,51 @@ export default function PrototypeShowcaseAndDemo({
 
   return (
     <div className="space-y-6" data-testid="prototype-showcase-and-demo">
+      {Number(project?.capstonePhase) === 2 && (
+        <Card className="border-border/70 shadow-xs">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  System defense clearance
+                </CardTitle>
+                <Badge variant={systemApproval.approved ? 'success' : 'outline'}>
+                  {systemApproval.approved ? 'Cleared' : 'Awaiting adviser review'}
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                The adviser reviews the repository and working demo before the Capstone 2 hearing is scheduled.
+                {systemApproval.remarks ? ` ${systemApproval.remarks}` : ''}
+              </CardDescription>
+            </div>
+            {canReviewSystem && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleSystemClearance(true)}
+                  disabled={!hasSystemEvidence || isUpdatingSystemApproval || systemApproval.approved}
+                >
+                  {isUpdatingSystemApproval ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                  Clear for defense
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleSystemClearance(false)}
+                  disabled={isUpdatingSystemApproval || !systemApproval.approved}
+                >
+                  Request revisions
+                </Button>
+              </div>
+            )}
+            {canReviewSystem && !hasSystemEvidence && (
+              <p className="w-full text-xs text-muted-foreground sm:w-auto">
+                Add a GitHub repository and demo or gallery item before clearance.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
       {/* 1. System Demo Video Section */}
       <Card className="border-border/70 shadow-xs">
         <CardHeader className="pb-3 border-b border-border/50">
@@ -208,13 +305,19 @@ export default function PrototypeShowcaseAndDemo({
         <CardContent className="p-4 sm:p-6 space-y-4">
           {!isReadOnly ? (
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <Label
+                htmlFor="demo-video-url"
+                className="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+              >
                 Demo Video Link (YouTube, Google Drive, Vimeo, or Direct MP4)
               </Label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
                   <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    id="demo-video-url"
+                    type="url"
+                    maxLength={2000}
                     placeholder="https://www.youtube.com/watch?v=... or Google Drive link"
                     value={demoUrl}
                     onChange={(e) => setDemoUrl(e.target.value)}

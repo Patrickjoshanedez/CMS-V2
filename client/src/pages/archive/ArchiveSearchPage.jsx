@@ -178,18 +178,17 @@ export default function ArchiveSearchPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
         {/* Top Minimalist Academic Header & Centered Search Bar */}
         <div className="pt-2 pb-4 space-y-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-center sm:text-left space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center justify-center sm:justify-start gap-2">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="space-y-1 text-left">
+              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 <BookOpen className="w-6 h-6 text-primary shrink-0" />
                 BukSU Research Archive
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
-                Institutional academic repository for capstone manuscripts, title proposals, and
-                research gap discovery.
+                Search approved capstone titles and archived manuscripts.
               </p>
             </div>
 
@@ -347,15 +346,15 @@ export default function ArchiveSearchPage() {
 
                   return (
                     <article key={project._id} className="pt-5 first:pt-0">
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
                         {/* Left: Academic Title, Metadata, Abstract, Actions */}
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="w-full min-w-0 flex-1 space-y-2">
                           {/* Academic Hyperlinked Title */}
                           <h2 className="text-[17px] sm:text-[18px] font-medium leading-snug tracking-normal">
                             <button
                               type="button"
                               onClick={() => handleOpenDocument(project._id)}
-                              className="text-left text-[#1a0dab] dark:text-[#8ab4f8] hover:underline focus:outline-hidden focus:ring-1 focus:ring-[#1a0dab] rounded-xs"
+                              className="text-left text-primary hover:underline focus:outline-hidden focus:ring-1 focus:ring-primary rounded-xs"
                               title={`Read manuscript: ${project.title}`}
                             >
                               {project.title}
@@ -363,8 +362,8 @@ export default function ArchiveSearchPage() {
                           </h2>
 
                           {/* Subdued Green Snippet Metadata Line */}
-                          <div className="text-[13px] leading-tight text-[#006621] dark:text-[#68b684] flex flex-wrap items-center gap-1.5 font-normal">
-                            <span className="truncate max-w-[280px] sm:max-w-[400px]">
+                          <div className="text-[13px] leading-relaxed text-muted-foreground flex flex-wrap items-center gap-1.5 font-normal">
+                            <span className="max-w-full truncate sm:max-w-[400px]">
                               {proponents}
                             </span>
                             <span className="text-muted-foreground/60">•</span>
@@ -378,7 +377,7 @@ export default function ArchiveSearchPage() {
                                   href={doi.startsWith('http') ? doi : `https://doi.org/${doi}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="hover:underline text-[12px] opacity-90 inline-flex items-center gap-0.5"
+                                  className="max-w-full break-all hover:underline text-[12px] opacity-90 inline-flex items-center gap-0.5"
                                   title="Open Digital Object Identifier (DOI)"
                                 >
                                   doi:{doi.replace(/^https?:\/\/doi\.org\//, '')}
@@ -389,12 +388,12 @@ export default function ArchiveSearchPage() {
                           </div>
 
                           {/* Snippet Abstract (clamped to 3 lines with keyword highlighting) */}
-                          <p className="text-[13.5px] leading-relaxed text-[#4d5156] dark:text-[#bdc1c6] line-clamp-3 pt-1">
+                          <p className="text-sm leading-relaxed text-foreground/80 line-clamp-3 pt-1">
                             <HighlightedSnippet text={project.abstract} query={debouncedQuery} />
                           </p>
 
                           {/* Standardized 4-Action Snippet Toolbar */}
-                          <div className="pt-2 flex items-center flex-wrap gap-x-4 gap-y-2 text-[13px] text-[#777777] dark:text-[#9aa0a6] select-none">
+                          <div className="pt-1 flex items-center flex-wrap gap-x-4 gap-y-2 text-[13px] text-muted-foreground select-none [&>button]:min-h-11 sm:[&>button]:min-h-8">
                             {/* 1. Save to Library */}
                             <button
                               type="button"
@@ -470,7 +469,7 @@ export default function ArchiveSearchPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenDocument(project._id)}
-                            className="text-xs font-semibold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline flex items-center gap-1 px-2 py-1 rounded-sm bg-muted/40 hover:bg-muted"
+                            className="min-h-11 sm:min-h-8 text-xs font-semibold text-primary hover:underline flex items-center gap-1 px-3 py-2 rounded-sm bg-muted/40 hover:bg-muted"
                             title="Read full manuscript PDF"
                           >
                             <FileText className="w-3.5 h-3.5 text-red-500" />
@@ -496,18 +495,22 @@ export default function ArchiveSearchPage() {
                   entries
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:gap-1">
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={pagination.page <= 1}
                     onClick={() => setPage(Math.max(1, pagination.page - 1))}
-                    className="h-8 px-2 text-xs"
+                    className="h-11 sm:h-8 px-2 text-xs"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Previous
                   </Button>
+
+                  <span className="text-sm text-muted-foreground sm:hidden">
+                    Page {pagination.page} of {pagination.pages}
+                  </span>
 
                   {Array.from({ length: Math.min(5, pagination.pages) }, (_, idx) => {
                     const pageNum = idx + 1;
@@ -517,7 +520,7 @@ export default function ArchiveSearchPage() {
                         variant={pagination.page === pageNum ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setPage(pageNum)}
-                        className="h-8 w-8 p-0 text-xs"
+                        className="hidden h-8 w-8 p-0 text-xs sm:inline-flex"
                       >
                         {pageNum}
                       </Button>
@@ -526,12 +529,12 @@ export default function ArchiveSearchPage() {
 
                   {pagination.pages > 5 && (
                     <>
-                      <span className="px-1 text-muted-foreground text-xs">...</span>
+                      <span className="hidden px-1 text-muted-foreground text-xs sm:inline">...</span>
                       <Button
                         variant={pagination.page === pagination.pages ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setPage(pagination.pages)}
-                        className="h-8 w-8 p-0 text-xs"
+                        className="hidden h-8 w-8 p-0 text-xs sm:inline-flex"
                       >
                         {pagination.pages}
                       </Button>
@@ -543,7 +546,7 @@ export default function ArchiveSearchPage() {
                     size="sm"
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => setPage(Math.min(pagination.pages, pagination.page + 1))}
-                    className="h-8 px-2 text-xs"
+                    className="h-11 sm:h-8 px-2 text-xs"
                     aria-label="Next page"
                   >
                     Next

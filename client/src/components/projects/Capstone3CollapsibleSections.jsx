@@ -42,7 +42,7 @@ function formatDate(v) {
  * Compact, organized, and sectionized workspace for Capstone 3:
  * 1. Chapters 4–5 & Final Manuscript Submissions (with Compiled Chapters 1–5 / Final Paper)
  * 2. Academic Paper & Academic Journal Submissions (Official institutional publications)
- * 3. Action Done Matrix (ADM v3 with Secretary Verification Gate)
+ * 3. Action Done Matrix (ADM v2 with Secretary Verification Gate)
  * 4. Final Defense Evaluation & Grade Sign-Off (Final oral defense scoring & verdict)
  */
 export default function Capstone3CollapsibleSections({
@@ -396,7 +396,7 @@ export default function Capstone3CollapsibleSections({
       </Card>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {/* SECTION 3: ACTION DONE MATRIX (ADM v3)                              */}
+      {/* SECTION 3: ACTION DONE MATRIX (ADM v2)                              */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       <Card
         className={cn(
@@ -418,7 +418,7 @@ export default function Capstone3CollapsibleSections({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-bold text-foreground">
-                  Action Done Matrix (ADM v3)
+                  Action Done Matrix (ADM v2)
                 </span>
                 <Badge
                   variant="outline"

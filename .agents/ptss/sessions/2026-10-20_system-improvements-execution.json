@@ -1,0 +1,41 @@
+{
+  "session_id": "2026-10-20_system-improvements-execution",
+  "date": "2026-10-20",
+  "slug": "system-improvements-execution",
+  "status": "completed",
+  "skills_used": [
+    "system-implementor",
+    "senior-backend",
+    "frontend-patterns",
+    "sre-reliability-engineering",
+    "verification-loop",
+    "ptss"
+  ],
+  "task_summary": "Executed full 3-batch system improvement program across BukSU CMS-V2: IMP-DB-001 (5-min deadline check cooldown in notification service), IMP-DB-002 (fixed unbounded submission query and capped pendingTitles count), IMP-DB-003 (compound indexes for deadline lookup and notification idempotency), IMP-DB-004 (dbTransaction utility with withOptionalTransaction session wrapper in team and project committee services), IMP-RT-001 (consolidated notification polling in useNotifications and useUnreadCount), IMP-RT-002 (invalidateStatsCache in DashboardService), IMP-SRE-001 (BullMQ exhausted-job recovery and failure telemetry in plagiarism.job.js), IMP-SRE-002 (externalized ngrok allowed hosts in vite.config.js), IMP-MOD-001 (decomposed submission.service.js into submissionRevisionDiff.service.js and submissionAnnotation.service.js), IMP-MOD-002 (slashed TeamsPage.jsx from 3,044 LOC down to 59 LOC with modular subcomponents), and IMP-MOD-003 (consolidated shared auth/registration schemas in @cms/shared).",
+  "verification_evidence": {
+    "verify_workspace_evidence": "34/34 passed",
+    "workspace_guardrail": "0 violations",
+    "validate_agentic": "60/60 passed",
+    "validate_governance": "passed, 0 errors, 0 warnings",
+    "check_endpoints": "229 server / 209 client, UNMATCHED_COUNT=0",
+    "unit_tests_server": [
+      "dbTransaction.test.js (4/4 passed in 15ms)",
+      "milestoneDeadline.sync.test.js (2/2 passed in 26ms)",
+      "dashboardPhaseProjection.test.js (3/3 passed in 21ms)",
+      "team.assign-committee.test.js (12/12 passed in 73ms)",
+      "team.lock-formation-gate.test.js (5/5 passed in 60ms)",
+      "project.assign-panelist.test.js (11/11 passed in 33ms)",
+      "submission.revision-diff.test.js (2/2 passed in 7612ms)",
+      "submission.annotation.test.js (4/4 passed in 5545ms)",
+      "chapterVersion.test.js (10/10 passed in 17ms)",
+      "auth.registration-domain.test.js (3/3 passed in 15ms)"
+    ],
+    "unit_tests_client": [
+      "TeamsPage.test.jsx (7/7 passed in 620ms)",
+      "registerSchema.test.js (3/3 passed in 17ms)",
+      "NotificationsPage.test.jsx (4/4 passed in 641ms)",
+      "CanonicalDocumentViewer.test.jsx (13/13 passed in 1010ms)",
+      "SophisticatedDocumentViewer.test.jsx (14/14 passed in 784ms)"
+    ]
+  }
+}

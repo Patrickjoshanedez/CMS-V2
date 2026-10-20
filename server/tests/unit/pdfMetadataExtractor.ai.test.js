@@ -3,6 +3,13 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 const parseDocumentMock = vi.fn();
 const parsePdfMock = vi.fn();
 
+vi.mock('../../services/cache.service.js', () => ({
+  default: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock('../../services/ocrExtraction.service.js', () => ({
   ocrExtractionService: {
     parseDocument: parseDocumentMock,

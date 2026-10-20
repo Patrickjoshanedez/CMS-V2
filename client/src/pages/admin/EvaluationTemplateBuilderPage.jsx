@@ -208,20 +208,19 @@ export default function EvaluationTemplateBuilderPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-2">
             <FileSpreadsheet className="h-6 w-6 text-primary" />
             Evaluation Rubric Builder
-          </h2>
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Dr. Sales G. Aribe Jr. Requirement: Design customizable grading rubrics and scoring
-            criteria for proposal and final defenses.
+            Create grading rubrics and scoring criteria for proposal and final defenses.
           </p>
         </div>
 
         {/* Filter by defense type */}
-        <div className="flex gap-2 border-b border-border pb-3">
+        <div className="flex flex-wrap gap-3 [&>button]:min-h-11 border-b border-border pb-3">
           <Button
             variant={selectedDefenseType === 'proposal' ? 'default' : 'outline'}
             size="sm"
@@ -238,9 +237,9 @@ export default function EvaluationTemplateBuilderPage() {
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-12">
+        <div className="grid items-start gap-6 xl:grid-cols-12">
           {/* List of existing templates */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="min-w-0 xl:col-span-5 space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Configured Templates ({templates.length})
             </h3>
@@ -250,8 +249,8 @@ export default function EvaluationTemplateBuilderPage() {
               </div>
             ) : templates.length === 0 ? (
               <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No templates configured for this defense type yet. Create one using the form on the
-                right.
+                No templates configured for this defense type yet. Use the form to create a
+                rubric.
               </div>
             ) : (
               templates.map((tmpl) => (
@@ -260,9 +259,9 @@ export default function EvaluationTemplateBuilderPage() {
                   className={tmpl.isDefault ? 'border-primary/40 bg-primary/5' : ''}
                 >
                   <CardHeader className="p-4 pb-2">
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <CardTitle className="text-base font-semibold flex items-center gap-1.5">
+                        <CardTitle className="text-base font-semibold flex flex-wrap items-center gap-1.5">
                           {tmpl.name}
                           {tmpl.isDefault && (
                             <Badge
@@ -283,7 +282,7 @@ export default function EvaluationTemplateBuilderPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex justify-end gap-2">
+                  <CardContent className="p-4 pt-2 flex flex-wrap justify-end gap-2 [&>button]:min-h-11">
                     <Button
                       size="xs"
                       variant="outline"
@@ -313,7 +312,7 @@ export default function EvaluationTemplateBuilderPage() {
           </div>
 
           {/* Builder / Edit Form */}
-          <div className="lg:col-span-7">
+          <div className="min-w-0 xl:col-span-7">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">
@@ -406,18 +405,18 @@ export default function EvaluationTemplateBuilderPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                    <div className="space-y-4 xl:max-h-[640px] xl:overflow-y-auto xl:pr-1">
                       {criteria.map((crit, idx) => (
                         <div
                           key={idx}
-                          className="flex gap-2 items-start rounded-lg border bg-muted/20 p-3"
+                          className="grid grid-cols-[1fr_auto] gap-3 items-start rounded-lg border bg-muted/20 p-3 sm:flex"
                         >
-                          <div className="flex flex-col gap-1 shrink-0 pt-0.5">
+                          <div className="flex gap-1 shrink-0 sm:flex-col sm:pt-0.5">
                             <Button
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              className="h-11 w-11 text-muted-foreground hover:text-foreground"
                               disabled={idx === 0}
                               onClick={() => handleMoveUp(idx)}
                               title="Move criterion up"
@@ -428,7 +427,7 @@ export default function EvaluationTemplateBuilderPage() {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              className="h-11 w-11 text-muted-foreground hover:text-foreground"
                               disabled={idx === criteria.length - 1}
                               onClick={() => handleMoveDown(idx)}
                               title="Move criterion down"
@@ -437,8 +436,8 @@ export default function EvaluationTemplateBuilderPage() {
                             </Button>
                           </div>
 
-                          <div className="flex-1 space-y-2">
-                            <div className="flex gap-2">
+                          <div className="col-span-2 row-start-2 min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-col sm:flex-row gap-3">
                               <Input
                                 value={crit.name}
                                 onChange={(e) => handleCriterionChange(idx, 'name', e.target.value)}
@@ -476,7 +475,7 @@ export default function EvaluationTemplateBuilderPage() {
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
+                            className="col-start-2 row-start-1 h-11 w-11 text-destructive hover:bg-destructive/10 shrink-0" aria-label={`Remove criterion ${idx + 1}`}
                             onClick={() => handleRemoveCriterion(idx)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -486,7 +485,7 @@ export default function EvaluationTemplateBuilderPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t">
+                  <div className="flex flex-wrap justify-end gap-2 pt-3 border-t">
                     {editingTemplate && (
                       <Button type="button" variant="outline" onClick={resetForm}>
                         Cancel Edit

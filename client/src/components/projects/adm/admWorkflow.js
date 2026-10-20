@@ -1,4 +1,4 @@
-import { ROLES, PANEL_ROLES } from '@cms/shared';
+import { ADM_MILESTONES, ROLES, PANEL_ROLES } from '@cms/shared';
 
 /**
  * Single source of truth for the Action Done Matrix (ADM) workflow on the client.
@@ -6,38 +6,7 @@ import { ROLES, PANEL_ROLES } from '@cms/shared';
  * authorization rules in `server/middleware/authorize.js`.
  */
 
-export const ADM_MILESTONES = Object.freeze({
-  CAPSTONE_1: Object.freeze({
-    id: 'CAPSTONE_1',
-    shortLabel: 'Cap 1',
-    longLabel: 'Capstone 1',
-    title: 'Capstone 1 — Action Done Matrix',
-    pillLabel: 'Cap 1 (ADM v1)',
-    caption: 'Proposal / title defense panel remarks',
-    unisonKey: 'v1',
-    order: 1,
-  }),
-  CAPSTONE_2: Object.freeze({
-    id: 'CAPSTONE_2',
-    shortLabel: 'Cap 2',
-    longLabel: 'Capstone 2',
-    title: 'Capstone 2 — Action Done Matrix',
-    pillLabel: 'Cap 2 (ADM v2)',
-    caption: 'Midterm defense panel remarks',
-    unisonKey: 'v2',
-    order: 2,
-  }),
-  CAPSTONE_3: Object.freeze({
-    id: 'CAPSTONE_3',
-    shortLabel: 'Cap 3',
-    longLabel: 'Capstone 3',
-    title: 'Capstone 3 — Action Done Matrix',
-    pillLabel: 'Cap 3 (ADM v3)',
-    caption: 'Progress and final defense panel remarks',
-    unisonKey: 'v3',
-    order: 3,
-  }),
-});
+export { ADM_MILESTONES };
 
 export const ADM_MILESTONE_IDS = Object.freeze(Object.keys(ADM_MILESTONES));
 
@@ -63,11 +32,13 @@ export function getMilestoneSignatureSet(project, milestone) {
   const unisonKey = ADM_MILESTONES[target]?.unisonKey;
   const fromUnison = unisonKey ? project?.unisonADM?.[unisonKey]?.signatures : null;
   if (fromUnison && Object.keys(fromUnison).length > 0) return fromUnison;
-  if (target === getActiveAdmMilestone(project) && project?.admSignatures) {
+  // The unversioned signature slot is legacy ADM v1 data and must never be
+  // presented as a Capstone 2 or Capstone 3 sign-off.
+  if (target === 'CAPSTONE_1' && project?.admSignatures) {
     return project.admSignatures;
   }
-  // Legacy projects predate per-milestone signatures and only carry the single admSignatures block
-  if (!project?.admSignaturesByMilestone && project?.admSignatures) {
+  // Legacy projects predate per-milestone signatures; the slot still represents ADM v1 only.
+  if (target === 'CAPSTONE_1' && project?.admSignatures) {
     return project.admSignatures;
   }
   return {};

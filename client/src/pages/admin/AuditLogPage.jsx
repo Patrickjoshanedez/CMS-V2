@@ -296,7 +296,7 @@ export default function AuditLogPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
           <div>
@@ -307,11 +307,11 @@ export default function AuditLogPage() {
               Activity Log
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Audited institutional activity, security events, and compliance trail across CMS-V2.
+              Review account activity, security events, and changes to capstone records.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
             <Button
               variant="outline"
               size="sm"
@@ -346,7 +346,7 @@ export default function AuditLogPage() {
         </div>
 
         {/* Telemetry KPI Ribbon */}
-        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-sm transition-all hover:border-primary/30">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
@@ -426,7 +426,7 @@ export default function AuditLogPage() {
                       key={tab.id}
                       type="button"
                       onClick={() => handleTabChange(tab)}
-                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                      className={`inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -574,7 +574,7 @@ export default function AuditLogPage() {
                   {total > 0 ? `${total.toLocaleString()} Audit Records` : 'Audit Records'}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Immutable chronological system logs with cryptographic actors & IP tracing.
+                  Account and record changes in chronological order, with actor and network details.
                 </CardDescription>
               </div>
               {total > 0 && (

@@ -347,7 +347,8 @@ describe('Submissions API — /api/submissions', () => {
         .post(`/api/submissions/${project._id}/chapters`)
         .field('chapter', '1')
         .field('remarks', 'Had technical difficulties with the document.')
-        .attach('file', createPdfBuffer(), 'late-chapter1.pdf');
+        .attach('file', createPdfBuffer(), 'late-chapter1.pdf')
+        .attach('justificationLetter', createPdfBuffer(), 'signed-late-justification.pdf');
 
       expect(res.status).toBe(201);
       expect(res.body.data.submission.isLate).toBe(true);
@@ -440,7 +441,7 @@ describe('Submissions API — /api/submissions', () => {
       extractPdfCommentsSpy.mockRestore();
     });
 
-    it('should accept chapter upload with a valid prototype link', async () => {
+    it('should keep chapter 4 locked until Capstone 2 is complete, even with a prototype link', async () => {
       await Project.findByIdAndUpdate(project._id, { capstonePhase: 3 });
 
       await Submission.create({
@@ -474,9 +475,8 @@ describe('Submissions API — /api/submissions', () => {
         .field('prototypeLink', 'https://prototype.example.com/demo-v1')
         .attach('file', createPdfBuffer(), 'chapter4.pdf');
 
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.submission.chapter).toBe(4);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('CAPSTONE2_NOT_COMPLETED');
     });
 
     it('should reject chapter 4 upload when proposal is not yet approved', async () => {
@@ -768,7 +768,7 @@ describe('Submissions API — /api/submissions', () => {
         fileType: 'application/pdf',
         fileSize: 5000,
         storageKey: 'projects/test/final-journal/final-journal.pdf',
-        status: SUBMISSION_STATUSES.PENDING,
+        status: SUBMISSION_STATUSES.LOCKED,
         submittedBy: studentUser._id,
       });
 
@@ -850,14 +850,14 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
     });
 
-    it('should allow instructor to request revisions', async () => {
+    it('should deny course instructors from reviewing chapter submissions', async () => {
       const res = await instructorAgent.post(`/api/submissions/${submissionId}/review`).send({
         status: 'revisions_required',
         reviewNote: 'Please fix the references.',
       });
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REVISIONS_REQUIRED);
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('ENDORSEMENT_FORBIDDEN_ROLE');
     });
 
     it('should allow adviser to reject', async () => {
@@ -1371,7 +1371,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(notif.message).toContain('Proposal (v1)');
     });
 
-    it('should allow instructor to approve proposal and transition project', async () => {
+    it('should deny course instructors from approving compiled proposals', async () => {
       const res = await instructorAgent
         .post(`/api/submissions/${proposalSubmissionId}/review`)
         .send({
@@ -1379,11 +1379,11 @@ describe('Submissions API — /api/submissions', () => {
           reviewNote: 'Instructor approves.',
         });
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('ENDORSEMENT_FORBIDDEN_ROLE');
 
       const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.ACTIVE);
     });
 
     it('should reject proposal review from student role', async () => {

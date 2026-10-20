@@ -121,20 +121,18 @@ describe('TitleApprovalPage', () => {
       root.render(<TitleApprovalPage />);
     });
 
-    expect(container.textContent).toContain('Capstone Title Proposals & Committee Approval');
-    expect(container.textContent).toContain('Appointed Defense Committee & Institutional Roster');
-    expect(container.textContent).toContain('Candidate Capstone Titles Proposed by Team (2)');
+    expect(container.textContent).toContain('Title proposals and approval');
+    expect(container.textContent).toContain('Defense committee');
+    expect(container.textContent).toContain('Title proposals (2)');
     expect(container.textContent).toContain('Smart Campus Emergency Dispatch System');
     expect(container.textContent).toContain('AI Curriculum Analytics Platform');
     expect(container.textContent).toContain('Under Committee Review');
 
     // Assert Defense Committee Roster is positioned ABOVE Candidate Proposals
     const committeeIdx = container.textContent.indexOf(
-      'Appointed Defense Committee & Institutional Roster',
+      'Defense committee',
     );
-    const candidateIdx = container.textContent.indexOf(
-      'Candidate Capstone Titles Proposed by Team',
-    );
+    const candidateIdx = container.textContent.indexOf('Title proposals (2)');
     expect(committeeIdx).toBeGreaterThan(-1);
     expect(candidateIdx).toBeGreaterThan(-1);
     expect(committeeIdx).toBeLessThan(candidateIdx);
@@ -152,6 +150,21 @@ describe('TitleApprovalPage', () => {
       'Ensure campus mesh radios comply with NTC guidelines.',
     );
     expect(container.textContent).toContain('Dr. Santos');
+  });
+
+  it('renders structured expectedValue in the proposal impact section', async () => {
+    mockProjectData.titleProposalMetadata[0].pitchDeck = {
+      expectedValue: 'Synthetic evaluation target: clearer reservation status and traceable handoffs.',
+    };
+
+    await act(async () => {
+      root.render(<TitleApprovalPage />);
+    });
+
+    expect(container.textContent).toContain(
+      'Synthetic evaluation target: clearer reservation status and traceable handoffs.',
+    );
+    expect(container.textContent).not.toContain('Expected Value / Impact Not provided.');
   });
 
   it('toggles proposal expansion on button click', async () => {
@@ -179,13 +192,11 @@ describe('TitleApprovalPage', () => {
       root.render(<TitleApprovalPage />);
     });
 
-    expect(container.textContent).toContain(
-      'Congratulations! Title Proposal Officially Endorsed & Approved',
-    );
-    expect(container.textContent).toContain('Proceed to Capstone 2 Workspace');
+    expect(container.textContent).toContain('Title approved');
+    expect(container.textContent).toContain('Proceed to Capstone 1 Workspace');
 
     const proceedBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Proceed to Capstone 2 Workspace'),
+      b.textContent.includes('Proceed to Capstone 1 Workspace'),
     );
     expect(proceedBtn).toBeTruthy();
 
@@ -193,7 +204,7 @@ describe('TitleApprovalPage', () => {
       proceedBtn.click();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/project?tab=capstone_2');
+    expect(mockNavigate).toHaveBeenCalledWith('/project?tab=capstone_1');
   });
 
   it('opens and closes Proposal Defense Rehearsal fullscreen presentation modal', async () => {
@@ -238,12 +249,12 @@ describe('TitleApprovalPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/project?view=overview');
   });
 
-  it('renders connected Title Defense & Approval Pipeline with progress percentage and milestones', async () => {
+  it('renders Phase 1 title review progress and committee defense milestones', async () => {
     await act(async () => {
       root.render(<TitleApprovalPage />);
     });
 
-    expect(container.textContent).toContain('Title Defense & Approval Pipeline');
+    expect(container.textContent).toContain('Title review progress');
     expect(container.textContent).toContain('75% Completed');
     expect(container.textContent).toContain('Stage 3: Committee Defense (Deliberation)');
     expect(container.textContent).toContain('1. Proposals Submitted');

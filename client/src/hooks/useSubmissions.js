@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { submissionService } from '../services/submissionService';
 import { plagiarismService } from '../services/plagiarismService';
 import { projectKeys } from './useProjects';
+import { dashboardKeys } from './useDashboard';
 
 const isValidProjectId = (projectId) => {
   if (typeof projectId !== 'string') return false;
@@ -464,6 +465,7 @@ function useSubmissionMutation(mutationFn, options = {}) {
       queryClient.invalidateQueries({ queryKey: submissionKeys.all });
       // Also refresh the project data (phase status may change)
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       onSuccess?.(...args);
     },
     onError,

@@ -214,6 +214,11 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
   };
 
   if (isLoading) return <LoadingSpinner />;
+  if (error?.response?.status === 403) {
+    return (
+      <EvaluationsSummary projectId={projectId} defenseType={defenseType} role={ROLES.FACULTY} />
+    );
+  }
   if (error) return <ErrorAlert message={error.message ?? 'Could not load your evaluation.'} />;
   if (!evaluation) return <ErrorAlert message="No evaluation found for this defense." />;
 
@@ -706,11 +711,9 @@ export default function EvaluationPanel({ projectId, defenseType }) {
 
   if (!user) return null;
 
-  const isPanelistRole =
-    user.role === ROLES.PANELIST ||
-    (user.role === ROLES.FACULTY && user.facultyRole === 'panelist');
+  const canHavePanelAssignment = user.role === ROLES.PANELIST || user.role === ROLES.FACULTY;
 
-  if (isPanelistRole) {
+  if (canHavePanelAssignment) {
     return <PanelistEvaluationForm projectId={projectId} defenseType={defenseType} />;
   }
 

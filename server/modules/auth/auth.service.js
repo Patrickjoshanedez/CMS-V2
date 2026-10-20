@@ -12,7 +12,7 @@ import {
 import { sendOtpEmail } from '../notifications/email.service.js';
 import env from '../../config/env.js';
 import { OAuth2Client } from 'google-auth-library';
-import { isBuksuInstitutionalEmail } from '@cms/shared';
+import { isBuksuStudentEmail, isBuksuInstitutionalEmail } from '@cms/shared';
 
 /**
  * AuthService — Business logic for registration, OTP verification,
@@ -32,9 +32,9 @@ class AuthService {
    * @returns {Object} { user }
    */
   async register({ firstName, middleName, lastName, email, password }) {
-    if (process.env.NODE_ENV !== 'test' && !isBuksuInstitutionalEmail(email)) {
+    if (process.env.NODE_ENV !== 'test' && !isBuksuStudentEmail(email)) {
       throw new AppError(
-        'Only BukSU institutional email accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
+        'Student registration requires a @student.buksu.edu.ph email address.',
         400,
         'INVALID_EMAIL_DOMAIN',
       );
@@ -96,11 +96,10 @@ class AuthService {
       throw new AppError('Invalid OTP code.', 400, 'OTP_INVALID');
     }
 
-    // Delete the used OTP
-    await OTP.deleteMany({ email, type });
-
     if (type === 'verification') {
-      // Mark user as verified
+      // Mark user as verified and delete the used OTP
+      await OTP.deleteMany({ email, type });
+
       const user = await User.findOneAndUpdate(
         { email },
         { isVerified: true },
@@ -114,8 +113,12 @@ class AuthService {
       return { user };
     }
 
-    // For password_reset type, just return success
-    // The actual password change happens in resetPassword
+    // For password_reset type, mark OTP as verified and grant a 10-minute window
+    // so resetPassword can deterministically verify and consume it
+    otpRecord.isVerified = true;
+    otpRecord.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await otpRecord.save();
+
     const user = await User.findOne({ email });
     return { user };
   }
@@ -279,15 +282,32 @@ class AuthService {
 
   /**
    * Reset the user's password after OTP verification.
-   * The OTP was already verified and deleted in the verify-otp step,
-   * so this method only updates the password.
    *
    * @param {Object} data - { email, newPassword }
    * @returns {Object} { user }
    */
   async resetPassword({ email, newPassword }) {
+    const normalizedEmail = email?.toLowerCase();
+
+    // Enforce OTP verification before allowing password reset
+    const otpRecord = await OTP.findOne({
+      email: normalizedEmail,
+      type: 'password_reset',
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord || otpRecord.expiresAt < new Date() || !otpRecord.isVerified) {
+      if (otpRecord && otpRecord.expiresAt < new Date()) {
+        await OTP.deleteMany({ email: normalizedEmail, type: 'password_reset' });
+      }
+      throw new AppError(
+        'Please verify your OTP before resetting the password.',
+        400,
+        'OTP_NOT_VERIFIED',
+      );
+    }
+
     // Find the user and update password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
@@ -304,6 +324,9 @@ class AuthService {
 
     user.password = newPassword;
     await user.save();
+
+    // Consume the verified password_reset OTP
+    await OTP.deleteMany({ email: normalizedEmail, type: 'password_reset' });
 
     // Revoke all existing refresh tokens (force re-login on all devices)
     await RefreshToken.revokeAllForUser(user._id);
@@ -536,7 +559,9 @@ class AuthService {
       email,
       code: plainOtp,
       type,
-      expiresAt: new Date(Date.now() + (Number(env.OTP_EXPIRES_MINUTES) || 10) * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + (type === 'verification' ? 5 : Number(env.OTP_EXPIRES_MINUTES) || 5) * 60 * 1000,
+      ),
     });
 
     // Send OTP via email

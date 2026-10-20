@@ -377,8 +377,12 @@ export function useActionDoneMatrix({
 } = {}) {
   const storeUser = useAuthStore((s) => s?.user);
   const user = userProp || storeUser;
-  const isFaculty = isFacultyProp || user?.role === ROLES?.FACULTY;
-  const isStudent = isStudentProp || user?.role === ROLES?.STUDENT;
+  const isProjectArchived =
+    project?.isArchived === true || project?.projectStatus === 'archived';
+  const isFaculty =
+    !isProjectArchived && (isFacultyProp || user?.role === ROLES?.FACULTY);
+  const isStudent =
+    !isProjectArchived && (isStudentProp || user?.role === ROLES?.STUDENT);
 
   // Navigation tabs: 'adm' (Action Done Matrix) or 'minutes' (Secretary Minutes Form)
   const [activeViewTab, setActiveViewTab] = useState(initialView === 'minutes' ? 'minutes' : 'adm');
@@ -817,12 +821,12 @@ export function useActionDoneMatrix({
 
   // Permissions
   const isUserChair =
-    user &&
+    !isProjectArchived && user &&
     (chair?.userId === user._id ||
       chair?.userId?._id === user._id ||
       (user.role === ROLES?.FACULTY && user.facultyRole === 'chair'));
   const isUserPanelist =
-    user &&
+    !isProjectArchived && user &&
     (isUserChair ||
       rawPanelists.some(
         (p) => p.userId === user._id || p.userId?._id === user._id || p._id === user._id,
@@ -831,23 +835,32 @@ export function useActionDoneMatrix({
   const panelist1User =
     regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0];
   const panelist1Id = panelist1User?._id || panelist1User;
-  const isUserPanelist1 = Boolean(user && panelist1Id && String(panelist1Id) === String(user._id));
+  const isUserPanelist1 = Boolean(
+    !isProjectArchived && user && panelist1Id && String(panelist1Id) === String(user._id),
+  );
 
   const panelist2User =
     regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1];
   const panelist2Id = panelist2User?._id || panelist2User;
-  const isUserPanelist2 = Boolean(user && panelist2Id && String(panelist2Id) === String(user._id));
+  const isUserPanelist2 = Boolean(
+    !isProjectArchived && user && panelist2Id && String(panelist2Id) === String(user._id),
+  );
 
   const secretaryIdStr = (secretary?._id || secretary)?.toString();
   const userIdStr = user?._id?.toString();
   // Only the appointed secretary gets secretary actions; the server enforces the same rule.
   const isUserSecretary = Boolean(
-    isAppointedSecretary(project, user) || (userIdStr && secretaryIdStr === userIdStr),
+    !isProjectArchived &&
+      (isAppointedSecretary(project, user) || (userIdStr && secretaryIdStr === userIdStr)),
   );
   const adviserIdStr = (adviser?._id || adviser)?.toString();
-  const isUserAdviser = Boolean(userIdStr && adviserIdStr === userIdStr);
-  const isUserInstructor = user && user.role === ROLES?.INSTRUCTOR;
-  const isCurrentUserStudent = Boolean(isStudent || user?.role === ROLES?.STUDENT);
+  const isUserAdviser = Boolean(
+    !isProjectArchived && userIdStr && adviserIdStr === userIdStr,
+  );
+  const isUserInstructor = !isProjectArchived && user && user.role === ROLES?.INSTRUCTOR;
+  const isCurrentUserStudent = Boolean(
+    !isProjectArchived && (isStudent || user?.role === ROLES?.STUDENT),
+  );
 
   const designatedInstructorUser =
     project?.sectionId?.instructorId ||
@@ -859,7 +872,8 @@ export function useActionDoneMatrix({
     project?.instructorId;
   const designatedInstructorId = designatedInstructorUser?._id || designatedInstructorUser;
   const isUserDesignatedInstructor = Boolean(
-    user &&
+    !isProjectArchived &&
+      user &&
     user.role === ROLES?.INSTRUCTOR &&
     (!designatedInstructorId || String(designatedInstructorId) === String(user._id)),
   );
@@ -879,6 +893,11 @@ export function useActionDoneMatrix({
       displayedRows.every((r) => r.status === 'addressed' || r.status === 'verified')
     );
   }, [displayedRows]);
+
+  const allRowsVerified = useMemo(
+    () => displayedRows.length > 0 && displayedRows.every((row) => row.status === 'verified'),
+    [displayedRows],
+  );
 
   const projectId = project?._id;
 
@@ -1186,6 +1205,7 @@ export function useActionDoneMatrix({
     canAddRow,
     canManageReviewType,
     allRowsAddressed,
+    allRowsVerified,
   };
 }
 

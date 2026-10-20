@@ -72,11 +72,11 @@ The canonical chat-starter state file lives at:
       "mutation_testing": "Assert negative boundaries and synthetic mutation failures."
     },
     "canonical_capstone_progression": {
-      "phase_0": "Team Formation & Roster Locking (2-4 members, 5 proponent roles, locked via PATCH /api/teams/:id/lock, Instructor assigns committee).",
-      "phase_1": "Capstone 1 (Title Defense & Proposal Pre-Scan, 1..10 proposals, SDG 1..17, cosine similarity pre-scan, proposal defense rubric approval).",
-      "phase_2": "Capstone 2 (Chapters 1-3 Manuscript & Midterm Defense, plagiarism scan <25%, oral defense, ADM v1 sign-off).",
-      "phase_3": "Capstone 3 (System Development & Progress Defense, 4-section Interactive Gantt Chart, isLate gating, Chapters 4 & 5, progress demo, ADM v2 sign-off).",
-      "phase_4": "Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off strictly gated by Secretary Compliance Verification Endorsement, S3/MinIO archival, sealed completion certificate PDF)."
+      "phase_0": "Registration & Team Scaffolding (Student ID, Degree Program, Academic Term/Year, Section, Instructor profile; 1-4 students, 5 proponent roles, locked via PATCH /api/teams/:id/lock).",
+      "phase_1": "Topic Proposals & Committee Assignment (1..10 proposals, discipline, problem statement, objectives, stack, SDG 1..17, similarity screening, Instructor review & committee assignment).",
+      "phase_2": "Capstone 1 (Chapters 1-3 & Proposal Defense: sequential Adviser review, plagiarism clearance, Adviser endorsement, scheduled defense, Secretary minutes, ADM v1, panel evaluation, grade release).",
+      "phase_3": "Capstone 2 (System Development & Prototype Defense: Adviser Gantt approval, weekly progress & late justifications, GitHub/media evidence, Adviser prototype clearance, system defense, ADM v2).",
+      "phase_4": "Capstone 3 (Chapters 4-5 & Final Defense: sequential Adviser review, full manuscript & journal paper plagiarism check, final defense, ADM v3 gated by Secretary endorsement, archival & certificate)."
     },
     "institutional_role_boundaries": {
       "primary_roles": ["student", "instructor", "faculty"],
@@ -103,7 +103,7 @@ The canonical chat-starter state file lives at:
       "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL"
     ],
     "deterministic_quality_gate_battery": [
-      "1. npm run check:endpoints (196 Server / 175 Client, UNMATCHED_COUNT = 0)",
+      "1. npm run check:endpoints (229 Server / 209 Client, UNMATCHED_COUNT = 0)",
       "2. npm run validate:agentic (60/60 checks passed)",
       "3. npm run validate:governance (All 4 stages valid, 0 errors, 0 warnings)",
       "4. npm test --workspace=client (Frontend unit & institutional fidelity tests)",

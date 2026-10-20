@@ -58,10 +58,11 @@ describe('Plagiarism UI Normalized Components', () => {
 
       const text = container.textContent;
       expect(text).toContain('Plagiarism & Similarity Checker');
-      expect(text).toContain('Archive Integrity Scan');
-      expect(text).toContain('BAAI/bge-m3 · 1,024-dim · 8,192 tokens');
-      expect(text).toContain('lexical fingerprinting (Winnowing)');
-      expect(text).toContain('dense vector embeddings');
+      expect(text).toContain('Institutional Archive');
+      expect(text).toContain(
+        'Compare a manuscript or proposal with the institutional archive.',
+      );
+      expect(text).toContain('Review matching passages and their sources');
       ['🚀', '⚡', '🔍', '⏳', '⚠️', '🚨', '✓'].forEach((emoji) => {
         expect(text).not.toContain(emoji);
       });

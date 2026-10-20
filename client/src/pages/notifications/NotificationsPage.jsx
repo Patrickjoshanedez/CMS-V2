@@ -322,7 +322,7 @@ function NotificationItem({
           'border-rose-500/50 bg-rose-500/[0.05] dark:bg-rose-500/[0.08]',
       )}
     >
-      <CardContent className="flex items-start gap-4 p-4">
+      <CardContent className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-3 p-4 sm:flex sm:gap-4">
         {/* Type Icon Badge */}
         <div
           className={cn(
@@ -379,7 +379,7 @@ function NotificationItem({
 
           <p className="text-sm text-muted-foreground leading-relaxed">{notification.message}</p>
 
-          <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-muted-foreground">
             <span>
               {notification.createdAt
                 ? new Date(notification.createdAt).toLocaleDateString('en-US', {
@@ -397,7 +397,7 @@ function NotificationItem({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="col-start-2 flex flex-wrap items-center justify-end gap-2 shrink-0 sm:justify-start [&>button]:min-h-11 [&>button]:min-w-11">
           <Button
             variant="ghost"
             size="icon"
@@ -690,7 +690,7 @@ export default function NotificationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
         {/* Header Ribbon */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
           <div>
@@ -703,13 +703,15 @@ export default function NotificationsPage() {
               )}
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              {unreadCount > 0
-                ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}.`
-                : 'You are completely caught up.'}
+              {isLoading
+                ? 'Loading your notifications…'
+                : unreadCount > 0
+                  ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}.`
+                  : 'You are completely caught up.'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
             {unreadCount > 0 && (
               <Button
                 variant="outline"
@@ -739,9 +741,9 @@ export default function NotificationsPage() {
         </div>
 
         {/* Filter Toolbar: Category Tabs + Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/20 p-2 rounded-xl border border-border/60">
+        <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-[minmax(0,1fr)_14rem] xl:items-center">
           {/* Category Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
             {CATEGORY_TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -751,7 +753,7 @@ export default function NotificationsPage() {
                   setPage(1);
                 }}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
+                  'min-h-11 sm:min-h-9 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors',
                   activeTab === tab.id
                     ? 'bg-card text-foreground shadow-xs font-semibold border border-border/80'
                     : 'text-muted-foreground hover:text-foreground hover:bg-card/50',
@@ -763,13 +765,13 @@ export default function NotificationsPage() {
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full xl:w-56">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search notifications..."
-              className="h-8 pl-8 pr-7 text-xs bg-background"
+              className="h-11 sm:h-9 pl-8 pr-7 text-sm bg-background"
             />
             {searchQuery && (
               <button

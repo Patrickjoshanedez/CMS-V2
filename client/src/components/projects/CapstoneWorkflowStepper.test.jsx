@@ -60,24 +60,54 @@ describe('CapstoneWorkflowStepper Component', () => {
     expect(container.textContent).toContain('Phase 1');
     expect(container.textContent).toContain('Phase 2');
     expect(container.textContent).toContain('Phase 3');
+    expect(container.textContent).toContain('Phase 4');
+  });
+
+  it('uses the submitted-evaluation count supplied from the evaluation service', async () => {
+    await act(async () => {
+      root.render(
+        <CapstoneWorkflowStepper
+          project={{
+            _id: 'proj-evaluations',
+            title: 'Synthetic workflow fixture',
+            titleStatus: 'approved',
+            projectStatus: 'active',
+            capstonePhase: 1,
+            evaluations: [],
+          }}
+          evaluationCount={2}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain('2 submitted evaluation(s)');
   });
 
   it('correctly resolves active currentStep from project metadata across 5 stages', () => {
     // Archived / Defended -> Step 4
     expect(resolveCurrentStep({ projectStatus: 'defended' })).toBe(4);
     expect(resolveCurrentStep({ isArchived: true })).toBe(4);
+    expect(
+      resolveCurrentStep({
+        projectStatus: 'defended',
+        workflowPhase: 2,
+        capstonePhase: 1,
+        stage: 'capstone_1',
+      }),
+    ).toBe(2);
 
-    // Phase 3 (Final & Archival) -> Step 4
+    // Capstone 3 final defense & archival -> Step 4
     expect(resolveCurrentStep({ capstonePhase: 3 })).toBe(4);
 
-    // Phase 2 (System Dev) -> Step 3
+    // Capstone 2 system development -> Step 3
     expect(resolveCurrentStep({ capstonePhase: 2 })).toBe(3);
 
-    // Phase 1 (Title approved) -> Step 2
+    // Capstone 1 proposal manuscript -> Step 2
     expect(resolveCurrentStep({ capstonePhase: 1, titleStatus: 'approved' })).toBe(2);
     expect(resolveCurrentStep({ titleStatus: 'approved' })).toBe(2);
+    expect(resolveCurrentStep({ projectStatus: 'proposal_approved' })).toBe(2);
 
-    // Title Proposal (Draft or Submitted or Revision) -> Step 1
+    // Pre-course title proposal review (Draft or Submitted or Revision) -> Step 1
     expect(resolveCurrentStep({ titleStatus: 'submitted' })).toBe(1);
     expect(resolveCurrentStep({ titleStatus: 'draft' })).toBe(1);
     expect(resolveCurrentStep({ titleProposals: [{ title: 'Smart City' }] })).toBe(1);

@@ -74,7 +74,7 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b pb-3">
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-primary" />
           <CardTitle className="text-base font-bold">
@@ -84,14 +84,14 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
         <div className="flex items-center gap-1">
           <button
             onClick={handlePrevMonth}
-            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
             aria-label="Previous Month"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={handleNextMonth}
-            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
             aria-label="Next Month"
           >
             <ChevronRight className="h-4 w-4" />
@@ -99,9 +99,9 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 grid gap-4 md:grid-cols-3">
+      <CardContent className="p-4 grid gap-6 xl:grid-cols-3">
         {/* Calendar Grid */}
-        <div className="md:col-span-2 space-y-2">
+        <div className="min-w-0 xl:col-span-2 space-y-2">
           <div className="grid grid-cols-7 text-center text-xs font-semibold text-muted-foreground">
             <span>Sun</span>
             <span>Mon</span>

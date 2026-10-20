@@ -42,7 +42,12 @@ import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import FacultyCommitteeCard from './FacultyCommitteeCard';
 import AcademicReportsWidget from './AcademicReportsWidget';
 import { cn } from '@/lib/utils';
-import { CAPSTONE_PHASES, PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
+import {
+  CAPSTONE_PHASES,
+  PROJECT_STATUSES,
+  TITLE_STATUSES,
+  resolveWorkflowPhase,
+} from '@cms/shared';
 
 /**
  * Normalizes entity prefixes defensively to prevent bugs like "Team Team Gamma".
@@ -56,18 +61,11 @@ function cleanTeamName(name) {
 }
 
 function getPhaseLabel(phase, project) {
-  const isADMApproved =
-    project?.admStatus === 'approved' ||
-    (Boolean(project?.admSignatures?.secretary?.endorsed) &&
-      Boolean(project?.admSignatures?.adviser?.signed) &&
-      Boolean(project?.admSignatures?.chair?.signed));
-
-  const num = Number(phase ?? 0);
-  if (num >= CAPSTONE_PHASES.PHASE_3) {
-    return isADMApproved ? 'Phase 3: Final Manuscript & Archival' : 'Phase 2: System Dev & ADM';
-  }
-  if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: System Development & Prototype';
-  if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposal & Ch 1–3';
+  const resolvedPhase = project ? resolveWorkflowPhase(project) : Number(phase ?? 0);
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Capstone 3 Final Defense & Archival';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Capstone 2 System Development';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Capstone 1 Chapters 1–3 & Proposal Defense';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Topic Proposals & Committee Assignment';
   return 'Phase 0: Team Formation';
 }
 
@@ -85,7 +83,7 @@ export const CAPSTONE_STEPS = [
     id: 1,
     label: 'Title Proposal',
     sublabel: '1–10 Proposals & Pre-Scan',
-    tag: 'Proposal',
+    tag: 'Phase 1',
     semester: 'Pre-Defense',
     icon: FileText,
     hasADM: false,
@@ -94,7 +92,7 @@ export const CAPSTONE_STEPS = [
     id: 2,
     label: 'Capstone 1',
     sublabel: '1st Sem • Ch. 1–3 & Proposal Defense',
-    tag: 'Phase 1',
+    tag: 'Phase 2',
     semester: '1st Semester',
     semesterTag: '1st Sem',
     icon: Search,
@@ -104,7 +102,7 @@ export const CAPSTONE_STEPS = [
     id: 3,
     label: 'Capstone 2',
     sublabel: '2nd Sem • System Dev & Prototype Defense',
-    tag: 'Phase 2',
+    tag: 'Phase 3',
     semester: '2nd Semester',
     semesterTag: '2nd Sem',
     icon: Code2,
@@ -114,7 +112,7 @@ export const CAPSTONE_STEPS = [
     id: 4,
     label: 'Capstone 3',
     sublabel: '3rd Sem • Ch. 4–5, Final Defense & Archival',
-    tag: 'Phase 3',
+    tag: 'Phase 4',
     semester: '3rd Semester',
     semesterTag: '3rd Sem',
     icon: Award,
@@ -135,35 +133,18 @@ export function resolveCurrentStep(project) {
   if (!project) return 0;
 
   const status = project.projectStatus || project.status;
-  if (status === PROJECT_STATUSES.DEFENDED || status === 'archived' || project.isArchived) {
+  if (status === 'archived' || project.isArchived) {
     return 4;
   }
 
-  const phase = Number(project.capstonePhase ?? project.phase ?? 0);
-  if (phase >= 3 || phase >= CAPSTONE_PHASES.PHASE_3) {
-    return 4;
-  }
-  if (phase >= CAPSTONE_PHASES.PHASE_2) return 3;
-
-  const titleApproved =
-    project.titleStatus === TITLE_STATUSES.APPROVED ||
-    project.titleStatus === 'approved' ||
-    project.titleStatus === 'title_approved';
-
-  if (phase >= CAPSTONE_PHASES.PHASE_1 && titleApproved) {
-    return 2;
-  }
-
-  if (titleApproved) {
-    return 2;
-  }
-
-  // If project exists with team or proposals but title is not approved yet
-  if (project.titleStatus || project.titleProposals?.length || project._id) {
-    return 1;
-  }
-
-  return 0;
+  const hasPhaseEvidence =
+    project.workflowPhase != null ||
+    project.stage != null ||
+    project.capstonePhase != null ||
+    project.phase != null;
+  const phase = resolveWorkflowPhase(project);
+  if (status === PROJECT_STATUSES.DEFENDED && !hasPhaseEvidence) return 4;
+  return phase;
 }
 
 /**
@@ -174,6 +155,7 @@ export function resolveCurrentStep(project) {
 export default function CapstoneWorkflowStepper({
   currentStep,
   project,
+  evaluationCount,
   onStepClick,
   onSelectProposal,
   isStudent = true,
@@ -230,10 +212,11 @@ export default function CapstoneWorkflowStepper({
   const isCommitteeComplete = hasAdviser && hasSecretary && panelCount >= 3;
 
   // Executive KPI derivations
-  const totalEvals = project?.evaluations?.length || 0;
+  const projectEvaluations = Array.isArray(project?.evaluations) ? project.evaluations : [];
+  const totalEvals = evaluationCount ?? projectEvaluations.length;
   let avgScore = 'N/A';
-  if (totalEvals > 0) {
-    const totalScore = project.evaluations.reduce(
+  if (projectEvaluations.length > 0) {
+    const totalScore = projectEvaluations.reduce(
       (sum, evalItem) => sum + (evalItem.score || evalItem.totalScore || 0),
       0,
     );
@@ -261,7 +244,7 @@ export default function CapstoneWorkflowStepper({
       ? `${project.adviserId.firstName} ${project.adviserId.lastName || ''}`.trim()
       : null);
 
-  const phaseLabel = getPhaseLabel(project?.capstonePhase ?? project?.phase, project);
+  const phaseLabel = getPhaseLabel(project?.workflowPhase ?? project?.capstonePhase ?? project?.phase, project);
 
   const githubUrl =
     project?.developmentAssets?.githubRepoUrl ||
@@ -673,7 +656,7 @@ export default function CapstoneWorkflowStepper({
 
           {/* 4-Card Executive KPI Strip */}
           <div
-            className="pt-3 border-t border-border/50 grid grid-cols-2 md:grid-cols-4 gap-2.5"
+            className="pt-3 border-t border-border/50 grid grid-cols-1 min-[360px]:grid-cols-2 xl:grid-cols-4 gap-3"
             data-testid="milestone-kpi-grid"
           >
             {/* KPI 1: Avg Score & Evaluation Summary */}
@@ -688,7 +671,7 @@ export default function CapstoneWorkflowStepper({
                 <p className="text-lg font-bold text-emerald-500">{avgScore}</p>
               </div>
               <p
-                className="text-[10px] text-muted-foreground mt-0.5 truncate"
+                className="text-xs leading-relaxed text-muted-foreground mt-1 break-words"
                 title={
                   totalEvals > 0
                     ? `${totalEvals} evaluation record(s)`
@@ -724,7 +707,7 @@ export default function CapstoneWorkflowStepper({
                 </div>
                 <p className="text-lg font-bold text-blue-500">{panelCount}/3</p>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-between">
+              <p className="text-xs leading-relaxed text-muted-foreground mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span>{isCommitteeComplete ? 'Panel complete' : 'Formation pending'}</span>
                 <span className="text-[10px] text-primary group-hover:underline font-medium">
                   View &rarr;
@@ -743,10 +726,10 @@ export default function CapstoneWorkflowStepper({
                 </div>
                 <p className="text-lg font-bold text-indigo-500">{totalEvals}</p>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+              <p className="text-xs leading-relaxed text-muted-foreground mt-1 break-words">
                 {totalEvals > 0
-                  ? `${totalEvals} completed evaluation(s)`
-                  : 'No defense evaluations yet'}
+                  ? `${totalEvals} submitted evaluation(s)`
+                  : 'No submitted defense evaluations yet'}
               </p>
             </div>
 
@@ -788,7 +771,7 @@ export default function CapstoneWorkflowStepper({
                 </div>
               </div>
               <p
-                className="text-[10px] text-muted-foreground mt-0.5 truncate"
+                className="text-xs leading-relaxed text-muted-foreground mt-1 break-words"
                 title="Threshold cascaded from coordinator settings"
               >
                 {similarityScore <= maxThreshold ? 'Within threshold policy' : 'Threshold exceeded'}
@@ -842,21 +825,21 @@ export default function CapstoneWorkflowStepper({
       </div>
 
       {/* Connected Milestone Pipeline Track */}
-      <div className="mt-3 overflow-x-auto pb-1.5 pt-0.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20">
-        <div className="relative min-w-[620px] px-5 sm:px-8 py-2">
+      <div className="mt-3 pb-2 pt-2">
+        <div className="relative py-2">
           {/* Background Track Line */}
-          <div className="absolute top-[28px] left-[40px] right-[40px] sm:left-[52px] sm:right-[52px] h-1.5 -translate-y-1/2 rounded-full bg-muted/70 z-0" />
+          <div className="hidden lg:block absolute top-[30px] left-[10%] right-[10%] h-1.5 -translate-y-1/2 rounded-full bg-muted/70 z-0" />
 
           {/* Active Gradient Filled Track Line */}
           <div
-            className="absolute top-[28px] left-[40px] sm:left-[52px] h-1.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-500 via-primary to-primary transition-all duration-500 z-0"
+            className="hidden lg:block absolute top-[30px] left-[10%] h-1.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-500 via-primary to-primary transition-all duration-500 z-0"
             style={{
-              width: `calc((100% - ${typeof window !== 'undefined' && window.innerWidth < 640 ? '80px' : '104px'}) * ${progressPercent / 100})`,
+              width: `${progressPercent * 0.8}%`,
             }}
           />
 
           {/* Milestone Nodes */}
-          <div className="relative z-10 flex items-start justify-between">
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-0">
             {CAPSTONE_STEPS.map((step) => {
               const Icon = step.icon;
               const isCompleted = step.id < activeStep;
@@ -877,7 +860,7 @@ export default function CapstoneWorkflowStepper({
                     }
                   }}
                   className={cn(
-                    'flex flex-col items-center text-center group min-w-[100px] max-w-[120px] sm:max-w-[140px]',
+                    'flex w-full min-w-0 items-center gap-3 text-left group lg:w-1/5 lg:flex-col lg:items-center lg:gap-0 lg:px-2 lg:text-center',
                     onStepClick ? 'cursor-pointer' : 'cursor-default',
                   )}
                 >
@@ -892,7 +875,7 @@ export default function CapstoneWorkflowStepper({
                     }}
                     aria-label={`${step.label} (${step.tag})`}
                     className={cn(
-                      'relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full transition-all duration-200 outline-none',
+                      'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-200 outline-none',
                       onStepClick &&
                         'cursor-pointer hover:scale-110 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary',
                       isCompleted &&
@@ -915,7 +898,7 @@ export default function CapstoneWorkflowStepper({
                   </button>
 
                   {/* Node Labels */}
-                  <div className="mt-3 flex flex-col items-center space-y-0.5 w-full px-1">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 lg:mt-3 lg:w-full lg:flex-col lg:flex-nowrap lg:gap-0 lg:space-y-0.5 lg:px-1">
                     <span
                       className={cn(
                         'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
@@ -932,7 +915,7 @@ export default function CapstoneWorkflowStepper({
 
                     <p
                       className={cn(
-                        'text-xs font-semibold leading-tight pt-1 break-words line-clamp-1 w-full',
+                        'text-sm lg:text-xs font-semibold leading-snug lg:leading-tight lg:pt-1 break-words lg:line-clamp-2 lg:w-full',
                         isCurrent &&
                           (!titleApproved && step.id === 1
                             ? 'text-amber-700 dark:text-amber-400 font-bold'
@@ -946,14 +929,14 @@ export default function CapstoneWorkflowStepper({
                     </p>
 
                     <p
-                      className="text-[10px] text-muted-foreground leading-tight line-clamp-1 w-full hidden sm:block"
+                      className="text-[10px] text-muted-foreground leading-relaxed lg:line-clamp-2 w-full hidden lg:block"
                       title={sublabel}
                     >
                       {sublabel}
                     </p>
 
                     {/* Status Pill Indicator */}
-                    <div className="pt-1">
+                    <div className="ml-auto lg:ml-0 lg:pt-1">
                       {isCompleted && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                           <CheckCircle2 className="h-3 w-3" />
@@ -1472,6 +1455,7 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
 CapstoneWorkflowStepper.propTypes = {
   currentStep: PropTypes.number,
   project: PropTypes.object,
+  evaluationCount: PropTypes.number,
   onStepClick: PropTypes.func,
   onSelectProposal: PropTypes.func,
   isStudent: PropTypes.bool,

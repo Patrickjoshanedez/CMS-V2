@@ -140,7 +140,9 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
     onSuccess: (res) => {
       const score = res?.data?.originalityScore ?? 100;
       const match = res?.data?.overallScore ?? 0;
-      toast.success(`Archive scan complete! Originality: ${score}% (${match}% match)`);
+      toast.success(
+        `Archive scan complete. Estimated non-matching text: ${score}% (${match}% similarity).`,
+      );
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || err?.message || 'Archive scan failed.');
@@ -151,6 +153,11 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
     scanArchiveMutation.isPending ||
     submission.plagiarismResult?.status === PLAGIARISM_STATUSES.PROCESSING ||
     submission.plagiarismResult?.status === PLAGIARISM_STATUSES.QUEUED;
+  const scanCoverage =
+    submission.plagiarismResult?.scanCoverage ||
+    submission.plagiarismResult?.fullReport?.scanCoverage ||
+    'full';
+  const hasFullScanCoverage = scanCoverage === 'full';
 
   const handleDownload = async () => {
     try {
@@ -249,7 +256,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
 
             <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Originality Score
+                Estimated Non-Matching Text
               </p>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-bold text-foreground">
@@ -262,16 +269,24 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                     <span
                       className={cn(
                         'text-[10px] font-bold px-1.5 py-0.5 rounded-sm',
-                        submission.originalityScore >= 75
+                        hasFullScanCoverage && submission.originalityScore >= 75
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                           : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
                       )}
                     >
-                      {submission.originalityScore >= 75 ? 'Compliant' : 'Review Needed'}
+                      {!hasFullScanCoverage
+                        ? 'Preliminary'
+                        : submission.originalityScore >= 75
+                          ? 'Target Met'
+                          : 'Review Needed'}
                     </span>
                   )}
               </div>
-              <p className="text-xs text-muted-foreground">Target: &gt; 75% Original</p>
+              <p className="text-xs text-muted-foreground">
+                {hasFullScanCoverage
+                  ? 'Estimated from detected similarity; not proof of authorship.'
+                  : 'Partial scan only; final clearance requires full scan coverage.'}
+              </p>
             </div>
 
             <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
@@ -290,13 +305,13 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
           {/* Originality Progress Meter */}
           {submission.originalityScore !== null && submission.originalityScore !== undefined && (
             <div className="rounded-xl border border-border/60 bg-background/60 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold">
+              <div className="flex flex-col gap-1 text-xs font-semibold sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-1.5 text-foreground">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span>BukSU Originality &amp; Similarity Verification</span>
+                  <span>Similarity Scan Estimate</span>
                 </div>
-                <span className="text-muted-foreground font-mono">
-                  {submission.originalityScore}% Originality ·{' '}
+                <span className="break-words text-left font-mono text-muted-foreground sm:text-right">
+                  {submission.originalityScore}% estimated non-matching ·{' '}
                   {Math.max(0, 100 - submission.originalityScore)}% Similarity Match
                 </span>
               </div>

@@ -1,13 +1,16 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { useAuthStore } from '@/stores/authStore';
 import AcademicExcelGanttChart, {
   extractProjectMembers,
   extractProjectAdviser,
   extractProjectInstructor,
   COLOR_OPTIONS,
   addWorkingDays,
+  canEditGanttSchedule,
 } from './AcademicExcelGanttChart';
+import InteractiveGanttChart from './InteractiveGanttChart';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -17,6 +20,7 @@ describe('AcademicExcelGanttChart Component', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    useAuthStore.setState({ user: null });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -28,6 +32,7 @@ describe('AcademicExcelGanttChart Component', () => {
     });
     container.remove();
     localStorage.clear();
+    useAuthStore.setState({ user: null });
   });
 
   describe('Utility extraction functions', () => {
@@ -87,6 +92,35 @@ describe('AcademicExcelGanttChart Component', () => {
       const end = addWorkingDays('2026-03-23', 5);
       expect(end).toBe('2026-03-27');
     });
+
+    it('grants schedule editing only to assigned student members and the assigned Adviser', () => {
+      const project = {
+        adviserId: { _id: 'adviser-1' },
+        panelistIds: [{ _id: 'panelist-1' }],
+        teamId: {
+          leaderId: { _id: 'student-lead' },
+          members: [{ _id: 'student-member' }],
+          memberRoles: [{ userId: { _id: 'student-role-member' } }],
+        },
+      };
+
+      expect(canEditGanttSchedule(project, { _id: 'student-lead', role: 'student' })).toBe(true);
+      expect(canEditGanttSchedule(project, { id: 'student-member', role: 'student' })).toBe(true);
+      expect(canEditGanttSchedule(project, { _id: 'student-role-member', role: 'student' })).toBe(true);
+      expect(canEditGanttSchedule(project, { _id: 'adviser-1', role: 'faculty' })).toBe(true);
+      expect(canEditGanttSchedule(project, { _id: 'adviser-1', role: 'adviser' })).toBe(true);
+      expect(canEditGanttSchedule(project, { _id: 'student-outsider', role: 'student' })).toBe(false);
+      expect(
+        canEditGanttSchedule({ ...project, isArchived: true }, { _id: 'student-lead', role: 'student' }),
+      ).toBe(false);
+      expect(
+        canEditGanttSchedule({ ...project, projectStatus: 'archived' }, { _id: 'adviser-1', role: 'faculty' }),
+      ).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'faculty-outsider', role: 'faculty' })).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'instructor-1', role: 'instructor' })).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'panelist-1', role: 'faculty' })).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'panelist-1', role: 'panelist' })).toBe(false);
+    });
   });
 
   describe('UI Component rendering and interactions', () => {
@@ -124,6 +158,53 @@ describe('AcademicExcelGanttChart Component', () => {
         category: 'yellow',
       },
     ];
+
+    it('explains that pending Capstone 2 schedules are view-only for students', async () => {
+      await act(async () => {
+        root.render(<AcademicExcelGanttChart project={mockSoloProject} isReadOnly />);
+      });
+
+      expect(container.textContent).toContain(
+        'View-only schedule — editing is limited to assigned team members and the assigned Adviser',
+      );
+      expect(container.textContent).not.toContain('Click any cell to edit');
+      expect(Array.from(container.querySelectorAll('button')).some((button) =>
+        button.textContent.includes('Add Section'),
+      )).toBe(false);
+    });
+
+    it('shows schedule editing controls only to assigned students and the assigned Adviser', async () => {
+      const project = {
+        _id: 'gantt-permission-project',
+        adviserId: 'adviser-1',
+        panelistIds: ['panelist-1'],
+        teamId: {
+          leaderId: 'student-lead',
+          members: ['student-lead', 'student-member'],
+        },
+      };
+      const renderFor = async (user) => {
+        useAuthStore.setState({ user });
+        await act(async () => {
+          root.render(
+            <InteractiveGanttChart
+              project={project}
+              defaultView="compact"
+            />,
+          );
+        });
+        return Array.from(container.querySelectorAll('button')).some((button) =>
+          button.textContent.includes('Add Task'),
+        );
+      };
+
+      expect(await renderFor({ _id: 'student-member', role: 'student' })).toBe(true);
+      expect(await renderFor({ _id: 'adviser-1', role: 'faculty' })).toBe(true);
+      expect(await renderFor({ _id: 'student-outsider', role: 'student' })).toBe(false);
+      expect(await renderFor({ _id: 'faculty-outsider', role: 'faculty' })).toBe(false);
+      expect(await renderFor({ _id: 'panelist-1', role: 'faculty' })).toBe(false);
+      expect(await renderFor({ _id: 'instructor-1', role: 'instructor' })).toBe(false);
+    });
 
     it('renders correct team member in filter and header for Solo Leveling', async () => {
       await act(async () => {
@@ -195,7 +276,11 @@ describe('AcademicExcelGanttChart Component', () => {
 
     it('allows toggling day fill boxes when cell is clicked', async () => {
       await act(async () => {
-        root.render(<AcademicExcelGanttChart project={mockSoloProject} />);
+        root.render(
+          <AcademicExcelGanttChart
+            project={{ ...mockSoloProject, ganttApproval: { approved: true } }}
+          />,
+        );
       });
 
       // Add a row first
@@ -252,13 +337,36 @@ describe('AcademicExcelGanttChart Component', () => {
       };
 
       await act(async () => {
-        root.render(<AcademicExcelGanttChart project={approvedProject} />);
+        root.render(
+          <AcademicExcelGanttChart
+            project={approvedProject}
+            tasks={mockSampleTasks}
+            sections={['SECTION 1 — PROJECT PLANNING & RESEARCH']}
+          />,
+        );
       });
 
       const banner = container.querySelector('[data-testid="gantt-approval-banner"]');
       expect(banner).toBeTruthy();
       expect(container.textContent).toContain('Gantt Schedule Pre-Approved by Adviser');
       expect(container.textContent).toContain('Pre-Approved');
+    });
+
+    it('does not present an approved Gantt status when no milestone deliverable exists', async () => {
+      const emptyApprovedProject = {
+        ...mockSoloProject,
+        ganttApproval: { approved: true, approvedAt: '2026-03-10T10:00:00Z' },
+      };
+
+      await act(async () => {
+        root.render(<AcademicExcelGanttChart project={emptyApprovedProject} />);
+      });
+
+      expect(container.textContent).toContain('Awaiting Pre-Approval');
+      expect(container.textContent).toContain(
+        'Create at least one named deliverable in a milestone section before the schedule can be reviewed or approved.',
+      );
+      expect(container.textContent).not.toContain('Gantt Schedule Pre-Approved by Adviser');
     });
 
     it('calculates and renders Pending accomplishment when empty, and percentage when tasks exist', async () => {

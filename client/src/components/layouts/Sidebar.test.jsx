@@ -109,7 +109,7 @@ describe('Sidebar Component', () => {
 
     // Check section headings
     expect(container.textContent).toContain('Workspace');
-    expect(container.textContent).toContain('Evaluation');
+    expect(container.textContent).toContain('Research Tools');
 
     // Check student items
     expect(container.textContent).toContain('Dashboard');
@@ -190,7 +190,9 @@ describe('Sidebar Component', () => {
     expect(container.textContent).toContain('Instructor Review');
     expect(container.textContent).toContain('Committee Assignments');
     expect(container.textContent).toContain('Reports');
-    expect(container.textContent).toContain('Archived Capstone');
+    expect(container.textContent).toContain('Research Archive');
+    expect(container.textContent).toContain('Browse Archive');
+    expect(container.textContent).toContain('Upload Research');
     expect(container.textContent).toContain('Evaluation Rubrics');
     expect(container.textContent).toContain('Users');
     expect(container.textContent).toContain('Activity Log');

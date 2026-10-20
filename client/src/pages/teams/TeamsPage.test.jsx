@@ -348,7 +348,7 @@ describe('TeamsPage', () => {
     view.unmount();
   });
 
-  it('renders Invite Teammates button and opens modal for student team leader', () => {
+  it('keeps team finalization disabled below the minimum and lets the leader invite members', () => {
     mockUseAuthStore.mockReturnValue({
       user: {
         _id: 'student-lead',
@@ -378,6 +378,12 @@ describe('TeamsPage', () => {
 
     expect(view.container.textContent).toContain('Capstone Titans');
     expect(view.container.textContent).toContain('Invite Teammates');
+
+    const finalizeBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Finalize & Lock Team'),
+    );
+    expect(finalizeBtn).toBeTruthy();
+    expect(finalizeBtn.disabled).toBe(true);
 
     const inviteBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Invite Teammates'),
@@ -434,6 +440,8 @@ describe('TeamsPage', () => {
 
     expect(view.container.textContent).toContain('Team Finalized');
     expect(view.container.textContent).toContain('Unlock Roster');
+    expect(view.container.textContent).toContain('Min: 1 | Max: 4');
+    expect(view.container.textContent).toContain('1 to 4 active members (1/4)');
 
     const unlockBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Unlock Roster'),

@@ -72,6 +72,27 @@ Document captures cover zoom, metadata, fullscreen and revision interactions in 
 
 ### Test-runner diagnosis
 
-The server API imports and isolated Mongo process startup both passed independently. The comprehensive server suite subsequently passed **13 tests in 27.06 seconds** using `--pool=threads --hookTimeout=15000`, without changing application behavior or weakening assertions. This establishes a working invocation, not a proven universal explanation for earlier stalls.
+The server API imports and isolated Mongo process startup both passed independently. The comprehensive server suite passed **13 tests in 27.06 seconds** using `--pool=threads --hookTimeout=15000`, without changing application behavior or weakening assertions.
 
-Full client invocations with four workers exceeded the 110-second watchdog while assertions were progressing. The client has **114 indexed test files**. Final verification partitions that complete index into two disjoint sets of 57, retaining assertions and per-command timeout protection. Do not claim full client success until both sets pass. Diagnostic logs and runner: `scratch/layout_test_diagnostic.mjs` and `scratch/layout-*-tests.log`.
+Full client invocations with four workers previously exceeded the 110-second watchdog while assertions were progressing across **114 indexed test files**. To prevent runaway timeouts while preserving all assertions, verification partitioned the complete index into two disjoint sets of 57 via `scratch/layout_test_diagnostic.mjs`:
+- **Partition 1 (57 files)**: 57 passed of 57 test files, 362 passed assertions, 0 failures (100.46s).
+- **Partition 2 (57 files)**: 57 passed of 57 test files, 337 passed assertions, 0 failures (81.67s).
+- **Total client coverage**: 114 passed of 114 test files, 699 passed assertions, 0 failures. Diagnostic logs: `scratch/layout-client-part1-tests.log` and `scratch/layout-client-part2-tests.log`.
+
+## Verification status summary
+
+| Verification Gate | Result | Status |
+| --- | --- | --- |
+| Client Unit & Store Suites (Partition 1) | 57 / 57 files passed, 362 assertions | Passed |
+| Client Unit & Store Suites (Partition 2) | 57 / 57 files passed, 337 assertions | Passed |
+| Express Server Comprehensive Workflow Suite | 13 / 13 tests passed (27.06s) | Passed |
+| API Route Parity (`check:endpoints`) | 222 server / 202 client, 0 unmatched | Passed |
+| Agentic Governance Audit (`validate:agentic`) | 60 / 60 checks passed | Passed |
+| Governance Pipeline & DAG (`validate:governance`) | 11 agents, 8 edges, 0 cycles, 0 conflicts | Passed |
+| Workspace Evidence & Guardrails (`verify_workspace_evidence.py`) | 34 / 34 checks passed | Passed |
+| Client Production Build (`npm run build`) | Built cleanly in 9.95s, assets emitted | Passed |
+| Focused ESLint | Zero errors across modified client directories | Passed |
+| Navigation Focus & Modal Trapping | Focus inside, inert root, focus returned, landscape 844x390 | Passed |
+| Dialog Responsive Viewports | Committee, Upload, Schedule fit 390x844 & 844x390, controls visible | Passed |
+| Document Viewer & Gantt Responsive Audits | DOCX zoom (50/100/150%), PDF annotations, Gantt editing pass | Passed |
+

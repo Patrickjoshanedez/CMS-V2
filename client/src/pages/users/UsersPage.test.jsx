@@ -134,7 +134,7 @@ describe('UsersPage Role Management (RBAC)', () => {
 
   const switchToRbacTab = async () => {
     const rbacTabTrigger = Array.from(container.querySelectorAll('[role="tab"], button')).find(
-      (el) => el.textContent?.includes('Role Management (RBAC)'),
+      (el) => el.textContent?.includes('Account Roles'),
     );
     if (rbacTabTrigger) {
       await act(async () => {

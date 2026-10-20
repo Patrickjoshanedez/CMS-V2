@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
+import { getMilestoneDeadlineState } from '@/utils/milestoneDeadlines';
 import {
   Upload,
   FileText,
@@ -75,6 +76,7 @@ export default function UploadChapterModal({
   projectId,
   latestSubmission = null,
   deadlines = {},
+  deadlinePolicies = {},
   onUploadSuccess = null,
   isCap2ADMApproved = true,
 }) {
@@ -163,14 +165,14 @@ export default function UploadChapterModal({
     }
   };
 
-  const [currentTimestamp] = useState(() => Date.now());
   const selectedChapterNumber = Number(chapter);
   const selectedDeadlineField = `chapter${selectedChapterNumber}`;
   const selectedDeadline = deadlines?.[selectedDeadlineField];
-  const isLateByDeadline = selectedDeadline
-    ? currentTimestamp > new Date(selectedDeadline).getTime()
-    : false;
-  const requiresLateJustification = isLateByDeadline;
+  const allowLateSubmission =
+    deadlinePolicies?.[selectedDeadlineField]?.allowLateSubmission !== false;
+  const isLateByDeadline = getMilestoneDeadlineState(selectedDeadline) === 'overdue';
+  const isLateSubmissionClosed = isLateByDeadline && !allowLateSubmission;
+  const requiresLateJustification = isLateByDeadline && allowLateSubmission;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -189,7 +191,15 @@ export default function UploadChapterModal({
       setClientError(fileErr);
       return;
     }
-    if (requiresLateJustification) {
+    const isLateAtSubmit = selectedDeadline
+      ? Date.now() > new Date(selectedDeadline).getTime()
+      : false;
+    if (isLateAtSubmit && !allowLateSubmission) {
+      setClientError('The submission deadline has passed and late uploads are closed for this milestone.');
+      return;
+    }
+    const requiresJustificationAtSubmit = isLateAtSubmit && allowLateSubmission;
+    if (requiresJustificationAtSubmit) {
       if (!remarks.trim()) {
         setClientError('Late submission detected. Please provide a late-justification note.');
         return;
@@ -213,7 +223,7 @@ export default function UploadChapterModal({
     if (remarks.trim()) {
       formData.append('remarks', remarks.trim());
     }
-    if (requiresLateJustification && justificationLetter) {
+    if (requiresJustificationAtSubmit && justificationLetter) {
       formData.append('justificationLetter', justificationLetter);
     }
 
@@ -381,10 +391,12 @@ export default function UploadChapterModal({
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+                onClick={() => !isLateSubmissionClosed && fileInputRef.current?.click()}
+                onDrop={isLateSubmissionClosed ? undefined : handleDrop}
+                onDragOver={isLateSubmissionClosed ? undefined : (e) => e.preventDefault()}
+                onKeyDown={(e) =>
+                  !isLateSubmissionClosed && e.key === 'Enter' && fileInputRef.current?.click()
+                }
                 className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/70 bg-muted/20 p-6 text-center transition hover:border-primary/50 hover:bg-muted/40"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary mb-2">
@@ -401,7 +413,7 @@ export default function UploadChapterModal({
                   type="file"
                   accept={ACCEPT_STRING}
                   onChange={handleFileChange}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isLateSubmissionClosed}
                   className="hidden"
                 />
               </div>
@@ -432,6 +444,17 @@ export default function UploadChapterModal({
               </div>
             )}
           </div>
+
+          {isLateSubmissionClosed && (
+            <div
+              className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
+              role="alert"
+              data-testid="late-submission-closed"
+            >
+              The scheduled deadline ({formatDeadline(selectedDeadline)}) has passed. Late uploads
+              are closed for this milestone.
+            </div>
+          )}
 
           {/* ──────────────────────────────────────────────────────── */}
           {/* LATE SUBMISSION JUSTIFICATION (Visible ONLY when late)   */}
@@ -608,6 +631,7 @@ export default function UploadChapterModal({
                 isSubmitting ||
                 !file ||
                 !chapter ||
+                isLateSubmissionClosed ||
                 (requiresLateJustification && (!remarks.trim() || !justificationLetter))
               }
               className="gap-2"
@@ -640,6 +664,7 @@ UploadChapterModal.propTypes = {
   projectId: PropTypes.string.isRequired,
   latestSubmission: PropTypes.object,
   deadlines: PropTypes.object,
+  deadlinePolicies: PropTypes.object,
   onUploadSuccess: PropTypes.func,
   isCap2ADMApproved: PropTypes.bool,
 };

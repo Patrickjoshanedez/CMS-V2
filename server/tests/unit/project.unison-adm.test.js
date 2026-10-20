@@ -81,6 +81,8 @@ describe('Project Unison ADM Object & Cache Invalidation Suite', () => {
 
     // Verify v1 partition (Capstone 1)
     expect(unison.v1.milestone).toBe('CAPSTONE_1');
+    expect(unison.v1.defaultTitle).toBe('Capstone 1 Proposal Defense');
+    expect(unison.v1.officialVersion).toBe('ADM v1');
     expect(unison.v1.rows).toHaveLength(1);
     expect(unison.v1.rows[0].suggestion).toBe('Fix Introduction scope');
     expect(unison.v1.signatures.secretary.endorsed).toBe(true);
@@ -89,6 +91,8 @@ describe('Project Unison ADM Object & Cache Invalidation Suite', () => {
 
     // Verify v2 partition (Capstone 2)
     expect(unison.v2.milestone).toBe('CAPSTONE_2');
+    expect(unison.v2.defaultTitle).toBe('Capstone 2 System Defense');
+    expect(unison.v2.officialVersion).toBe('ADM v2');
     expect(unison.v2.rows).toHaveLength(1);
     expect(unison.v2.rows[0].suggestion).toBe('Provide sensor schematics');
     expect(unison.v2.signatures.secretary.signatoryName).toBe('Prof. Sec v2');
@@ -97,12 +101,41 @@ describe('Project Unison ADM Object & Cache Invalidation Suite', () => {
 
     // Verify v3 partition (Capstone 3)
     expect(unison.v3.milestone).toBe('CAPSTONE_3');
+    expect(unison.v3.defaultTitle).toBe('Capstone 3 Final Defense');
+    expect(unison.v3.officialVersion).toBe('ADM v3');
     expect(unison.v3.rows).toHaveLength(1);
     expect(unison.v3.rows[0].suggestion).toBe('Analyze power consumption');
     expect(unison.v3.signatures.secretary.endorsed).toBe(false);
+    expect(unison.activeOfficialVersion).toBe('ADM v2');
 
     // Verify activeMilestone pointer
     expect(unison.activeMilestone).toBe('CAPSTONE_2');
+  });
+
+  it('starts with no misleading chapter or ADM unlock claims before title approval', () => {
+    const project = new Project({ title: 'Test Project', titleStatus: 'draft' });
+    expect(project.unlockedDeliverables).toEqual([]);
+  });
+
+  it('does not project prior ADM approval or legacy signatures into Capstone 3', () => {
+    const project = new Project({
+      title: 'Legacy ADM State',
+      capstonePhase: 3,
+      admStatus: 'approved',
+      admSignatures: {
+        secretary: { endorsed: true },
+        adviser: { signed: true },
+        instructor: { signed: true },
+        chair: { signed: true },
+        panelists: [{ userId: '507f191e810c19729de860ea', signed: true }],
+      },
+      admSignaturesByMilestone: { CAPSTONE_3: {} },
+    });
+
+    const finalADM = project.getUnisonADM().v3;
+
+    expect(finalADM.status).toBe('not_started');
+    expect(finalADM.signatures.secretary?.endorsed).not.toBe(true);
   });
 
   it('invalidates project:meta cache in Redis on ADM changes', async () => {

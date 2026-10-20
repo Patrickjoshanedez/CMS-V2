@@ -105,7 +105,10 @@ export const getProjectEvaluations = catchAsync(async (req, res) => {
 
 /** GET /api/evaluations/:evaluationId — Get a single evaluation */
 export const getEvaluation = catchAsync(async (req, res) => {
-  const { evaluation } = await evaluationService.getEvaluation(req.params.evaluationId);
+  const { evaluation } = await evaluationService.getEvaluation(
+    req.params.evaluationId,
+    req.user,
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -115,6 +118,7 @@ export const getEvaluation = catchAsync(async (req, res) => {
 
 /** GET /api/evaluations/:evaluationId/pdf — Download official evaluation & similarity PDF report */
 export const downloadEvaluationReportPdf = catchAsync(async (req, res) => {
+  await evaluationService.getEvaluation(req.params.evaluationId, req.user);
   const pdfBytes = await generateEvaluationReportPdf(req.params.evaluationId);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(

@@ -13,7 +13,7 @@ export default function AppearanceSection() {
     <SettingSection
       icon={Palette}
       title="Appearance & Accessibility"
-      description="Dr. Sales G. Aribe Jr. Requirement: Customize display themes, high-contrast mode, and dynamic text scaling for enhanced readability."
+      description="Choose a theme, adjust contrast, and set text size."
     >
       <div className="space-y-6">
         <div>
@@ -23,14 +23,13 @@ export default function AppearanceSection() {
 
         {/* High Contrast Mode Toggle */}
         <div className="rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 space-y-1">
               <Label htmlFor="high-contrast-toggle" className="text-sm font-medium cursor-pointer">
                 High-Contrast Interface
               </Label>
               <p className="text-xs text-muted-foreground">
-                Enhances text contrast, sharpens borders, and deepens dark/light backgrounds for
-                maximum legibility.
+                Increase text and border contrast for easier reading.
               </p>
             </div>
             <input
@@ -38,7 +37,7 @@ export default function AppearanceSection() {
               id="high-contrast-toggle"
               checked={highContrast}
               onChange={(e) => setHighContrast(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              className="h-5 w-5 shrink-0 cursor-pointer rounded border-input text-primary focus:ring-primary"
             />
           </div>
         </div>

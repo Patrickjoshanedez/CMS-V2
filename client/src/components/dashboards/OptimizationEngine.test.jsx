@@ -30,11 +30,11 @@ describe('OptimizationEngine Component', () => {
       );
     });
 
-    expect(container.textContent).toContain('Optimization Engine');
+    expect(container.textContent).toContain('Workload Suggestions');
     expect(container.textContent).toContain('All Roles');
     expect(container.textContent).toContain('Advisers');
     expect(container.textContent).toContain('Panelists');
-    expect(container.textContent).toContain('No optimization snapshot yet');
+    expect(container.textContent).toContain('Choose a committee role');
   });
 
   it('triggers onGenerate with selected role scope', () => {

@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
-import Team from './team.model.js';
+import Team, { STANDARD_CAPSTONE_ROLES } from './team.model.js';
 import TeamInvite from './teamInvite.model.js';
 import User from '../users/user.model.js';
 import Project from '../projects/project.model.js';
+import { assertProjectWritable } from '../projects/services/projectMutationGuard.js';
 import Notification from '../notifications/notification.model.js';
 import Section from '../academics/section.model.js';
 import DocumentTemplate from './documentTemplate.model.js';
@@ -11,8 +12,11 @@ import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ROLES, TITLE_STATUSES } from '@cms/shared';
+import { withOptionalTransaction } from '../../utils/dbTransaction.js';
+import teamTemplateService from './services/teamTemplate.service.js';
 
 const MAX_TEAM_MEMBERS = 4;
+const MIN_TEAM_MEMBERS = 1;
 const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
   'Project Lead & Systems Analyst',
   'Frontend & UI/UX Developer',
@@ -48,6 +52,12 @@ const generateInviteCodeValue = () => {
  * Handles creation, invitations, and membership workflows.
  */
 class TeamService {
+  async _getWritableProjectForTeam(teamId, filters = {}) {
+    const project = await Project.findOne({ teamId, ...filters }).sort({ createdAt: -1 });
+    assertProjectWritable(project);
+    return project;
+  }
+
   _isValidGoogleDocUrl(url) {
     try {
       const parsedUrl = new URL(url);
@@ -193,13 +203,36 @@ class TeamService {
    * @returns {Object} { team }
    */
   async createTeam(userId, data) {
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+schoolId');
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
     if (user.role !== ROLES.STUDENT) {
       throw new AppError('Only students can create project teams.', 403, 'FORBIDDEN');
+    }
+
+    if (!user.sectionId || !user.instructorId) {
+      throw new AppError(
+        'Complete your profile with an academic section and assigned instructor before creating a team.',
+        400,
+        'PROFILE_INCOMPLETE',
+      );
+    }
+
+    if (!String(user.studentId || user.schoolId || '').trim()) {
+      throw new AppError(
+        'Add your Student ID to your profile before creating a capstone team.',
+        400,
+        'STUDENT_PROFILE_INCOMPLETE',
+      );
+    }
+    if (!user.academicTerm) {
+      throw new AppError(
+        'Select your academic term in your profile before creating a capstone team.',
+        400,
+        'ACADEMIC_TERM_REQUIRED',
+      );
     }
 
     await this._enforceSingleTeamMembership(user);
@@ -249,6 +282,7 @@ class TeamService {
     const team = await Team.create({
       name: teamName,
       academicYear,
+      academicTerm: user.academicTerm,
       leaderId: userId,
       members: [userId],
       sectionId,
@@ -328,11 +362,9 @@ class TeamService {
       throw new AppError('This team is already finalized.', 409, 'TEAM_ALREADY_LOCKED');
     }
 
-    // BukSU Capstone guidelines allow solo capstones (1 member) up to a maximum of 4 members.
-    const minMembers = 1;
-    if (!team.members || team.members.length < minMembers) {
+    if (!team.members || team.members.length < MIN_TEAM_MEMBERS) {
       throw new AppError(
-        `A capstone team must have at least ${minMembers} member before it can be finalized.`,
+        `A capstone team must have at least ${MIN_TEAM_MEMBERS} member${MIN_TEAM_MEMBERS === 1 ? '' : 's'} before it can be finalized.`,
         400,
         'TEAM_INSUFFICIENT_MEMBERS',
       );
@@ -346,6 +378,51 @@ class TeamService {
       );
     }
 
+    const memberRoleById = new Map(
+      (team.memberRoles || []).map((assignment) => [
+        String(assignment.userId?._id || assignment.userId),
+        assignment.role,
+      ]),
+    );
+    const memberWithoutStandardRole = team.members.find(
+      (memberId) => !STANDARD_CAPSTONE_ROLES.includes(memberRoleById.get(String(memberId))),
+    );
+    if (memberWithoutStandardRole) {
+      throw new AppError(
+        'Assign each team member one of the five standardized capstone roles before finalizing the roster.',
+        400,
+        'TEAM_MEMBER_ROLE_REQUIRED',
+      );
+    }
+
+    const studentProfiles = await User.find({ _id: { $in: team.members }, role: ROLES.STUDENT })
+      .select('_id studentId academicTerm sectionId instructorId +schoolId')
+      .lean();
+    const memberTerms = new Set(
+      studentProfiles.map((member) => member.academicTerm).filter(Boolean),
+    );
+    const resolvedTeamTerm =
+      team.academicTerm || (memberTerms.size === 1 ? [...memberTerms][0] : null);
+    const incompleteProfile = studentProfiles.find(
+      (member) =>
+        !String(member.studentId || member.schoolId || '').trim() ||
+        !member.sectionId ||
+        !member.instructorId ||
+        !member.academicTerm ||
+        member.academicTerm !== resolvedTeamTerm ||
+        String(member.sectionId) !== String(team.sectionId),
+    );
+    if (studentProfiles.length !== team.members.length || !resolvedTeamTerm || incompleteProfile) {
+      throw new AppError(
+        'Every team member must complete Student ID, matching academic term and section, and Capstone Instructor details before the roster can be locked.',
+        400,
+        'TEAM_MEMBER_PROFILE_INCOMPLETE',
+      );
+    }
+
+    if (!team.academicTerm) {
+      team.academicTerm = resolvedTeamTerm;
+    }
     team.isLocked = true;
     await team.save();
 
@@ -453,7 +530,7 @@ class TeamService {
     }
 
     // Guard: if project has approved title proposal, team roster cannot be freely modified by students
-    const project = await Project.findOne({ teamId: team._id });
+    const project = await this._getWritableProjectForTeam(team._id);
     if (
       project &&
       (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved') &&
@@ -1395,6 +1472,8 @@ class TeamService {
       throw new AppError('Only the team leader can assign team member roles.', 403, 'FORBIDDEN');
     }
 
+    await this._getWritableProjectForTeam(team._id);
+
     if (role && !TEAM_MEMBER_ROLES.includes(role)) {
       throw new AppError('Invalid team role provided.', 400, 'INVALID_TEAM_ROLE');
     }
@@ -1461,6 +1540,8 @@ class TeamService {
     if (team.leaderId?._id?.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can transfer leadership.', 403, 'FORBIDDEN');
     }
+
+    await this._getWritableProjectForTeam(team._id);
 
     if (team.leaderId?._id?.toString() === memberId.toString()) {
       throw new AppError('The selected member is already the team leader.', 400, 'ALREADY_LEADER');
@@ -1552,14 +1633,15 @@ class TeamService {
       );
     }
 
-    team.googleDocUrl = normalizedLink;
-    await team.save();
-
     const currentProject = await Project.findOne({ teamId: team._id })
       .sort({ createdAt: -1 })
       .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
       .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    assertProjectWritable(currentProject);
+
+    team.googleDocUrl = normalizedLink;
+    await team.save();
 
     const teamObject = team.toObject();
     teamObject.assignment = {
@@ -1615,28 +1697,29 @@ class TeamService {
       );
     }
 
+    const activeProject = await Project.findOne({ teamId: team._id, isDeleted: false }).sort({
+      createdAt: -1,
+    });
+    assertProjectWritable(activeProject);
     team.githubUrl = normalizedLink;
     await team.save();
 
     // If there is an active project, also synchronize prototypes link
-    if (normalizedLink) {
-      const activeProject = await Project.findOne({ teamId: team._id, isDeleted: false });
-      if (activeProject) {
-        const existingIdx = activeProject.prototypes.findIndex(
-          (p) => p.type === 'link' && p.title.toLowerCase().includes('github'),
-        );
-        if (existingIdx >= 0) {
-          activeProject.prototypes[existingIdx].url = normalizedLink;
-        } else {
-          activeProject.prototypes.push({
-            title: 'GitHub Repository',
-            type: 'link',
-            url: normalizedLink,
-            uploadedBy: leaderId,
-          });
-        }
-        await activeProject.save();
+    if (normalizedLink && activeProject) {
+      const existingIdx = activeProject.prototypes.findIndex(
+        (p) => p.type === 'link' && p.title.toLowerCase().includes('github'),
+      );
+      if (existingIdx >= 0) {
+        activeProject.prototypes[existingIdx].url = normalizedLink;
+      } else {
+        activeProject.prototypes.push({
+          title: 'GitHub Repository',
+          type: 'link',
+          url: normalizedLink,
+          uploadedBy: leaderId,
+        });
       }
+      await activeProject.save();
     }
 
     const currentProject = await Project.findOne({ teamId: team._id })
@@ -1906,26 +1989,27 @@ class TeamService {
       team.panelistIds = panelistIds;
     }
 
-    await team.save();
-
     // Reconcile and sync with associated Project if one already exists
-    const project = await Project.findOne({ teamId: team._id }).sort({ createdAt: -1 });
-    if (project) {
-      if (adviserId) project.adviserId = adviserId;
-      if (secretaryId) project.secretaryId = secretaryId;
-      if (Array.isArray(panelistIds) && panelistIds.length > 0) {
-        project.panelistIds = panelistIds;
-        const structuredPanelists = panelistIds.map((pId, idx) => ({
-          userId: pId,
-          role: idx === 0 ? 'chair' : 'member',
-        }));
-        if (secretaryId && !panelistIds.some((p) => p.toString() === secretaryId.toString())) {
-          structuredPanelists.push({ userId: secretaryId, role: 'secretary' });
+    const project = await this._getWritableProjectForTeam(team._id);
+    await withOptionalTransaction(async (session) => {
+      await team.save({ session: session || undefined });
+      if (project) {
+        if (adviserId) project.adviserId = adviserId;
+        if (secretaryId) project.secretaryId = secretaryId;
+        if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+          project.panelistIds = panelistIds;
+          const structuredPanelists = panelistIds.map((pId, idx) => ({
+            userId: pId,
+            role: idx === 0 ? 'chair' : 'member',
+          }));
+          if (secretaryId && !panelistIds.some((p) => p.toString() === secretaryId.toString())) {
+            structuredPanelists.push({ userId: secretaryId, role: 'secretary' });
+          }
+          project.panelists = structuredPanelists;
         }
-        project.panelists = structuredPanelists;
+        await project.save({ session: session || undefined });
       }
-      await project.save();
-    }
+    });
 
     // Determine whether the committee is fully assigned (1 Adviser, 1 Secretary, and at least 3 Panelists)
     const REQUIRED_PANEL_COUNT = 3;
@@ -2048,96 +2132,7 @@ class TeamService {
    * @returns {Promise<Object>} { isUnlocked, approvedTitle, template }
    */
   async getTeamManuscriptTemplate(teamId) {
-    const team = await Team.findById(teamId);
-    if (!team) {
-      throw new AppError('Team not found', 404);
-    }
-
-    const project = await Project.findOne({ teamId: team._id });
-    const isTitleApproved = Boolean(
-      project &&
-      (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved'),
-    );
-
-    // 1. Check SystemSettings for instructor-configured templates
-    let settingsUrl = null;
-    let settingsTpl = null;
-    try {
-      const SystemSettings =
-        mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
-      const settings = await SystemSettings.findOne({ key: 'global' }).lean();
-      settingsTpl =
-        settings?.documentTemplates?.find((t) => t.documentType === 'manuscript_template') ||
-        settings?.documentTemplates?.find((t) => t.documentType === 'proposal_template');
-      if (settingsTpl?.templateUrl) {
-        settingsUrl = settingsTpl.templateUrl;
-      }
-    } catch {
-      // ignore fallback error
-    }
-
-    // 2. Fetch active template for this academic year, or latest active from DocumentTemplate collection
-    let activeTemplate = await DocumentTemplate.findOne({
-      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
-      academicYear: team.academicYear,
-      isActive: true,
-    }).sort({ updatedAt: -1 });
-
-    if (!activeTemplate) {
-      activeTemplate = await DocumentTemplate.findOne({
-        targetType: 'MANUSCRIPT_CHAPTERS_1_5',
-        isActive: true,
-      }).sort({ updatedAt: -1 });
-    }
-
-    const fallbackUrl =
-      settingsUrl ||
-      'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy';
-    const fallbackVersion = `AY ${team.academicYear || '2025–2026'} v2.1`;
-
-    const isGoogleDocs = activeTemplate ? activeTemplate.distributionType === 'GOOGLE_DOCS' : true;
-
-    // Prioritize instructor's configured URL from SystemSettings, then DocumentTemplate, then fallback
-    const url =
-      settingsUrl ||
-      (activeTemplate
-        ? activeTemplate.resourcePayload?.googleDocsUrl ||
-          activeTemplate.resourcePayload?.fileAttachmentUrl ||
-          fallbackUrl
-        : fallbackUrl);
-
-    const version = activeTemplate?.versionLabel || fallbackVersion;
-    const rawDate = activeTemplate?.updatedAt || settingsTpl?.lastUpdated;
-    const updatedAt = rawDate
-      ? new Date(rawDate).toLocaleDateString('en-US', {
-          month: 'short',
-          day: '2-digit',
-          year: 'numeric',
-        })
-      : 'Sep 01, 2026';
-
-    const templateMeta = {
-      title: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
-      type: isGoogleDocs ? 'google_docs' : 'downloadable_file',
-      url,
-      version,
-      updatedAt,
-    };
-
-    if (!isTitleApproved) {
-      return {
-        isUnlocked: false,
-        reason: 'TITLE_DEFENSE_APPROVAL_REQUIRED',
-        approvedTitle: project?.title || null,
-        template: templateMeta,
-      };
-    }
-
-    return {
-      isUnlocked: true,
-      approvedTitle: project?.title || 'Approved Capstone Title',
-      template: templateMeta,
-    };
+    return teamTemplateService.getTeamManuscriptTemplate(teamId);
   }
 
   /**
@@ -2148,74 +2143,7 @@ class TeamService {
    * @returns {Promise<Object>} Updated DocumentTemplate document
    */
   async updateManuscriptTemplate(data, userId) {
-    const {
-      targetType = 'MANUSCRIPT_CHAPTERS_1_5',
-      academicYear = '2025-2026',
-      versionLabel = 'AY 2025–2026 v2.1',
-      distributionType = 'GOOGLE_DOCS',
-      docUrl,
-      fileAttachmentUrl,
-      fileName,
-    } = data;
-
-    const normDistributionType =
-      distributionType === 'google_docs' || distributionType === 'GOOGLE_DOCS'
-        ? 'GOOGLE_DOCS'
-        : 'FILE_ATTACHMENT';
-
-    const templateResourceUrl =
-      normDistributionType === 'GOOGLE_DOCS' ? docUrl : fileAttachmentUrl || '';
-
-    const resourcePayload = {
-      googleDocsUrl: normDistributionType === 'GOOGLE_DOCS' ? docUrl : null,
-      fileAttachmentUrl: normDistributionType === 'FILE_ATTACHMENT' ? fileAttachmentUrl : null,
-      fileName: normDistributionType === 'FILE_ATTACHMENT' ? fileName : null,
-    };
-
-    // Deactivate previous templates for this academic year & targetType
-    await DocumentTemplate.updateMany({ targetType, academicYear }, { $set: { isActive: false } });
-
-    const newTemplate = await DocumentTemplate.create({
-      targetType,
-      academicYear,
-      versionLabel,
-      distributionType: normDistributionType,
-      resourcePayload,
-      updatedBy: userId,
-      isActive: true,
-    });
-
-    // Also synchronize to SystemSettings.documentTemplates so settings page and team widgets are in lockstep
-    try {
-      const SystemSettings =
-        mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
-      const settings = await SystemSettings.findOne({ key: 'global' });
-      if (settings) {
-        const templates = settings.documentTemplates || [];
-        const docType = targetType === 'ACTION_DONE_MATRIX' ? 'adm_form' : 'manuscript_template';
-        const existingIdx = templates.findIndex((t) => t.documentType === docType);
-        const newEntry = {
-          documentType: docType,
-          templateUrl: templateResourceUrl,
-          description:
-            targetType === 'ACTION_DONE_MATRIX'
-              ? 'Action Done Matrix (ADM) Official Template'
-              : 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
-          lastUpdated: new Date(),
-        };
-        if (existingIdx >= 0) {
-          templates[existingIdx] = newEntry;
-        } else {
-          templates.push(newEntry);
-        }
-        settings.documentTemplates = templates;
-        await settings.save();
-      }
-    } catch (syncErr) {
-      console.warn('[updateManuscriptTemplate] SystemSettings sync warning:', syncErr.message);
-    }
-
-    return newTemplate;
+    return teamTemplateService.updateManuscriptTemplate(data, userId);
   }
 }
 

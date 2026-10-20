@@ -28,6 +28,14 @@ class ProjectService {
     return projectArchiveService.archiveProject(...args);
   }
 
+  async tryAutoArchiveProject(...args) {
+    return projectArchiveService.tryAutoArchiveProject(...args);
+  }
+
+  async getApprovalSheetUrl(...args) {
+    return projectArchiveService.getApprovalSheetUrl(...args);
+  }
+
   async searchArchive(...args) {
     return projectArchiveService.searchArchive(...args);
   }
@@ -38,6 +46,10 @@ class ProjectService {
 
   async getCertificateUrl(...args) {
     return projectArchiveService.getCertificateUrl(...args);
+  }
+
+  async verifyCertificate(...args) {
+    return projectArchiveService.verifyCertificate(...args);
   }
 
   async generateReport(...args) {
@@ -199,6 +211,14 @@ class ProjectService {
     return projectCoreService.advancePhase(...args);
   }
 
+  async advanceAfterADMCompletion(...args) {
+    return projectCoreService.advanceAfterADMCompletion(...args);
+  }
+
+  async getPhaseExitBlocker(...args) {
+    return projectCoreService.getPhaseExitBlocker(...args);
+  }
+
   async addPrototype(...args) {
     return projectCoreService.addPrototype(...args);
   }
@@ -213,6 +233,14 @@ class ProjectService {
 
   async updateGanttChartUrl(...args) {
     return projectCoreService.updateGanttChartUrl(...args);
+  }
+
+  async updateGanttPlan(...args) {
+    return projectCoreService.updateGanttPlan(...args);
+  }
+
+  async updateSystemDefenseApproval(...args) {
+    return projectCoreService.updateSystemDefenseApproval(...args);
   }
 
   async updateDemoVideoUrl(...args) {
@@ -233,6 +261,18 @@ class ProjectService {
 
   async updateGanttApproval(...args) {
     return projectCoreService.updateGanttApproval(...args);
+  }
+
+  async updateWeeklyCheckIn(...args) {
+    return projectCoreService.updateWeeklyCheckIn(...args);
+  }
+
+  async reviewWeeklyCheckIn(...args) {
+    return projectCoreService.reviewWeeklyCheckIn(...args);
+  }
+
+  async reviewWeeklyCheckInWaiver(...args) {
+    return projectCoreService.reviewWeeklyCheckInWaiver(...args);
   }
 
   async _getProjectOrFail(...args) {

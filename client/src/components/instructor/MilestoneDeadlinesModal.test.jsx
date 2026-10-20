@@ -106,7 +106,7 @@ describe('MilestoneDeadlinesModal', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('renders modal with title, batch picker, and strict 4-stage lifecycle without Capstone 4', async () => {
+  it('renders the title proposal phase and three semester-based Capstone courses', async () => {
     await act(async () => {
       renderComponent();
     });
@@ -122,14 +122,11 @@ describe('MilestoneDeadlinesModal', () => {
     expect(stageSelect).toBeTruthy();
 
     const stageOptions = Array.from(stageSelect.options).map((o) => o.text);
-    expect(stageOptions).toContain('Capstone 1 (Proposal & Ch. 1–3)');
-    expect(stageOptions).toContain('Capstone 2 (Sprint & System Dev)');
-    expect(stageOptions).toContain('Capstone 3 (Results & Progress)');
-    expect(stageOptions).toContain('Final (Oral Defense & Archival)');
-
-    // Immutable requirement: Under no circumstances should "Capstone 4" be used
-    expect(stageOptions.some((txt) => txt.includes('Capstone 4'))).toBe(false);
-    expect(container.textContent).not.toContain('Capstone 4');
+    expect(stageOptions).toContain('Phase 1 — Title Proposals & Committee');
+    expect(stageOptions).toContain('Phase 2 — Capstone 1 (Chapters 1–3 & Proposal Defense)');
+    expect(stageOptions).toContain('Phase 3 — Capstone 2 (System Development & Prototype)');
+    expect(stageOptions).toContain('Phase 4 — Capstone 3 (Final Manuscripts & Defense)');
+    expect(stageOptions).toHaveLength(4);
   });
 
   it('toggles target scope between batch-wide and section-specific', async () => {
@@ -193,8 +190,8 @@ describe('MilestoneDeadlinesModal', () => {
       expect.objectContaining({
         batchYear: '2025-2026',
         targetType: 'batch',
-        stage: 'capstone_1',
-        deliverable: 'chapter_1',
+        stage: 'proposal',
+        deliverable: 'title_proposal',
         deadlineDate: '2026-10-20',
       }),
     );

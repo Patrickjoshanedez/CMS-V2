@@ -151,4 +151,28 @@ describe('UploadChapterModal Component', () => {
     expect(dialog.textContent).not.toContain('Official Justification Letter Document');
     expect(dialog.textContent).toContain('Submission Remarks (Optional)');
   });
+
+  it('blocks an overdue chapter when the scheduler closes late submissions', async () => {
+    const pastDeadline = new Date(Date.now() - 86400000).toISOString();
+
+    await act(async () => {
+      root.render(
+        <UploadChapterModal
+          isOpen={true}
+          onClose={vi.fn()}
+          initialChapter={1}
+          isLocked={false}
+          projectId="proj-123"
+          deadlines={{ chapter1: pastDeadline }}
+          deadlinePolicies={{ chapter1: { allowLateSubmission: false } }}
+        />,
+      );
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog?.querySelector('[data-testid="late-submission-closed"]')).toBeTruthy();
+    expect(dialog?.textContent).toContain('Late uploads are closed for this milestone.');
+    expect(dialog?.textContent).not.toContain('Late Submission Compliance Gate');
+    expect(dialog?.querySelector('button[type="submit"]')?.disabled).toBe(true);
+  });
 });

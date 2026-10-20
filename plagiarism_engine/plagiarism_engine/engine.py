@@ -419,12 +419,15 @@ class PlagiarismEngine:
             "collection_count": self._store.count,
             "model_loaded": loaded_model is not None and loaded_model.is_loaded,
             "model_name": loaded_model.model_name if loaded_model else self._cfg.EMBEDDING_MODEL,
+            "configured_model_name": self._cfg.EMBEDDING_MODEL,
             "embedding_dim": loaded_model.embedding_dim if loaded_model else None,
             "settings": {
                 "kgram_size": self._cfg.KGRAM_SIZE,
                 "window_size": self._cfg.WINDOW_SIZE,
                 "top_k_candidates": self._cfg.TOP_K_CANDIDATES,
                 "semantic_threshold": self._cfg.SEMANTIC_SIMILARITY_THRESHOLD,
+                "hst_semantic_span_threshold": self._cfg.HST_SEMANTIC_SPAN_THRESHOLD,
+                "hst_composite_flag_threshold": self._cfg.HST_COMPOSITE_FLAG_THRESHOLD,
             },
         }
 

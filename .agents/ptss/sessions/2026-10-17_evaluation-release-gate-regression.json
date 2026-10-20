@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-10-17_evaluation-release-gate-regression",
+  "date": "2026-10-17",
+  "status": "active-partial",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "task_summary": "Continued the authorized synthetic CMS-V2 capstone workflow audit, aligned stale evaluation integration fixtures to the existing all-panelists release gate, and verified seeded account access through the official API.",
+  "changes": [
+    "Updated evaluations integration coverage to expect EVALUATIONS_INCOMPLETE when any assigned panelist has not submitted.",
+    "Updated student visibility fixtures to represent mixed released/submitted states directly, keeping the read-visibility test independent from instructor release gating.",
+    "Removed an API-response assertion for isArchived because the controller exposes releasedCount; retained persisted project checks proving final grade release alone does not archive."
+  ],
+  "verification": [
+    "Evaluation and ADM integration suites passed: 38/38 tests.",
+    "Previously completed targeted server and client workflow suites remain passing; endpoint parity, agentic audit, governance components, evidence integrity, and workspace guardrail passed in the preceding audit turns.",
+    "Latest report-listed seeded student login and /api/users/me checks passed through the official API; the account's current project response was archived.",
+    "The authorized synthetic project workflow has verified Gantt check-ins/waivers, defense/ADM gates, grade release, final archive indexing, approval sheet, certificate PDF, and public QR verification. Synthetic records were used; no oral defense occurred."
+  ],
+  "remaining": [
+    "The computer-use browser tab selection timed out, so no fresh authenticated screenshot set was captured in this turn. Existing repository visual captures were not treated as a fresh pass.",
+    "The full client suite was not rerun; targeted client coverage passed in prior turns."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "verification-loop",
+    "frontend-mythos",
+    "computer-use"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

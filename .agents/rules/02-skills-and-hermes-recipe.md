@@ -1,14 +1,14 @@
 # 🧠 SKILLS DICTIONARY, HERMES PIPELINE & CONTINUAL LEARNING RECIPE
 
 **Rule File:** `.agents/rules/02-skills-and-hermes-recipe.md`  
-**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/workspace-rules.md)  
+**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/workspace-rules.md)  
 **Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
 ---
 
 ## 1. SKILLS DICTIONARY CATALOG
 
-The workspace houses **64 verified cognitive skills** under `.agents/skills/`. This catalog forms the authoritative **Skills Dictionary**:
+The workspace houses **65 verified cognitive skills** under `.agents/skills/`. This catalog forms the authoritative **Skills Dictionary**:
 
 ```
 ├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor, capstone-lifecycle-orchestrator]

@@ -59,7 +59,7 @@ describe('ProjectCohortCard', () => {
 
     expect(container.textContent).toContain('Smart AgroSense IoT');
     expect(container.textContent).toContain('Team Alpha');
-    expect(container.textContent).toContain('Phase 2: Manuscripts');
+    expect(container.textContent).toContain('Capstone 2: System Development');
     expect(container.textContent).toContain('John Doe (Lead)');
     expect(container.textContent).toContain('+ 1 member');
     expect(container.textContent).toContain('Dr. Alan Turing');

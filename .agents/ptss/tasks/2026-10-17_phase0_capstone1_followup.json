@@ -1,0 +1,70 @@
+{
+  "active_scenario_id": "client-shard-verification",
+  "completed_subgoals": [
+    "Preserve the archived manuscript's original MIME type and filename through the canonical shared document viewer.",
+    "Verify focused archive/shared-reader tests (27/27) and four actual-app theme/viewport combinations.",
+    "Confirm the newest seeded account already has a verified profile and belongs to a locked team with an archived project; leave it unchanged.",
+    "Verify the authenticated dashboard displays the final seeded student with a locked two-member team, 5/5 approved chapters, and an archived synthetic project; no profile, team, or project records were changed.",
+    "Read-only checked two alternate seeded student sessions: Adrian already has an active submitted-title project and Aira already has an archived project; both were left unchanged.",
+    "Pass the isolated MongoMemoryServer comprehensive workflow suite (13/13) and auth integration suite (17/17); external storage calls were mocked and no app database was used.",
+    "Pass endpoint parity (229 server / 209 client / 0 unmatched), agentic audit (60/60), evidence checks (34/34), governance DAG validation, and workspace guardrail using the bundled Python runtime where required.",
+    "Pass the targeted student registration schema suite (3/3) with workspace-local TEMP/TMP; record the DOCX wipe/reseed description as report content rather than an instruction.",
+    "Pass Vitest client shard 1/8: 16 test files and 108 tests passed in 92.13 seconds with an isolated workspace temp path.",
+    "Pass Vitest client shard 2/8 sequentially: 16 test files and 79 tests passed in 60.17 seconds.",
+    "Pass Vitest client shard 3/8 sequentially: 16 test files and 81 tests passed in 50.45 seconds, superseding the incomplete concurrent attempt.",
+    "Pass Vitest client shard 4/8 sequentially: 15 test files and 85 tests passed in 48.73 seconds.",
+    "Pass Vitest client shard 5/8 sequentially: 15 test files and 97 tests passed in 47.87 seconds after aligning its stale Gantt permission assertion with the shared role-aware guard; focused component suite passed 5/5.",
+    "Pass Vitest client shard 6/8 sequentially: 15 test files and 116 tests passed in 68.82 seconds.",
+    "Pass Vitest client shard 7/8 sequentially: 15 test files and 83 tests passed in 57.46 seconds.",
+    "Pass Vitest client shard 8/8 sequentially: 15 test files and 104 tests passed in 55.10 seconds.",
+    "Reconcile all eight sequential Vitest shards: 123 discovered files covered exactly once across disjoint balanced shard ranges; 753 tests passed."
+  ],
+  "remaining_subgoals": [
+    "Run a fresh browser registration/profile/team/proposal/Capstone 1 flow in a separate synthetic context; the first two alternate seeds already have projects, and live registration would send OTP through configured SMTP. Use only a dedicated unused identity with a verified local mail sink."
+  ],
+  "last_action_result": "All eight sequential client shards passed, covering 123 test files exactly once and 753 tests total. Shard 5 initially exposed a stale Capstone 2 parent-test assertion; the shared Gantt permission guard remains role-aware, the corrected focused test passed 5/5, and shard 5 passed 97/97 on rerun. The isolated comprehensive server workflow suite passed 13/13 after sandbox loopback approval. Endpoint parity 229/209/0, agentic audit 60/60, evidence integrity 34/34, governance DAG, and workspace guardrail passed. Only the fresh registration-to-Capstone 1 browser path remains, pending a dedicated synthetic identity and verified local OTP sink; existing seeded projects were preserved.",
+  "progress_delta": 7,
+  "loop_count": 0,
+  "scenario_dag": [
+    {
+      "id": "client-shard-1",
+      "depends_on": []
+    },
+    {
+      "id": "client-shard-2",
+      "depends_on": ["client-shard-1"]
+    },
+    {
+      "id": "client-shard-3",
+      "depends_on": ["client-shard-2"]
+    },
+    {
+      "id": "client-shard-4",
+      "depends_on": ["client-shard-3"]
+    },
+    {
+      "id": "client-shard-5",
+      "depends_on": ["client-shard-4"]
+    },
+    {
+      "id": "client-shard-6",
+      "depends_on": ["client-shard-5"]
+    },
+    {
+      "id": "client-shard-7",
+      "depends_on": ["client-shard-6"]
+    },
+    {
+      "id": "client-shard-8",
+      "depends_on": ["client-shard-7"]
+    },
+    {
+      "id": "identify-unused-identity-and-local-otp-sink",
+      "depends_on": []
+    },
+    {
+      "id": "clean-start-phase0-capstone1",
+      "depends_on": ["identify-unused-identity-and-local-otp-sink"]
+    }
+  ]
+}

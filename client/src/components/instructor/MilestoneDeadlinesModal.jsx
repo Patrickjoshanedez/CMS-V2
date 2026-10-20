@@ -22,10 +22,10 @@ import { useAcademicYears } from '@/hooks/useAcademics';
 import { CAPSTONE_STAGES, STAGE_DELIVERABLE_MAP, DELIVERABLE_CATEGORY_MAP } from '@cms/shared';
 
 const STAGE_LABELS = {
-  [CAPSTONE_STAGES.CAPSTONE_1]: 'Capstone 1 (Proposal & Ch. 1–3)',
-  [CAPSTONE_STAGES.CAPSTONE_2]: 'Capstone 2 (Sprint & System Dev)',
-  [CAPSTONE_STAGES.CAPSTONE_3]: 'Capstone 3 (Results & Progress)',
-  [CAPSTONE_STAGES.FINAL]: 'Final (Oral Defense & Archival)',
+  [CAPSTONE_STAGES.PROPOSAL]: 'Phase 1 — Title Proposals & Committee',
+  [CAPSTONE_STAGES.CAPSTONE_1]: 'Phase 2 — Capstone 1 (Chapters 1–3 & Proposal Defense)',
+  [CAPSTONE_STAGES.CAPSTONE_2]: 'Phase 3 — Capstone 2 (System Development & Prototype)',
+  [CAPSTONE_STAGES.CAPSTONE_3]: 'Phase 4 — Capstone 3 (Final Manuscripts & Defense)',
 };
 
 export default function MilestoneDeadlinesModal({
@@ -73,12 +73,12 @@ export default function MilestoneDeadlinesModal({
 
   const [targetType, setTargetType] = useState('batch');
   const [sectionId, setSectionId] = useState('');
-  const [stage, setStage] = useState(CAPSTONE_STAGES.CAPSTONE_1);
+  const [stage, setStage] = useState(CAPSTONE_STAGES.PROPOSAL);
   const [deliverable, setDeliverable] = useState(
-    STAGE_DELIVERABLE_MAP[CAPSTONE_STAGES.CAPSTONE_1][0]?.id || 'chapter_1',
+    STAGE_DELIVERABLE_MAP[CAPSTONE_STAGES.PROPOSAL][0]?.id || 'title_proposal',
   );
   const [title, setTitle] = useState(
-    STAGE_DELIVERABLE_MAP[CAPSTONE_STAGES.CAPSTONE_1][0]?.label || 'Chapter 1 Submission',
+    STAGE_DELIVERABLE_MAP[CAPSTONE_STAGES.PROPOSAL][0]?.label || 'Title Proposals',
   );
   const [description, setDescription] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('');
@@ -292,7 +292,7 @@ export default function MilestoneDeadlinesModal({
               </div>
             )}
 
-            {/* Stage Selector (Strictly 4 stages: capstone_1, capstone_2, capstone_3, final) */}
+            {/* Phase selector: title proposal work followed by the three one-semester Capstone courses. */}
             <div className="space-y-1">
               <label className="text-xs font-semibold text-foreground">Capstone Stage</label>
               <select

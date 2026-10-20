@@ -134,6 +134,7 @@ describe('Comprehensive All-Workflow End-to-End Test Suite', () => {
       members: [student1._id, student2._id],
       isLocked: true,
       academicYear: '2024-2025',
+      academicTerm: '1st Semester',
       sectionId: section._id,
     });
     await User.findByIdAndUpdate(student1._id, { teamId: team._id, sectionId: section._id });
@@ -150,6 +151,11 @@ describe('Comprehensive All-Workflow End-to-End Test Suite', () => {
             'Problem Statement: Soil degradation. Proposed Solution: IoT sensor arrays with telemetry reporting.',
           capstoneType: ['Internet of Things (IoT)', 'Agriculture Tech'],
           sdgTags: ['SDG 2: Zero Hunger', 'SDG 9: Industry, Innovation and Infrastructure'],
+          pitchDeck: {
+            problemStatement: 'Small farms lack timely soil nutrient measurements.',
+            objectives: 'Build a low-cost sensor system and evaluate its reporting workflow.',
+            technicalStack: 'ESP32 sensors, MQTT, and a web dashboard.',
+          },
         },
       ],
       abstract: 'IoT-driven precision agriculture telemetry for rural farming communities.',
@@ -427,7 +433,7 @@ describe('Comprehensive All-Workflow End-to-End Test Suite', () => {
   /* ──────────────────────────────────────────────────────────
    * WORKFLOW STAGE 8: Final Defense Evaluation Gating & Automatic Archiving
    * ────────────────────────────────────────────────────────── */
-  it('Workflow 8: Gates evaluation summary until all panelists submit, then automatically archives project upon final release', async () => {
+  it('Workflow 8: Gates evaluation summary until all panelists submit and keeps archival blocked until Secretary ADM endorsement', async () => {
     team = await Team.create({
       name: 'Theta Conferred Team',
       leaderId: student1._id,
@@ -498,18 +504,23 @@ describe('Comprehensive All-Workflow End-to-End Test Suite', () => {
       comments: 'Well defended and verified.',
     });
 
-    // Instructor releases evaluations -> Triggers Automatic Soft Archival
+    // Releasing grades makes them visible to students but does not satisfy the final ADM gate.
     const releaseRes = await instructorAgent
       .post(`/api/evaluations/${project._id}/final/release`)
       .send({});
 
     expect(releaseRes.status).toBe(200);
+    expect(releaseRes.body.data.releasedCount).toBe(2);
 
-    // Verify automatic transition to archive
+    const archiveRes = await instructorAgent.post(`/api/projects/${project._id}/archive`).send({});
+    expect(archiveRes.status).toBe(400);
+    expect(archiveRes.body.error.code).toBe('SECRETARY_ENDORSEMENT_REQUIRED');
+
+    // Verify final grades alone do not bypass the institutional Secretary endorsement gate.
     const archivedProject = await Project.findById(project._id);
-    expect(archivedProject.isArchived).toBe(true);
-    expect(archivedProject.projectStatus).toBe(PROJECT_STATUSES.ARCHIVED);
-    expect(archivedProject.archivedAt).toBeTruthy();
+    expect(archivedProject.isArchived).toBe(false);
+    expect(archivedProject.projectStatus).toBe(PROJECT_STATUSES.ACTIVE);
+    expect(archivedProject.archivedAt).toBeFalsy();
   });
 
   /* ──────────────────────────────────────────────────────────

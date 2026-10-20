@@ -83,6 +83,30 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
         status: 'approved',
       });
 
+      await Submission.create({
+        projectId: project._id,
+        chapter: 2,
+        version: 1,
+        fileName: 'chapter2.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1024,
+        storageKey: 'test/chapter2.pdf',
+        submittedBy: user._id,
+        status: 'accepted',
+      });
+
+      await Submission.create({
+        projectId: project._id,
+        chapter: 3,
+        version: 1,
+        fileName: 'chapter3.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1024,
+        storageKey: 'test/chapter3.pdf',
+        submittedBy: user._id,
+        status: 'locked',
+      });
+
       const res = await agent.get('/api/dashboard/stats');
 
       expect(res.status).toBe(200);
@@ -92,11 +116,19 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
       expect(res.body.data.team.memberCount).toBe(1);
       expect(res.body.data.project).toBeDefined();
       expect(res.body.data.project.title).toBe('Dashboard Test Project Title');
-      // Chapter progress: Ch 1 should be approved, Ch 2-5 should be not_started
+      // Approved, accepted, and locked chapters all count as completed.
       expect(res.body.data.chapterProgress).toHaveLength(5);
       expect(res.body.data.chapterProgress[0].chapter).toBe(1);
       expect(res.body.data.chapterProgress[0].status).toBe('approved');
-      expect(res.body.data.chapterProgress[1].status).toBe('not_started');
+      expect(res.body.data.chapterProgress[1].status).toBe('accepted');
+      expect(res.body.data.chapterProgress[2].status).toBe('locked');
+      expect(res.body.data.chapterProgress[3].status).toBe('not_started');
+      expect(res.body.data.progressReport).toEqual({
+        totalMilestones: 5,
+        approvedMilestones: 3,
+        inReviewMilestones: 0,
+        completionPercent: 60,
+      });
     });
   });
 

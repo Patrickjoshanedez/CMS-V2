@@ -150,7 +150,7 @@ services:
     command: >
       uvicorn plagiarism_engine.main:app --host 0.0.0.0 --port 8001 --workers ${PLAGIARISM_API_WORKERS:-1} --limit-concurrency ${PLAGIARISM_API_LIMIT_CONCURRENCY:-32} --log-level info
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     volumes:
       - plagiarism_chroma:/app/chroma_store
       - plagiarism_models:/root/.cache/torch/sentence_transformers
@@ -168,6 +168,7 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: "8001"
       APP_CORS_ORIGINS: "http://localhost:43211,http://localhost:43210,http://cms-client:43211,${CLIENT_URL:-}"
+      PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:-}
       LOG_LEVEL: INFO
     depends_on:
       plagiarism_redis:
@@ -181,6 +182,32 @@ services:
       retries: 6
       start_period: 10s
     logging: *default-logging
+    networks:
+      - cms_network
+
+  plagiarism_ngrok:
+    image: ngrok/ngrok:3-alpine
+    container_name: cms-plagiarism-ngrok
+    restart: unless-stopped
+    init: true
+    profiles:
+      - plagiarism-tunnel
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+      PLAGIARISM_TUNNEL_DOMAIN: ${PLAGIARISM_TUNNEL_DOMAIN:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        test -n "$${NGROK_AUTHTOKEN}" || { echo "NGROK_AUTHTOKEN is required"; exit 1; }
+        if test -n "$${PLAGIARISM_TUNNEL_DOMAIN}"; then
+          exec ngrok http plagiarism_api:8001 --url="https://$${PLAGIARISM_TUNNEL_DOMAIN}" --authtoken="$${NGROK_AUTHTOKEN}" --log=stdout
+        fi
+        exec ngrok http plagiarism_api:8001 --authtoken="$${NGROK_AUTHTOKEN}" --log=stdout
+    depends_on:
+      plagiarism_api:
+        condition: service_healthy
     networks:
       - cms_network
 
@@ -338,8 +365,14 @@ services:
     profiles:
       - tunnel
       - ngrok
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.deploy
+        required: false
+      - path: .env.prod
+        required: false
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
       NGROK_DOMAIN: ${NGROK_DOMAIN:-furuncular-shavonda-unprevalently.ngrok-free.dev}
       NGROK_TARGET: ${NGROK_TARGET:-client:43211}
     entrypoint:
@@ -360,12 +393,13 @@ services:
           exit 1
         fi
         TARGET="$${NGROK_TARGET:-client:43211}"
-        if [ -n "$${NGROK_DOMAIN}" ]; then
-          echo "Starting ngrok tunnel pointing to $$TARGET with domain $$NGROK_DOMAIN..."
-          exec ngrok http "$$TARGET" --url="https://$${NGROK_DOMAIN}" --authtoken="$${NGROK_AUTHTOKEN}"
+        CLEAN_DOMAIN="$$(printf '%s' "$${NGROK_DOMAIN}" | sed -e 's|^https\?://||' -e 's|/*$$||')"
+        if [ -n "$$CLEAN_DOMAIN" ]; then
+          echo "Starting ngrok tunnel pointing to $$TARGET with domain $$CLEAN_DOMAIN..."
+          exec ngrok http "$$TARGET" --url="https://$$CLEAN_DOMAIN" --authtoken="$${NGROK_AUTHTOKEN}" --config=/etc/ngrok/ngrok.yml --log=stdout
         else
           echo "Starting ngrok tunnel pointing to $$TARGET..."
-          exec ngrok http "$$TARGET" --authtoken="$${NGROK_AUTHTOKEN}"
+          exec ngrok http "$$TARGET" --authtoken="$${NGROK_AUTHTOKEN}" --config=/etc/ngrok/ngrok.yml --log=stdout
         fi
     ports:
       - "4040:4040"
@@ -390,4 +424,5 @@ volumes:
 
 networks:
   cms_network:
+    name: ${CMS_NETWORK_NAME:-cms-v2_cms_network}
     driver: bridge

@@ -1,0 +1,20 @@
+{
+  "active_scenario_id": "chapter-upload-version-fix",
+  "state": "Reflecting",
+  "completed_subgoals": [
+    "Atomic allocator",
+    "Uncommitted-file compensation",
+    "15 mocked unit regressions",
+    "Two real 50-client acceptance trials",
+    "Paper and report updated",
+    "Owned resource cleanup"
+  ],
+  "remaining_subgoals": [
+    "Diagnose repeated import startup watchdog",
+    "Corrected-run independent database and file readback",
+    "Remaining release governance/workflow gates"
+  ],
+  "last_action_result": "Two 110s startup stalls after interrupted readback; circuit breaker halts further retries",
+  "progress_delta": 0,
+  "loop_count": 2
+}

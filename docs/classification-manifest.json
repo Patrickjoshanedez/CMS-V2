@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "description": "CMS-V2 Authoritative Document and Artifact Classification Manifest",
-  "last_updated": "2026-10-13",
+  "last_updated": "2026-10-17",
   "authority_order": [
     "1. Approved institutional requirements and role boundaries",
     "2. Approved API contracts and intended user behavior",
@@ -22,6 +22,158 @@
   ],
   "statuses": ["current", "needs-review", "superseded", "historical", "generated"],
   "artifacts": [
+    {
+      "path": ".agents/ptss/sessions/2026-10-15_chapter-upload-version-fix.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "Saved correction, measured acceptance, incomplete integrity verification, and paper readback",
+      "retirement_or_quarantine_reason": "Completed immutable session record retained for historical audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/tasks/chapter-upload-version-fix.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Three-layer task checkpoint and two-cycle break rule",
+      "verification_evidence": "Remaining readback and workflow subgoals explicitly recorded",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "100/100 burst requests accepted across one- and two-process trials; stored-file readback incomplete",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/modules/submissions/chapterVersion.service.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "Atomic counter allocator; 10 mocked regression tests and real HTTP contention trials",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/modules/submissions/submissionVersion.model.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "Project/chapter counter schema used by corrected real HTTP trials",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/tests/unit/chapterVersion.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "10/10 allocator model-double tests passed",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/tests/unit/chapterUploadCleanup.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "5/5 cleanup storage-double tests passed",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/isolated_upload_worker.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+      "verification_evidence": "Second process participated in 50/50 accepted HTTP requests",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/isolated-upload-2026-10-15.md",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "User-authorized isolated concurrent upload validation; same-project contention",
+      "verification_evidence": "50 real uploads: 15 HTTP 201, 35 HTTP 409; all 16 accepted objects including preflight passed hash readback",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/isolated_upload_environment.ps1",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Disposable labeled private network; no live volumes; docs/benchmarks/isolated-upload-2026-10-15.md",
+      "verification_evidence": "Created dependency and application containers; ownership-checked cleanup completed",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/isolated_upload_server.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Exact isolated host/database guards and official application-service fixture creation",
+      "verification_evidence": "Bootstrap ready; authenticated actual DOCX preflight HTTP 201; no final signatures or workers",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/build_upload_fixture.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Valid deterministic DOCX fixture; no invented research samples",
+      "verification_evidence": "1163-byte valid OOXML; hash captured and compared against every accepted object",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/run_isolated_upload_clients.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Bounded private-network 50-client same-chapter upload experiment",
+      "verification_evidence": "50 responses received; strict acceptance failed with 35 duplicate-version conflicts",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/verify_isolated_uploads.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Read-only accepted-record, version and official storage-download verification",
+      "verification_evidence": "16 accepted records and hashes verified; full expected count 51 failed; storage-object orphan listing unmeasured",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/review-validation-2026-10-15.md",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Chapter 4 evidence-backed follow-up validation; unresolved empirical requirements retained",
+      "verification_evidence": "scratch/qa-evidence/2026-10-15-review-validation: two failed title-concurrency trials and blocked workflow/manuscript probes",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/k6_concurrent_title_checks.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/benchmarks/review-validation-2026-10-15.md; read-only 50-client title workload",
+      "verification_evidence": "Two real k6 trials, 100 iterations each; script executed, success thresholds failed",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/k6_valid_submissions.js",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Dedicated approved test-project precondition; replaces invalid fixture methodology for future submission trials",
+      "verification_evidence": "k6 inspect exit 0; accepted-submission workload not executed pending safe eligible project",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/run_independent_manuscripts.py",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Public-source provenance-aware observational testing; no invented clean labels",
+      "verification_evidence": "Python syntax compilation; source manifests retained; independent accuracy not established",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scripts/benchmarks/run_independent_copy_probe.py",
+      "category": "testing-and-benchmarking",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Guarded isolated-collection known-copy excerpt probe",
+      "verification_evidence": "Isolated empty collection verified; first valid ingestion timed out; no detection metrics claimed",
+      "retirement_or_quarantine_reason": null
+    },
     {
       "path": "docs/RESPONSIVE_LAYOUT_AUDIT.md",
       "category": "testing-and-benchmarking",
@@ -244,6 +396,382 @@
       "status": "current",
       "governing_requirement_or_replacement": "CMS-V2 Systematic Workspace Organization and Evidence Maintenance Skill",
       "verification_evidence": "scripts/verify_workspace_evidence.py",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "shared/constants/admMilestones.js",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md canonical capstone phase and ADM workflow",
+      "verification_evidence": "Client ADM milestone mapping assertions; server ADM mapping suite pending due to test-runner startup stall",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/hooks/useSubmissions.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Submission mutation cache freshness regression coverage",
+      "verification_evidence": "Focused Vitest test passed 1/1 with a single worker",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/e2e-student-fixtures/compiled_proposal_e2e.docx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Disposable synthetic E2E fixture; not an academic manuscript or authoritative evidence",
+      "verification_evidence": "CMS accepted compiled proposal upload and completed plagiarism scan; renderer inspection unavailable because soffice.exe was absent",
+      "retirement_or_quarantine_reason": "Ephemeral workflow-test fixture; remove with scratch test artifacts after the E2E run is closed"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-15_e2e-workflow.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/AUTHORITATIVE_INDEX.md Section 2.D; synthetic end-to-end workflow evidence",
+      "verification_evidence": "Seeded student workflow through proposal compilation; Chapters 4-5 correctly gated; UI findings and test limitations recorded",
+      "retirement_or_quarantine_reason": "Completed immutable session record retained for historical audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/tasks/2026-10-15_e2e-workflow.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Three-layer task checkpoint and pending institutional ADM prerequisites",
+      "verification_evidence": "Remaining Capstone 3 and archival subgoals are explicitly gated on authorized institutional actions",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/defense/LiveDefenseMinutesModal.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Blank defense minutes must not imply an unrecorded consensus; omitted optional panelists must not retrigger session loading on every render",
+      "verification_evidence": "LiveDefenseMinutesModal and SecretaryMinutesDocumentSheet focused suites passed together: 16/16; live Secretary sheet reviewed in light/dark desktop/mobile views with no horizontal overflow",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/submissions/PlagiarismReportPage.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Similarity-derived originality metrics must be identified as estimates and must not claim proof of authorship",
+      "verification_evidence": "PlagiarismReportPage and DefenseScheduleBadge targeted suites passed 24/24; affected pages reviewed in both themes at desktop and mobile sizes",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/submissions/SubmissionDetailPage.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Partial plagiarism scan metrics must be coverage-aware and responsive without claiming verified originality",
+      "verification_evidence": "SubmissionDetailPage passed 16/16; the combined PlagiarismReportPage, SubmissionDetailPage, and DefenseScheduleBadge suite passed 40/40; desktop/mobile light/dark review confirmed no horizontal overflow and a vertically stacked mobile scan meter",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/projects/PrototypeShowcaseAndDemo.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Demo video inputs must reject invalid URLs client-side and surface meaningful server validation errors",
+      "verification_evidence": "PrototypeShowcaseAndDemo passed 6/6, covering empty and malformed rejection, a valid HTTPS link, and server validation copy; live light/dark desktop/mobile review had no horizontal overflow",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/instructor-portal-audit.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Ephemeral instructor responsive layout checkpoint; institutional workflow requirements retain authority",
+      "verification_evidence": "59 focused tests passed, scoped lint and governance checks passed, light/dark desktop/mobile review; ReportsPage test timeout recorded",
+      "retirement_or_quarantine_reason": "Disposable scratch checkpoint; not authoritative evidence of academic outcomes"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-16_workflow-refactor-status-transition.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Approved capstone lifecycle requirements and verified project phase/status transitions",
+      "verification_evidence": "Focused ADM progression tests passed 8/8; scoped ESLint, syntax checks, endpoint parity, 60/60 agentic checks, 34/34 workspace evidence checks, governance, and workspace guardrail passed",
+      "retirement_or_quarantine_reason": "Completed session record retained for audit; broader workflow items remain explicitly listed as open"
+    },
+    {
+      "path": ".agents/ptss/tasks/workflow-refactor.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Three-layer workflow refactor checkpoint and user-provided capstone lifecycle plan",
+      "verification_evidence": "Completed and remaining subgoals, last action result, progress delta, loop counter, and prerequisite DAG recorded",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-16_seeded-account-runtime-recheck.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "User-authorized synthetic test workflow and the institutional four-phase capstone lifecycle",
+      "verification_evidence": "Seeded account, profile, team, project, submissions, and ADM read through official APIs; state mismatch and client startup issue recorded without project mutation",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "memories/repo/lessons/2026-10-16-seeded-test-runtime-recheck.md",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Non-authoritative runtime diagnostic lesson; repository evidence-maintenance skill governs classification",
+      "verification_evidence": "Records the seeded-account no-duplicate checklist, service/API verification steps, and Vite startup diagnostic observations",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_synthetic-final-adm-archive-run.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic workflow evidence and the institutional capstone lifecycle contract",
+      "verification_evidence": "Records official API receipts, targeted and integration test outcomes, visual audit coverage, queued indexing status, and limitations on the full lifecycle claim",
+      "retirement_or_quarantine_reason": "Immutable session evidence retained for audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_latest_seeded_account_e2e.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic test workflow and the institutional capstone lifecycle contract",
+      "verification_evidence": "Official API readbacks confirm synthetic Gantt, weekly check-ins, defenses, final manuscript scans, ADM sign-offs, grade release, archive search, PDFs, and certificate verification; no actual oral defense occurred",
+      "retirement_or_quarantine_reason": "Immutable session evidence retained for audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/tasks/2026-10-17_latest_seeded_account_e2e.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Completed six-attribute PTSS checkpoint for the latest seeded-account synthetic run",
+      "verification_evidence": "All listed subgoals completed and no remaining subgoals; limitations and live project ID are recorded",
+      "retirement_or_quarantine_reason": "Completed task checkpoint retained for audit; not current operating guidance."
+    },
+    {
+      "path": "shared/constants/capstonePhases.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md: Phase 0 followed by overall workflow Phases 1–4, with Capstone 1–3 stored separately as course numbers",
+      "verification_evidence": "Shared phase resolver separates workflowPhase from legacy capstonePhase and resolves proposal, three Capstone stages, and archived records.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/modules/projects/services/projectArchive.service.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md: archival follows Capstone 3 final defense and ADM completion in overall Phase 4",
+      "verification_evidence": "Archive eligibility uses the overall workflow phase while preserving legacy course-counter compatibility.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/instructor/MilestoneDeadlinesModal.jsx",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md: proposal, Capstone 1, Capstone 2, and Capstone 3 submission milestones",
+      "verification_evidence": "Deadline stage options align with the four submission workflow stages and retain legacy final-stage records for reads.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/cms-v2-comprehensive-workflow.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md: Phase 0 plus Phases 1–4; Capstone 1, 2, and 3 each occupy one academic semester",
+      "verification_evidence": "Workflow overview maps proposal intake, sequential chapter review, Gantt approval, guarded grade release, three ADMs, final archival, and course numbering.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "shared/constants/academicTerms.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md: each Capstone course is one academic semester and active projects are unique within a term",
+      "verification_evidence": "Shared term values are used by student profiles, team rosters, and project term-scoped duplicate checks.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/skills/capstone-lifecycle-orchestrator/SKILL.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md canonical workflow and current shared phase/course mapping",
+      "verification_evidence": "Skill now describes Phase 0 setup and Capstone 1–3 semester gates across Phases 2–4.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/skills/verification-loop/SKILL.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md targeted testing, Windows sandbox recovery, and 120-second watchdog requirements",
+      "verification_evidence": "Version 1.6.2 documents workspace-local Vitest temp paths for client/server tests, sequential sharding for large Windows client suites, isolated approved MongoMemoryServer loopback, binary-cache preflight, and bounded startup recovery.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/utils/milestoneDeadlines.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "MilestoneDeadline API contract and section-over-batch override behavior",
+      "verification_evidence": "Resolves proposal, chapter 1–5, and final-paper deadlines with explicit late-submission policy and project-deadline fallback.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/hooks/useProjectMilestoneDeadlines.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "MilestoneDeadline API contract scoped by project academic year and section",
+      "verification_evidence": "Queries scheduler records for a project's section and academic batch; avoids unscoped requests when project scope is absent.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/modules/submissions/submission.service.js",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "Server-side submission deadline and late-justification policy",
+      "verification_evidence": "Checks section-specific milestone policy before batch defaults and enforces closed late windows at upload time.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/projects/InteractiveGanttChart.jsx",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "Assigned-team and assigned-Adviser schedule permissions; separate Adviser approval gate",
+      "verification_evidence": "The shared schedule editor derives edit access from the authenticated user and project assignment; approval remains a separate control.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/utils/milestoneDeadlines.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Scheduler deadline resolution and late-submission policy behavior",
+      "verification_evidence": "Focused deadline and submission workflow coverage passed as part of the 52/52 targeted client test set.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/tests/unit/submission.deadline-policy.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Submission service must enforce configured section/batch deadline policy",
+      "verification_evidence": "3/3 tests cover section override, batch fallback, closed late uploads, remarks, and project-deadline fallback.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_workflow-deadline-gantt-closure.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic capstone workflow and institutional upload/Gantt authorization rules",
+      "verification_evidence": "Records 52/52 focused client tests, 3/3 deadline policy tests, 67/67 submission integration tests, 21/21 client Gantt tests, 11/11 server Gantt tests, and incomplete visual/full-client checks.",
+      "retirement_or_quarantine_reason": "Immutable session evidence; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/tasks/2026-10-17_four-phase-workflow-refactor.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Active synthetic lifecycle workflow closure checkpoint",
+      "verification_evidence": "Six-attribute checkpoint records completed workflow, deadline, Gantt, and visual subgoals; the full client suite and comprehensive server suite remain open.",
+      "retirement_or_quarantine_reason": "Open verification gates are explicitly retained in remaining_subgoals."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_archived-gantt-visual-verification.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic capstone workflow and archived project read-only policy",
+      "verification_evidence": "Records four-mode desktop/mobile visual review, 22/22 client Gantt tests, and 12/12 isolated server Gantt tests; the full client suite remains unverified and the comprehensive server suite stopped at fixture configuration before assertions.",
+      "retirement_or_quarantine_reason": "Historical test evidence; no seeded account credentials are included."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_archived-project-readonly-guard-closure.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic capstone workflow and archived project read-only policy",
+      "verification_evidence": "Records archived UI checks and focused client/server workflow results. Registration domain suites passed 3/3 each. The registration visual loop remains unverified because the authenticated tab redirects and the isolated Playwright browser/download host were unavailable. Read-only GET checks confirm the report-listed account is attached to a locked team with an archived project. The new follow-up session confirms GET /api/projects/:id returns archiveIndexing.status=completed for both final manuscripts with completedAt set and no lastError. The DOCX clean-seed baseline is stale relative to live state; no credentials or project/database writes are recorded. Mongo-backed integration, the full-client suite, and a fresh registration-to-Capstone 1 lifecycle remain open.",
+      "retirement_or_quarantine_reason": "Historical run record; account credentials are omitted and the record is not institutional approval evidence."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_mongodb-binary-preflight-recovery.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized synthetic workflow, official archive indexing status, and Windows verification recovery rules",
+      "verification_evidence": "Read-only project API confirms completed indexing for both final manuscripts. The comprehensive workflow suite stopped before assertions at 108 seconds with an empty isolated MongoMemoryServer binary cache; no test or mongod process remained. Verification-loop was patched to version 1.6.0 with a binary preflight and bounded cleanup procedure.",
+      "retirement_or_quarantine_reason": "Historical test-only follow-up; no credentials or project/database writes are recorded."
+    },
+    {
+      "path": "server/tests/unit/project.defense-schedule-gate.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "REQ-WORKFLOW-07 title approval must remain separate from proposal-defense scheduling",
+      "verification_evidence": "10/10 focused title service tests passed in 17.60 seconds with database startup disabled and cross-domain collaborators isolated.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/auth/registerSchema.js",
+      "category": "institutional-contract",
+      "status": "current",
+      "governing_requirement_or_replacement": "Student registration domain rule in server/modules/auth/auth.validation.js",
+      "verification_evidence": "Client schema requires the dedicated student.buksu.edu.ph domain; focused schema tests passed 3/3.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/auth/RegisterPage.jsx",
+      "category": "institutional-contract",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Student registration domain rule in server/modules/auth/auth.validation.js",
+      "verification_evidence": "The registration page now uses the aligned schema; focused schema tests passed 3/3. Public-page visual verification remains open.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/auth/registerSchema.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "REQ-AUTH-03 student registration domain validation",
+      "verification_evidence": "3/3 focused client schema tests passed.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "server/tests/unit/auth.registration-domain.test.js",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "REQ-AUTH-03 student registration domain validation",
+      "verification_evidence": "3/3 focused server registration-domain tests passed with NODE_ENV=development and no database access.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "memories/repo/CMS-V2-Technical-Context.md",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Durable technical context and prevention runbooks for CMS-V2",
+      "verification_evidence": "Records student registration domain alignment, focused-service test isolation, and preservation of original MIME types in archive readers, with prevention checklists and targeted evidence.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/archive/CanonicalDocumentViewer.jsx",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md unified SophisticatedDocumentViewer contract for archive manuscripts",
+      "verification_evidence": "Preserves server-provided MIME type and filename and routes archived manuscripts through the shared canonical document reader; focused reader tests and four-mode browser review passed.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/archive/CanonicalDocumentViewer.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "REQ-WORKFLOW-12 archived manuscript format and canonical-reader coverage",
+      "verification_evidence": "Focused archive/shared document viewer suites passed 27/27, including PDF routing and preservation of TXT MIME type and filename.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_archive-text-reader-followup.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Immutable archive-reader follow-up evidence; institutional lifecycle rules remain authoritative",
+      "verification_evidence": "Records 27/27 focused tests, four light/dark desktop/mobile captures, and the unchanged archived account/project state.",
+      "retirement_or_quarantine_reason": "Immutable session evidence retained for audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/ptss/tasks/2026-10-17_phase0_capstone1_followup.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "Three-layer PTSS checkpoint for user-requested seeded-account workflow follow-up",
+      "verification_evidence": "Tracks full client suite (8/8 shards, 753 tests across 123 files), isolated comprehensive server workflow suite (13/13), isolated auth suite (17/17), governance/evidence checks, unchanged seeded archive readback, and remaining clean-start registration journey pending a verified local OTP sink.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-17_seeded-account-workflow-verification.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Approved synthetic capstone workflow requirements and the active Phase 0–Capstone 1 checkpoint",
+      "verification_evidence": "Records isolated workflow integration 13/13, auth 17/17, targeted registration schema 3/3, endpoint parity 229/209/0 unmatched, agentic audit 60/60, evidence integrity 34/34, workspace guardrail, seeded-account state, SMTP boundary, and all eight sequential client shards passing 753 tests across 123 files exactly once.",
+      "retirement_or_quarantine_reason": "Immutable session evidence retained for audit; not current operating guidance."
+    },
+    {
+      "path": ".agents/skills/automated-qa-tester/SKILL.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "User authorization and safe test isolation for registration and OTP workflows",
+      "verification_evidence": "Versioned guidance distinguishes seeded account data from mailbox ownership and requires an approved local OTP sink or explicit recipient authorization before live submission.",
       "retirement_or_quarantine_reason": null
     }
   ]

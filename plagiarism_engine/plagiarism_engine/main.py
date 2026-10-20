@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets as _secrets
 from contextlib import asynccontextmanager
 
 from celery.result import AsyncResult
@@ -67,6 +68,7 @@ from .models import (
     SourceMetadata,
     TaskStatus,
 )
+from .tasks import celery_app, check_document_task, index_document_task
 
 import os as _os
 _cfg = get_settings()
@@ -140,6 +142,34 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def require_service_token(request, call_next):
+    """Require a shared bearer token when the engine is exposed remotely."""
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    expected_token = _os.environ.get("PLAGIARISM_ENGINE_API_TOKEN", "").strip()
+    is_local_dev = (
+        _os.environ.get("ENV", "development").lower() in ("test", "development")
+        or _os.environ.get("PYTEST_CURRENT_TEST") is not None
+    )
+    if not expected_token:
+        if not is_local_dev:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "PLAGIARISM_ENGINE_API_TOKEN must be configured in production."},
+            )
+        return await call_next(request)
+
+    supplied_token = request.headers.get("authorization", "")
+    expected_header = f"Bearer {expected_token}"
+    if not _secrets.compare_digest(
+        supplied_token.encode("utf-8"), expected_header.encode("utf-8")
+    ):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return await call_next(request)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
@@ -207,7 +237,7 @@ async def submit_check(body: CheckRequest) -> CheckResponse:
     include_in_schema=False,
 )
 async def check_document_sync(body: CheckRequest) -> PlagiarismReport:
-    """Execute the two-stage HybridSourceTracker pipeline synchronously."""
+    """Execute the two-stage HybridSourceTracker pipeline synchronously without blocking the event loop."""
     if not body.text or not body.text.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -215,7 +245,8 @@ async def check_document_sync(body: CheckRequest) -> PlagiarismReport:
         )
     engine = PlagiarismEngine()
     meta_dict = body.metadata if isinstance(body.metadata, dict) else (body.metadata.model_dump() if body.metadata else {})
-    return engine.check_document(
+    return await asyncio.to_thread(
+        engine.check_document,
         document_id=body.document_id,
         text=body.text,
         metadata=meta_dict,
@@ -329,14 +360,14 @@ async def index_document(body: IndexRequest) -> IndexResponse:
     tags=["Corpus Index"],
 )
 async def index_document_sync(body: IndexRequest) -> IndexResponse:
-    """Synchronously index a source document into the ChromaDB corpus."""
+    """Synchronously index a source document into the ChromaDB corpus without blocking the event loop."""
     if not body.text or not body.text.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Field 'text' is required and must not be empty.",
         )
     engine = PlagiarismEngine()
-    return engine.index_document(body)
+    return await asyncio.to_thread(engine.index_document, body)
 
 
 @app.delete(
@@ -346,13 +377,13 @@ async def index_document_sync(body: IndexRequest) -> IndexResponse:
     tags=["Corpus Index"],
 )
 async def delete_from_index(document_id: str) -> DeleteResponse:
-    """Synchronously remove a document and all its embedded segments from ChromaDB.
+    """Synchronously remove a document and all its embedded segments from ChromaDB without blocking the event loop.
 
     Call this when a submission is permanently deleted or de-listed from the
     CMS archive so it no longer influences future plagiarism checks.
     """
     engine = PlagiarismEngine()
-    deleted_count = engine.remove_document(document_id)
+    deleted_count = await asyncio.to_thread(engine.remove_document, document_id)
     return DeleteResponse(
         document_id=document_id,
         deleted_segments=deleted_count,

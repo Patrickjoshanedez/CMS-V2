@@ -39,11 +39,11 @@ const OptimizationEngine = ({
       className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4"
       aria-busy={loading}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-foreground">
-              Optimization Engine
+              Workload Suggestions
             </h2>
             <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider">
               {currentScope === 'all' ? 'Multi-Role' : currentScope}
@@ -58,7 +58,7 @@ const OptimizationEngine = ({
           onClick={handleGenerateClick}
           disabled={loading}
           size="sm"
-          className="min-h-[44px] sm:min-h-[36px] px-3.5 shadow-xs shrink-0"
+          className="min-h-11 px-3.5 shadow-xs shrink-0"
           aria-label={
             loading ? 'Generating balancing suggestions' : 'Generate balancing suggestions'
           }
@@ -69,14 +69,14 @@ const OptimizationEngine = ({
       </div>
 
       {/* Role Scope Selector Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/40 w-fit">
+      <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/40">
         {ROLE_SCOPES.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => handleScopeChange(id)}
             disabled={loading}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+            className={`inline-flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
               currentScope === id
                 ? 'bg-background text-foreground shadow-2xs border border-border/60 font-semibold'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
@@ -95,8 +95,8 @@ const OptimizationEngine = ({
       {!optimization ? (
         <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-5">
           <p className="text-sm text-muted-foreground">
-            No optimization snapshot yet. Select a role scope and generate to analyze workload
-            imbalance.
+            Choose a committee role, then generate suggestions to review workload
+            distribution.
           </p>
         </div>
       ) : (

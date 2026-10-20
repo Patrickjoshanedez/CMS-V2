@@ -1315,7 +1315,25 @@ describe('Projects API — /api/projects', () => {
         capstonePhase: 4,
         stage: 'final',
         defenseSchedule: { status: 'completed', verdict: 'Passed' },
-        admSignatures: { secretary: { endorsed: true } },
+        panelistIds: [panelistUser._id],
+        panelists: [{ userId: panelistUser._id, role: 'chair' }],
+        actionDoneMatrix: [
+          {
+            panelName: 'Panel Chair',
+            suggestion: 'Confirm the final revisions.',
+            status: 'verified',
+            milestone: 'CAPSTONE_3',
+          },
+        ],
+        admSignaturesByMilestone: {
+          CAPSTONE_3: {
+            secretary: { endorsed: true },
+            adviser: { signed: true },
+            instructor: { signed: true },
+            chair: { signed: true, userId: panelistUser._id },
+            panelists: [],
+          },
+        },
       });
 
       await Submission.create([
@@ -1328,6 +1346,7 @@ describe('Projects API — /api/projects', () => {
           fileSize: 1024,
           storageKey: `archives/projects/${projectId}/final-academic/v1/final-academic.pdf`,
           submittedBy: studentUser._id,
+          status: 'approved',
           plagiarismResult: {
             status: 'completed',
             originalityScore: 90,
@@ -1342,12 +1361,26 @@ describe('Projects API — /api/projects', () => {
           fileSize: 1024,
           storageKey: `archives/projects/${projectId}/final-journal/v1/final-journal.pdf`,
           submittedBy: studentUser._id,
+          status: 'approved',
           plagiarismResult: {
             status: 'completed',
             originalityScore: 92,
           },
         },
       ]);
+
+      await Evaluation.create({
+        projectId,
+        panelistId: panelistUser._id,
+        defenseType: 'final',
+        criteria: [{ name: 'Final defense', maxScore: 100, score: 90 }],
+        totalScore: 90,
+        maxTotalScore: 100,
+        percentage: 90,
+        decision: 'passed',
+        status: 'released',
+        releasedAt: new Date(),
+      });
     });
 
     it('should archive a project when final submissions are present and plagiarism-cleared', async () => {

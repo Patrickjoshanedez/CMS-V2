@@ -49,6 +49,9 @@ const mockProject = {
   admSignatures: {
     secretary: { endorsed: true },
   },
+  admSignaturesByMilestone: {
+    CAPSTONE_2: { secretary: { endorsed: true } },
+  },
 };
 
 describe('Capstone2CollapsibleSections Component Suite', () => {
@@ -86,7 +89,7 @@ describe('Capstone2CollapsibleSections Component Suite', () => {
     await renderComponent();
 
     expect(container.textContent).toContain('System Development & Academic Gantt Chart');
-    expect(container.textContent).toContain('Action Done Matrix (ADM v2)');
+    expect(container.textContent).toContain('Action Done Matrix (ADM v1)');
     expect(container.textContent).toContain('Defense Evaluation & Grade Sign-Off');
     expect(container.textContent).toContain('Secretary Endorsed');
   });
@@ -96,6 +99,13 @@ describe('Capstone2CollapsibleSections Component Suite', () => {
 
     const gantt = container.querySelector('[data-testid="mock-gantt-chart"]');
     expect(gantt).toBeTruthy();
+  });
+
+  it('delegates faculty Gantt access to the shared role-aware schedule guard', async () => {
+    await renderComponent({ isStudent: false, isFaculty: true });
+
+    const gantt = container.querySelector('[data-testid="mock-gantt-chart"]');
+    expect(gantt?.getAttribute('data-readonly')).toBe('undefined');
   });
 
   it('toggles ADM section and mounts ActionDoneMatrixTab with initialMilestone="CAPSTONE_2"', async () => {

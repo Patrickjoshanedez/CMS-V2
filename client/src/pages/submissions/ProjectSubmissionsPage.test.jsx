@@ -20,31 +20,51 @@ let currentSubmissions = [
   { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
   { _id: 'sub-3', type: 'chapter', chapter: 3, status: 'approved', version: 1 },
 ];
+let currentMilestoneDeadlines = [];
 
 vi.mock('@/components/submissions/ChapterCard', () => ({
-  default: ({ chapterNumber, submission, canUpload }) => (
+  default: ({ chapterNumber, submission, canUpload, deadline, allowLateSubmission, onUpload }) => (
     <div
       data-testid={`chapter-card-${chapterNumber}`}
       data-submission-version={submission?.version}
       data-submission-status={submission?.status}
       data-can-upload={String(canUpload)}
+      data-deadline={deadline || ''}
+      data-allow-late={String(allowLateSubmission)}
     >
       Chapter {chapterNumber} Card
+      {canUpload && (
+        <button
+          type="button"
+          data-testid={`upload-chapter-${chapterNumber}`}
+          onClick={() => onUpload?.(chapterNumber, submission)}
+        >
+          Upload Chapter {chapterNumber}
+        </button>
+      )}
     </div>
   ),
 }));
 
+vi.mock('@/hooks/useProjectMilestoneDeadlines', () => ({
+  useProjectMilestoneDeadlines: () => ({ data: currentMilestoneDeadlines }),
+}));
+
 vi.mock('@/components/projects/PrototypeShowcaseAndDemo', () => ({
-  default: ({ project }) => (
-    <div data-testid="prototype-showcase-and-demo">
+  default: ({ project, isReadOnly, canAdd }) => (
+    <div
+      data-testid="prototype-showcase-and-demo"
+      data-read-only={String(isReadOnly)}
+      data-can-add={String(canAdd)}
+    >
       <span>Prototype Showcase and Demo Component: {project?.title}</span>
     </div>
   ),
 }));
 
 vi.mock('@/components/projects/InteractiveGanttChart', () => ({
-  default: ({ project }) => (
-    <div data-testid="interactive-gantt-chart">
+  default: ({ project, isReadOnly }) => (
+    <div data-testid="interactive-gantt-chart" data-read-only={String(isReadOnly)}>
       <span>Interactive Gantt Chart Component: {project?.title}</span>
     </div>
   ),
@@ -77,7 +97,7 @@ let mockProjectData = {
   _id: 'proj-123',
   title: 'Project Workspace: Capstone Management System with Plagiarism Checker',
   titleStatus: 'approved',
-  capstonePhase: 2,
+  capstonePhase: 1,
   admStatus: 'not_started',
   deadlines: {},
 };
@@ -131,7 +151,7 @@ describe('ProjectSubmissionsPage Suite', () => {
       _id: 'proj-123',
       title: 'Project Workspace: Capstone Management System with Plagiarism Checker',
       titleStatus: 'approved',
-      capstonePhase: 2,
+      capstonePhase: 1,
       admStatus: 'not_started',
       deadlines: {},
     };
@@ -140,9 +160,28 @@ describe('ProjectSubmissionsPage Suite', () => {
       { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
       { _id: 'sub-3', type: 'chapter', chapter: 3, status: 'approved', version: 1 },
     ];
+    currentMilestoneDeadlines = [];
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+  });
+
+  it('opens first submission in upload mode instead of revision-locked mode', async () => {
+    currentSubmissions = [];
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    await act(async () => {
+      container.querySelector('[data-testid="upload-chapter-1"]').click();
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain('Upload Chapter Manuscript');
+    expect(dialog?.textContent).not.toContain('Revise Chapter 1');
+    expect(dialog?.querySelector('#upload-chapter-modal-title')?.parentElement?.textContent).not.toContain(
+      'Locked',
+    );
   });
 
   afterEach(() => {
@@ -152,31 +191,37 @@ describe('ProjectSubmissionsPage Suite', () => {
     container?.remove();
   });
 
-  it('renders phased architecture with Phase 2 and Phase 3 separated correctly', async () => {
+  it('renders the three capstone courses inside their business phases', async () => {
     await act(async () => {
       root.render(<ProjectSubmissionsPage />);
     });
 
-    // Phase 2 Capstone 2 assertions
+    // Phase 2 is Capstone 1.
     expect(container.textContent).toContain(
-      'Capstone 2: Chapters 1–3 Manuscript & Midterm Defense',
+      'Capstone 1: Chapters 1–3 Manuscript & Proposal Defense',
     );
     expect(container.textContent).toContain('Phase 2');
     expect(container.querySelector('[data-testid="chapter-card-1"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-2"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-3"]')).toBeTruthy();
 
-    // Phase 3 Capstone 3 assertions (realigned from mislabeled Capstone 2)
-    expect(container.textContent).toContain('Capstone 3: System Development & Progress Defense');
+    // Phase 3 is Capstone 2.
+    expect(container.textContent).toContain('Capstone 2: System Development & Prototype Defense');
     expect(
       container.querySelector('[data-testid="prototype-showcase-and-demo"]') ||
         container.querySelector('[data-testid="development-assets-form"]'),
     ).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only'),
+    ).toBe('true');
+    expect(
+      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-can-add'),
+    ).toBe('false');
     expect(container.querySelector('[data-testid="chapter-card-4"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-5"]')).toBeTruthy();
 
-    // Phase 4 Final Capstone assertions
-    expect(container.textContent).toContain('Final Capstone: Oral Defense & Manuscript Archival');
+    // Phase 4 is Capstone 3.
+    expect(container.textContent).toContain('Capstone 3: Final Defense & Manuscript Archival');
     expect(container.textContent).toContain('Phase 4');
     expect(container.textContent).toContain('Final Paper Submission');
 
@@ -205,7 +250,10 @@ describe('ProjectSubmissionsPage Suite', () => {
     // Modal dialog is open in document.body (portaled)
     expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
     expect(document.body.querySelector('[data-testid="interactive-gantt-chart"]')).toBeTruthy();
-    expect(document.body.textContent).toContain('Capstone 3: Interactive Academic Gantt Chart');
+    expect(
+      document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+    ).toBe('true');
+    expect(document.body.textContent).toContain('Capstone 2: Interactive Academic Gantt Chart');
 
     // Click close button
     const closeBtn = document.body.querySelector('button[aria-label="Close Gantt Dialog"]');
@@ -218,6 +266,74 @@ describe('ProjectSubmissionsPage Suite', () => {
     // Modal is closed
     expect(document.body.querySelector('[data-testid="interactive-gantt-chart"]')).toBeNull();
   });
+
+  it('unlocks student Capstone 2 development edits after Capstone 1 completion', async () => {
+    mockProjectData = {
+      ...mockProjectData,
+      capstonePhase: 2,
+      admStatus: 'approved',
+    };
+
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    expect(container.textContent).not.toContain(
+      'Capstone 2 development assets unlock after your Capstone 1 Action Done Matrix',
+    );
+    expect(
+      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only'),
+    ).toBe('false');
+    const ganttButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Academic Gantt'),
+    );
+    await act(async () => {
+      ganttButton.click();
+    });
+    expect(
+      document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+    ).toBe('false');
+  });
+
+  it.each([{ isArchived: true }, { projectStatus: 'archived' }])(
+    'locks submissions, development assets, and Gantt editing for an archived project (%o)',
+    async (archiveState) => {
+      mockProjectData = {
+        ...mockProjectData,
+        ...archiveState,
+        capstonePhase: 3,
+        admStatus: 'approved',
+      };
+      currentSubmissions = [1, 2, 3, 4, 5].map((chapter) => ({
+        _id: `sub-${chapter}`,
+        type: 'chapter',
+        chapter,
+        status: 'approved',
+        version: 1,
+      }));
+
+      await act(async () => {
+        root.render(<ProjectSubmissionsPage />);
+      });
+
+      expect(container.querySelector('[data-testid="archived-project-readonly"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="chapter-card-1"]')?.getAttribute('data-can-upload')).toBe('false');
+      expect(container.querySelector('[data-testid="chapter-card-4"]')?.getAttribute('data-can-upload')).toBe('false');
+      expect(container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only')).toBe('true');
+      expect(container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-can-add')).toBe('false');
+      expect(Array.from(container.querySelectorAll('button')).some((button) => button.textContent.includes('Upload Chapter'))).toBe(false);
+
+      const ganttButton = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent.includes('Academic Gantt'),
+      );
+      await act(async () => {
+        ganttButton.click();
+      });
+      expect(
+        document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+      ).toBe('true');
+    },
+  );
 
   it('correctly resolves latest version when v2 is accepted with identical timestamp to v1, and unlocks chapter 2', async () => {
     const timestamp = '2026-09-10T07:17:21.514Z';
@@ -257,19 +373,53 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(card2.getAttribute('data-can-upload')).toBe('true');
   });
 
-  it('renders ADM section in Capstone 2 card and opens ADM modal viewer', async () => {
+  it('uses the scheduled section deadline and late policy for chapter cards', async () => {
+    mockProjectData = {
+      ...mockProjectData,
+      academicYear: '2025-2026',
+      sectionId: { _id: 'section-a', academicYear: '2025-2026' },
+      deadlines: { chapter1: '2026-12-01T23:59:59.999Z' },
+    };
+    currentMilestoneDeadlines = [
+      {
+        batchYear: '2025-2026',
+        targetType: 'batch',
+        deliverable: 'chapter_1',
+        deadlineDate: '2026-11-01T23:59:59.999Z',
+        allowLateSubmission: true,
+      },
+      {
+        batchYear: '2025-2026',
+        targetType: 'section',
+        sectionId: { _id: 'section-a' },
+        deliverable: 'chapter_1',
+        deadlineDate: '2026-10-15T23:59:59.999Z',
+        allowLateSubmission: false,
+      },
+    ];
+
     await act(async () => {
       root.render(<ProjectSubmissionsPage />);
     });
 
-    // Verify ADM section card in Capstone 2 card
-    const admCard = container.querySelector('[data-testid="adm-section-card"]');
+    const chapter1 = container.querySelector('[data-testid="chapter-card-1"]');
+    expect(chapter1?.getAttribute('data-deadline')).toBe('2026-10-15T23:59:59.999Z');
+    expect(chapter1?.getAttribute('data-allow-late')).toBe('false');
+  });
+
+  it('renders the Capstone 1 ADM section and opens its modal viewer', async () => {
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    // Verify the first course ADM section.
+    const admCard = container.querySelector('[data-testid="adm-section-card"][data-milestone="CAPSTONE_1"]');
     expect(admCard).toBeTruthy();
     expect(admCard.textContent).toContain('Action Done Matrix (ADM)');
-    expect(admCard.textContent).toContain('Cap 2 (ADM v2)');
+    expect(admCard.textContent).toContain('Cap 1 (Proposal Defense · ADM v1)');
 
     // Verify header button in Capstone 2 card
-    const phase2HeaderBtn = container.querySelector('[data-testid="capstone2-open-adm-btn"]');
+    const phase2HeaderBtn = container.querySelector('[data-testid="capstone1-open-adm-btn"]');
     expect(phase2HeaderBtn).toBeTruthy();
     expect(phase2HeaderBtn.textContent).toContain('Open Action Done Matrix');
 
@@ -284,13 +434,13 @@ describe('ProjectSubmissionsPage Suite', () => {
       viewAdmBtn.click();
     });
 
-    // Modal is now open and renders ActionDoneMatrixTab with initialMilestone="CAPSTONE_2" in document.body
+    // Modal is now open and renders the Capstone 1 matrix.
     const admModal = document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]');
     expect(admModal).toBeTruthy();
-    expect(admModal.textContent).toContain('Capstone 2: Action Done Matrix (ADM)');
+    expect(admModal.textContent).toContain('Capstone 1: Action Done Matrix (ADM)');
     const admTab = admModal.querySelector('[data-testid="action-done-matrix-tab"]');
     expect(admTab).toBeTruthy();
-    expect(admTab.getAttribute('data-milestone')).toBe('CAPSTONE_2');
+    expect(admTab.getAttribute('data-milestone')).toBe('CAPSTONE_1');
 
     // Close modal
     const closeBtn = document.body.querySelector('button[aria-label="Close ADM Dialog"]');
@@ -303,7 +453,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]')).toBeNull();
   });
 
-  it('toggles ADM inline expansion inside the Capstone 2 card', async () => {
+  it('toggles ADM inline expansion inside the Capstone 1 card', async () => {
     await act(async () => {
       root.render(<ProjectSubmissionsPage />);
     });
@@ -334,8 +484,8 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(container.querySelector('[data-testid="adm-inline-container"]')).toBeNull();
   });
 
-  it('strictly gates Chapter 4 upload and final paper when Capstone 2 ADM is pending', async () => {
-    // mockProjectData defaults to admStatus: 'not_started' and capstonePhase: 2
+  it('strictly gates Chapter 4 upload and final papers until Capstone 2 completes', async () => {
+    mockProjectData.capstonePhase = 2;
     await act(async () => {
       root.render(<ProjectSubmissionsPage />);
     });
@@ -344,7 +494,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     const cap3Alert = container.querySelector('[data-testid="capstone3-prerequisite-alert"]');
     expect(cap3Alert).toBeTruthy();
     expect(cap3Alert.textContent).toContain(
-      'Capstone 3 chapter uploads (Chapters 4 & 5) unlock after your Capstone 2 Action Done Matrix (ADM v1) is approved and signed by the defense committee.',
+      'Capstone 3 chapter uploads (Chapters 4 & 5) unlock after your Capstone 2 Action Done Matrix (ADM v2) is approved and the grades are released.',
     );
 
     // Chapter 4 upload is blocked
@@ -353,15 +503,15 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(card4.getAttribute('data-can-upload')).toBe('false');
 
     // Final paper alert banner is displayed
-    const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
+    const cap4Alert = container.querySelector('[data-testid="capstone3-final-prerequisite-alert"]');
     expect(cap4Alert).toBeTruthy();
     expect(cap4Alert.textContent).toContain(
-      'Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.',
+      'Final manuscripts unlock after Capstone 2 system defense, grade release, and ADM v2 sign-off.',
     );
     expect(container.textContent).toContain('Submission Locked');
   });
 
-  it('unlocks Chapter 4 upload when Capstone 2 ADM is approved, while keeping final paper locked until Chapters 4-5 are completed', async () => {
+  it('unlocks Chapter 4 after Capstone 2 and keeps final papers locked until Chapters 1–5 are approved', async () => {
     mockProjectData = {
       ...mockProjectData,
       capstonePhase: 3,
@@ -381,10 +531,10 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(card4.getAttribute('data-can-upload')).toBe('true');
 
     // Final paper is still locked because chapters 4 and 5 are not completed
-    const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
+    const cap4Alert = container.querySelector('[data-testid="capstone3-final-prerequisite-alert"]');
     expect(cap4Alert).toBeTruthy();
     expect(cap4Alert.textContent).toContain(
-      'Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.',
+      'Final manuscripts unlock after Chapters 1–5 are approved by the adviser.',
     );
   });
 });

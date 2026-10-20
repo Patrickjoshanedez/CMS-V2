@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES, FACULTY_ROLE_VALUES } from '@cms/shared';
+import {
+  ROLES,
+  ROLE_VALUES,
+  PANEL_ROLE_VALUES,
+  FACULTY_ROLE_VALUES,
+  ACADEMIC_TERM_VALUES,
+} from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
 import { hashPassword, verifyPassword } from '../../utils/cryptoWorkerPool.js';
 
@@ -99,6 +105,24 @@ const userSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    studentId: {
+      type: String,
+      trim: true,
+      maxlength: [32, 'Student ID must not exceed 32 characters'],
+      default: '',
+    },
+    academicTerm: {
+      type: String,
+      enum: [...ACADEMIC_TERM_VALUES, null],
+      default: null,
+    },
+    // Legacy CSV imports used `schoolId`; retain read compatibility while exposing `studentId`.
+    schoolId: {
+      type: String,
+      trim: true,
+      maxlength: [32, 'Student ID must not exceed 32 characters'],
+      default: '',
+    },
     profilePicture: {
       type: String,
       default: null,
@@ -146,6 +170,8 @@ const userSchema = new mongoose.Schema(
       transform(_doc, ret) {
         delete ret.password;
         delete ret.__v;
+        ret.studentId = ret.studentId || ret.schoolId || '';
+        delete ret.schoolId;
         return ret;
       },
     },
@@ -154,6 +180,8 @@ const userSchema = new mongoose.Schema(
       transform(_doc, ret) {
         delete ret.password;
         delete ret.__v;
+        ret.studentId = ret.studentId || ret.schoolId || '';
+        delete ret.schoolId;
         return ret;
       },
     },

@@ -36,6 +36,7 @@ const {
 const {
   ROLES,
   PANEL_ROLES,
+  ACADEMIC_TERMS,
   CAPSTONE_PHASES,
   TITLE_STATUSES,
   PROJECT_STATUSES,
@@ -105,6 +106,7 @@ async function runEvidenceCollection() {
       members: [student1._id, student2._id, student3._id, student4._id],
       isLocked: true,
       academicYear: '2024-2025',
+      academicTerm: ACADEMIC_TERMS.FIRST_SEMESTER,
       sectionId: section._id,
     });
 
@@ -130,6 +132,11 @@ async function runEvidenceCollection() {
           description: 'Problem Statement: Soil nutrient depletion in Bukidnon. Proposed Solution: Microcontroller telemetry array.',
           capstoneType: ['Internet of Things (IoT)', 'Agriculture Tech'],
           sdgTags: ['SDG 2: Zero Hunger', 'SDG 9: Industry, Innovation and Infrastructure'],
+          pitchDeck: {
+            problemStatement: 'Small farms lack timely soil nutrient measurements.',
+            objectives: 'Build a low-cost sensor system and evaluate its reporting workflow.',
+            technicalStack: 'ESP32 sensors, MQTT, and a web dashboard.',
+          },
         },
       ],
       abstract: 'An IoT telemetry network for real-time soil nutrient profiling in agricultural communities.',

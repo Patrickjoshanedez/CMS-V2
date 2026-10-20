@@ -72,6 +72,56 @@ describe('useActionDoneMatrix', () => {
     expect(result.current.activeViewTab).toBe('minutes');
   });
 
+  it('keeps secretary endorsement blocked until every addressed row is verified', () => {
+    const projectWithUnverifiedRow = {
+      _id: 'proj1',
+      capstonePhase: 2,
+      admSignatures: {},
+      actionDoneMatrix: [
+        { _id: 'r1', panelName: 'Panelist', status: 'addressed', milestone: 'CAPSTONE_2' },
+      ],
+    };
+    const { result, rerender } = renderHook((props) => useActionDoneMatrix(props), {
+      initialProps: { project: projectWithUnverifiedRow, initialMilestone: 'CAPSTONE_2' },
+    });
+
+    expect(result.current.allRowsAddressed).toBe(true);
+    expect(result.current.allRowsVerified).toBe(false);
+
+    const verifiedProject = {
+      ...projectWithUnverifiedRow,
+      actionDoneMatrix: [{ ...projectWithUnverifiedRow.actionDoneMatrix[0], status: 'verified' }],
+    };
+    rerender({ project: verifiedProject, initialMilestone: 'CAPSTONE_2' });
+
+    expect(result.current.allRowsAddressed).toBe(true);
+    expect(result.current.allRowsVerified).toBe(true);
+  });
+
+  it('removes all ADM write permissions from an archived project', () => {
+    const archivedProject = {
+      ...mockProject,
+      isArchived: true,
+      secretaryId: 'secretary-1',
+      adviserId: 'adviser-1',
+    };
+    const { result } = renderHook(() =>
+      useActionDoneMatrix({
+        project: archivedProject,
+        user: { _id: 'secretary-1', role: 'faculty' },
+        isFaculty: true,
+        isStudent: true,
+      }),
+    );
+
+    expect(result.current.canUploadMinutes).toBe(false);
+    expect(result.current.canEndorse).toBe(false);
+    expect(result.current.canAddRow).toBe(false);
+    expect(result.current.canManageReviewType).toBe(false);
+    expect(result.current.isUserAdviser).toBe(false);
+    expect(result.current.isUserSecretary).toBe(false);
+  });
+
   it('should filter displayedRows according to the selected milestone (CAPSTONE_1, CAPSTONE_2, ALL)', () => {
     const projectWithRows = {
       _id: 'proj1',

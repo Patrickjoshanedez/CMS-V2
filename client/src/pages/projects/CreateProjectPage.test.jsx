@@ -135,6 +135,27 @@ const renderPage = () => {
   };
 };
 
+const fillRequiredProposalDetails = (container) => {
+  const fieldValues = {
+    Objectives: 'Deliver a measurable and accessible capstone outcome.',
+    'Technical Stack': 'React, Node.js, and MongoDB',
+  };
+  const valueSetter = Object.getOwnPropertyDescriptor(
+    window.HTMLTextAreaElement.prototype,
+    'value',
+  ).set;
+
+  Object.entries(fieldValues).forEach(([labelText, value]) => {
+    const label = Array.from(container.querySelectorAll('label')).find((item) =>
+      item.textContent.trim().startsWith(labelText),
+    );
+    const textarea = label?.parentElement.querySelector('textarea');
+    if (!textarea) throw new Error(`Required proposal field not found: ${labelText}`);
+    valueSetter.call(textarea, value);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+};
+
 describe('CreateProjectPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -278,7 +299,7 @@ describe('CreateProjectPage', () => {
     const view = renderPage();
 
     expect(view.container.textContent).toContain(
-      'System Note: Automatically using academic year and section.',
+      'Academic Year 2024-2025 · A.',
     );
     expect(view.container.querySelector('select[name="sectionId"]')).toBeNull();
     expect(
@@ -405,7 +426,7 @@ describe('CreateProjectPage', () => {
     view.unmount();
   });
 
-  it('allows adding up to 5 candidate proposals and removing non-primary proposals', async () => {
+  it('allows adding up to 10 candidate proposals and removing non-primary proposals', async () => {
     const view = renderPage();
 
     // Starts with 1 proposal (Primary)
@@ -452,25 +473,38 @@ describe('CreateProjectPage', () => {
     });
     expect(view.container.textContent).toContain('Proposal 5 of 5');
 
-    // At 5 proposals, Add Proposal button should no longer exist in the DOM
+    for (let proposalNumber = 6; proposalNumber <= 10; proposalNumber += 1) {
+      addBtn = Array.from(view.container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes(`Add Proposal ${proposalNumber}`),
+      );
+      expect(addBtn).not.toBeNull();
+      await act(async () => {
+        addBtn.click();
+      });
+      expect(view.container.textContent).toContain(
+        `Proposal ${proposalNumber} of ${proposalNumber}`,
+      );
+    }
+
+    // At 10 proposals, Add Proposal button should no longer exist in the DOM
     const addProposalBtnAfterMax = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Add Proposal'),
     );
     expect(addProposalBtnAfterMax).toBeUndefined();
 
-    // Now test removing proposal 5
+    // Now test removing proposal 10
     const removeBtn = Array.from(view.container.querySelectorAll('button')).find(
       (b) =>
-        b.textContent?.includes('Remove') && b.getAttribute('title')?.includes('Remove Proposal 5'),
+        b.textContent?.includes('Remove') && b.getAttribute('title')?.includes('Remove Proposal 10'),
     );
     expect(removeBtn).not.toBeNull();
     await act(async () => {
       removeBtn.click();
     });
 
-    // Now proposal count should be 4 and "Add Proposal 5" reappears
-    expect(view.container.textContent).toContain('Proposal 4 of 4');
-    expect(view.container.textContent).toContain('Add Proposal 5');
+    // Now proposal count should be 9 and "Add Proposal 10" reappears
+    expect(view.container.textContent).toContain('Proposal 9 of 9');
+    expect(view.container.textContent).toContain('Add Proposal 10');
 
     view.unmount();
   });
@@ -870,6 +904,7 @@ describe('CreateProjectPage', () => {
       valueSetter.call(proposalInput, 'Valid Proposal Title For Capstone');
       proposalInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    await act(async () => fillRequiredProposalDetails(view.container));
 
     const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Submit for Committee Review'),
@@ -919,6 +954,7 @@ describe('CreateProjectPage', () => {
       valueSetter.call(proposalInput, 'Valid Proposal Title For Capstone');
       proposalInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    await act(async () => fillRequiredProposalDetails(view.container));
 
     const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Submit for Committee Review'),
@@ -962,6 +998,7 @@ describe('CreateProjectPage', () => {
       valueSetter.call(proposalInput, 'Valid Proposal Title For Capstone');
       proposalInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    await act(async () => fillRequiredProposalDetails(view.container));
 
     const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Submit for Committee Review'),
@@ -1053,6 +1090,7 @@ describe('CreateProjectPage', () => {
     const proposalInput = view.container.querySelector('input[id="proposal-0-title"]');
     expect(proposalInput).not.toBeNull();
     expect(proposalInput.value).toBe('Populated Candidate 1');
+    await act(async () => fillRequiredProposalDetails(view.container));
 
     // Click Update Proposals button
     const updateBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>

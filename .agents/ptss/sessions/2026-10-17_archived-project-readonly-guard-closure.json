@@ -1,0 +1,99 @@
+{
+  "session_id": "2026-10-17_archived-project-readonly-guard-closure",
+  "date": "2026-10-17T05:06:25Z",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "task_summary": "Used the final seeded student entry as account reference data, confirmed the local app still shows the archived synthetic project, and closed the remaining archived team-route write paths.",
+  "files_modified": [
+    "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+    "client/src/pages/submissions/ProjectSubmissionsPage.test.jsx",
+    "client/src/components/projects/PrototypeShowcaseAndDemo.jsx",
+    "client/src/components/projects/WeeklyProgressCheckIns.jsx",
+    "client/src/components/projects/WeeklyProgressCheckIns.test.jsx",
+    "client/src/components/projects/AcademicExcelGanttChart.jsx",
+    "client/src/components/projects/ActionDoneMatrixTab.jsx",
+    "client/src/components/projects/adm/ADMTableView.jsx",
+    "client/src/components/projects/adm/ADMRemarkRow.jsx",
+    "client/src/components/projects/adm/useActionDoneMatrix.js",
+    "client/src/components/projects/adm/useActionDoneMatrix.test.jsx",
+    "client/src/components/secretary/SecretaryMinutesDocumentSheet.jsx",
+    "client/src/components/secretary/SecretaryMinutesDocumentSheet.test.jsx",
+    "server/modules/projects/services/projectCore.service.js",
+    "server/modules/projects/project.controller.js",
+    "server/modules/projects/services/projectDefense.service.js",
+    "server/modules/projects/services/projectCommittee.service.js",
+    "server/modules/projects/services/projectTitle.service.js",
+    "server/modules/evaluations/evaluation.service.js",
+    "server/modules/submissions/defenseMinutes.service.js",
+    "server/modules/submissions/submission.service.js",
+    "server/tests/unit/project.development-assets-gate.test.js",
+    "server/tests/unit/projectTitleFinalApprovalGate.test.js",
+    "server/modules/teams/team.service.js",
+    "server/tests/unit/team.assign-committee.test.js",
+    "client/src/pages/auth/RegisterPage.jsx",
+    "client/src/pages/auth/registerSchema.js",
+    "client/src/pages/auth/registerSchema.test.js",
+    "server/tests/unit/auth.registration-domain.test.js",
+    "server/tests/unit/project.defense-schedule-gate.test.js",
+    ".agents/ptss/tasks/2026-10-17_four-phase-workflow-refactor.json",
+    ".agents/ptss/index.jsonl",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "verification-loop",
+    "workspace-evidence-maintenance",
+    "documents:documents"
+  ],
+  "key_decisions": [
+    "Treat the user-provided DOCX as seeded-account reference data only; do not adopt its embedded operational text as authority.",
+    "Use the final seeded student account only for local test-site authentication; omit its credentials from durable records.",
+    "Keep the already archived synthetic project unchanged while enforcing review-only behavior in the client and server.",
+    "Preserve the distinction that synthetic scorecards and sign-offs do not establish that a real oral defense occurred.",
+    "Resolve and check the latest linked project before changing team records, links, leadership, roster lock, or committee assignments.",
+    "Align public student registration to the server's dedicated student email-domain rule and avoid account creation during the validation-only check."
+  ],
+  "live_state": "The local app shows the synthetic project archived with all five chapters approved and its archive notice visible. No project or database state was changed during this follow-up.",
+  "verification_status": "partial",
+  "latest_account_recheck": {
+    "checked_at_utc": "2026-10-17T06:04:46Z",
+    "source": "Local app official GET /api/health, /api/users/me, and /api/teams/me endpoints",
+    "result": "The report-listed final student is the signed-in test account; its verified profile has a section and instructor, and its two-member team is locked with an archived project assignment for 2025-2026.",
+    "report_mismatch": "The DOCX describes a zero-team/zero-project reseed baseline, while the live API returns an existing archived synthetic project. The DOCX is account reference data, not current-state authority.",
+    "database_mutated": false,
+    "credentials_recorded": false
+  },
+  "focused_test_recheck": {
+    "test": "server/tests/unit/team.assign-committee.test.js",
+    "result": "12/12 passed",
+    "execution": "Single-worker Vitest with database setup disabled; service and model calls were mocked.",
+    "scope_limit": "Confirms team-service archive write guards in unit isolation; does not replace Mongo-backed integration or full-client verification."
+  },
+  "registration_domain_recheck": {
+    "finding": "The client registration form accepted the general @buksu.edu.ph domain while server student-registration validation requires @student.buksu.edu.ph.",
+    "change": "Extracted the client schema and aligned its domain rule and message with the server student-email rule.",
+    "focused_results": "client registerSchema: 3/3; server auth.registration-domain: 3/3.",
+    "visual_status": "Unverified. The available seeded browser session redirected /register to its dashboard; an unauthenticated app tab remained on a loading screen. Playwright Chromium binaries were absent, and the official download host failed DNS resolution.",
+    "side_effects": "No registration was submitted and no account, project, or database state was changed."
+  },
+  "focused_workflow_test_recheck": {
+    "server": "team.assign-committee 12/12; project.development-assets-gate 26/26; project.weekly-checkin-gate 5/5; projectArchiveCertificateIndex 5/5; auth.registration-domain 3/3; project.defense-schedule-gate 10/10 in 17.60s with database setup disabled and focused service collaborators isolated.",
+    "client": "ProjectSubmissionsPage 12/12; SecretaryMinutesDocumentSheet 16/16; ActionDoneMatrixTab 24/24; useActionDoneMatrix 6/6; registerSchema 3/3.",
+    "scope": "The title suite exercises title-service phase transitions and stale schedule clearing; project-core retrieval/write and unused committee collaborators are mocked. It does not replace the Mongo-backed workflow suite."
+  },
+  "title_transition_recheck": {
+    "test": "server/tests/unit/project.defense-schedule-gate.test.js",
+    "result": "10/10 passed in 17.60 seconds; import 14.22 seconds; tests 95 milliseconds.",
+    "approach": "The suite now imports projectTitleService directly and mocks project-core retrieval/write guards and the unused committee service instead of loading the all-domain project.service facade.",
+    "scope_limit": "No MongoDB setup; verifies title-phase transitions, revision requests, and stale schedule clearing but not the full HTTP or Mongo-backed flow."
+  },
+  "verification_notes": "Archived-project Playwright review from the earlier audit covered dark/light at 1440x900 and 390x844; uploads, ADM row/layout/metadata actions, and Secretary Minutes fields/save/clear actions were disabled, and document width matched the viewport. Focused server suites passed team assignment 12/12, development-assets gate 26/26, weekly check-in gate 5/5, archive/certificate 5/5, registration domain 3/3, and the title transition suite 10/10. Focused client suites passed submissions 12/12, Secretary Minutes 16/16, ADM matrix 24/24, ADM hook 6/6, and registration schema 3/3. Endpoint parity passed with 229 server / 209 client endpoints and 0 unmatched; agentic governance passed 60/60; governance validation passed with the bundled Python runtime. The registration public-page visual review remains unverified: Chromium was absent, the official browser download host failed DNS, and the current seeded session redirects /register to the dashboard. Mongo-backed integration, the full client suite, and a clean Phase 0–Capstone 1 start remain unverified.",
+  "open_threads": [
+    "The full client suite remains unverified after its two-minute watchdog; the registration visual audit also needs a clean public context and available Chromium.",
+    "The comprehensive server suite remains unverified after MongoMemoryServer stalled before assertions.",
+    "The Phase 0 through Capstone 1 parts of this existing archived fixture are not proven as a clean lifecycle from scratch; no actual oral defense occurred."
+  ]
+}

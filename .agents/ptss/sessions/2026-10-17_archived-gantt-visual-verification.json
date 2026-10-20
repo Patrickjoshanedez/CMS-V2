@@ -1,0 +1,42 @@
+{
+  "session_id": "2026-10-17_archived-gantt-visual-verification",
+  "date": "2026-10-17T03:07:31.000Z",
+  "task_summary": "Completed the synthetic workflow follow-up by correcting archived Gantt autosave and Adviser permissions, then verifying the browser views and focused server/client suites.",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "files_modified": [
+    "client/src/components/projects/Capstone2CollapsibleSections.jsx",
+    "client/src/components/projects/AcademicExcelGanttChart.test.jsx",
+    "client/src/components/projects/AcademicExcelGanttChart.jsx",
+    "client/src/components/projects/InteractiveGanttChart.jsx",
+    "server/modules/projects/services/projectCore.service.js",
+    "server/tests/unit/project.development-assets-gate.test.js",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/classification-manifest.json",
+    ".agents/ptss/tasks/2026-10-17_four-phase-workflow-refactor.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "capstone-lifecycle-orchestrator",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Treat the latest seeded account and project as synthetic test data, with the user's existing authorization for synthetic ADM sign-offs and archival.",
+    "Keep archived Gantt views read-only and suppress autosaves on load; reject archived plan updates in the project service.",
+    "Let the shared role-and-assignment policy authorize Gantt editing so the assigned Adviser remains eligible while approval stays separate.",
+    "Leave the full client suite and comprehensive server suite marked unverified after their watchdogs rather than report unsupported passes."
+  ],
+  "lessons_learned": [
+    "An explicit page-level isReadOnly prop can override a shared Adviser permission and hide valid schedule editing controls.",
+    "Loading an archived plan can trigger a debounced autosave even when the viewer makes no edit; archive checks belong in both client persistence paths and the server service."
+  ],
+  "open_threads": [
+    "The full client suite remains unverified after its prior 120-second watchdog; investigate the slow suite before a bounded full-suite retry.",
+    "The comprehensive server suite reached its 105-second watchdog during MongoMemoryServer configuration without reaching assertions; diagnose the startup stall before retrying."
+  ],
+  "verification_status": "partial",
+  "verification_notes": "Deadline and Gantt surfaces were reviewed in light and dark at 1440x900 and 390x844. Focused client Gantt suites passed 22/22. The isolated server Gantt service suite passed 12/12 with a 105-second watchdog and temporary MongoMemoryServer under scratch/vitest-tmp. The comprehensive server suite produced only MongoMemoryServer package-resolution logs and was terminated at 105 seconds before assertions; no child Node or mongod processes remained. The broader client suite remains unverified."
+}

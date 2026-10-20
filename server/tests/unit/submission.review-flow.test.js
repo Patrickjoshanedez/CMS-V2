@@ -246,7 +246,7 @@ describe('SubmissionService — Faculty Committee Review & Concurrency Flow', ()
       expect(mockProject.save).toHaveBeenCalled();
     });
 
-    it('rejects panelist from endorsing or reviewing proposal with 403 ENDORSEMENT_FORBIDDEN_ROLE', async () => {
+    it('rejects a panelist from reviewing a proposal because the assigned adviser owns manuscript review', async () => {
       const { default: submissionService } =
         await import('../../modules/submissions/submission.service.js');
       const { default: Submission } = await import('../../modules/submissions/submission.model.js');
@@ -290,21 +290,15 @@ describe('SubmissionService — Faculty Committee Review & Concurrency Flow', ()
           status: SUBMISSION_STATUSES.APPROVED,
           reviewNote: 'Trying to endorse as panelist',
         }),
-      ).rejects.toThrow(/Only the assigned adviser and course instructor can endorse/i);
+      ).rejects.toMatchObject({ statusCode: 403, code: 'ENDORSEMENT_FORBIDDEN_ROLE' });
     });
 
-    it('allows course instructor to endorse proposal manuscript', async () => {
+    it('rejects a course instructor from endorsing proposal manuscripts', async () => {
       const { default: submissionService } =
         await import('../../modules/submissions/submission.service.js');
       const { default: Submission } = await import('../../modules/submissions/submission.model.js');
       const { default: User } = await import('../../modules/users/user.model.js');
       const { default: Project } = await import('../../modules/projects/project.model.js');
-      const { default: PlagiarismResult } =
-        await import('../../modules/plagiarism/plagiarism.model.js');
-      const { default: Section } = await import('../../modules/academics/section.model.js');
-      const { default: Team } = await import('../../modules/teams/team.model.js');
-      const { default: Notification } =
-        await import('../../modules/notifications/notification.model.js');
 
       const instructorId = '6aa14c2554d0b79f8e8aa96b';
       const proposalSubmissionId = '6aa49a6217cb643363be1c74';
@@ -343,28 +337,16 @@ describe('SubmissionService — Faculty Committee Review & Concurrency Flow', ()
         p.populate = vi.fn().mockResolvedValue(mockProject);
         return p;
       });
-      vi.spyOn(PlagiarismResult, 'findOne').mockReturnValue({
-        lean: vi.fn().mockResolvedValue({ status: 'completed', overallScore: 5 }),
-      });
-      vi.spyOn(Section, 'findById').mockResolvedValue({ instructorId });
-      vi.spyOn(Team, 'findById').mockReturnValue({
-        select: vi.fn().mockResolvedValue({
-          name: 'AgroSense Team',
-          members: ['6aa14c2554d0b79f8e8aa97a'],
-          secretaryId: null,
-          panelistIds: [],
-          adviserId: '6aa14c2554d0b79f8e8aa96c',
+
+      await expect(
+        submissionService.reviewSubmission(proposalSubmissionId, instructorId, {
+          status: SUBMISSION_STATUSES.APPROVED,
+          reviewNote: 'Instructor approved for defense',
         }),
-      });
-      vi.spyOn(Notification, 'create').mockResolvedValue({ _id: 'notif-1' });
+      ).rejects.toMatchObject({ statusCode: 403, code: 'ENDORSEMENT_FORBIDDEN_ROLE' });
 
-      await submissionService.reviewSubmission(proposalSubmissionId, instructorId, {
-        status: SUBMISSION_STATUSES.APPROVED,
-        reviewNote: 'Instructor approved for defense',
-      });
-
-      expect(mockSubmission.status).toBe(SUBMISSION_STATUSES.LOCKED);
-      expect(mockProject.defenseSchedule.status).toBe('pending_scheduling');
+      expect(mockSubmission.status).toBe(SUBMISSION_STATUSES.PENDING);
+      expect(mockSubmission.save).not.toHaveBeenCalled();
     });
   });
 });

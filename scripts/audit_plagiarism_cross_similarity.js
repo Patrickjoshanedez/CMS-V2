@@ -6,6 +6,7 @@
  * 2. Paraphrased/Near-Duplicate Test: Asserts semantic retrieval of related papers.
  * 3. Domain Disjointness Test: Asserts zero/low false positive cross-domain matches.
  */
+import mongoose from 'mongoose';
 import connectDB from '../server/config/db.js';
 import Submission from '../server/modules/submissions/submission.model.js';
 import Project from '../server/modules/projects/project.model.js';
@@ -179,14 +180,19 @@ async function runPlagiarismAudit() {
   console.log(`[Plagiarism Audit Results]: ${testsPassed} / ${totalTests} PASSED (100%)`);
   console.log('=============================================\n');
 
-  if (testsPassed === totalTests) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  try {
+    mongoose.connection.removeAllListeners();
+    await mongoose.connection.close();
+  } catch (_) {}
+
+  process.exitCode = testsPassed === totalTests ? 0 : 1;
 }
 
-runPlagiarismAudit().catch((err) => {
+runPlagiarismAudit().catch(async (err) => {
   console.error('[Plagiarism Audit Fatal Error]:', err);
-  process.exit(1);
+  try {
+    mongoose.connection.removeAllListeners();
+    await mongoose.connection.close();
+  } catch (_) {}
+  process.exitCode = 1;
 });

@@ -1,0 +1,62 @@
+{
+  "active_scenario_id": "focused-verification",
+  "completed_subgoals": [
+    "Read the user-provided workflow and treat its refined Phase 0–4 mapping as the governing request.",
+    "Inspect repository startup guidance, current session state, technical context, and applicable capstone, backend, frontend, long-task, verification, and evidence-maintenance skills.",
+    "Audit current shared phase constants and identify that capstonePhase stores course numbers while the stepper derives overall phases from title status.",
+    "Preserve the existing dirty workspace and the archived synthetic fixture; do not reinterpret or mutate its records directly.",
+    "Add an explicit overall workflowPhase 1–4 while retaining legacy capstonePhase as the Capstone course counter 1–3, and update server/client lifecycle boundaries and labels.",
+    "Align profile, team, project, committee, and Adviser-approved Gantt progress rules with the requested academic term and lifecycle constraints.",
+    "Update canonical capstone workflow guidance, authoritative docs, classification manifest, and targeted fixtures.",
+    "Run focused backend/client tests and capture profile layouts at desktop/mobile and light/dark settings.",
+    "Run the authorized synthetic seeded workflow through Phases 0–4 using official APIs; final project reached archived state with completed indexing.",
+    "Fix and verify the browser-facing MinIO signature host so approval-sheet and completion-certificate PDFs download successfully.",
+    "Resolve batch and section deadline records in student submission surfaces and enforce the selected late-upload policy in the submission service.",
+    "Restrict Gantt schedule editing to assigned students and the assigned Adviser while keeping Adviser approval as a separate action.",
+    "Align stale submission integration expectations with the enforced signed-letter, phase-completion, released-journal, and committee-role gates; focused submission integration passed 67/67.",
+    "Make archived Gantt views read-only without client autosaves and reject archived plan writes in the service layer.",
+    "Restore assigned-Adviser Gantt editing by deferring authorization to the shared role-and-assignment policy.",
+    "Review deadline and Gantt surfaces in light/dark at desktop/mobile sizes; targeted Gantt suites pass 22/22 client and 12/12 server tests.",
+    "Use the user-provided reseed report as account data only and authenticate with the final seeded student account.",
+    "Enforce archived-project read-only behavior across submission UI, ADM, Secretary Minutes, core services, title/proposal updates, defense routing, evaluations, minutes, committee assignment, submission moderation, and team-level roster, role, leadership, and link routes.",
+    "Verify archived controls in dark/light desktop and mobile views; uploads, ADM editing/layout actions, and minutes save/clear controls are disabled.",
+    "Align public student registration validation to the backend's dedicated @student.buksu.edu.ph domain and pass focused client/server schema checks 3/3 each.",
+    "Re-run focused archive, submission, ADM, Secretary Minutes, and registration regression suites; pass the targeted endpoint-parity, agentic, and governance checks.",
+    "Isolate title approval state tests from the all-domain service facade and verify the pre-course schedule boundary; 10/10 focused tests pass without database startup.",
+    "Read the archived synthetic project through the official GET /api/projects/:id endpoint and confirm archiveIndexing.status=completed for both final manuscript documents, with completedAt present and no lastError.",
+    "Patch verification-loop to version 1.6.0 with MongoMemoryServer binary-cache preflight and bounded startup cleanup after the suite stalled before assertions."
+  ],
+  "remaining_subgoals": [
+    "Final client and clean-start lifecycle verification remains open: the full client suite exceeded its 120-second watchdog; the registration-page visual audit needs an unauthenticated context and available Chromium; and a fresh Phase 0 through Capstone 1 run has not been proven.",
+    "The comprehensive Mongo-backed server suite remains unverified: a workspace-local, isolated rerun stopped at 108 seconds before assertions with an empty binary cache and no remaining test or mongod process. A compatible MongoMemoryServer binary is required before another attempt; the isolated title transition suite does not replace integration evidence."
+  ],
+  "last_action_result": "A read-only GET /api/projects/6ad2933789cfdaa77f6049f9 confirms the latest seeded account's project is archived and archiveIndexing.status=completed for the two final manuscript document IDs; completedAt is present and lastError is empty. The matching archive-search result remains visible. No account, project, or database state was changed; the DOCX is account-reference data and its earlier clean-slate snapshot does not override live state. The comprehensive workflow integration suite was retried with workspace-local TEMP/TMP and isolated MongoMemoryServer cache after approved local execution; it reached Vitest startup but was stopped at 108 seconds before assertions. The binary cache remained empty and no test or mongod process remained. Verification-loop v1.6.0 now documents this binary preflight and bounded cleanup. Focused server tests passed team assignment 12/12, development-assets gate 26/26, weekly check-in gate 5/5, archive/certificate 5/5, registration domain 3/3, and isolated title transitions 10/10 in 17.60s without MongoDB startup. Focused client tests passed submissions 12/12, Secretary Minutes 16/16, ADM matrix 24/24, ADM hook 6/6, and registration schema 3/3. Endpoint parity passed 229/209 with 0 unmatched; agentic checks passed 60/60; governance validation passed with bundled Python. Registration visual review is unverified because Chromium is missing, its official download hostname failed DNS, and the authenticated tab redirects /register. Full client, clean-start registration-to-Capstone 1, comprehensive Mongo-backed server, and registration visual verification remain open.",
+  "progress_delta": 1,
+  "loop_count": 0,
+  "scenario_dag": [
+    {
+      "id": "phase-model-contract",
+      "depends_on": []
+    },
+    {
+      "id": "backend-lifecycle-sync",
+      "depends_on": ["phase-model-contract"]
+    },
+    {
+      "id": "client-and-deadlines",
+      "depends_on": ["phase-model-contract"]
+    },
+    {
+      "id": "institutional-docs-and-evidence",
+      "depends_on": ["phase-model-contract"]
+    },
+    {
+      "id": "focused-verification",
+      "depends_on": [
+        "backend-lifecycle-sync",
+        "client-and-deadlines",
+        "institutional-docs-and-evidence"
+      ]
+    }
+  ]
+}

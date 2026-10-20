@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useUploadFinalAcademic, useUploadFinalJournal } from '@/hooks/useSubmissions';
 import { cn } from '@/lib/utils';
+import { getMilestoneDeadlineState } from '@/utils/milestoneDeadlines';
 
 function UploadSection({
   icon: Icon,
@@ -18,9 +19,15 @@ function UploadSection({
   mutation,
   projectId,
   isLocked = false,
+  deadline,
+  allowLateSubmission = true,
 }) {
   const [file, setFile] = useState(null);
+  const [lateRemarks, setLateRemarks] = useState('');
   const inputRef = useRef(null);
+  const deadlineState = getMilestoneDeadlineState(deadline);
+  const isLate = deadlineState === 'overdue';
+  const lateSubmissionClosed = isLate && !allowLateSubmission;
 
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0];
@@ -35,10 +42,22 @@ function UploadSection({
 
   const handleUpload = async () => {
     if (!file) return;
+    if (lateSubmissionClosed) {
+      toast.error('The scheduled deadline has passed and late uploads are closed.');
+      return;
+    }
+    if (isLate && !lateRemarks.trim()) {
+      toast.error('Add a late-submission justification before uploading.');
+      return;
+    }
     try {
-      await mutation.mutateAsync({ projectId, file });
+      const formData = new FormData();
+      formData.append('file', file);
+      if (lateRemarks.trim()) formData.append('remarks', lateRemarks.trim());
+      await mutation.mutateAsync({ projectId, formData });
       toast.success(`${label} uploaded successfully.`);
       setFile(null);
+      setLateRemarks('');
       if (inputRef.current) inputRef.current.value = '';
     } catch (err) {
       toast.error(err?.response?.data?.message || `Failed to upload ${label.toLowerCase()}.`);
@@ -68,17 +87,58 @@ function UploadSection({
         </Badge>
       </div>
 
+      <div
+        className={cn(
+          'rounded-md border px-3 py-2 text-xs',
+          isLate
+            ? 'border-destructive/40 bg-destructive/5 text-destructive'
+            : 'border-border/60 bg-muted/30 text-muted-foreground',
+        )}
+        data-testid="final-paper-deadline"
+        data-status={deadlineState}
+      >
+        {!deadline
+          ? 'No deadline scheduled'
+          : isLate
+            ? lateSubmissionClosed
+              ? `Deadline passed (${formatDeadline(deadline)}); late uploads are closed.`
+              : `Overdue since ${formatDeadline(deadline)}; a justification is required.`
+            : `Due ${formatDeadline(deadline)}`}
+      </div>
+
+      {isLate && allowLateSubmission && (
+        <div className="space-y-1.5">
+          <label htmlFor={`${label.replace(/\W+/g, '-').toLowerCase()}-late-remarks`} className="text-xs font-medium text-foreground">
+            Late-submission justification <span className="text-destructive">*</span>
+          </label>
+          <textarea
+            id={`${label.replace(/\W+/g, '-').toLowerCase()}-late-remarks`}
+            value={lateRemarks}
+            onChange={(event) => setLateRemarks(event.target.value)}
+            maxLength={1000}
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            placeholder="Explain why this deliverable is being submitted after its deadline."
+            disabled={isLocked || isPending}
+            required
+            data-testid="late-paper-remarks"
+          />
+        </div>
+      )}
+
       {/* Drop zone */}
       <div
-        role={isLocked ? 'region' : 'button'}
-        tabIndex={isLocked ? -1 : 0}
-        onClick={() => !isLocked && inputRef.current?.click()}
-        onDrop={!isLocked ? handleDrop : undefined}
-        onDragOver={(e) => e.preventDefault()}
-        onKeyDown={(e) => !isLocked && e.key === 'Enter' && inputRef.current?.click()}
+        role={isLocked || lateSubmissionClosed ? 'region' : 'button'}
+        tabIndex={isLocked || lateSubmissionClosed ? -1 : 0}
+        onClick={() => !isLocked && !lateSubmissionClosed && inputRef.current?.click()}
+        onDrop={!isLocked && !lateSubmissionClosed ? handleDrop : undefined}
+        onDragOver={(e) => !isLocked && !lateSubmissionClosed && e.preventDefault()}
+        onKeyDown={(e) =>
+          !isLocked && !lateSubmissionClosed && e.key === 'Enter' && inputRef.current?.click()
+        }
         className={cn(
           'flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 transition-all text-center',
-          isLocked
+          isLocked || lateSubmissionClosed
             ? 'border-border/60 bg-muted/30 opacity-60 cursor-not-allowed'
             : file
               ? 'border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-500/10 cursor-pointer'
@@ -95,7 +155,7 @@ function UploadSection({
                 : 'bg-muted text-muted-foreground',
           )}
         >
-          {isLocked ? (
+          {isLocked || lateSubmissionClosed ? (
             <Lock className="h-5 w-5 text-muted-foreground" />
           ) : file ? (
             <CheckCircle2 className="h-5 w-5" />
@@ -103,11 +163,15 @@ function UploadSection({
             <FileText className="h-5 w-5" />
           )}
         </div>
-        {isLocked ? (
+        {isLocked || lateSubmissionClosed ? (
           <div>
-            <span className="text-sm font-medium text-muted-foreground">Submission Locked</span>
+            <span className="text-sm font-medium text-muted-foreground">
+              {isLocked ? 'Submission Locked' : 'Late Uploads Closed'}
+            </span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Available in the Final Capstone phase after prerequisite milestone completion
+              {isLocked
+                ? 'Available in the Final Capstone phase after prerequisite milestone completion'
+                : 'The instructor has closed late submissions for this milestone.'}
             </p>
           </div>
         ) : file ? (
@@ -131,7 +195,7 @@ function UploadSection({
           ref={inputRef}
           type="file"
           accept=".pdf"
-          disabled={isLocked}
+          disabled={isLocked || lateSubmissionClosed}
           className="hidden"
           onChange={handleFileChange}
         />
@@ -142,7 +206,13 @@ function UploadSection({
         <Button
           type="button"
           onClick={handleUpload}
-          disabled={isLocked || !file || isPending}
+          disabled={
+            isLocked ||
+            lateSubmissionClosed ||
+            !file ||
+            isPending ||
+            (isLate && !lateRemarks.trim())
+          }
           className="gap-2"
         >
           {isPending ? (
@@ -177,9 +247,26 @@ UploadSection.propTypes = {
   mutation: PropTypes.object.isRequired,
   projectId: PropTypes.string.isRequired,
   isLocked: PropTypes.bool,
+  deadline: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
+  allowLateSubmission: PropTypes.bool,
 };
 
-export default function FinalPaperUpload({ projectId, isLocked = false, lockMessage }) {
+function formatDeadline(value) {
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'No deadline set';
+  return new Date(value).toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export default function FinalPaperUpload({
+  projectId,
+  isLocked = false,
+  lockMessage,
+  deadlines = {},
+  deadlinePolicies = {},
+}) {
   const academicMutation = useUploadFinalAcademic();
   const journalMutation = useUploadFinalJournal();
 
@@ -243,6 +330,8 @@ export default function FinalPaperUpload({ projectId, isLocked = false, lockMess
           mutation={academicMutation}
           projectId={projectId}
           isLocked={isLocked}
+          deadline={deadlines.finalAcademic}
+          allowLateSubmission={deadlinePolicies.finalAcademic?.allowLateSubmission ?? true}
         />
 
         <div className="border-t border-border/50" />
@@ -257,6 +346,8 @@ export default function FinalPaperUpload({ projectId, isLocked = false, lockMess
           mutation={journalMutation}
           projectId={projectId}
           isLocked={isLocked}
+          deadline={deadlines.finalJournal}
+          allowLateSubmission={deadlinePolicies.finalJournal?.allowLateSubmission ?? true}
         />
       </CardContent>
     </Card>
@@ -267,4 +358,6 @@ FinalPaperUpload.propTypes = {
   projectId: PropTypes.string.isRequired,
   isLocked: PropTypes.bool,
   lockMessage: PropTypes.string,
+  deadlines: PropTypes.object,
+  deadlinePolicies: PropTypes.object,
 };

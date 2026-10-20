@@ -15,16 +15,24 @@ const loadStorageServiceWithEnv = async (envOverrides = {}) => {
 
   const mockedEnv = buildEnv(envOverrides);
   const send = vi.fn().mockResolvedValue({ Buckets: [] });
+  const publicSend = vi.fn().mockResolvedValue({});
+  const publicClient = { send: publicSend };
+  const createStorageS3Client = vi.fn(() => publicClient);
+  const getSignedUrl = vi
+    .fn()
+    .mockResolvedValue('http://localhost:9000/cms-buksu-uploads/file.pdf?signature=test');
 
   vi.doMock('../../config/env.js', () => ({ default: mockedEnv }));
   vi.doMock('../../config/storage.js', () => ({
     default: {
       send,
     },
+    createStorageS3Client,
   }));
+  vi.doMock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl }));
 
   const { default: storageService } = await import('../../services/storage.service.js');
-  return { storageService, send };
+  return { storageService, send, publicClient, createStorageS3Client, getSignedUrl };
 };
 
 describe('StorageService credential configuration', () => {
@@ -55,6 +63,29 @@ describe('StorageService credential configuration', () => {
     expect(command.input.Body).toBe(fileBuffer);
     expect(command.input.ContentType).toBe('application/pdf');
     expect(command.input.Metadata).toEqual({ projectId: 'project123' });
+  });
+
+  it('signs browser-facing MinIO URLs with the browser-facing host', async () => {
+    const { storageService, send, publicClient, createStorageS3Client, getSignedUrl } =
+      await loadStorageServiceWithEnv({
+        S3_ENDPOINT: 'http://minio:9000',
+        S3_FORCE_PATH_STYLE: true,
+      });
+
+    const signedUrl = await storageService.getSignedUrl('archives/projects/project123/file.pdf');
+
+    expect(createStorageS3Client).toHaveBeenCalledWith('http://localhost:9000');
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      publicClient,
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Key: 'archives/projects/project123/file.pdf',
+        }),
+      }),
+      { expiresIn: 300 },
+    );
+    expect(signedUrl).toBe('http://localhost:9000/cms-buksu-uploads/file.pdf?signature=test');
   });
 
   it('allows production provider-chain mode when static keys are blank', async () => {

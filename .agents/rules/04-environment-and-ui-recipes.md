@@ -1,7 +1,7 @@
 # 🎨 ENVIRONMENT HARNESS & UI PRESENTATION RECIPES
 
 **Rule File:** `.agents/rules/04-environment-and-ui-recipes.md`  
-**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/workspace-rules.md)  
+**Parent Blueprint:** [workspace-rules.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/workspace-rules.md)  
 **Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
 ---

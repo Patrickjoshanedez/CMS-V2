@@ -50,6 +50,80 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
     vi.spyOn(Notification, 'create').mockResolvedValue({ _id: 'notif-id' });
   });
 
+  it('keeps an archived team roster locked', async () => {
+    mockTeam.leaderId = instructorId;
+    mockTeam.isLocked = true;
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(
+      teamService.unlockTeam(teamId, instructorId, ROLES.INSTRUCTOR),
+    ).rejects.toMatchObject({
+      code: 'PROJECT_ARCHIVED',
+    });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects member-role changes for an archived project before saving the team', async () => {
+    const leaderId = '65e000000000000000000015';
+    mockTeam.leaderId = { _id: leaderId };
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(
+      teamService.assignMemberRole(
+        teamId,
+        leaderId,
+        '65e000000000000000000016',
+        'QA & Technical Documentor',
+      ),
+    ).rejects.toMatchObject({ code: 'PROJECT_ARCHIVED' });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects leadership transfers for an archived project before saving the team', async () => {
+    const leaderId = '65e000000000000000000015';
+    mockTeam.leaderId = { _id: leaderId };
+    mockTeam.members = [{ _id: '65e000000000000000000016' }];
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(
+      teamService.transferLeadership(teamId, leaderId, '65e000000000000000000016'),
+    ).rejects.toMatchObject({ code: 'PROJECT_ARCHIVED' });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects Google Docs link updates for an archived project before saving the team', async () => {
+    const leaderId = '65e000000000000000000015';
+    mockTeam.leaderId = { _id: leaderId };
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(
+      teamService.updateGoogleDocLink(teamId, leaderId, 'https://docs.google.com/document/d/test'),
+    ).rejects.toMatchObject({ code: 'PROJECT_ARCHIVED' });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects GitHub link updates for an archived project before saving the team', async () => {
+    const leaderId = '65e000000000000000000015';
+    mockTeam.leaderId = { _id: leaderId };
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(
+      teamService.updateGithubLink(teamId, leaderId, 'https://github.com/example/repo'),
+    ).rejects.toMatchObject({ code: 'PROJECT_ARCHIVED' });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects committee changes for an archived project before saving the team', async () => {
+    vi.spyOn(User, 'findById').mockImplementation(() => createQueryMock(instructorUser));
+    vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
+
+    await expect(teamService.assignCommittee(teamId, instructorId, {})).rejects.toMatchObject({
+      code: 'PROJECT_ARCHIVED',
+    });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+    expect(Notification.create).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

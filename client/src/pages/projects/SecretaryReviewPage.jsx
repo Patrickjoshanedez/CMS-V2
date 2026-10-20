@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { getSocket, connectSocket } from '@/services/socket';
 import { useProjects, useProject, usePrefetchProject } from '@/hooks/useProjects';
 import { FileSignature, Search, RefreshCw, ChevronRight, ExternalLink } from 'lucide-react';
+import { resolveWorkflowPhase } from '@cms/shared';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import { resolveAdmStatus } from '@/components/projects/adm/admWorkflow';
 
@@ -66,11 +67,25 @@ export default function SecretaryReviewPage() {
     refetch: refetchProjectDetails,
   } = useProject(selectedProjectId);
 
-  const project = selectedProjectData || projects.find((p) => p._id === selectedProjectId);
+  const hasSelectedProjectDetails =
+    selectedProjectData && String(selectedProjectData._id) === String(selectedProjectId);
+  const project = hasSelectedProjectDetails
+    ? selectedProjectData
+    : projects.find((p) => p._id === selectedProjectId);
+
+  const projectListWithSelectedDetails = useMemo(
+    () =>
+      projects.map((listedProject) =>
+        hasSelectedProjectDetails && String(listedProject._id) === String(selectedProjectId)
+          ? { ...listedProject, ...selectedProjectData }
+          : listedProject,
+      ),
+    [projects, hasSelectedProjectDetails, selectedProjectData, selectedProjectId],
+  );
 
   // Filter project list
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
+    return projectListWithSelectedDetails.filter((p) => {
       const matchesSearch =
         !searchTerm ||
         p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,7 +102,7 @@ export default function SecretaryReviewPage() {
       if (statusFilter === 'ENDORSED') return isEndorsed;
       return true;
     });
-  }, [projects, searchTerm, statusFilter]);
+  }, [projectListWithSelectedDetails, searchTerm, statusFilter]);
 
   // Real-time synchronization with Proponents, Committee, and Instructor
   useEffect(() => {
@@ -142,24 +157,23 @@ export default function SecretaryReviewPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* Institutional Top Header */}
-        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between no-print">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between no-print">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileSignature className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Committee Secretary Review Studio
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                Secretary Review
               </h1>
-              <p className="text-xs text-muted-foreground">
-                Upload defense minutes, manage Action Done Matrix compliance, and issue
-                institutional endorsements.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Review defense minutes and Action Done Matrix compliance.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -167,7 +181,7 @@ export default function SecretaryReviewPage() {
                 refetchProjects();
                 refetchProjectDetails();
               }}
-              className="gap-1 text-xs"
+              className="min-h-11 gap-2 text-sm"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
@@ -176,7 +190,7 @@ export default function SecretaryReviewPage() {
               variant="secondary"
               size="sm"
               onClick={() => navigate('/dashboard')}
-              className="gap-1 text-xs"
+              className="min-h-11 gap-2 text-sm"
             >
               Faculty Overview
             </Button>
@@ -184,9 +198,9 @@ export default function SecretaryReviewPage() {
         </div>
 
         {/* Studio Split Workspace */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-12">
           {/* Left Column: Assigned Secretary Teams Queue (3 cols) */}
-          <div className="min-w-0 space-y-4 lg:col-span-3 xl:col-span-3 no-print">
+          <div className="min-w-0 space-y-4 xl:col-span-4 no-print">
             <Card className="shadow-sm">
               <CardHeader className="p-4 pb-3">
                 <div className="flex items-center justify-between">
@@ -202,15 +216,16 @@ export default function SecretaryReviewPage() {
                 {/* Filter & Search */}
                 <div className="mt-3 space-y-2">
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search team or title..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 text-xs h-8"
+                      aria-label="Search assigned teams"
+                      className="pl-9 text-base sm:text-sm min-h-11"
                     />
                   </div>
-                  <div className="flex gap-1 overflow-x-auto pb-1 text-[10px]">
+                  <div role="group" aria-label="Compliance status" className="grid grid-cols-2 gap-2 text-xs">
                     {[
                       { id: 'ALL', label: 'All' },
                       { id: 'NEEDS_MINUTES', label: 'Needs Minutes' },
@@ -219,8 +234,10 @@ export default function SecretaryReviewPage() {
                     ].map((tab) => (
                       <button
                         key={tab.id}
+                        type="button"
+                        aria-pressed={statusFilter === tab.id}
                         onClick={() => setStatusFilter(tab.id)}
-                        className={`rounded px-2 py-0.5 font-medium whitespace-nowrap transition-colors ${
+                        className={`min-h-11 rounded-md px-3 py-2 font-medium transition-colors ${
                           statusFilter === tab.id
                             ? 'bg-primary text-primary-foreground font-bold'
                             : 'bg-muted/50 text-muted-foreground hover:text-foreground'
@@ -250,19 +267,21 @@ export default function SecretaryReviewPage() {
                     const pIsEndorsed = pStatus.key === 'endorsed' || pStatus.key === 'approved';
 
                     return (
-                      <div
+                      <button
                         key={p._id}
+                        type="button"
+                        aria-pressed={isSelected}
                         onClick={() => handleSelectProject(p._id)}
                         onMouseEnter={() => prefetchProject(p._id)}
                         onFocus={() => prefetchProject(p._id)}
-                        className={`cursor-pointer rounded-lg border p-3 text-left transition-all ${
+                        className={`w-full cursor-pointer rounded-lg border p-4 text-left transition-colors ${
                           isSelected
                             ? 'border-primary bg-primary/5 shadow-sm'
                             : 'border-border/60 hover:border-border hover:bg-muted/20'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-bold text-foreground line-clamp-1">
+                          <span className="min-w-0 break-words text-sm font-semibold text-foreground line-clamp-2">
                             {p.title || 'Untitled Project'}
                           </span>
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
@@ -272,7 +291,7 @@ export default function SecretaryReviewPage() {
                             {p.teamId?.name || 'Unknown Team'}
                           </span>
                           <span>&bull;</span>
-                          <span>Phase {p.capstonePhase || 1}</span>
+                          <span>Phase {resolveWorkflowPhase(p)}</span>
                         </div>
                         <div className="mt-2 flex items-center justify-between">
                           {pIsEndorsed ? (
@@ -280,7 +299,7 @@ export default function SecretaryReviewPage() {
                               variant="outline"
                               className="text-[9px] font-bold text-emerald-600 bg-emerald-500/10 border-emerald-500/30"
                             >
-                              Endorsed
+                              {pStatus.label}
                             </Badge>
                           ) : pHasMinutes ? (
                             <Badge
@@ -298,7 +317,7 @@ export default function SecretaryReviewPage() {
                             </Badge>
                           )}
                         </div>
-                      </div>
+                      </button>
                     );
                   })
                 )}
@@ -307,14 +326,14 @@ export default function SecretaryReviewPage() {
           </div>
 
           {/* Right Column: Active Project Workspace (9 cols) */}
-          <div className="min-w-0 space-y-6 lg:col-span-9 xl:col-span-9">
+          <div className="min-w-0 space-y-6 xl:col-span-8">
             {!project && isProjectDetailsLoading ? (
               <Card className="p-12 text-center text-muted-foreground shadow-sm">
                 Loading project details and Action Done Matrix...
               </Card>
             ) : !project ? (
               <Card className="p-12 text-center text-muted-foreground shadow-sm">
-                Select a team on the left to begin minutes extraction and compliance review.
+                Select an assigned team to review defense minutes and compliance.
               </Card>
             ) : (
               <>
@@ -323,7 +342,7 @@ export default function SecretaryReviewPage() {
                   <CardContent className="p-5 space-y-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="text-[10px] uppercase font-bold">
                             {project.teamId?.name || 'Assigned Team'}
                           </Badge>
@@ -331,7 +350,7 @@ export default function SecretaryReviewPage() {
                             Phase {project.capstonePhase || 1}
                           </Badge>
                         </div>
-                        <h2 className="text-lg font-bold text-foreground tracking-tight">
+                        <h2 className="break-words text-lg font-bold text-foreground tracking-tight">
                           {project.title}
                         </h2>
                       </div>

@@ -13,6 +13,9 @@ import Team from '../teams/team.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToRoom, getIO } from '../../services/socket.service.js';
 import cacheService from '../../services/cache.service.js';
+import { getADMCompletion } from './services/admCompletion.js';
+import { assertProjectWritable } from './services/projectCore.service.js';
+import AppError from '../../utils/AppError.js';
 
 /**
  * Invalidate Redis project metadata cache when any project or ADM mutation occurs
@@ -583,7 +586,7 @@ export const addPrototypeMedia = catchAsync(async (req, res) => {
 
 /** GET /api/projects/:id/prototypes — List prototypes with signed URLs */
 export const getPrototypes = catchAsync(async (req, res) => {
-  const { prototypes } = await projectService.getPrototypes(req.params.id, req.user._id);
+  const { prototypes } = await projectService.getPrototypes(req.params.id, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -640,12 +643,24 @@ export const uploadCertificate = catchAsync(async (req, res) => {
 
 /** GET /api/projects/:id/certificate — Get certificate download URL */
 export const getCertificateUrl = catchAsync(async (req, res) => {
-  const { url } = await projectService.getCertificateUrl(req.params.id);
+  const certificate = await projectService.getCertificateUrl(req.params.id, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    data: { url },
+    data: certificate,
   });
+});
+
+/** GET /api/projects/:id/certificate/verify/:hash — Public certificate verification */
+export const verifyCertificate = catchAsync(async (req, res) => {
+  const verification = await projectService.verifyCertificate(req.params.id, req.params.hash);
+  res.status(HTTP_STATUS.OK).json({ success: true, data: verification });
+});
+
+/** GET /api/projects/:id/approval-sheet — Get the generated final approval sheet */
+export const getApprovalSheetUrl = catchAsync(async (req, res) => {
+  const approvalSheet = await projectService.getApprovalSheetUrl(req.params.id, req.user);
+  res.status(HTTP_STATUS.OK).json({ success: true, data: approvalSheet });
 });
 
 /** GET /api/projects/reports — Generate project reports (Instructor) */
@@ -687,6 +702,22 @@ export const updateGanttChartUrl = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Gantt chart URL updated.',
+    data: { project },
+  });
+});
+
+/** PATCH /api/projects/:id/gantt-plan — Save the shared Gantt plan */
+export const updateGanttPlan = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateGanttPlan(
+    req.params.id,
+    req.user._id,
+    req.body,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Gantt plan saved for the team and adviser.',
     data: { project },
   });
 });
@@ -768,6 +799,121 @@ export const updateGanttApproval = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/projects/:id/weekly-check-ins/:checkInId — Submit or save a progress check-in */
+export const updateWeeklyCheckIn = catchAsync(async (req, res) => {
+  const { project, checkIn } = await projectService.updateWeeklyCheckIn(
+    req.params.id,
+    req.user._id,
+    req.params.checkInId,
+    req.body,
+  );
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: req.body.submit === false ? 'Weekly check-in draft saved.' : 'Weekly check-in submitted for adviser review.',
+    data: { project, checkIn },
+  });
+});
+
+/** PATCH /api/projects/:id/weekly-check-ins/:checkInId/adviser-review */
+export const reviewWeeklyCheckIn = catchAsync(async (req, res) => {
+  const { project, checkIn } = await projectService.reviewWeeklyCheckIn(
+    req.params.id,
+    req.user._id,
+    req.params.checkInId,
+    req.body,
+  );
+  res.status(HTTP_STATUS.OK).json({ success: true, data: { project, checkIn } });
+});
+
+/** PATCH /api/projects/:id/weekly-check-ins/:checkInId/instructor-waiver */
+export const reviewWeeklyCheckInWaiver = catchAsync(async (req, res) => {
+  const { project, checkIn } = await projectService.reviewWeeklyCheckInWaiver(
+    req.params.id,
+    req.user._id,
+    req.params.checkInId,
+    req.body,
+  );
+  res.status(HTTP_STATUS.OK).json({ success: true, data: { project, checkIn } });
+});
+
+/** PATCH /api/projects/:id/system-defense-clearance — Adviser clearance for Capstone 2 defense */
+export const updateSystemDefenseApproval = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateSystemDefenseApproval(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: project.systemDefenseApproval?.approved
+      ? 'System cleared for Capstone 2 defense.'
+      : 'System defense clearance updated.',
+    data: { project },
+  });
+});
+
+/**
+ * Asserts that the authenticated user has authorization to view or mutate the target project.
+ */
+export async function assertProjectAccess(
+  project,
+  user,
+  { allowStudentWrite = false, requireCommitteeForFacultyWrite = false } = {},
+) {
+  if (!project || !user) return;
+  const userIdStr = (user._id || user.id || '').toString();
+
+  if (user.role === ROLES.STUDENT) {
+    const TeamModel = mongoose.model('Team');
+    const team = project.teamId?._id
+      ? project.teamId
+      : project.teamId
+        ? await TeamModel.findById(project.teamId).select('members leaderId').lean()
+        : null;
+
+    const isMember =
+      project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
+      team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
+      (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
+    const isArchivedRead =
+      !allowStudentWrite && (project.isArchived === true || project.projectStatus === 'archived');
+    if (!isMember && !isArchivedRead) {
+      throw new AppError('You do not have permission to access this project.', 403, 'FORBIDDEN');
+    }
+    return;
+  }
+
+  if (requireCommitteeForFacultyWrite) {
+    const TeamModel = mongoose.model('Team');
+    let team = null;
+    if (project.teamId?._id) {
+      team = project.teamId;
+    } else if (project.teamId) {
+      const teamQuery = TeamModel.findById(project.teamId);
+      team =
+        typeof teamQuery?.select === 'function'
+          ? await teamQuery.select('adviserId secretaryId panelistIds').lean()
+          : await teamQuery;
+    }
+
+    const isAdviser =
+      project.adviserId?.toString() === userIdStr ||
+      (team?.adviserId?._id || team?.adviserId)?.toString() === userIdStr;
+    const isSecretary =
+      project.secretaryId?.toString() === userIdStr ||
+      (team?.secretaryId?._id || team?.secretaryId)?.toString() === userIdStr;
+    const isPanelist =
+      project.panelists?.some((p) => (p.userId?._id || p.userId)?.toString() === userIdStr) ||
+      project.panelistIds?.some((id) => (id?._id || id)?.toString() === userIdStr) ||
+      team?.panelistIds?.some((id) => (id?._id || id)?.toString() === userIdStr) ||
+      project.chairpersonId?.toString() === userIdStr;
+    const isInstructor = user.role === ROLES.INSTRUCTOR;
+    if (!isAdviser && !isSecretary && !isPanelist && !isInstructor) {
+      throw new AppError('You are not assigned to this project committee.', 403, 'FORBIDDEN');
+    }
+  }
+}
+
 /** POST /api/projects/:projectId/stream-routing — Route Capstone 1 vs Capstone 2 streams */
 export const handleProjectStream = catchAsync(async (req, res) => {
   const { projectId } = req.params;
@@ -780,6 +926,8 @@ export const handleProjectStream = catchAsync(async (req, res) => {
     });
   }
 
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, { allowStudentWrite: true });
   const targetCourse = req.body?.capstoneCourse || project.capstoneCourse;
   if (targetCourse) {
     project.capstoneCourse = targetCourse;
@@ -825,11 +973,6 @@ function broadcastADMUpdate(projectId, event, payload = {}) {
     invalidateProjectCache(projectId);
     emitToRoom(`project:${projectId}`, event, { projectId, ...payload });
     emitToRoom(`project:${projectId}`, 'project:updated', { projectId });
-    const io = getIO();
-    if (io) {
-      io.emit(event, { projectId, ...payload });
-      io.emit('project:updated', { projectId });
-    }
   } catch {
     // Non-blocking socket error
   }
@@ -869,6 +1012,7 @@ function getMilestoneSignatures(project, milestone) {
         : 'CAPSTONE_1';
 
   if (
+    activeKey === 'CAPSTONE_1' &&
     milestone === activeKey &&
     project.admSignatures &&
     (!project.admSignaturesByMilestone[milestone] ||
@@ -977,7 +1121,7 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId)
     .select(
-      'actionDoneMatrix admStatus admReviewType admSignatures admSignaturesByMilestone admReviewTypeByMilestone secretaryMinutes secretaryMinutesByMilestone capstoneCourse title adviserId secretaryId panelistIds panelists teamId',
+      'actionDoneMatrix admStatus admReviewType admSignatures admSignaturesByMilestone admReviewTypeByMilestone secretaryMinutes secretaryMinutesByMilestone capstoneCourse title adviserId secretaryId panelistIds panelists teamId isArchived projectStatus',
     )
     .populate('adviserId', 'firstName lastName email avatar')
     .populate('secretaryId', 'firstName lastName email avatar')
@@ -1006,6 +1150,8 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
     });
   }
 
+  await assertProjectAccess(project, req.user, { allowStudentWrite: false });
+
   // Automatically consolidate repeated panel rows in actionDoneMatrix by panelName & milestone
   if (Array.isArray(project.actionDoneMatrix) && project.actionDoneMatrix.length > 1) {
     const originalCount = project.actionDoneMatrix.length;
@@ -1015,7 +1161,9 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
       if (typeof project.markModified === 'function') {
         project.markModified('actionDoneMatrix');
       }
-      await project.save();
+      if (!project.isArchived && project.projectStatus !== PROJECT_STATUSES.ARCHIVED) {
+        await project.save();
+      }
     }
   }
 
@@ -1054,6 +1202,11 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: true,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const item = project.actionDoneMatrix.id(itemId);
   if (!item) {
@@ -1135,6 +1288,11 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: true,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const targetMilestone = resolveTargetMilestone(project, milestone);
 
@@ -1189,6 +1347,14 @@ export const deleteActionDoneMatrixItem = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  if (req.user?.role === ROLES.STUDENT) {
+    throw new AppError('Students cannot delete ADM items.', 403, 'FORBIDDEN');
+  }
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const item = project.actionDoneMatrix.id(itemId);
   if (!item) {
@@ -1236,6 +1402,11 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: true,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   if (admReviewType !== undefined) {
     project.admReviewType = admReviewType;
@@ -1251,7 +1422,7 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
       project.markModified('admReviewTypeByMilestone');
     }
   }
-  if (title !== undefined && title.trim()) {
+  if (title !== undefined && title.trim() && req.user?.role === ROLES.INSTRUCTOR) {
     project.title = title.trim();
   }
 
@@ -1280,20 +1451,21 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
   const currentPhase = Number(project.capstonePhase ?? 1);
   const targetMilestone =
     currentPhase === 2 ? 'CAPSTONE_2' : currentPhase === 3 ? 'CAPSTONE_3' : 'CAPSTONE_1';
-  const sigs =
-    project.admSignaturesByMilestone?.[targetMilestone] ||
-    (targetMilestone === 'CAPSTONE_1' ? project.admSignatures : {});
-
-  const isSecretaryDone = Boolean(sigs?.secretary?.endorsed);
-  const isAdviserDone = Boolean(sigs?.adviser?.signed);
-  const isChairDone = Boolean(sigs?.chair?.signed);
-
-  if (isSecretaryDone && isAdviserDone && isChairDone) {
+  if (getADMCompletion(project, targetMilestone).complete) {
     project.admStatus = 'approved';
+
+    if (currentPhase < 3) {
+      const blocker = await projectService.getPhaseExitBlocker(project, currentPhase);
+      if (blocker) return;
+    }
 
     if (currentPhase === 1) {
       project.capstonePhase = 2;
+      project.workflowPhase = 3;
       project.capstoneCourse = 'Capstone 2';
+      project.stage = 'capstone_2';
+      project.admStatus = 'not_started';
+      project.projectStatus = PROJECT_STATUSES.ACTIVE;
 
       try {
         const Team = (await import('../teams/team.model.js')).default;
@@ -1303,8 +1475,13 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
             userId: memberId,
             type: 'phase_advanced',
             title: '🎉 Promoted to Capstone 2: System Development & Prototype!',
-            message: `Congratulations! Your Action Done Matrix (ADM v1) has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 2. System Development Roadmap & Gantt Chart are now unlocked!`,
-            metadata: { projectId: project._id, capstonePhase: 2, capstoneCourse: 'Capstone 2' },
+            message: `Congratulations! Your proposal defense review has been fully endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 2. System Development Roadmap & Gantt Chart are now unlocked!`,
+            metadata: {
+              projectId: project._id,
+              capstonePhase: 2,
+              workflowPhase: project.workflowPhase,
+              capstoneCourse: 'Capstone 2',
+            },
           }));
           const createdNotifs = await Notification.insertMany(notifications);
           createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
@@ -1317,24 +1494,20 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
         emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
           projectId: project._id,
           capstonePhase: 2,
+          workflowPhase: project.workflowPhase,
           capstoneCourse: 'Capstone 2',
         });
         emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
-        const io = getIO();
-        if (io) {
-          io.emit('project:phase_advanced', {
-            projectId: project._id,
-            capstonePhase: 2,
-            capstoneCourse: 'Capstone 2',
-          });
-          io.emit('project:updated', { projectId: project._id });
-        }
       } catch {
         // Non-blocking socket
       }
     } else if (currentPhase === 2) {
       project.capstonePhase = 3;
+      project.workflowPhase = 4;
       project.capstoneCourse = 'Capstone 3';
+      project.stage = 'capstone_3';
+      project.admStatus = 'not_started';
+      project.projectStatus = PROJECT_STATUSES.ACTIVE;
 
       try {
         const Team = (await import('../teams/team.model.js')).default;
@@ -1344,8 +1517,13 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
             userId: memberId,
             type: 'phase_advanced',
             title: '🎉 Promoted to Capstone 3: Final Manuscript & Defense!',
-            message: `Congratulations! Your Action Done Matrix (ADM v2) has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 3. Chapters 4–5, Academic Journal submission, and Final Oral Defense are now unlocked!`,
-            metadata: { projectId: project._id, capstonePhase: 3, capstoneCourse: 'Capstone 3' },
+            message: `Congratulations! Your Capstone 2 system defense ADM has been fully signed and your grades released. Your project "${project.title}" has advanced to Capstone 3 for Chapters 4–5 and the final defense.`,
+            metadata: {
+              projectId: project._id,
+              capstonePhase: 3,
+              workflowPhase: project.workflowPhase,
+              capstoneCourse: 'Capstone 3',
+            },
           }));
           const createdNotifs = await Notification.insertMany(notifications);
           createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
@@ -1358,23 +1536,15 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
         emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
           projectId: project._id,
           capstonePhase: 3,
+          workflowPhase: project.workflowPhase,
           capstoneCourse: 'Capstone 3',
         });
         emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
-        const io = getIO();
-        if (io) {
-          io.emit('project:phase_advanced', {
-            projectId: project._id,
-            capstonePhase: 3,
-            capstoneCourse: 'Capstone 3',
-          });
-          io.emit('project:updated', { projectId: project._id });
-        }
       } catch {
         // Non-blocking socket
       }
     } else if (currentPhase === 3) {
-      // Phase 3 ADM v3 finalized
+      // Capstone 3 ADM v3 finalized; archive readiness is evaluated after this signature set.
       try {
         const Team = (await import('../teams/team.model.js')).default;
         const team = await Team.findById(project.teamId);
@@ -1382,8 +1552,8 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
           const notifications = team.members.map((memberId) => ({
             userId: memberId,
             type: 'phase_advanced',
-            title: '🎉 Capstone 3 ADM Ratified — Cleared for Archival!',
-            message: `Congratulations! Your Capstone 3 Action Done Matrix (ADM v3) has been fully signed and ratified. Your project "${project.title}" is cleared for final Dean ratification and digital vault archival!`,
+            title: 'Capstone 3 final ADM signed',
+            message: `The final Action Done Matrix for "${project.title}" is fully signed. The system is checking the approved papers, grades, and approval sheet before archival.`,
             metadata: { projectId: project._id, capstonePhase: 3, capstoneCourse: 'Capstone 3' },
           }));
           const createdNotifs = await Notification.insertMany(notifications);
@@ -1395,10 +1565,6 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
 
       try {
         emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
-        const io = getIO();
-        if (io) {
-          io.emit('project:updated', { projectId: project._id });
-        }
       } catch {
         // Non-blocking socket
       }
@@ -1418,6 +1584,11 @@ export const signTieredADM = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const targetMilestone = resolveTargetMilestone(project, milestone);
   const currentSignatures = getMilestoneSignatures(project, targetMilestone);
@@ -1472,7 +1643,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
         }
       }
     });
-    project.admStatus = 'approved';
+    project.admStatus = 'under_panel_review';
   } else {
     // Panel Member (Tier 2)
     if (!Array.isArray(currentSignatures.panelists)) {
@@ -1496,8 +1667,8 @@ export const signTieredADM = catchAsync(async (req, res) => {
     }
   }
 
-  // Synchronize legacy admSignatures if target is Capstone 1 or matches active phase
-  if (targetMilestone === 'CAPSTONE_1' || targetMilestone === `CAPSTONE_${project.capstonePhase}`) {
+  // The legacy unversioned slot is permanently reserved for ADM v1 / Capstone 1.
+  if (targetMilestone === 'CAPSTONE_1') {
     project.admSignatures = currentSignatures;
   }
   if (typeof project.markModified === 'function') {
@@ -1512,6 +1683,9 @@ export const signTieredADM = catchAsync(async (req, res) => {
 
   // Evaluate post-approval hard gate (unlocks full_academic_paper and condensed_journal_paper)
   await projectService.evaluatePostApprovalUnlocks(project._id);
+  if (targetMilestone === 'CAPSTONE_3' && getADMCompletion(project, 'CAPSTONE_3').complete) {
+    await projectService.tryAutoArchiveProject(project._id);
+  }
 
   broadcastADMUpdate(project._id, 'adm:signed', {
     milestone: targetMilestone,
@@ -1547,6 +1721,11 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const targetMilestone = resolveTargetMilestone(project, milestone);
   const rows = project.actionDoneMatrix || [];
@@ -1559,11 +1738,11 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
     });
   }
 
-  const unaddressed = milestoneRows.filter((r) => r.status === 'pending');
-  if (unaddressed.length > 0) {
+  const unverified = milestoneRows.filter((r) => r.status !== 'verified');
+  if (unverified.length > 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      message: `Cannot endorse Action Done Matrix: ${unaddressed.length} revision item(s) are still pending action from the student team.`,
+      message: `Cannot endorse Action Done Matrix: ${unverified.length} revision item(s) still require panel verification.`,
     });
   }
 
@@ -1579,7 +1758,7 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
     userId: req.user._id,
   };
 
-  if (targetMilestone === 'CAPSTONE_1' || targetMilestone === `CAPSTONE_${project.capstonePhase}`) {
+  if (targetMilestone === 'CAPSTONE_1') {
     project.admSignatures.secretary = currentSignatures.secretary;
   }
   if (typeof project.markModified === 'function') {
@@ -1593,6 +1772,10 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
   await checkAndAdvancePhaseIfADMCompleted(project);
 
   await project.save({ validateModifiedOnly: true });
+
+  if (targetMilestone === 'CAPSTONE_3' && getADMCompletion(project, 'CAPSTONE_3').complete) {
+    await projectService.tryAutoArchiveProject(project._id);
+  }
 
   broadcastADMUpdate(project._id, 'adm:endorsed', {
     milestone: targetMilestone,
@@ -1650,6 +1833,11 @@ export const submitADMForEndorsement = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: true,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const targetMilestone = resolveTargetMilestone(project, milestone);
   const rows = project.actionDoneMatrix || [];
@@ -1717,6 +1905,11 @@ export const seedInstitutionalADM = catchAsync(async (req, res) => {
       message: 'Project not found.',
     });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: true,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   // Institutional items from Project-Workspace-ADM.docx
   const institutionalRows = [
@@ -1815,30 +2008,26 @@ export const updateADMStatus = catchAsync(async (req, res) => {
       .status(HTTP_STATUS.NOT_FOUND)
       .json({ success: false, message: 'Project not found.' });
   }
+  assertProjectWritable(project);
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    requireCommitteeForFacultyWrite: true,
+  });
 
-  project.admStatus = admStatus;
-
-  // Auto-archive on ADM approval (Labastida #1 + #7)
   if (admStatus === 'approved') {
-    project.isArchived = true;
-    project.archivedAt = new Date();
-    project.projectStatus = 'archived';
-
-    // Notify team members of approval and archiving
-    if (project.teamId?.members) {
-      const Notification = (await import('../notifications/notification.model.js')).default;
-      const { emitToUser } = await import('../notifications/notification.socket.js');
-      const notifications = project.teamId.members.map((memberId) => ({
-        userId: memberId,
-        type: 'adm_approved',
-        title: 'ADM Approved — Project Archived',
-        message: `Congratulations! Your capstone project "${project.title}" has been approved by the panel and has been automatically archived.`,
-        metadata: { projectId, admStatus: 'approved' },
-      }));
-      const inserted = await Notification.insertMany(notifications);
-      inserted.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+    const phase = Number(project.capstonePhase ?? 1);
+    const milestone = phase >= 3 ? 'CAPSTONE_3' : phase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_1';
+    const { missing } = getADMCompletion(project, milestone);
+    if (missing.length > 0) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: `ADM cannot be approved until required signatures are complete: ${missing.join(', ')}.`,
+        error: { code: 'ADM_SIGNATURES_INCOMPLETE' },
+      });
     }
   }
+
+  project.admStatus = admStatus;
 
   await project.save();
 
@@ -1860,6 +2049,17 @@ export const signADMItem = catchAsync(async (req, res) => {
       .status(HTTP_STATUS.NOT_FOUND)
       .json({ success: false, message: 'Project not found.' });
   }
+  assertProjectWritable(project);
+  if (req.user?.role === ROLES.STUDENT) {
+    throw new AppError('Students cannot sign ADM items.', 403, 'FORBIDDEN');
+  }
+  if (req.user?.role === ROLES.INSTRUCTOR) {
+    throw new AppError('Course Instructors are excluded from signing committee ADM items.', 403, 'INSTRUCTOR_COMMITTEE_EXCLUSION');
+  }
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    requireCommitteeForFacultyWrite: true,
+  });
 
   const item = project.actionDoneMatrix.id(itemId);
   if (!item) {
@@ -1888,51 +2088,6 @@ export const signADMItem = catchAsync(async (req, res) => {
     signedAt: new Date(),
     signatureDataUrl: signatureDataUrl || null,
   });
-
-  // Auto-Archiving Trigger (FR-4.5)
-  // When the Panel Chair signs off on the final ADM row (or all rows have chair signatures)
-  const isChair =
-    userRole === 'chair' ||
-    userRole === 'panel chair' ||
-    userRole === 'lead_panelist' ||
-    panelistAssignment?.role === 'chair';
-
-  const isFinalRow =
-    project.actionDoneMatrix.length > 0 &&
-    String(project.actionDoneMatrix[project.actionDoneMatrix.length - 1]._id) === String(itemId);
-
-  const allRowsSignedByChair = project.actionDoneMatrix.every((row) =>
-    row.signatures.some(
-      (s) =>
-        s.role === 'chair' ||
-        s.role === 'panel chair' ||
-        s.role === 'lead_panelist' ||
-        String(s.userId) === String(req.user._id),
-    ),
-  );
-
-  if ((isChair && isFinalRow) || (isChair && allRowsSignedByChair)) {
-    project.admStatus = 'approved';
-    project.isArchived = true;
-    project.archivedAt = new Date();
-    project.projectStatus = 'archived';
-
-    // Notify team members of auto-archiving
-    await project.populate('teamId');
-    if (project.teamId?.members) {
-      const Notification = (await import('../notifications/notification.model.js')).default;
-      const { emitToUser } = await import('../../services/socket.service.js');
-      const notifications = project.teamId.members.map((memberId) => ({
-        userId: memberId,
-        type: 'project_archived',
-        title: 'ADM Approved — Project Archived',
-        message: `Congratulations! Your capstone project "${project.title}" has been signed off by the Panel Chair and automatically archived.`,
-        metadata: { projectId, admStatus: 'approved' },
-      }));
-      const inserted = await Notification.insertMany(notifications);
-      inserted.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-    }
-  }
 
   await project.save();
 

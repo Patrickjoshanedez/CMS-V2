@@ -57,6 +57,7 @@ export default function DynamicChartWidget({
   subtitle,
   data = [],
   xKey = 'name',
+  xTickFormatter,
   dataKeys = [{ key: 'value', label: 'Value', color: 'hsl(var(--primary))' }],
   availableViews = ['bar', 'line', 'pie', 'table'],
   defaultView = 'bar',
@@ -209,6 +210,7 @@ export default function DynamicChartWidget({
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis
                     dataKey={xKey}
+                    tickFormatter={xTickFormatter}
                     tick={{ fontSize: 11, fill: 'currentColor' }}
                     angle={-20}
                     textAnchor="end"
@@ -269,6 +271,7 @@ export default function DynamicChartWidget({
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis
                     dataKey={xKey}
+                    tickFormatter={xTickFormatter}
                     tick={{ fontSize: 11, fill: 'currentColor' }}
                     angle={-20}
                     textAnchor="end"
@@ -474,6 +477,7 @@ DynamicChartWidget.propTypes = {
   subtitle: PropTypes.string,
   data: PropTypes.array,
   xKey: PropTypes.string,
+  xTickFormatter: PropTypes.func,
   dataKeys: PropTypes.arrayOf(
     PropTypes.shape({
       key: PropTypes.string.isRequired,

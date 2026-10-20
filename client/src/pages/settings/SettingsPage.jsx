@@ -62,22 +62,22 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
           <p className="text-muted-foreground">Manage your account settings and preferences.</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <div className="border-b border-border">
-            <TabsList className="bg-transparent p-0 flex h-auto gap-6 flex-wrap justify-start border-none">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent p-0 h-auto gap-x-3 gap-y-1 sm:flex sm:flex-wrap sm:gap-6 justify-start border-none">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="relative flex items-center gap-2 rounded-none border-b-2 border-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                    className="relative flex min-h-11 items-center justify-start gap-2 rounded-none border-b-2 border-transparent px-2 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}

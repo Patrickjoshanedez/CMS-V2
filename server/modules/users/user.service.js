@@ -59,7 +59,8 @@ class UserService {
    */
   async getMe(userId) {
     const userDoc = await User.findById(userId)
-      .populate('teamId', 'name isLocked')
+      .select('+schoolId')
+      .populate('teamId', 'name isLocked members')
       .populate({
         path: 'sectionId',
         select: 'name academicYear code',
@@ -71,6 +72,11 @@ class UserService {
     }
 
     const user = userDoc.toObject();
+    if (user.teamId && Array.isArray(user.teamId.members)) {
+      // The team virtuals need the roster to calculate accurate values, but member IDs
+      // are not part of the current user's profile response.
+      delete user.teamId.members;
+    }
     if (user.profilePicture) {
       const ts = user.updatedAt ? new Date(user.updatedAt).getTime() : Date.now();
       user.avatarUrl = `/api/users/${user._id}/avatar?t=${ts}`;
@@ -97,11 +103,13 @@ class UserService {
       'digitalSignature',
       'sectionId',
       'instructorId',
+      'studentId',
+      'academicTerm',
     ];
     const updateData = {};
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
-        updateData[field] = data[field];
+        updateData[field] = field === 'studentId' ? String(data[field] || '').trim() : data[field];
       }
     }
 
@@ -156,11 +164,12 @@ class UserService {
     }
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) {
+      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { middleName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: escapedSearch, $options: 'i' } },
+        { middleName: { $regex: escapedSearch, $options: 'i' } },
+        { lastName: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
@@ -388,7 +397,7 @@ class UserService {
       }
 
       try {
-        const existing = await User.findOne({ email });
+        const existing = await User.findOne({ email }).select('+schoolId');
         if (existing) {
           if (existing.role !== ROLES.STUDENT) {
             errors.push(
@@ -400,15 +409,16 @@ class UserService {
 
           if (!existing.sectionId || existing.sectionId.toString() !== section._id.toString()) {
             existing.sectionId = section._id;
-            await existing.save();
           }
+          if (schoolId && !existing.studentId && !existing.schoolId) existing.studentId = schoolId;
+          await existing.save();
           skipped++;
         } else {
           await User.create({
             firstName,
             lastName,
             email,
-            schoolId,
+            studentId: schoolId,
             password: generateImportPassword(),
             role: ROLES.STUDENT,
             sectionId: section._id,

@@ -1,0 +1,56 @@
+{
+  "session_id": "2026-10-17_seeded-account-workflow-verification",
+  "date": "2026-10-17T08:09:11Z",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "task_summary": "Preserved the final seeded synthetic archive, verified alternate seed states, completed all eight sequential client Vitest shards (753 tests across 123 files exactly once), passed isolated server/auth and governance checks, and kept the clean-start registration journey pending a verified local OTP sink.",
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "verification-loop",
+    "workspace-evidence-maintenance",
+    "documents:documents",
+    "computer-use:computer-use"
+  ],
+  "document_handling": {
+    "source": "C:/Users/patri/Downloads/BukSU_CMS_Reseed_and_Domain_Enforcement_Report.docx",
+    "used_as": "Seed roster and account reference data only",
+    "embedded_operational_text": "The report's wipe/reseed description was not treated as an instruction and no wipe or seeder was run."
+  },
+  "live_state": {
+    "source": "Authenticated local CMS dashboard",
+    "identity": "Final student entry listed by the report",
+    "project_state": "Locked two-member synthetic team; 5/5 chapters approved; project archived",
+    "alternate_seeded_students": "Adrian already has an active project with a submitted title; Aira already has an archived project. Both were left unchanged.",
+    "side_effects": "No profile, team, project, submission, or grading records were changed. Login/logout changed the browser authentication session, which was restored to the final seeded student."
+  },
+  "registration_boundary": "The live registration service dispatches OTP through SMTP. No registration form was submitted and no OTP email was sent because the configured transport was not verified as a local test sink.",
+  "verification": {
+    "server_integration": "The isolated comprehensive workflow integration suite passed 13/13 using MongoMemoryServer with external storage adapter calls mocked. A sandboxed rerun first failed before assertions with EACCES on 127.0.0.1 and skipped all cases; after loopback approval limited to this test, the isolated rerun passed 13/13 in 36.30 seconds. The running application database was not used.",
+    "client_registration_schema": "3/3 passed with TEMP and TMP redirected to workspace scratch.",
+    "governance": {
+      "endpoint_parity": "229 server / 209 client / 0 unmatched",
+      "agentic_audit": "60/60 passed",
+      "evidence_integrity": "34/34 passed",
+      "governance_pipeline": "Agent prefetch, sync DAG, and decision coherence passed when invoked through the bundled Python runtime.",
+      "workspace_guardrail": "Passed."
+    },
+    "full_client_suite": "All eight sequential Vitest shards passed: 123 test files and 753 tests total, with per-shard file counts 16, 16, 16, 15, 15, 15, 15, 15 matching the balanced non-overlapping Vitest shard ranges. Shard 5 was rerun after correcting a stale parent component test assertion; its focused suite passed 5/5 and final shard passed 97/97.",
+    "client_sharding_follow_up": "Shard 1/8: 16 files/108 tests/92.13 s; shard 2/8: 16/79/60.17 s; shard 3/8: 16/81/50.45 s; shard 4/8: 15/85/48.73 s; shard 5/8: 15/97/47.87 s after focused 5/5 correction; shard 6/8: 15/116/68.82 s; shard 7/8: 15/83/57.46 s; shard 8/8: 15/104/55.10 s. Vitest uses disjoint hash-sorted balanced slices; all 123 discovered files were covered exactly once, 753 tests passed total.",
+    "earlier_focused_client_coverage": "Previously recorded relevant focused workflow suites passed 220/220; archive/shared reader suites passed 27/27 and four light/dark desktop/mobile captures passed.",
+    "capstone2_component_test_follow_up": "Shard 5 exposed that a parent component test still expected a blanket read-only prop for faculty. The implementation delegates to canEditGanttSchedule, allowing the assigned Adviser while denying unassigned faculty and panelists. The stale parent assertion was updated; focused suite passed 5/5 and final shard 5 passed 97/97."
+  },
+  "remaining": [
+    "A fresh browser registration/profile/team/proposal/Capstone 1 journey needs a dedicated unused synthetic identity and a verified local OTP sink; the final seed is archived and the first two alternate seeds already have project records."
+  ],
+  "verification_status": "partial",
+  "files_modified": [
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/tasks/2026-10-17_phase0_capstone1_followup.json",
+    ".agents/skills/automated-qa-tester/SKILL.md",
+    ".agents/skills/verification-loop/SKILL.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ]
+}

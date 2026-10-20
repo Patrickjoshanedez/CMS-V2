@@ -1,0 +1,35 @@
+{
+  "active_scenario_id": "workflow-refactor-status-and-phase-gates",
+  "completed_subgoals": [
+    "Set destination capstone stage and active project status in ADM-driven phase transitions.",
+    "Set destination capstone stage and active project status in instructor-driven phase transitions.",
+    "Allow phase-appropriate submissions when a legacy project remains proposal_approved; keep archived projects blocked.",
+    "Verify focused progression and submission guard tests, lint, syntax, endpoint parity, governance, and workspace evidence.",
+    "Implement weekly progress check-in UI with adviser review and instructor waiver controls; focused component tests passed 3/3.",
+    "Add archive corpus indexing and QR-sealed completion certificate verification; focused server tests passed 3/3.",
+    "Verify the seeded student already has BSIT-4A and the seeded instructor assigned, and confirm the existing E2E team/project without creating duplicates.",
+    "Complete the authorized synthetic final submissions, released scorecards, Secretary endorsement, five final ADM signatures, archival, approval sheet, and public QR certificate verification through official APIs.",
+    "Correct stale archive phase-label handling and preserve versioned Secretary endorsements; focused server regressions passed 21/21.",
+    "Pass the comprehensive server workflow suite 13/13, endpoint parity, agentic/governance checks, workspace evidence and guardrail, plus focused client fixtures 25/25."
+  ],
+  "remaining_subgoals": [
+    "Complete the full student Playwright visual loop. The initial 20 screenshots included a pending title-similarity indicator and one transient notifications 503; a later full rerun hit its 110-second watchdog, while an isolated proposal-review route passed.",
+    "Verify archive corpus indexing completes downstream; the accepted indexing requests currently remain queued.",
+    "Exercise Gantt, weekly system-development evidence, repository, and prototype gates on a clean isolated synthetic project; the archived legacy fixture cannot establish the full Phase 0 through Phase 3 lifecycle.",
+    "Reconcile the repository's three numbered stages plus Final model with the user-provided four-capstone canonical workflow before claiming phase alignment.",
+    "Record a full client suite result; the run was stopped near 117 seconds and only the affected focused suites have passed."
+  ],
+  "last_action_result": "The existing synthetic project is archived and its public QR certificate verification passed. Final manuscripts/scans, synthetic scorecards, Secretary endorsement, and five ADM signatures were recorded through official APIs; no actual defense occurred and archive indexing remains queued. The instructor visual audit passed 8/8 captures. Focused client tests passed 25/25; the comprehensive server suite passed 13/13. A clean from-scratch lifecycle is not certified because the archived fixture lacks verified Gantt/repository/prototype evidence and uses stale phase labels.",
+  "progress_delta": 1,
+  "loop_count": 0,
+  "scenario_dag": [
+    { "id": "phase-gates", "depends_on": [] },
+    { "id": "weekly-checkins", "depends_on": ["phase-gates"] },
+    { "id": "archive-index", "depends_on": ["phase-gates"] },
+    { "id": "certificate", "depends_on": ["archive-index"] },
+    {
+      "id": "seeded-ui-verification",
+      "depends_on": ["weekly-checkins", "archive-index", "certificate"]
+    }
+  ]
+}

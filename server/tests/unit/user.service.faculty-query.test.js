@@ -2,6 +2,41 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import userService from '../../modules/users/user.service.js';
 import User from '../../modules/users/user.model.js';
 
+describe('UserService.getMe team roster projection', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns accurate team virtuals without exposing member IDs', async () => {
+    const userDoc = {
+      toObject: () => ({
+        _id: 'user-1',
+        teamId: {
+          _id: 'team-1',
+          name: 'Test Team',
+          isLocked: false,
+          members: ['user-1', 'user-2'],
+          memberCount: 2,
+          isFull: false,
+        },
+      }),
+    };
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
+      then: (resolve, reject) => Promise.resolve(userDoc).then(resolve, reject),
+    };
+    vi.spyOn(User, 'findById').mockReturnValue(query);
+
+    const { user } = await userService.getMe('user-1');
+
+    expect(query.populate).toHaveBeenCalledWith('teamId', 'name isLocked members');
+    expect(user.teamId.memberCount).toBe(2);
+    expect(user.teamId.isFull).toBe(false);
+    expect(user.teamId.members).toBeUndefined();
+  });
+});
+
 describe('UserService.listUsers role expansion', () => {
   afterEach(() => {
     vi.restoreAllMocks();

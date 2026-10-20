@@ -14,11 +14,11 @@ To eliminate cognitive bloat and prevent monolithic rule-limit exhaustion, detai
 
 | Recipe Book | Scope & Responsibility |
 | :--- | :--- |
-| **[00-chat-starter-protocol.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/00-chat-starter-protocol.md)** | Absolute top-priority startup snapshot, validation schema & session priming. |
-| **[01-architecture-and-governance.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/01-architecture-and-governance.md)** | Monorepo stack, Canonical 4-Phase Capstone progression, and Institutional Role boundaries. |
-| **[02-skills-and-hermes-recipe.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/02-skills-and-hermes-recipe.md)** | 64-skill catalog, Mandatory First-Use contract, Hermes loop, and Dual-Persistence memory. |
-| **[03-verification-and-quality-gates.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/03-verification-and-quality-gates.md)** | Fast-Path Targeted Testing, Unified 7-Point Quality battery, Playwright visual feedback, and Git auto-tagging. |
-| **[04-environment-and-ui-recipes.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/04-environment-and-ui-recipes.md)** | Docker container dependency sync, defensive entity prefix normalization, 16:9 canvas, floating input recipes, and Mandatory Sophisticated Document Reader contract. |
+| **[00-chat-starter-protocol.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/00-chat-starter-protocol.md)** | Absolute top-priority startup snapshot, validation schema & session priming. |
+| **[01-architecture-and-governance.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/01-architecture-and-governance.md)** | Monorepo stack, Canonical 4-Phase Capstone progression, and Institutional Role boundaries. |
+| **[02-skills-and-hermes-recipe.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/02-skills-and-hermes-recipe.md)** | 65-skill catalog, Mandatory First-Use contract, Hermes loop, and Dual-Persistence memory. |
+| **[03-verification-and-quality-gates.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/03-verification-and-quality-gates.md)** | Fast-Path Targeted Testing, Unified 7-Point Quality battery, Playwright visual feedback, and Git auto-tagging. |
+| **[04-environment-and-ui-recipes.md](file:///c:/Users/patri/dev/CMS-V2/.agents/rules/04-environment-and-ui-recipes.md)** | Docker container dependency sync, defensive entity prefix normalization, 16:9 canvas, floating input recipes, and Mandatory Sophisticated Document Reader contract. |
 
 ---
 
@@ -85,7 +85,7 @@ All tasks proceed strictly through the 8 stages:
 ## 5. UNIFIED QUALITY GATE BATTERY
 
 ```bash
-# 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
+# 1. API Route Parity Check (229 Server / 209 Client, UNMATCHED_COUNT = 0)
 npm run check:endpoints
 
 # 2. Agentic System Governance Audit (60/60 checks)

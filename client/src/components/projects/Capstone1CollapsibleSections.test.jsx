@@ -200,6 +200,27 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     expect(container.textContent).toContain('Artificial Intelligence');
   });
 
+  it('does not treat the current draft title as approved while its review is pending', async () => {
+    const pendingDraft = {
+      ...mockProject,
+      title: 'Pending candidate title',
+      titleStatus: 'submitted',
+      titleProposals: ['Pending candidate title', 'Approved candidate title'],
+      titleProposalMetadata: [
+        { title: 'Pending candidate title', status: 'pending' },
+        { title: 'Approved candidate title', status: 'approved' },
+      ],
+    };
+
+    await renderComponent({ project: pendingDraft });
+
+    await act(async () => {
+      container.querySelector('[data-testid="toggle-proposal-stage"]').click();
+    });
+
+    expect(container.querySelector('h4')?.textContent).toBe('Approved candidate title');
+  });
+
   it('expands Manuscript section and shows Chapters 1-3 cards for students', async () => {
     await renderComponent({ isStudent: true });
 

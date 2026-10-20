@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import TitleStatusBadge from './TitleStatusBadge';
 import ProjectStatusBadge from './ProjectStatusBadge';
-import { TITLE_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
+import { TITLE_STATUSES, CAPSTONE_PHASES, resolveWorkflowPhase } from '@cms/shared';
 import {
   X,
   BookOpen,
@@ -36,12 +36,13 @@ function cleanTeamName(name) {
   return stripped ? `Team ${stripped}` : 'Team';
 }
 
-function getPhaseLabel(phase) {
-  const num = Number(phase ?? 0);
-  if (num >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Final Manuscript & Archival';
-  if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: System Development & Prototype';
-  if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposal & Ch 1–3';
-  return 'Phase 0: Team Formation';
+function getPhaseLabel(project) {
+  const phase = resolveWorkflowPhase(project);
+  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Capstone 3 — Final Manuscript & Archival';
+  if (phase >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Capstone 2 — System Development';
+  if (phase >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Capstone 1 — Chapters 1–3';
+  if (phase >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposals & Committee Assignment';
+  return 'Phase 0: Team Formation & Roster Lock';
 }
 
 /**
@@ -78,7 +79,7 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
 
   const teamDisplayName = cleanTeamName(project.teamId?.name);
   const isApproved = project.titleStatus === TITLE_STATUSES.APPROVED;
-  const phaseLabel = getPhaseLabel(project.capstonePhase ?? project.phase);
+  const phaseLabel = getPhaseLabel(project);
   const members = Array.isArray(project.teamId?.members) ? project.teamId.members : [];
 
   const displayTitle = !isApproved

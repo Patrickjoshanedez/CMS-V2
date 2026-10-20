@@ -28,7 +28,7 @@ const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uplo
 // Use a RegExp catch-all to avoid path-to-regexp wildcard parsing differences.
 router.get(/.*/, async (req, res, _next) => {
   try {
-    // Sanitize path — prevent path traversal attacks
+    // Sanitize path — prevent path traversal attacks and sidecar leakage
     let requestedPath = req.path;
 
     // Remove leading slash if present
@@ -36,31 +36,85 @@ router.get(/.*/, async (req, res, _next) => {
       requestedPath = requestedPath.slice(1);
     }
 
-    if (requestedPath.includes('..')) {
+    if (
+      requestedPath.includes('..') ||
+      requestedPath.includes('\0') ||
+      requestedPath.endsWith('.meta.json') ||
+      requestedPath.endsWith('.txt.gz')
+    ) {
       return res.status(400).json({ error: 'Invalid path' });
     }
 
-    const filePath = path.join(baseDir, requestedPath);
+    const resolvedBase = path.resolve(baseDir);
+    const resolvedPath = path.resolve(resolvedBase, requestedPath);
+    const relCheck = path.relative(resolvedBase, resolvedPath);
 
-    // Ensure resolved path stays within baseDir
-    const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(path.resolve(baseDir))) {
+    // Ensure resolved path stays strictly within baseDir
+    if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Enforce cross-tenant project boundary for students accessing project files
+    const projectMatch = requestedPath.match(/(?:^|\/)projects\/([a-f\d]{24})(?:\/|$)/i);
+    if (projectMatch && req.user?.role === 'student') {
+      const targetProjectId = projectMatch[1];
+      const Project = (await import('../modules/projects/project.model.js')).default;
+      const Team = (await import('../modules/teams/team.model.js')).default;
+      const project = await Project.findById(targetProjectId)
+        .select('teamId memberRoleAssignments isArchived projectStatus')
+        .lean();
+
+      if (project && !project.isArchived && project.projectStatus !== 'archived') {
+        const userIdStr = String(req.user._id || req.user.id || '');
+        const team = project.teamId
+          ? await Team.findById(project.teamId).select('members leaderId').lean()
+          : null;
+        const isMember =
+          project.memberRoleAssignments?.some((m) => String(m.userId) === userIdStr) ||
+          team?.members?.some((m) => String(m?._id || m) === userIdStr) ||
+          String(team?.leaderId?._id || team?.leaderId || '') === userIdStr;
+
+        if (!isMember) {
+          return res.status(403).json({ error: 'Access denied to another team project files' });
+        }
+      }
+    }
+
     // Try to read sidecar meta file for content type
+    let rawContentType = 'application/octet-stream';
     try {
       const metaPath = `${resolvedPath}.meta.json`;
       const metaContent = await fs.readFile(metaPath, 'utf-8');
       const meta = JSON.parse(metaContent);
       if (meta.contentType) {
-        res.setHeader('Content-Type', meta.contentType);
+        rawContentType = meta.contentType;
       }
     } catch (e) {
       // Ignore errors if meta file doesn't exist
     }
 
+    const SAFE_INLINE_MIMES = new Set([
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/gif',
+      'text/plain',
+    ]);
+    const contentType = SAFE_INLINE_MIMES.has(rawContentType)
+      ? rawContentType
+      : 'application/octet-stream';
+    const fileName = path.basename(resolvedPath).replace(/["\r\n]/g, '_');
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Accept-Ranges', 'bytes');
+
+    if (req.query.download === 'true' || !SAFE_INLINE_MIMES.has(rawContentType)) {
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    } else {
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    }
 
     // Serve the file with explicit HTTP 206 Range request support
     const sendOpts = {

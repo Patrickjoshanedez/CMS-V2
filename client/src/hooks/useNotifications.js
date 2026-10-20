@@ -23,12 +23,17 @@ export const notificationKeys = {
  */
 export function useNotifications(params = { page: 1, limit: 20 }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: notificationKeys.list(params),
     queryFn: async () => {
       const res = await notificationService.getNotifications(params);
-      return res.data.data;
+      const data = res.data.data;
+      if (typeof data?.unreadCount === 'number') {
+        queryClient.setQueryData(notificationKeys.unreadCount, data.unreadCount);
+      }
+      return data;
     },
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
@@ -36,8 +41,8 @@ export function useNotifications(params = { page: 1, limit: 20 }) {
       if (status === 401 || status === 429) return false;
       return failureCount < 2;
     },
-    refetchInterval: 60000, // Fallback poll every 60s (real-time via Socket.IO handles most updates)
-    staleTime: 15000,
+    refetchInterval: 120000, // Fallback poll every 2m (real-time via Socket.IO handles instant updates)
+    staleTime: 30000,
     placeholderData: keepPreviousData,
   });
 }
@@ -61,8 +66,8 @@ export function useUnreadCount() {
       if (status === 401 || status === 429) return false;
       return failureCount < 2;
     },
-    refetchInterval: 60000,
-    staleTime: 15000,
+    refetchInterval: 120000,
+    staleTime: 30000,
   });
 }
 

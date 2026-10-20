@@ -1,0 +1,36 @@
+{
+  "session_id": "2026-10-17_capstone-workflow-visual-lock-audit",
+  "date": "2026-10-17",
+  "status": "active-partial",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "test_only": false,
+  "task_summary": "Continued the authorized synthetic CMS-V2 capstone workflow audit, closed the evaluation release fixture gaps, enforced the minimum roster size in the team UI, and completed fresh seeded-account profile and team visual captures.",
+  "changes": [
+    "Kept the existing service-side all-panelists evaluation release guard and updated stale integration expectations to match it.",
+    "Made Finalize & Lock Team disabled until the roster has at least two members and added a regression assertion for the one-member state.",
+    "Updated the scratch profile audit to wait for section and instructor options and to count only authenticated local-app errors, excluding pre-login session checks and the external Google sign-in widget."
+  ],
+  "verification": [
+    "Evaluation and ADM integration suites passed: 38/38 tests.",
+    "TeamsPage targeted suite passed: 7/7 tests; previously run focused client workflow suites passed 220/220.",
+    "Latest report-listed seeded student authenticated through the official API; /api/users/me, sections, academic years, and instructors returned HTTP 200. The profile includes a section and instructor; the section lookup returned five available records.",
+    "Fresh profile and team Playwright audits passed all four states each: light/dark at 1440x900 and 390x844. Both reports had zero authenticated local runtime errors, failed HTTP responses, Vite overlays, or horizontal overflow; profile lookups loaded in all four captures.",
+    "Fresh team screenshots show Finalize & Lock Team disabled for a one-member roster.",
+    "The synthetic Phase 0–4 workflow was previously verified through official APIs, including weekly waivers, defense and ADM gates, instructor grade release, final indexing, approval sheet, certificate PDF, and public QR verification. No oral defense occurred; synthetic records were used.",
+    "Endpoint parity, agentic governance, workflow governance components, evidence checks, and workspace guardrail passed in the surrounding audit turns.",
+    "The full client suite was stopped at about 110 seconds without test results, before the two-minute limit. Post-stop process inspection found no lingering Node test workers; no assertion failure was observed."
+  ],
+  "remaining": [
+    "Full client-suite closure remains incomplete; focused affected suites passed and the stalled full run was not retried."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "verification-loop",
+    "frontend-mythos",
+    "computer-use",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

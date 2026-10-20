@@ -7,9 +7,10 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from plagiarism_engine import hst_pipeline
 from plagiarism_engine.config import Settings
 from plagiarism_engine.hst_pipeline import HybridSourceTracker
-from plagiarism_engine.models import SourceMetadata
+from plagiarism_engine.models import HealthResponse, SourceMetadata
 
 
 @pytest.fixture
@@ -86,3 +87,51 @@ def test_hst_check_document_end_to_end(hst_tracker: HybridSourceTracker) -> None
     assert isinstance(report.manual_review_required, bool)
     assert isinstance(report.critical_warning_flag, bool)
     assert report.total_characters > 50
+
+
+def test_hst_reports_semantic_span_when_another_segment_has_exact_match(
+    hst_tracker: HybridSourceTracker,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Semantic matches in a document remain visible beside exact matches."""
+    first_paragraph = (
+        "The first academic paragraph contains enough detailed words for this text to become a searchable segment."
+    )
+    second_paragraph = (
+        "A reordered academic paragraph contains enough detailed words for this text to become another searchable segment."
+    )
+    sample_text = f"{first_paragraph}\n\n{second_paragraph}"
+    hst_tracker.model.encode_batch.return_value = np.full((2, 1024), 1 / 32, dtype=np.float32)
+    hst_tracker.store.get_document_embeddings.return_value = np.full((2, 1024), 1 / 32, dtype=np.float32)
+    hst_tracker.store.get_document_texts.return_value = (
+        f"{first_paragraph}\n\nA differently ordered source paragraph contains enough detailed words for semantic comparison to identify its related passage.",
+        SourceMetadata(document_id="doc_archived_01", title="Archived Capstone"),
+    )
+    monkeypatch.setattr(
+        hst_pipeline,
+        "get_all_match_spans",
+        lambda *args, **kwargs: [(0, len(first_paragraph))],
+    )
+
+    report = hst_tracker.check_document(text=sample_text, document_id="sub_test_semantic")
+
+    assert any(match.start_index == 0 for match in report.matches)
+    assert any(match.start_index == sample_text.index(second_paragraph) for match in report.matches)
+
+
+def test_health_response_exposes_configured_and_active_embedding_details() -> None:
+    """Health diagnostics distinguish the loaded model from its configuration."""
+    response = HealthResponse(
+        status="ok",
+        chroma_collection="capstone_archive",
+        collection_count=12,
+        model_loaded=True,
+        model_name="all-MiniLM-L6-v2",
+        configured_model_name="BAAI/bge-m3",
+        embedding_dim=384,
+        settings={"hst_semantic_span_threshold": 0.78},
+    )
+
+    assert response.model_name == "all-MiniLM-L6-v2"
+    assert response.configured_model_name == "BAAI/bge-m3"
+    assert response.embedding_dim == 384

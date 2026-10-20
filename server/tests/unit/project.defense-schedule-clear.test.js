@@ -5,6 +5,7 @@ import Notification from '../../modules/notifications/notification.model.js';
 import Team from '../../modules/teams/team.model.js';
 import * as socketService from '../../services/socket.service.js';
 import { ROLES } from '@cms/shared';
+import { ganttScheduleHash } from '../../modules/projects/services/projectCore.service.js';
 
 describe('projectService - Defense Schedule Clearing & Deadline Persistence', () => {
   const instructorId = '65e000000000000000000001';
@@ -110,6 +111,14 @@ describe('projectService - Defense Schedule Clearing & Deadline Persistence', ()
 
   it('dispatches defense_scheduled notifications when scheduling defense', async () => {
     mockProject.defenseSchedule.status = 'pending_scheduling';
+    mockProject.titleStatus = 'approved';
+    mockProject.capstonePhase = 2;
+    mockProject.ganttPlan = { tasks: [{ id: 'weekly-task-1' }] };
+    mockProject.ganttApproval = {
+      approved: true,
+      scheduleHash: ganttScheduleHash(mockProject.ganttPlan),
+    };
+    mockProject.systemDefenseApproval = { approved: true };
 
     await projectService.scheduleDefense(
       projectId,
@@ -133,6 +142,71 @@ describe('projectService - Defense Schedule Clearing & Deadline Persistence', ()
         }),
       ]),
     );
+  });
+
+  it('schedules a Phase 1 title hearing without requiring an approved Capstone 1 manuscript', async () => {
+    mockProject.titleStatus = 'submitted';
+    mockProject.workflowPhase = 1;
+    mockProject.capstonePhase = 1;
+    mockProject.stage = 'proposal';
+    mockProject.adviserId = '65e000000000000000000020';
+    mockProject.secretaryId = '65e000000000000000000030';
+    mockProject.panelistIds = [
+      '65e000000000000000000040',
+      '65e000000000000000000041',
+      '65e000000000000000000042',
+    ];
+    Team.findById.mockResolvedValue({ isLocked: true, members: ['65e000000000000000000099'] });
+
+    await projectService.scheduleDefense(
+      projectId,
+      {
+        status: 'scheduled',
+        date: '2026-10-26T00:00:00.000Z',
+        time: '10:00 AM - 10:30 AM',
+        venue: 'COT Conference Room',
+        defenseType: 'proposal',
+      },
+      mockInstructor,
+    );
+
+    expect(mockProject.defenseSchedule.status).toBe('scheduled');
+    expect(Notification.insertMany).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'title_hearing_scheduled',
+          title: 'Title Proposal Hearing Scheduled',
+        }),
+      ]),
+    );
+  });
+
+  it('does not schedule a Phase 1 title hearing for an unlocked team', async () => {
+    mockProject.titleStatus = 'submitted';
+    mockProject.workflowPhase = 1;
+    mockProject.capstonePhase = 1;
+    mockProject.stage = 'proposal';
+    mockProject.secretaryId = '65e000000000000000000030';
+    mockProject.panelistIds = [
+      '65e000000000000000000040',
+      '65e000000000000000000041',
+      '65e000000000000000000042',
+    ];
+    Team.findById.mockResolvedValue({ isLocked: false, members: ['65e000000000000000000099'] });
+
+    await expect(
+      projectService.scheduleDefense(
+        projectId,
+        {
+          status: 'scheduled',
+          date: '2026-10-26T00:00:00.000Z',
+          time: '10:00 AM - 10:30 AM',
+          defenseType: 'proposal',
+        },
+        mockInstructor,
+      ),
+    ).rejects.toMatchObject({ code: 'TEAM_ROSTER_NOT_LOCKED' });
+    expect(Project.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('clears defense schedule when date is empty string and time is empty', async () => {

@@ -193,4 +193,35 @@ describe('StudentDashboard (DashboardPage for Student Role)', () => {
     expect(container.textContent).toContain('View Project Workspace');
     expect(container.textContent).toContain('Hearing Scheduled');
   });
+
+  it('counts locked chapters as complete for an archived project', () => {
+    mockDashboardResult = {
+      data: {
+        team: {
+          _id: 'team-archived',
+          name: 'Synthetic Archived Team',
+          memberCount: 2,
+          isLocked: true,
+          members: [],
+        },
+        project: {
+          _id: 'project-archived',
+          title: 'Synthetic Archived Project',
+          titleStatus: 'approved',
+          projectStatus: 'archived',
+          capstonePhase: 3,
+        },
+        chapterProgress: [1, 2, 3, 4, 5].map((chapter) => ({ chapter, status: 'locked' })),
+        recentNotifications: [],
+      },
+      isLoading: false,
+      isError: false,
+    };
+
+    const { container } = renderComponent();
+
+    expect(container.textContent).toContain('100%');
+    expect(container.textContent).toContain('5/5 Approved');
+    expect(container.textContent).toContain('5/5 chapters approved');
+  });
 });

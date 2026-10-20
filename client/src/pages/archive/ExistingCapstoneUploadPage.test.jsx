@@ -148,7 +148,7 @@ describe('ExistingCapstoneUploadPage', () => {
 
     expect(container.textContent).toContain('Back to Archive');
     expect(container.textContent).toContain('Browse Archive');
-    expect(container.textContent).toContain('OCR Auto-Fill Capstone Upload');
+    expect(container.textContent).toContain('Document Bundle');
     expect(container.textContent).toContain('Academic Paper (PDF)');
     expect(container.textContent).toContain('Academic Journal (PDF)');
     expect(container.textContent).toContain('Verify Metadata');

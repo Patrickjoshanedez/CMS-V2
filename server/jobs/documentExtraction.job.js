@@ -53,6 +53,7 @@ export async function processDocumentExtractionJob(job) {
             progress: percent,
             stage,
             jobId: job.id,
+            userId,
           }),
         );
       } catch {
@@ -91,6 +92,7 @@ export async function processDocumentExtractionJob(job) {
             progress: 100,
             data: extractionPayload,
             jobId: job.id,
+            userId,
           }),
         );
       } catch (err) {

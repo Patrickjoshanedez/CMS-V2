@@ -558,8 +558,8 @@ const INITIAL_MINUTES_STATE = {
   pages: buildDefault3Sheets(),
   panelRemarks: [],
   overallRecommendations: '',
-  panelVerdict: 'approved_with_minor_revisions',
-  verdictLabel: 'Approved with Minor Revision',
+  panelVerdict: '',
+  verdictLabel: '',
   secretarySignatoryName: '',
   signature: {
     signed: false,
@@ -1062,8 +1062,8 @@ export default function SecretaryMinutesDocumentSheet({
         pages: ocrPages,
         panelRemarks: remarks,
         overallRecommendations: data.overallRecommendations || '',
-        panelVerdict: data.panelVerdict || 'approved_with_minor_revisions',
-        verdictLabel: data.verdictLabel || 'Approved with Minor Revision',
+        panelVerdict: data.panelVerdict ?? '',
+        verdictLabel: data.verdictLabel ?? '',
         secretarySignatoryName: data.secretarySignatoryName || data.secretary || '',
         signature: {
           signed: false,
@@ -1386,9 +1386,12 @@ export default function SecretaryMinutesDocumentSheet({
 
   // Only the appointed secretary (or the instructor, who has oversight) may edit; only the secretary signs.
   const minutesPermissions = resolveMinutesPermissions(project, user);
-  const isUserSecretary = !user || minutesPermissions.canEdit;
-  const canSignMinutes = !user || minutesPermissions.canSign;
-  const isReadOnlyMinutes = Boolean(user) && !minutesPermissions.canEdit;
+  const isProjectArchived =
+    project?.isArchived === true || project?.projectStatus === 'archived';
+  const isUserSecretary = !isProjectArchived && (!user || minutesPermissions.canEdit);
+  const canSignMinutes = !isProjectArchived && (!user || minutesPermissions.canSign);
+  const isReadOnlyMinutes =
+    isProjectArchived || (Boolean(user) && !minutesPermissions.canEdit);
 
   const isSigned = Boolean(minutes.signature?.signed);
   const signatureData = minutes.signature;
@@ -1801,7 +1804,7 @@ export default function SecretaryMinutesDocumentSheet({
               variant="outline"
               size="sm"
               onClick={handleSaveMinutes}
-              disabled={isSaving}
+              disabled={isSaving || isReadOnlyMinutes}
               className="gap-1.5 text-xs h-8"
               title="Save current minutes to database"
             >
@@ -1815,6 +1818,7 @@ export default function SecretaryMinutesDocumentSheet({
             variant="ghost"
             size="sm"
             onClick={handleClearForm}
+            disabled={isReadOnlyMinutes}
             className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground"
             title="Clear all fields to blank 1-page state"
           >

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROLE_VALUES } from '@cms/shared';
+import { ROLE_VALUES, ACADEMIC_TERM_VALUES } from '@cms/shared';
 
 /**
  * Zod validation schemas for user management endpoints.
@@ -73,6 +73,8 @@ export const updateProfileSchema = z.object({
   digitalSignature: z.string().nullable().optional(),
   sectionId: z.string().nullable().optional(),
   instructorId: z.string().nullable().optional(),
+  studentId: z.string().trim().max(32, 'Student ID must not exceed 32 characters').optional(),
+  academicTerm: z.enum(ACADEMIC_TERM_VALUES).nullable().optional(),
 });
 
 export const changeRoleSchema = z.object({

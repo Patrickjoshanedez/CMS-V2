@@ -26,30 +26,37 @@ import { prefetchRoute } from '@/lib/routePrefetch';
  * Resolves the institutional phase badge metadata.
  */
 function getPhaseBadgeConfig(numericPhase, isProposalPhase) {
-  if (numericPhase === 1 || isProposalPhase) {
+  if (isProposalPhase) {
     return {
-      label: 'Phase 1: Title Defense',
+      label: 'Phase 1: Topic Proposals',
       icon: Sparkles,
       className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
     };
   }
-  if (numericPhase === 2) {
+  if (numericPhase === 1) {
     return {
-      label: 'Phase 2: Manuscripts',
+      label: 'Capstone 1: Proposal Manuscript',
       icon: BookOpen,
       className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
     };
   }
-  if (numericPhase === 3) {
+  if (numericPhase === 2) {
     return {
-      label: 'Phase 3: System Dev',
+      label: 'Capstone 2: System Development',
       icon: Layers,
       className: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
     };
   }
+  if (numericPhase >= 3) {
+    return {
+      label: 'Capstone 3: Final Manuscript & Defense',
+      icon: GraduationCap,
+      className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    };
+  }
   return {
-    label: 'Phase 4: Final Defense',
-    icon: GraduationCap,
+    label: 'Capstone 1: Proposal Manuscript',
+    icon: BookOpen,
     className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   };
 }
@@ -58,10 +65,10 @@ function getPhaseBadgeConfig(numericPhase, isProposalPhase) {
  * Resolves contextual action button label based on capstone phase.
  */
 function getActionLabel(numericPhase, isProposalPhase) {
-  if (isProposalPhase || numericPhase === 1) return 'Deliberate Proposals';
-  if (numericPhase === 2) return 'Review Manuscript & ADM';
-  if (numericPhase === 3) return 'Inspect Prototype & Gantt';
-  return 'Review Final Defense';
+  if (isProposalPhase) return 'Review Title Proposals';
+  if (numericPhase === 1) return 'Review Chapters & ADM';
+  if (numericPhase === 2) return 'Inspect Prototype & Gantt';
+  return 'Review Final Defense & Archive';
 }
 
 /**
@@ -265,7 +272,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
           <Button
             variant="ghost"
             size="sm"
-            className="min-h-8 h-auto max-w-full whitespace-normal px-3 py-1 text-xs font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0 self-end sm:self-auto cursor-pointer"
+            className="min-h-11 h-auto max-w-full whitespace-normal px-3 py-2 text-sm font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               onNavigate?.(project._id);

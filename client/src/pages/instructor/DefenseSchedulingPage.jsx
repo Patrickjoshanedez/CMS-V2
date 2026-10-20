@@ -16,10 +16,12 @@ import { toast } from 'sonner';
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
 import MilestoneDeadlinesModal from '@/components/instructor/MilestoneDeadlinesModal';
 import {
+  CAPSTONE_PHASES,
   CAPSTONE_STAGES,
   STAGE_DELIVERABLE_MAP,
   DELIVERABLE_CATEGORY_MAP,
   DELIVERABLE_TYPES,
+  resolveWorkflowPhase,
 } from '@cms/shared';
 import {
   CalendarClock,
@@ -49,242 +51,47 @@ import {
   Info,
 } from 'lucide-react';
 
-export const TIMELINE_START_HOUR = 8; // 08:00 AM
-export const TIMELINE_END_HOUR = 17; // 05:00 PM
-export const TOTAL_HOURS = TIMELINE_END_HOUR - TIMELINE_START_HOUR; // 9 hours
-export const PIXELS_PER_HOUR = 72; // Exact 72px per hour (6px per 5-minute quantum)
-export const TOTAL_TIMELINE_HEIGHT = TOTAL_HOURS * PIXELS_PER_HOUR; // 648px
-export const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60; // 1.2px per minute
-export const HOURS_ARRAY = [8, 9, 10, 11, 12, 13, 14, 15, 16];
+import {
+  TIMELINE_START_HOUR,
+  TIMELINE_END_HOUR,
+  TOTAL_HOURS,
+  PIXELS_PER_HOUR,
+  TOTAL_TIMELINE_HEIGHT,
+  PIXELS_PER_MINUTE,
+  HOURS_ARRAY,
+  DEFENSE_TIME_SLOTS,
+  getTeamLeaderName,
+  parseTimeToMinutes,
+  formatMinutesToTime,
+  formatDurationLabel,
+  toLocalDateKey,
+  getDefenseReadiness,
+  getDeliverableBadgeTheme,
+  resolveProjectTab,
+  getTeamCapstoneLabel,
+  getTransparentDragImage,
+} from './utils/defenseSchedulingHelpers';
 
-export const DEFENSE_TIME_SLOTS = [
-  '08:00 AM - 09:00 AM',
-  '09:00 AM - 10:00 AM',
-  '10:00 AM - 11:00 AM',
-  '11:00 AM - 12:00 PM',
-  '01:00 PM - 02:00 PM',
-  '02:00 PM - 03:00 PM',
-  '03:00 PM - 04:00 PM',
-  '04:00 PM - 05:00 PM',
-];
-
-/**
- * Resolves the team leader's full name from project metadata
- */
-export function getTeamLeaderName(project) {
-  const leader = project?.teamId?.leaderId;
-  if (leader && (leader.firstName || leader.lastName)) {
-    return `${leader.firstName || ''} ${leader.lastName || ''}`.trim();
-  }
-  const leadRole = project?.teamId?.memberRoles?.find(
-    (mr) => mr.role?.toLowerCase().includes('lead') || mr.role?.toLowerCase().includes('analyst'),
-  );
-  if (leadRole?.userId && (leadRole.userId.firstName || leadRole.userId.lastName)) {
-    return `${leadRole.userId.firstName || ''} ${leadRole.userId.lastName || ''}`.trim();
-  }
-  const firstMember = project?.teamId?.members?.[0];
-  if (firstMember && (firstMember.firstName || firstMember.lastName)) {
-    return `${firstMember.firstName || ''} ${firstMember.lastName || ''}`.trim();
-  }
-  return null;
-}
-
-/**
- * Parses a time string like "09:15 AM - 10:30 AM" into minutes from 8:00 AM and duration
- */
-export function parseTimeToMinutes(timeStr) {
-  if (!timeStr) return { startMinutes: 60, duration: 30 }; // default 9:00 AM (60 min from 8am), 30 min duration
-  const parts = timeStr.split(' - ');
-  const startPart = parts[0]?.trim() || '';
-  const endPart = parts[1]?.trim() || '';
-
-  const parseSingle = (s) => {
-    const match = s.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!match) return 540; // 9:00 AM in minutes from midnight
-    let h = parseInt(match[1], 10);
-    const m = parseInt(match[2], 10);
-    const isPM = match[3].toUpperCase() === 'PM';
-    if (isPM && h !== 12) h += 12;
-    if (!isPM && h === 12) h = 0;
-    return h * 60 + m;
-  };
-
-  const startM = parseSingle(startPart);
-  const endM = endPart ? parseSingle(endPart) : startM + 30;
-  const duration = Math.max(15, endM - startM);
-  // minutes relative to 8:00 AM (480 minutes from midnight)
-  const startFrom8AM = Math.max(0, Math.min(TOTAL_HOURS * 60, startM - 480));
-  return { startMinutes: startFrom8AM, duration };
-}
-
-/**
- * Converts minutes from 8:00 AM and duration into a standard 12-hour formatted time string
- */
-export function formatMinutesToTime(minutesFrom8AM, durationMinutes = 30) {
-  const startM = 480 + minutesFrom8AM;
-  const endM = startM + durationMinutes;
-
-  const to12h = (totalM) => {
-    const h24 = Math.floor(totalM / 60);
-    const m = totalM % 60;
-    const ampm = h24 >= 12 ? 'PM' : 'AM';
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
-  };
-
-  return `${to12h(startM)} - ${to12h(endM)}`;
-}
-
-/**
- * Formats a duration in minutes into a human-readable badge label (e.g. "1h 15m")
- */
-export function formatDurationLabel(minutes) {
-  const mNum = Number(minutes) >= 5 ? Number(minutes) : 30;
-  const h = Math.floor(mNum / 60);
-  const m = mNum % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h} hr${h > 1 ? 's' : ''}`;
-  return `${m} min`;
-}
-
-/**
- * Normalizes any Date or ISO string into a local YYYY-MM-DD key without UTC shifting
- */
-export function toLocalDateKey(d) {
-  if (!d) return '';
-  if (typeof d === 'string') {
-    if (d.includes('T')) return d.split('T')[0];
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return d.trim();
-  }
-  const dateObj = new Date(d);
-  if (isNaN(dateObj.getTime())) return '';
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Evaluates defense readiness including committee composition requirements.
- * A team is ready for defense scheduling if:
- * 1. Adviser has endorsed (defenseSchedule.status === 'pending_scheduling')
- * 2. An Adviser is appointed (adviserId exists)
- * 3. At least 3 defense panelists are appointed (panelistIds.length >= 3)
- */
-export function getDefenseReadiness(project) {
-  const defStatus = project?.defenseSchedule?.status;
-  const isScheduled = defStatus === 'scheduled';
-  const hasAdviser = Boolean(project?.adviserId);
-  const panelistCount = project?.panelistIds?.length || 0;
-  const hasFullCommittee = hasAdviser && panelistCount >= 3;
-  const isEndorsed = defStatus === 'pending_scheduling';
-
-  const isReady = isEndorsed && hasFullCommittee;
-  const isCommitteeIncomplete = (isEndorsed || isScheduled) && !hasFullCommittee;
-
-  let committeeNote = '';
-  if (!hasAdviser && panelistCount < 3) {
-    committeeNote = `Missing Adviser & ${3 - panelistCount} Panelists`;
-  } else if (!hasAdviser) {
-    committeeNote = 'Missing Adviser';
-  } else if (panelistCount < 3) {
-    committeeNote = `${3 - panelistCount} more panelist${3 - panelistCount > 1 ? 's' : ''} needed`;
-  }
-
-  return {
-    isScheduled,
-    isEndorsed,
-    hasAdviser,
-    panelistCount,
-    hasFullCommittee,
-    isReady,
-    isCommitteeIncomplete,
-    committeeNote,
-  };
-}
-
-/**
- * Returns color-coded badge styling for milestone deliverable categories
- */
-export function getDeliverableBadgeTheme(deliverableId) {
-  const category = DELIVERABLE_CATEGORY_MAP[deliverableId] || 'manuscript';
-  switch (category) {
-    case 'manuscript':
-      return {
-        bg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20',
-        dot: 'bg-blue-500',
-        label: 'Manuscript',
-      };
-    case 'matrix':
-      return {
-        bg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20',
-        dot: 'bg-purple-500',
-        label: 'ADM Review',
-      };
-    case 'prototype':
-      return {
-        bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
-        dot: 'bg-amber-500',
-        label: 'Prototype / Plan',
-      };
-    case 'final_paper':
-      return {
-        bg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
-        dot: 'bg-emerald-500',
-        label: 'Final Approved Paper',
-      };
-    default:
-      return {
-        bg: 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20',
-        dot: 'bg-primary',
-        label: 'Deliverable',
-      };
-  }
-}
-
-/**
- * Safely resolves the project workspace navigation tab, respecting the 4-phase lifecycle
- */
-export function resolveProjectTab(project) {
-  if (project?.stage) return project.stage;
-  if (project?.capstonePhase === 4) return 'final';
-  return `capstone_${project?.capstonePhase || 1}`;
-}
-
-/**
- * Resolves the capstone phase and milestone label for a team/project
- */
-export function getTeamCapstoneLabel(project) {
-  const isTitleApproved =
-    project?.titleStatus === 'approved' || project?.titleStatus === 'title_approved';
-  const stage = String(project?.stage || '').toLowerCase();
-  const phase = Number(project?.capstonePhase || project?.phase || (isTitleApproved ? 2 : 1));
-
-  if (!isTitleApproved || phase === 1 || stage === 'capstone_1' || stage === 'proposal') {
-    return 'Capstone 1: Title Proposal';
-  }
-  if (phase === 2 || stage === 'capstone_2') {
-    return 'Capstone 2: Midterm Defense';
-  }
-  if (phase === 3 || stage === 'capstone_3') {
-    return 'Capstone 3: Progress Defense';
-  }
-  if (phase === 4 || stage === 'final' || stage === 'capstone_4') {
-    return 'Capstone 4: Final Defense';
-  }
-  return `Capstone ${phase}`;
-}
-
-/**
- * Creates an invisible 1x1 drag preview to prevent obscuring drop target time slots
- */
-export function getTransparentDragImage() {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
-  return canvas;
-}
+export {
+  TIMELINE_START_HOUR,
+  TIMELINE_END_HOUR,
+  TOTAL_HOURS,
+  PIXELS_PER_HOUR,
+  TOTAL_TIMELINE_HEIGHT,
+  PIXELS_PER_MINUTE,
+  HOURS_ARRAY,
+  DEFENSE_TIME_SLOTS,
+  getTeamLeaderName,
+  parseTimeToMinutes,
+  formatMinutesToTime,
+  formatDurationLabel,
+  toLocalDateKey,
+  getDefenseReadiness,
+  getDeliverableBadgeTheme,
+  resolveProjectTab,
+  getTeamCapstoneLabel,
+  getTransparentDragImage,
+};
 
 /**
  * DefenseSchedulingPage — Dedicated Instructor Defense Scheduling Command Center.
@@ -306,7 +113,9 @@ export default function DefenseSchedulingPage() {
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedStage, setSelectedStage] = useState('');
   const [selectedDeliverable, setSelectedDeliverable] = useState('');
-  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'table' | 'grid'
+  const [viewMode, setViewMode] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'grid' : 'calendar',
+  ); // 'calendar' | 'table' | 'grid'
 
   // Milestone submission deadlines & tray state
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
@@ -559,7 +368,7 @@ export default function DefenseSchedulingPage() {
         }
       }
 
-      // Stage / Phase filter (strictly capstone_1, capstone_2, capstone_3, final; no 'Capstone 4')
+      // Defense filters follow the three semester-based Capstone courses.
       if (selectedStage) {
         const pStage = project.stage;
         const pPhase = project.capstonePhase;
@@ -877,11 +686,18 @@ export default function DefenseSchedulingPage() {
     }
 
     try {
-      await projectService.scheduleDefense(proj._id, updatedSchedule);
-      queryClient.invalidateQueries({ queryKey: projectKeys.all });
-      queryClient.invalidateQueries({ queryKey: ['project'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] });
+      const response = await projectService.scheduleDefense(proj._id, updatedSchedule);
+      const savedProject = response?.data?.data?.project;
+      queryClient.setQueryData(projectKeys.detail(proj._id), (current) =>
+        current
+          ? { ...current, ...(savedProject || {}), defenseSchedule: updatedSchedule }
+          : savedProject,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: projectKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['project'] }),
+        queryClient.invalidateQueries({ queryKey: ['milestone-deadlines'] }),
+      ]);
       const dayLabel = new Date(dateStr).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -1025,9 +841,9 @@ export default function DefenseSchedulingPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* Page Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between border-b border-border/60 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
@@ -1036,18 +852,14 @@ export default function DefenseSchedulingPage() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                   Scheduling Center
-                  <Badge variant="outline" className="text-xs font-mono font-normal">
-                    Instructor Command
-                  </Badge>
                 </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Schedule oral defense hearings, configure submission milestone deadlines, manage
-                  committee timeslots, and track defense readiness across all teams.
+                  Schedule defenses, set submission deadlines, and review team readiness.
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
             <Button
               variant="default"
               size="sm"
@@ -1072,7 +884,7 @@ export default function DefenseSchedulingPage() {
               <Button
                 variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
                 size="icon"
-                className="h-7 w-7 rounded-md"
+                className="h-11 w-11 rounded-md"
                 onClick={() => setViewMode('calendar')}
                 title="Calendar View"
                 aria-label="Calendar View"
@@ -1082,7 +894,7 @@ export default function DefenseSchedulingPage() {
               <Button
                 variant={viewMode === 'table' ? 'secondary' : 'ghost'}
                 size="icon"
-                className="h-7 w-7 rounded-md"
+                className="h-11 w-11 rounded-md"
                 onClick={() => setViewMode('table')}
                 title="Table View"
                 aria-label="Table View"
@@ -1092,7 +904,7 @@ export default function DefenseSchedulingPage() {
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon"
-                className="h-7 w-7 rounded-md"
+                className="h-11 w-11 rounded-md"
                 onClick={() => setViewMode('grid')}
                 title="Grid View"
                 aria-label="Grid View"
@@ -1104,7 +916,7 @@ export default function DefenseSchedulingPage() {
         </div>
 
         {/* KPI Executive Summary Ribbon */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 sm:gap-4">
           {/* Card 1: Total Teams */}
           <Card
             className={`cursor-pointer transition-all hover:shadow-md ${
@@ -1112,7 +924,7 @@ export default function DefenseSchedulingPage() {
             }`}
             onClick={() => setActiveTab('all')}
           >
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Total Teams
@@ -1122,7 +934,7 @@ export default function DefenseSchedulingPage() {
                   Enrolled capstone projects
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <Users className="h-5 w-5" />
               </div>
             </CardContent>
@@ -1135,7 +947,7 @@ export default function DefenseSchedulingPage() {
             }`}
             onClick={() => setActiveTab('pending_scheduling')}
           >
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                   Ready for Defense
@@ -1153,7 +965,7 @@ export default function DefenseSchedulingPage() {
                   Adviser endorsed &amp; awaiting schedule
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <ShieldCheck className="h-5 w-5" />
               </div>
             </CardContent>
@@ -1166,7 +978,7 @@ export default function DefenseSchedulingPage() {
             }`}
             onClick={() => setActiveTab('scheduled')}
           >
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                   Scheduled Hearings
@@ -1178,7 +990,7 @@ export default function DefenseSchedulingPage() {
                   Timeslot &amp; venue confirmed
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400">
                 <Calendar className="h-5 w-5" />
               </div>
             </CardContent>
@@ -1191,7 +1003,7 @@ export default function DefenseSchedulingPage() {
             }`}
             onClick={() => setActiveTab('in_progress')}
           >
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   In Progress
@@ -1201,7 +1013,7 @@ export default function DefenseSchedulingPage() {
                   Drafting / adviser review
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <Clock className="h-5 w-5" />
               </div>
             </CardContent>
@@ -1211,11 +1023,11 @@ export default function DefenseSchedulingPage() {
         {/* Filter Controls & Search */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1">
+          <div className="grid grid-cols-2 items-center gap-1.5 rounded-xl border border-border bg-card p-1 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === 'all'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -1226,7 +1038,7 @@ export default function DefenseSchedulingPage() {
             <button
               type="button"
               onClick={() => setActiveTab('pending_scheduling')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                 activeTab === 'pending_scheduling'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
@@ -1237,7 +1049,7 @@ export default function DefenseSchedulingPage() {
             <button
               type="button"
               onClick={() => setActiveTab('scheduled')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === 'scheduled'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-blue-600 dark:text-blue-400 hover:bg-blue-500/10'
@@ -1248,7 +1060,7 @@ export default function DefenseSchedulingPage() {
             <button
               type="button"
               onClick={() => setActiveTab('in_progress')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === 'in_progress'
                   ? 'bg-muted text-foreground font-bold shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -1264,7 +1076,7 @@ export default function DefenseSchedulingPage() {
             <select
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
-              className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               aria-label="Filter by Academic Batch"
             >
               <option value="">All Batches</option>
@@ -1280,7 +1092,7 @@ export default function DefenseSchedulingPage() {
               <select
                 value={selectedSection}
                 onChange={(e) => setSelectedSection(e.target.value)}
-                className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 aria-label="Filter by Section"
               >
                 <option value="">All Sections</option>
@@ -1299,21 +1111,22 @@ export default function DefenseSchedulingPage() {
                 setSelectedStage(e.target.value);
                 setSelectedDeliverable('');
               }}
-              className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               aria-label="Filter by Capstone Stage"
             >
               <option value="">All Stages</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_1}>Capstone 1 (Title Defense)</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_2}>Capstone 2 (Midterm Defense)</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_3}>Capstone 3 (Progress Defense)</option>
-              <option value={CAPSTONE_STAGES.FINAL}>Final Capstone (Oral Defense)</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_1}>Phase 2 — Capstone 1 (Proposal Defense)</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_2}>Phase 3 — Capstone 2 (System Defense)</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_3}>
+                Phase 4 — Capstone 3 (Final Defense & Archival)
+              </option>
             </select>
 
             {/* Deliverables Filter */}
             <select
               value={selectedDeliverable}
               onChange={(e) => setSelectedDeliverable(e.target.value)}
-              className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               aria-label="Filter by Deliverable"
             >
               <option value="">All Deliverables</option>
@@ -2507,7 +2320,7 @@ export default function DefenseSchedulingPage() {
 
         {/* Teams Defense Roster: Grid View */}
         {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 min-[1600px]:grid-cols-3 gap-4">
             {filteredProjects.length === 0 ? (
               <div className="col-span-full py-12 text-center text-muted-foreground rounded-xl border border-border bg-card">
                 <FolderOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
@@ -2545,7 +2358,7 @@ export default function DefenseSchedulingPage() {
                             <span className="text-muted-foreground">•</span>
                             <span className="text-xs text-muted-foreground">
                               {project.stage === 'final' || project.capstonePhase === 4
-                                ? 'Final Capstone'
+                                ? 'Capstone 3 Approval & Archival'
                                 : `Capstone ${project.capstonePhase || 1}`}
                             </span>
                           </div>

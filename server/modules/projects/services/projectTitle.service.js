@@ -9,6 +9,8 @@ import {
   ROLES,
   TITLE_STATUSES,
   PROJECT_STATUSES,
+  CAPSTONE_PHASES,
+  resolveWorkflowPhase,
   DEFENSE_TYPES,
   EVALUATION_STATUSES,
   DELIVERABLE_TYPES,
@@ -16,6 +18,7 @@ import {
 } from '@cms/shared';
 import projectCoreService from './projectCore.service.js';
 import projectCommitteeService from './projectCommittee.service.js';
+import { getADMCompletion } from './admCompletion.js';
 
 class ProjectTitleService {
   async _getProjectOrFail(projectId) {
@@ -291,6 +294,7 @@ class ProjectTitleService {
    */
   async updateTitle(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     if (project.titleStatus === TITLE_STATUSES.APPROVED) {
       throw new AppError(
@@ -376,6 +380,7 @@ class ProjectTitleService {
    */
   async submitTitle(projectId, userId) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     if (project.titleStatus !== TITLE_STATUSES.DRAFT) {
       throw new AppError(
@@ -444,6 +449,7 @@ class ProjectTitleService {
    */
   async approveTitle(projectId, user, data = {}) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     await this._assertCanReviewTitle(user, project);
 
@@ -460,20 +466,6 @@ class ProjectTitleService {
           'INVALID_STATUS_TRANSITION',
         );
       }
-    }
-
-    // Enforce scheduled defense hearing prerequisite before title approval
-    const scheduleStatus = project.defenseSchedule?.status;
-    const hasScheduleDate = Boolean(project.defenseSchedule?.date);
-    const isScheduledOrDone =
-      (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
-
-    if (!isScheduledOrDone) {
-      throw new AppError(
-        'The proponent team must have a scheduled defense hearing before their title proposal can be approved.',
-        400,
-        'DEFENSE_SCHEDULE_REQUIRED',
-      );
     }
 
     const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
@@ -584,14 +576,22 @@ class ProjectTitleService {
     project.driveFolderId = null;
     project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
     project.capstonePhase = 1;
-
-    // Automatically transition defense schedule to completed once title proposal is selected/approved
-    if (!project.defenseSchedule) {
-      project.defenseSchedule = {};
+    project.workflowPhase = approveWithRevision
+      ? CAPSTONE_PHASES.PHASE_1
+      : CAPSTONE_PHASES.PHASE_2;
+    project.stage = 'capstone_1';
+    // Title approval is a pre-course review; any legacy schedule belongs to that
+    // review and must not be mistaken for the later Capstone 1 proposal defense.
+    project.defenseSchedule = null;
+    if (project.deadlines?.defense) {
+      delete project.deadlines.defense;
+      if (Array.isArray(project.deadlines.removed)) {
+        project.deadlines.removed = project.deadlines.removed.filter((key) => key !== 'defense');
+      }
+      if (project.deadlines.moved?.defense) {
+        delete project.deadlines.moved.defense;
+      }
     }
-    project.defenseSchedule.status = 'completed';
-    project.defenseSchedule.verdict = project.defenseSchedule.verdict || 'Passed';
-    project.defenseSchedule.completedAt = new Date();
 
     await project.save();
 
@@ -619,6 +619,7 @@ class ProjectTitleService {
    */
   async rejectTitle(projectId, user, data = {}) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     await this._assertCanReviewTitle(user, project);
 
@@ -746,6 +747,7 @@ class ProjectTitleService {
    */
   async addTitleComment({ projectId, proposalId, user, text }) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
     if (proposals.length === 0) {
@@ -850,6 +852,7 @@ class ProjectTitleService {
    */
   async reviseAndResubmit(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     if (project.titleStatus !== TITLE_STATUSES.REVISION_REQUIRED) {
       throw new AppError(
@@ -949,6 +952,7 @@ class ProjectTitleService {
    */
   async requestTitleModification(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     const allowedStatuses = [TITLE_STATUSES.APPROVED, TITLE_STATUSES.APPROVED_WITH_REVISION];
     if (!allowedStatuses.includes(project.titleStatus)) {
@@ -1003,6 +1007,7 @@ class ProjectTitleService {
    */
   async resolveTitleModification(projectId, user, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     await this._assertCanReviewTitle(user, project);
 
@@ -1026,6 +1031,9 @@ class ProjectTitleService {
       project.title = project.titleModificationRequest.proposedTitle;
       // Fully approved — unlock Capstone 1
       project.titleStatus = TITLE_STATUSES.APPROVED;
+      if (resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_1) {
+        project.workflowPhase = CAPSTONE_PHASES.PHASE_2;
+      }
     } else {
       // Denied — restore to the status the student started from so they can try again
       const restoredStatus =
@@ -1050,14 +1058,13 @@ class ProjectTitleService {
   /* ═══════════════ Adviser & Panelist Assignment ═══════════════ */
 
   /**
-   * Post-Approval Hard Gate Evaluator:
-   * Checks whether the project satisfies the two institutional prerequisites:
-   * 1. Final defense verdict is 'Passed' or 'Passed with Revisions'
-   * 2. All items on the final Action Done Matrix (ADM) have been signed by the Adviser and Panel Chair
+   * Final Approval Gate Evaluator:
+   * Checks that every assigned panelist has a released passing final evaluation
+   * and the final Action Done Matrix is complete for every assigned signatory.
    *
    * If both are satisfied:
    * - Sets projectStatus to 'final_approved'
-   * - Unlocks 'full_academic_paper' and 'condensed_journal_paper' in unlockedDeliverables
+   * - Unlocks the final approved paper for post-defense archival
    * - Emits socket notification
    * @param {string} projectId
    * @returns {Promise<{ isUnlocked: boolean, project: Object }>}
@@ -1065,54 +1072,32 @@ class ProjectTitleService {
   async evaluatePostApprovalUnlocks(projectId) {
     const project = await Project.findById(projectId);
     if (!project) return { isUnlocked: false, project: null };
+    projectCoreService._assertProjectWritable(project);
 
     // 1. Check final defense verdict
+    const assignedPanelistIds = projectCoreService._getAssignedDefensePanelistIds(project);
     const finalEvaluations = await Evaluation.find({
       projectId,
       defenseType: DEFENSE_TYPES.FINAL,
       status: EVALUATION_STATUSES.RELEASED,
-    });
-
-    const isPassedVerdict =
-      finalEvaluations.length > 0 &&
-      finalEvaluations.every(
-        (e) =>
-          e.decision &&
-          ['passed', 'passed_with_revision', 'approved'].includes(String(e.decision).toLowerCase()),
+    }).select('panelistId decision');
+    const finalEvaluationsByPanelist = new Map(
+      finalEvaluations.map((evaluation) => [String(evaluation.panelistId), evaluation]),
+    );
+    const isPassingDecision = (decision) =>
+      ['passed', 'passed_with_revision', 'approved'].includes(String(decision || '').toLowerCase());
+    const hasPassedFinalDefense =
+      assignedPanelistIds.length > 0 &&
+      assignedPanelistIds.every((panelistId) =>
+        isPassingDecision(finalEvaluationsByPanelist.get(panelistId)?.decision),
       );
-
-    const scheduleVerdict = String(project.defenseSchedule?.verdict || '').toLowerCase();
-    const isSchedulePassed =
-      scheduleVerdict.includes('pass') || scheduleVerdict.includes('approved');
-
-    const hasPassedFinalDefense = isPassedVerdict || isSchedulePassed;
-
-    // 2. Check Action Done Matrix signatures
-    const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
-    const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
-    const isChairDone = Boolean(project.admSignatures?.chair?.signed);
-
-    const allRowsSigned =
-      Array.isArray(project.actionDoneMatrix) &&
-      project.actionDoneMatrix.length > 0 &&
-      project.actionDoneMatrix.every(
-        (row) => row.isLocked || (Array.isArray(row.signatures) && row.signatures.length > 0),
-      );
-
-    const isADMApproved =
-      project.admStatus === 'approved' ||
-      (isSecretaryDone &&
-        isAdviserDone &&
-        isChairDone &&
-        (project.actionDoneMatrix.length === 0 || allRowsSigned));
+    const isADMApproved = getADMCompletion(project, 'CAPSTONE_3').complete;
 
     if (hasPassedFinalDefense && isADMApproved) {
       project.projectStatus = PROJECT_STATUSES.FINAL_APPROVED;
       project.stage = 'final';
 
       const currentUnlocked = new Set(project.unlockedDeliverables || []);
-      currentUnlocked.add(DELIVERABLE_TYPES.FULL_ACADEMIC_PAPER);
-      currentUnlocked.add(DELIVERABLE_TYPES.CONDENSED_JOURNAL_PAPER);
       currentUnlocked.add(DELIVERABLE_TYPES.FINAL_APPROVED_PAPER);
       project.unlockedDeliverables = Array.from(currentUnlocked);
 

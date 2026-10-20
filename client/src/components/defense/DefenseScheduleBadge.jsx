@@ -133,7 +133,7 @@ export function resolveDefenseScheduleState(schedule) {
       colorClass:
         'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/15',
       icon: Clock,
-      tooltip: 'Team is signaled as Ready for Defense; awaiting instructor scheduling.',
+      tooltip: 'Defense schedule is pending instructor confirmation.',
     };
   }
 

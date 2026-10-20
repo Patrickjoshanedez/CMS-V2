@@ -1,30 +1,33 @@
 {
   "document_id": "suspicious_doc_009",
-  "originality_score": 70.21,
-  "plagiarism_percentage": 29.79,
+  "originality_score": 95.87,
+  "plagiarism_score": 4.13,
+  "total_characters": 1212,
+  "matched_characters": 50,
   "matches": [
     {
-      "match_id": "m_test_src_283",
-      "start_index": 283,
-      "end_index": 458,
-      "similarity_score": 0.8446,
-      "winnow_score": 1.0,
-      "semantic_score": 0.5561,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms."
-    },
-    {
-      "match_id": "m_test_src_743",
-      "start_index": 743,
-      "end_index": 929,
-      "similarity_score": 0.5007,
-      "winnow_score": 0.5,
-      "semantic_score": 0.5019,
-      "source_id": "test_src",
-      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
-      "match_text": "This study investigate machine learning application program in cancel language processing . The algorithm employ n-gram character fingerprinting and Karp-Rabin hashing algorithmic rule ."
+      "match_id": "bf8e6542-606a-4783-bffe-807cf075f382",
+      "match_text": "in natural language processing. The algorithm util",
+      "start_index": 337,
+      "end_index": 387,
+      "similarity_score": 0.3467,
+      "winnow_score": 0.0667,
+      "semantic_score": 1.0,
+      "source_metadata": {
+        "document_id": "test_src",
+        "title": "test_src",
+        "author": "Institutional Archive",
+        "url": null,
+        "chapter": 1,
+        "project_id": null,
+        "year": 2024
+      },
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms."
     }
   ],
-  "status": "completed"
+  "candidates_evaluated": 2,
+  "processing_time_ms": 239.5,
+  "metadata": {
+    "title": "suspicious_doc_009"
+  }
 }

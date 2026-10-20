@@ -42,6 +42,10 @@ const NOTIFICATION_TYPES = [
   // Phase progression & prototypes
   'phase_advanced',
   'prototype_added',
+  // Capstone 2 weekly progress and late-waiver workflow
+  'weekly_checkin_submitted',
+  'weekly_checkin_reviewed',
+  'weekly_checkin_waiver_reviewed',
   // Evaluations / grading
   'evaluation_submitted',
   'evaluation_released',
@@ -100,6 +104,8 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ userId: 1, isRead: 1 });
 // Composite index for fetching latest notifications (descending)
 notificationSchema.index({ userId: 1, createdAt: -1 });
+// Idempotency lookup for deadline notifications
+notificationSchema.index({ userId: 1, type: 1, 'metadata.deadlineId': 1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

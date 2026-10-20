@@ -9,8 +9,16 @@ import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/Tabs';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { useProjectEvaluations } from '@/hooks/useEvaluations';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
-import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  TITLE_STATUSES,
+  ROLES,
+  DEFENSE_TYPES,
+  CAPSTONE_PHASES,
+  PROJECT_STATUSES,
+  resolveWorkflowPhase,
+} from '@cms/shared';
 import {
   FileText,
   History,
@@ -100,17 +108,11 @@ export function resolveProjectDefaultTab(project) {
   );
   if (isArchived) return 'capstone_3';
 
-  const numericPhase = Number(project.capstonePhase ?? project.phase ?? 0);
-  const isADMApproved =
-    project.admStatus === 'approved' ||
-    (Boolean(project.admSignatures?.secretary?.endorsed) &&
-      Boolean(project.admSignatures?.adviser?.signed) &&
-      Boolean(project.admSignatures?.chair?.signed));
+  const workflowPhase = resolveWorkflowPhase(project);
 
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_3) return 'capstone_3';
-  if (numericPhase === CAPSTONE_PHASES.PHASE_2 && isADMApproved) return 'capstone_3';
+  if (workflowPhase >= CAPSTONE_PHASES.PHASE_4) return 'capstone_3';
   if (
-    numericPhase >= CAPSTONE_PHASES.PHASE_2 ||
+    workflowPhase >= CAPSTONE_PHASES.PHASE_3 ||
     project.titleStatus === TITLE_STATUSES.APPROVED ||
     project.titleStatus === 'approved' ||
     project.titleStatus === 'title_approved'
@@ -169,6 +171,21 @@ export default function ProjectDetailPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search || ''), [location.search]);
 
   const { data: project, isLoading, error, refetch } = useProject(projectId);
+  const evaluationDefenseType = project
+    ? Number(project.capstonePhase) >= 3
+      ? DEFENSE_TYPES.FINAL
+      : Number(project.capstonePhase) === 2
+        ? DEFENSE_TYPES.PROGRESS
+        : DEFENSE_TYPES.PROPOSAL
+    : null;
+  const { data: evaluationData } = useProjectEvaluations(projectId, evaluationDefenseType, {
+    enabled: Boolean(projectId && evaluationDefenseType),
+  });
+  const evaluationCount = Array.isArray(evaluationData?.evaluations)
+    ? evaluationData.evaluations.filter((evaluation) =>
+        ['submitted', 'released'].includes(evaluation.status),
+      ).length
+    : 0;
   const { data: submissionsData } = useProjectSubmissions(
     projectId,
     { limit: 200 },
@@ -321,8 +338,8 @@ export default function ProjectDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+      <div className="min-w-0 bg-background text-foreground">
+        <div className="max-w-7xl mx-auto min-w-0 space-y-6 lg:space-y-8">
           <div className="no-print">
             <Button
               variant="ghost"
@@ -336,6 +353,7 @@ export default function ProjectDetailPage() {
           </div>
           <WorkflowPhaseTracker
             project={project}
+            evaluationCount={evaluationCount}
             onStepClick={handleStepClick}
             isStudent={isStudent}
             onScheduleDefense={
@@ -352,7 +370,7 @@ export default function ProjectDetailPage() {
           />
 
           {isArchived && (
-            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm no-print">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm no-print">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
                   <BookOpen className="h-5 w-5" />
@@ -378,13 +396,14 @@ export default function ProjectDetailPage() {
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5 no-print">
-              <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <TabsList className="grid w-full grid-cols-2 sm:flex sm:flex-wrap items-center bg-muted/60 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
                 {(isArchived ? ARCHIVED_DETAIL_TABS : STANDARD_DETAIL_TABS).map((tab) => (
                   <WorkflowTabTrigger
                     key={tab.value}
                     value={tab.value}
                     icon={tab.icon}
                     label={tab.label}
+                    className="min-h-11 h-auto min-w-0 whitespace-normal px-2 py-2 text-left sm:px-4"
                   />
                 ))}
               </TabsList>

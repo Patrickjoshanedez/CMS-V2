@@ -36,7 +36,7 @@ const milestoneDeadlineSchema = new mongoose.Schema(
       type: String,
       enum: {
         values: CAPSTONE_STAGE_VALUES,
-        message: 'Invalid capstone stage. Must be capstone_1, capstone_2, capstone_3, or final.',
+        message: 'Invalid stage. Must be proposal, capstone_1, capstone_2, capstone_3, or legacy final.',
       },
       required: [true, 'Capstone stage is required'],
       index: true,
@@ -106,6 +106,7 @@ milestoneDeadlineSchema.index(
 
 // Composite query indexes
 milestoneDeadlineSchema.index({ batchYear: 1, stage: 1, deadlineDate: 1 });
+milestoneDeadlineSchema.index({ deadlineDate: -1 });
 
 const MilestoneDeadline = mongoose.model('MilestoneDeadline', milestoneDeadlineSchema);
 

@@ -1,6 +1,8 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '@/stores/authStore';
+import { projectService } from '@/services/authService';
 import InteractiveGanttChart from './InteractiveGanttChart';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,9 +19,25 @@ function setInputValue(input, value) {
 describe('InteractiveGanttChart Component', () => {
   let container;
   let root;
+  const editableProject = {
+    _id: 'interactive-gantt-test-project',
+    teamId: { leaderId: { _id: 'interactive-gantt-test-student' } },
+  };
+
+  const renderAsAssignedStudent = async (defaultView) => {
+    useAuthStore.setState({
+      user: { _id: 'interactive-gantt-test-student', role: 'student' },
+    });
+    await act(async () => {
+      root.render(
+        <InteractiveGanttChart project={editableProject} defaultView={defaultView} />,
+      );
+    });
+  };
 
   beforeEach(() => {
     localStorage.clear();
+    useAuthStore.setState({ user: null });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -31,6 +49,7 @@ describe('InteractiveGanttChart Component', () => {
     });
     container.remove();
     localStorage.clear();
+    useAuthStore.setState({ user: null });
   });
 
   it('renders sprint deliverables roadmap, accomplishment badge, and empty state with Pending accomplishment', async () => {
@@ -50,10 +69,40 @@ describe('InteractiveGanttChart Component', () => {
     expect(container.textContent).toContain('No Gantt Roadmap Data');
   });
 
-  it('renders separate Add Section and Add Task buttons and creates a new milestone section', async () => {
-    await act(async () => {
-      root.render(<InteractiveGanttChart defaultView="compact" />);
+  it('keeps archived schedules read-only and does not autosave when opened', async () => {
+    const updateGanttPlan = vi
+      .spyOn(projectService, 'updateGanttPlan')
+      .mockResolvedValue({ data: { data: { project: {} } } });
+    useAuthStore.setState({
+      user: { _id: 'interactive-gantt-test-student', role: 'student' },
     });
+    const archivedProject = {
+      ...editableProject,
+      isArchived: true,
+      projectStatus: 'archived',
+      ganttPlan: {
+        updatedAt: '2026-10-17T00:00:00.000Z',
+        tasks: [{ id: 'task-1', section: 'Planning', title: 'Plan work', progress: 0 }],
+        sections: ['Planning'],
+      },
+    };
+
+    await act(async () => {
+      root.render(<InteractiveGanttChart project={archivedProject} defaultView="excel" />);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 550));
+    });
+
+    expect(container.textContent).toContain(
+      'View-only schedule — editing is limited to assigned team members and the assigned Adviser',
+    );
+    expect(container.textContent).not.toContain('Click any cell to edit');
+    expect(updateGanttPlan).not.toHaveBeenCalled();
+  });
+
+  it('renders separate Add Section and Add Task buttons and creates a new milestone section', async () => {
+    await renderAsAssignedStudent('compact');
 
     const buttons = Array.from(container.querySelectorAll('button'));
     const addSectionBtn = buttons.find((b) => b.textContent.includes('Add Section'));
@@ -88,9 +137,7 @@ describe('InteractiveGanttChart Component', () => {
   });
 
   it('opens Add Task modal, appends a new task, and synchronizes task across compact and excel views', async () => {
-    await act(async () => {
-      root.render(<InteractiveGanttChart defaultView="compact" />);
-    });
+    await renderAsAssignedStudent('compact');
 
     // 1. Add a section first
     const addSectionBtn = Array.from(container.querySelectorAll('button')).find((b) =>

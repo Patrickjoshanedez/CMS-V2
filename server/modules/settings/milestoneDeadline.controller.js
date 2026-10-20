@@ -11,12 +11,16 @@ import { emitToAll } from '../../services/socket.service.js';
 import deadlineNotificationService from './deadlineNotification.service.js';
 
 const DELIVERABLE_DEADLINE_MAP = {
+  title_proposal: 'titleProposal',
   chapter_1: 'chapter1',
   chapter_2: 'chapter2',
   chapter_3: 'chapter3',
   proposal: 'proposal',
   chapter_4: 'chapter4',
   chapter_5: 'chapter5',
+  full_academic_paper: 'finalAcademic',
+  condensed_journal_paper: 'finalJournal',
+  final_approved_paper: 'finalAcademic',
   oral_defense: 'defense',
   defense: 'defense',
 };

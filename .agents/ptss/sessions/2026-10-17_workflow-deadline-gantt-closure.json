@@ -1,0 +1,49 @@
+{
+  "session_id": "2026-10-17_workflow-deadline-gantt-closure",
+  "date": "2026-10-17T00:04:13.000Z",
+  "task_summary": "Completed server-enforced scheduled submission deadline policy and assigned Gantt edit permissions as part of the synthetic capstone workflow closure.",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "files_modified": [
+    "client/src/utils/milestoneDeadlines.js",
+    "client/src/hooks/useProjectMilestoneDeadlines.js",
+    "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+    "client/src/components/submissions/UploadChapterModal.jsx",
+    "client/src/components/submissions/FinalPaperUpload.jsx",
+    "client/src/pages/submissions/ProposalCompilationPage.jsx",
+    "client/src/components/projects/InteractiveGanttChart.jsx",
+    "server/modules/submissions/submission.service.js",
+    "server/tests/unit/submission.deadline-policy.test.js",
+    "server/tests/integration/submissions.test.js",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/classification-manifest.json",
+    ".agents/ptss/tasks/2026-10-17_four-phase-workflow-refactor.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "capstone-lifecycle-orchestrator",
+    "senior-backend",
+    "mongoose-mongodb",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Resolve a section-specific MilestoneDeadline before the batch default, then fall back to the project deadline only when no scheduler record exists.",
+    "Enforce allowLateSubmission and late justification in the submission service so the policy cannot be bypassed through direct API uploads.",
+    "Keep assigned-Adviser schedule editing separate from the Adviser-only Gantt approval action.",
+    "Update integration fixtures to follow existing phase, signature, publication, and committee-role gates without weakening those gates."
+  ],
+  "lessons_learned": [
+    "Client deadline feedback is not an enforcement boundary; final papers and chapters must consult the configured scheduler policy at the upload service.",
+    "Legacy workflow fixtures should assert the current institutional guard when they omit its prerequisite evidence; they should not be changed to bypass the guard.",
+    "Visual review remains distinct evidence from passing component tests and requires an authenticated browser that can reach localhost."
+  ],
+  "open_threads": [
+    "Complete Playwright visual review for deadline and Gantt surfaces in light/dark desktop/mobile; no screenshots were produced because the available browser bridge could not reach localhost.",
+    "The full client suite remains unverified after its 120-second watchdog and needs a bounded diagnostic before another attempt."
+  ],
+  "verification_status": "partial",
+  "verification_notes": "Focused client workflow tests passed 52/52; server scheduled deadline policy tests passed 3/3; submissions integration tests passed 67/67; Gantt client tests passed 21/21 and server permission tests passed 11/11. The full client suite and required Playwright visual review remain incomplete."
+}

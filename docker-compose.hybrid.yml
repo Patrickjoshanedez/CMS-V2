@@ -1,0 +1,26 @@
+services:
+  server:
+    depends_on: !override
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PLAGIARISM_ENGINE_URL: ${PLAGIARISM_ENGINE_URL:?Set the reachable local plagiarism tunnel URL}
+      PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:?Set the shared plagiarism service token}
+
+  plagiarism_api:
+    profiles:
+      - local-plagiarism
+
+  plagiarism_worker:
+    profiles:
+      - local-plagiarism
+
+  chromadb:
+    profiles:
+      - local-plagiarism
+
+  ollama:
+    profiles:
+      - local-ollama

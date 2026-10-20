@@ -9,7 +9,6 @@ import OptimizationEngine from './OptimizationEngine';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { AlertTriangle } from 'lucide-react';
 
 const InstructorDashboard = () => {
@@ -74,28 +73,18 @@ const InstructorDashboard = () => {
   const workload = workloadData || {};
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 lg:space-y-8">
       {/* Page Header - Clean Linear-Grade Command Bar */}
-      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Instructor Command Center
+              Instructor Overview
             </h1>
-            <Badge variant="outline" className="text-[10px] font-semibold">
-              AY {new Date().getFullYear()}–{new Date().getFullYear() + 1}
-            </Badge>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            Monitor capstone progress, adviser workload distribution, and automated rebalancing
-            recommendations.
+            Track capstone progress, faculty assignments, and upcoming deadlines.
           </p>
-        </div>
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-          <Badge variant="success" className="gap-1.5 py-1 px-2.5 text-xs font-medium">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Advisory Monitoring Active
-          </Badge>
         </div>
       </div>
 
@@ -110,8 +99,8 @@ const InstructorDashboard = () => {
       )}
 
       {/* Balanced 12-Column Grid: Workload Heatmap (7 cols) + Optimization Engine (5 cols) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        <div className="lg:col-span-7">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 items-start">
+        <div className="min-w-0 xl:col-span-7">
           {workloadLoading ? (
             <div className="h-80 rounded-xl bg-muted/40 border border-border/60 animate-pulse p-6 flex items-center justify-center text-xs text-muted-foreground">
               Loading adviser workload distribution...
@@ -120,7 +109,7 @@ const InstructorDashboard = () => {
             <WorkloadHeatmap workload={workload} />
           )}
         </div>
-        <div className="lg:col-span-5">
+        <div className="min-w-0 xl:col-span-5">
           <OptimizationEngine
             optimization={optimizeMutation.data}
             onGenerate={(scope) => optimizeMutation.mutate(scope)}
@@ -132,7 +121,7 @@ const InstructorDashboard = () => {
       </div>
 
       {/* Visual Deadline Calendar */}
-      <div className="rounded-xl border border-border/60 bg-card p-5 shadow-xs">
+      <div className="min-w-0">
         <CalendarScheduler deadlines={deadlines} defenseSchedules={[]} />
       </div>
     </div>

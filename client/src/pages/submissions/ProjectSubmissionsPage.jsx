@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -18,6 +18,8 @@ import ActionDoneMatrixSection from '@/components/projects/ActionDoneMatrixSecti
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { useProjectMilestoneDeadlines } from '@/hooks/useProjectMilestoneDeadlines';
+import { resolveProjectSubmissionDeadlines } from '@/utils/milestoneDeadlines';
 import { useAuthStore } from '@/stores/authStore';
 import { DOCUMENT_TYPES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import { cn } from '@/lib/utils';
@@ -164,6 +166,8 @@ function EmptySubmissionsState({ canUpload, canCompileProposal }) {
     <EmptyState
       icon={FileText}
       title="No submissions yet"
+      compact
+      gradient={false}
       description={
         canCompileProposal
           ? 'Your chapter requirements are complete. Compile and submit your proposal.'
@@ -191,7 +195,7 @@ export default function ProjectSubmissionsPage() {
   const isReadOnlyMode = mode === 'view' && Boolean(targetProjectId);
   const hasTeam = Boolean(user?.teamId);
   const [showGanttModal, setShowGanttModal] = useState(false);
-  const [showAdmModal, setShowAdmModal] = useState(false);
+  const [openAdmMilestone, setOpenAdmMilestone] = useState(null);
   const [uploadModalConfig, setUploadModalConfig] = useState({
     isOpen: false,
     chapter: 1,
@@ -200,6 +204,7 @@ export default function ProjectSubmissionsPage() {
   });
 
   const handleGeneralUpload = () => {
+    if (isProjectArchived) return;
     setUploadModalConfig({
       isOpen: true,
       chapter: 1,
@@ -209,15 +214,17 @@ export default function ProjectSubmissionsPage() {
   };
 
   const handleCardUpload = (chapterNumber, sub) => {
+    if (isProjectArchived) return;
     setUploadModalConfig({
       isOpen: true,
       chapter: chapterNumber,
-      isLocked: true,
+      isLocked: Boolean(sub),
       submission: sub || null,
     });
   };
 
   const handleCardRevise = (chapterNumber, sub) => {
+    if (isProjectArchived) return;
     setUploadModalConfig({
       isOpen: true,
       chapter: chapterNumber,
@@ -243,6 +250,14 @@ export default function ProjectSubmissionsPage() {
   });
 
   const activeProject = isReadOnlyMode ? targetProject : project;
+  const isProjectArchived =
+    activeProject?.isArchived === true || activeProject?.projectStatus === 'archived';
+  const isArchivedReadOnly = isReadOnlyMode || isProjectArchived;
+  const { data: milestoneDeadlineRecords = [] } = useProjectMilestoneDeadlines(activeProject);
+  const { deadlines, policies: deadlinePolicies } = useMemo(
+    () => resolveProjectSubmissionDeadlines(activeProject, milestoneDeadlineRecords),
+    [activeProject, milestoneDeadlineRecords],
+  );
 
   const {
     data: submissionsData,
@@ -281,21 +296,23 @@ export default function ProjectSubmissionsPage() {
   }, new Map());
 
   const titleApproved = activeProject?.titleStatus === TITLE_STATUSES.APPROVED;
+  const numericPhase = Number(activeProject?.capstonePhase ?? activeProject?.phase ?? 0);
+  const activeAdmMilestone =
+    numericPhase >= 3 ? 'CAPSTONE_3' : numericPhase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_1';
   const hasProposal = submissions.some((s) => s.type === DOCUMENT_TYPES.PROPOSAL);
-  const canUpload = isStudent && !isReadOnlyMode && titleApproved;
-  const canEditDevelopmentAssets = isStudent && !isReadOnlyMode && titleApproved;
+  const canUpload = isStudent && !isArchivedReadOnly && titleApproved;
   const chaptersReadyForProposal = [1, 2, 3].every((ch) => {
     const sub = latestChapterSubmissions.get(ch);
     return sub && ['approved', 'accepted', 'locked'].includes(sub.status);
   });
   const canCompileProposal =
-    isStudent && !isReadOnlyMode && titleApproved && chaptersReadyForProposal && !hasProposal;
+    isStudent && !isArchivedReadOnly && titleApproved && chaptersReadyForProposal && !hasProposal;
 
-  const isCap2ADMApproved =
-    activeProject?.admStatus === 'approved' ||
-    (Boolean(activeProject?.admSignatures?.secretary?.endorsed) &&
-      Boolean(activeProject?.admSignatures?.adviser?.signed) &&
-      Boolean(activeProject?.admSignatures?.chair?.signed));
+  const isCap1ADMApproved = numericPhase >= 2;
+  const isCap2ADMApproved = numericPhase >= 3;
+
+  const canEditDevelopmentAssets =
+    isStudent && !isArchivedReadOnly && titleApproved && isCap1ADMApproved;
 
   const all5ChaptersApproved = [1, 2, 3, 4, 5].every((ch) => {
     const sub = latestChapterSubmissions.get(ch);
@@ -309,26 +326,19 @@ export default function ProjectSubmissionsPage() {
     );
   });
 
-  const numericPhase = Number(activeProject?.capstonePhase ?? activeProject?.phase ?? 0);
-  const isCap3ADMApproved =
-    numericPhase >= 4 ||
-    (activeProject?.admStatus === 'approved' &&
-      Boolean(activeProject?.actionDoneMatrix?.some((r) => r.milestone === 'CAPSTONE_3')));
-
-  const canUnlockCapstone4 = Boolean(
+  const canUploadFinalManuscripts = Boolean(
     isStudent &&
-    !isReadOnlyMode &&
+    !isArchivedReadOnly &&
     titleApproved &&
     all5ChaptersApproved &&
-    isCap2ADMApproved &&
-    (numericPhase >= 4 || isCap3ADMApproved),
+    isCap2ADMApproved,
   );
 
-  const capstone4LockMessage = !isCap2ADMApproved
-    ? 'Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.'
+  const finalPaperLockMessage = !isCap2ADMApproved
+    ? 'Final manuscripts unlock after Capstone 2 system defense, grade release, and ADM v2 sign-off.'
     : !all5ChaptersApproved
-      ? 'Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.'
-      : 'Final Paper Submission unlocks after your Capstone 3 Action Done Matrix (ADM v2) is approved and signed by the committee.';
+      ? 'Final manuscripts unlock after Chapters 1–5 are approved by the adviser.'
+      : 'The full academic manuscript and journal paper are ready for adviser review and plagiarism checks.';
 
   const searchSuffix = isReadOnlyMode
     ? `?mode=view&projectId=${encodeURIComponent(activeProject?._id || '')}`
@@ -438,7 +448,6 @@ export default function ProjectSubmissionsPage() {
   }
 
   /* ────── Deadline map ────── */
-  const deadlines = activeProject.deadlines || {};
   const chapterDeadlineMap = {
     1: deadlines.chapter1,
     2: deadlines.chapter2,
@@ -470,7 +479,7 @@ export default function ProjectSubmissionsPage() {
   /* ────── Main Render ────── */
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 lg:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -490,7 +499,7 @@ export default function ProjectSubmissionsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowAdmModal(true)}
+              onClick={() => setOpenAdmMilestone(activeAdmMilestone)}
               className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
               data-testid="toolbar-open-adm-btn"
             >
@@ -506,7 +515,7 @@ export default function ProjectSubmissionsPage() {
               <LineChart className="h-4 w-4 text-primary" />
               <span>Academic Gantt</span>
             </Button>
-            {isStudent && !isReadOnlyMode && (
+            {isStudent && !isArchivedReadOnly && (
               <>
                 {canCompileProposal && (
                   <Button size="sm" onClick={() => navigate('/project/proposal')}>
@@ -529,10 +538,20 @@ export default function ProjectSubmissionsPage() {
           </div>
         </div>
 
+        {isProjectArchived && (
+          <Alert className="border-border/70 bg-muted/40" data-testid="archived-project-readonly">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <AlertDescription>
+              This project is archived. Its submissions, development records, and Action Done
+              Matrices are available for review only.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Deadline warnings */}
-        {activeProject.deadlines && (
+        {Object.keys(deadlines).length > 0 && (
           <DeadlineWarning
-            deadlines={activeProject.deadlines}
+            deadlines={deadlines}
             defenseSchedule={activeProject.defenseSchedule}
             compact
           />
@@ -546,19 +565,19 @@ export default function ProjectSubmissionsPage() {
           <EmptySubmissionsState canUpload={canUpload} canCompileProposal={canCompileProposal} />
         )}
 
-        {/* Phase 2: Capstone 2 — Proposal & Manuscript Chapters 1–3 */}
+        {/* Phase 2: Capstone 1 — Proposal & Manuscript Chapters 1–3 */}
         <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="border-blue-500/40 bg-blue-500/10 text-blue-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-blue-500/40 bg-blue-500/10 text-blue-400 font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 2
                 </Badge>
                 <h2 className="text-lg font-bold tracking-tight text-foreground">
-                  Capstone 2: Chapters 1–3 Manuscript &amp; Midterm Defense
+                  Capstone 1: Chapters 1–3 Manuscript &amp; Proposal Defense
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -570,9 +589,9 @@ export default function ProjectSubmissionsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowAdmModal(true)}
+                onClick={() => setOpenAdmMilestone('CAPSTONE_1')}
                 className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
-                data-testid="capstone2-open-adm-btn"
+                data-testid="capstone1-open-adm-btn"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
                 <span>Open Action Done Matrix</span>
@@ -580,17 +599,18 @@ export default function ProjectSubmissionsPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((ch) => (
               <ChapterCard
                 key={ch}
                 chapterNumber={ch}
                 submission={latestChapterSubmissions.get(ch)}
                 deadline={chapterDeadlineMap[ch]}
+                allowLateSubmission={deadlinePolicies[`chapter${ch}`]?.allowLateSubmission ?? true}
                 isLocked={latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED}
                 canUpload={canUploadChapter(ch)}
                 isStudent={isStudent}
-                isReadOnly={isReadOnlyMode}
+                isReadOnly={isArchivedReadOnly}
                 projectId={activeProject._id}
                 searchSuffix={searchSuffix}
                 onUpload={handleCardUpload}
@@ -603,19 +623,20 @@ export default function ProjectSubmissionsPage() {
           <ProposalSection
             submissions={submissions}
             canCompile={canCompileProposal}
-            isReadOnly={isReadOnlyMode}
+            isReadOnly={isArchivedReadOnly}
             searchSuffix={searchSuffix}
           />
 
           {/* Action Done Matrix (ADM) Card — shared single ADM interface */}
           <ActionDoneMatrixSection
             project={activeProject}
-            milestone="CAPSTONE_2"
+            milestone="CAPSTONE_1"
             isStudent={isStudent}
             isFaculty={isFaculty}
             user={user}
-            isModalOpen={showAdmModal}
-            onModalOpenChange={setShowAdmModal}
+            isReadOnly={isProjectArchived}
+            isModalOpen={openAdmMilestone === 'CAPSTONE_1'}
+            onModalOpenChange={(isOpen) => setOpenAdmMilestone(isOpen ? 'CAPSTONE_1' : null)}
             onRefresh={() => {
               refetchProject?.();
               refetchSubs?.();
@@ -623,19 +644,19 @@ export default function ProjectSubmissionsPage() {
           />
         </div>
 
-        {/* Phase 3: Capstone 3 — System Development, Interactive Gantt & Chapters 4–5 */}
+        {/* Phase 3: Capstone 2 — System Development, Gantt & Prototype Defense */}
         <div className="space-y-5 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 3
                 </Badge>
                 <h2 className="text-lg font-bold tracking-tight text-foreground">
-                  Capstone 3: System Development &amp; Progress Defense
+                  Capstone 2: System Development &amp; Prototype Defense
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -656,12 +677,12 @@ export default function ProjectSubmissionsPage() {
             </div>
           </div>
 
-          {!canEditDevelopmentAssets && !isReadOnlyMode && (
+          {isStudent && !canEditDevelopmentAssets && !isArchivedReadOnly && (
             <Alert className="border-primary/20 bg-primary/5">
               <AlertTriangle className="h-4 w-4 text-primary" />
               <AlertDescription>
-                Capstone 3 assets unlock after your title is approved. You can still review any
-                existing links below.
+                Capstone 2 development assets unlock after your Capstone 1 Action Done Matrix is
+                approved and signed. You can still review any existing links below.
               </AlertDescription>
             </Alert>
           )}
@@ -669,6 +690,7 @@ export default function ProjectSubmissionsPage() {
           <PrototypeShowcaseAndDemo
             project={activeProject}
             isReadOnly={!canEditDevelopmentAssets}
+            isArchived={isProjectArchived}
             canAdd={canEditDevelopmentAssets}
             canDelete={canEditDevelopmentAssets}
           />
@@ -680,7 +702,7 @@ export default function ProjectSubmissionsPage() {
               </h3>
             </div>
 
-            {!isCap2ADMApproved && isStudent && !isReadOnlyMode && (
+            {!isCap2ADMApproved && isStudent && !isArchivedReadOnly && (
               <Alert
                 className="mb-3 border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
                 data-testid="capstone3-prerequisite-alert"
@@ -688,7 +710,7 @@ export default function ProjectSubmissionsPage() {
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <AlertDescription>
                   Capstone 3 chapter uploads (Chapters 4 &amp; 5) unlock after your Capstone 2
-                  Action Done Matrix (ADM v1) is approved and signed by the defense committee.
+                  Action Done Matrix (ADM v2) is approved and the grades are released.
                 </AlertDescription>
               </Alert>
             )}
@@ -700,13 +722,14 @@ export default function ProjectSubmissionsPage() {
                   chapterNumber={ch}
                   submission={latestChapterSubmissions.get(ch)}
                   deadline={chapterDeadlineMap[ch]}
+                allowLateSubmission={deadlinePolicies[`chapter${ch}`]?.allowLateSubmission ?? true}
                   isLocked={
                     latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED ||
                     (ch >= 4 && !isCap2ADMApproved)
                   }
                   canUpload={canUploadChapter(ch)}
                   isStudent={isStudent}
-                  isReadOnly={isReadOnlyMode}
+                  isReadOnly={isArchivedReadOnly}
                   projectId={activeProject._id}
                   searchSuffix={searchSuffix}
                   onUpload={handleCardUpload}
@@ -715,21 +738,35 @@ export default function ProjectSubmissionsPage() {
               ))}
             </div>
           </div>
+          <ActionDoneMatrixSection
+            project={activeProject}
+            milestone="CAPSTONE_2"
+            isStudent={isStudent}
+            isFaculty={isFaculty}
+            user={user}
+            isReadOnly={isProjectArchived}
+            isModalOpen={openAdmMilestone === 'CAPSTONE_2'}
+            onModalOpenChange={(isOpen) => setOpenAdmMilestone(isOpen ? 'CAPSTONE_2' : null)}
+            onRefresh={() => {
+              refetchProject?.();
+              refetchSubs?.();
+            }}
+          />
         </div>
 
-        {/* Phase 4: Final Capstone — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
+        {/* Phase 4: Capstone 3 — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
         <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 4
                 </Badge>
                 <h2 className="text-lg font-bold tracking-tight text-foreground">
-                  Final Capstone: Oral Defense &amp; Manuscript Archival
+                  Capstone 3: Final Defense &amp; Manuscript Archival
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -739,22 +776,38 @@ export default function ProjectSubmissionsPage() {
             </div>
           </div>
 
-          {!canUnlockCapstone4 && isStudent && !isReadOnlyMode && (
+          {!canUploadFinalManuscripts && isStudent && !isArchivedReadOnly && (
             <Alert
               className="border-border/70 bg-muted/40"
-              data-testid="capstone4-prerequisite-alert"
+              data-testid="capstone3-final-prerequisite-alert"
             >
               <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
               <AlertDescription className="text-xs text-muted-foreground font-medium">
-                {capstone4LockMessage}
+                {finalPaperLockMessage}
               </AlertDescription>
             </Alert>
           )}
 
           <FinalPaperUpload
             projectId={activeProject._id}
-            isLocked={!canUnlockCapstone4}
-            lockMessage={capstone4LockMessage}
+            isLocked={!canUploadFinalManuscripts}
+            lockMessage={finalPaperLockMessage}
+            deadlines={deadlines}
+            deadlinePolicies={deadlinePolicies}
+          />
+          <ActionDoneMatrixSection
+            project={activeProject}
+            milestone="CAPSTONE_3"
+            isStudent={isStudent}
+            isFaculty={isFaculty}
+            user={user}
+            isReadOnly={isProjectArchived}
+            isModalOpen={openAdmMilestone === 'CAPSTONE_3'}
+            onModalOpenChange={(isOpen) => setOpenAdmMilestone(isOpen ? 'CAPSTONE_3' : null)}
+            onRefresh={() => {
+              refetchProject?.();
+              refetchSubs?.();
+            }}
           />
         </div>
 
@@ -779,7 +832,7 @@ export default function ProjectSubmissionsPage() {
                         id="academic-gantt-dialog-title"
                         className="text-base font-bold text-foreground"
                       >
-                        Capstone 3: Interactive Academic Gantt Chart
+                        Capstone 2: Interactive Academic Gantt Chart
                       </h3>
                       <p className="text-xs text-muted-foreground">
                         Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and
@@ -801,7 +854,7 @@ export default function ProjectSubmissionsPage() {
                 <div className="flex-1 overflow-y-auto pt-4 min-h-0">
                   <InteractiveGanttChart
                     project={activeProject}
-                    isReadOnly={!isStudent && !isFaculty}
+                    isReadOnly={isProjectArchived || (!isFaculty && !canEditDevelopmentAssets)}
                   />
                 </div>
               </div>
@@ -814,10 +867,11 @@ export default function ProjectSubmissionsPage() {
           isOpen={uploadModalConfig.isOpen}
           onClose={() => setUploadModalConfig((prev) => ({ ...prev, isOpen: false }))}
           initialChapter={uploadModalConfig.chapter}
-          isLocked={uploadModalConfig.isLocked}
+          isLocked={uploadModalConfig.isLocked || isProjectArchived}
           projectId={activeProject._id}
           latestSubmission={uploadModalConfig.submission}
-          deadlines={activeProject.deadlines}
+          deadlines={deadlines}
+          deadlinePolicies={deadlinePolicies}
           isCap2ADMApproved={isCap2ADMApproved}
           onUploadSuccess={() => {
             refetchSubs();

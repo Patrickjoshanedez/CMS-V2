@@ -14,18 +14,18 @@ description: >
 
 # Capstone Lifecycle Orchestration (CMS-V2)
 
-This skill codifies the architectural rules, data schemas, API routes, and frontend state patterns for the **5-phase BukSU Capstone Management System lifecycle**.
+This skill codifies the architectural rules, data schemas, API routes, and frontend state patterns for the BukSU workflow: Phase 0 followed by three one-semester Capstone courses across Phases 2–4. Keep persisted `workflowPhase` (0–4) distinct from legacy `capstonePhase` (course number 1–3).
 
 ---
 
-## 1. 5-Phase Progressive State Machine
+## 1. Five-Phase Progressive State Machine
 
 ```
 ┌───────────────────┬───────────────────┬───────────────────┬───────────────────┬────────────────────────┐
 │ Phase 0: Formation│ Phase 1: Proposal │ Phase 2: Ch. 1–3  │ Phase 3: System   │ Phase 4: Final Defense │
 │                   │                   │      & ADM v1     │    Dev & Gantt    │   & Auto-Archive       │
 ├───────────────────┼───────────────────┼───────────────────┼───────────────────┼────────────────────────┤
-│ • 2–4 Members     │ • 1..10 Proposals │ • Iterative Ch.   │ • Gantt Tracker   │ • Ch. 4–5 Upload       │
+│ • 1–4 Members     │ • 1..10 Proposals │ • Iterative Ch.   │ • Gantt Tracker   │ • Ch. 4–5 Upload       │
 │ • 5 Proponent     │ • Dual-Engine     │   Uploads         │ • Task Progress   │ • Blind Scoring Panel  │
 │   Roles Assigned  │   Similarity Scan │ • Faculty Document│ • Midterm ADM v2  │ • ADM Final Sign-off   │
 │ • Instructor      │ • Cascaded Thresh-│   Review Anchors  │ • Lateness Justi- │ • FRINS6 Synthesis     │
@@ -34,49 +34,54 @@ This skill codifies the architectural rules, data schemas, API routes, and front
 └───────────────────┴───────────────────┴───────────────────┴───────────────────┴────────────────────────┘
 ```
 
+Course mapping: Phase 1 is pre-course proposal review; Phase 2 is Capstone 1, Phase 3 is Capstone 2, and Phase 4 is Capstone 3. Each Capstone course occupies one academic semester.
+
 ---
 
 ## 2. Key Architectural Patterns
 
-### 2.1 Phase 0: Team Formation & 5 Standardized Roles
+### 2.1 Phase 0: Profile Setup & Team Formation
 - **Team Size**: Strict minimum of 2 and maximum of 4 members (`MAX_TEAM_MEMBERS = 4`).
+- **Profile Gate**: Student ID, section, and assigned Capstone Instructor must be complete before roster lock; degree program and academic year come from the selected section.
+- **Term Uniqueness**: A student cannot join another active capstone project in the same academic term.
 - **5 Standard Roles**:
   1. `Project Lead & Systems Analyst`
   2. `Frontend & UI/UX Developer`
   3. `Backend & Database Developer`
   4. `Full-Stack Developer`
   5. `QA & Technical Documentor`
-- **Lock Guard**: Enforces zero duplicate role assignments; locked via `POST /api/teams/:id/lock`.
-- **Committee Dispatch**: Assigned by Instructor: Adviser, Secretary, and 3 Panelists (Panelist 1 designated as Chair).
+- **Lock Guard**: Enforces roster size and complete student profiles before the team is locked.
+- **Responsibilities**: Member responsibilities are separate from institutional committee appointments.
 
 ### 2.2 Phase 1: Dynamic Title Proposals & Similarity Cascading
 - **Constraint**: Proponents submit between **1 and 10** title proposals with dynamic "Add More" / "Done" UI actions (no rigid 3-proposal minimum).
 - **Classification**: Categorized under "IT Field of Discipline" with matching SDG tags (1..17).
 - **Dynamic Threshold**: Cascaded via `usePolicyStore` from `GET /api/settings` (`maxSimilarityThreshold`).
 - **Dual-Engine Scan**: Karp-Rabin $k$-gram Winnowing footprints (exact match) + PyTorch dense MiniLM embeddings (semantic cosine similarity).
-- **Approval Gate**: Panel chair approves 1 proposal, advancing team to Capstone 2 (`capstonePhase = 2`).
+- **Approval Gate**: The Capstone Instructor reviews candidate topics and faculty committee roles are assigned. Title approval advances the overall workflow to Phase 2; it does not prove that a defense occurred.
 
 ### 2.3 Phase 2: Chapters 1–3, Document Review & Integrated ADM v1
 - **Drafting & Revisions**: Iterative upload buffers for Chapters 1-3.
+- **Sequential Review**: Adviser approval of each chapter unlocks the next; compilation, plagiarism clearance, Adviser endorsement, and defense scheduling follow Chapter 3.
 - **Inline Annotations**: Normalized coordinates `{ page, lineStart, lineEnd, selectedText }` with author badges and resolution toggles.
-- **Secretary Defense Minutes**: Secretary uploads defense minutes; suggestions auto-populate into `ActionDoneMatrix`.
+- **Secretary Defense Minutes**: Secretary records or uploads defense minutes; suggestions auto-populate into ADM v1.
 - **Student Action Fields**: Proponents enter implementation details in `actionsTaken` and `pageNumbers`.
-- **Tiered Signatories Board**:
-  - *Tier 1*: Adviser & Instructor signatures
-  - *Tier 2*: Defense Panelists signatures
-  - *Tier 3*: Committee Chair final endorsement
+- **Grade Visibility**: Panel scores remain hidden from students until the Capstone Instructor releases them.
+- **Signatories**: ADM v1 records the required Panel Chair, Panelist, Secretary, Adviser, and Instructor verification.
 - **Print Styles**: `.no-print` classes on buttons and controls to produce institutional PDF/print exports.
 
-### 2.4 Phase 3: System Development & Interactive Gantt Tracker
+### 2.4 Phase 3: Capstone 2 System Development & Interactive Gantt Tracker
 - **Gantt Engine**: 4 standard sections (Planning & Research, Architecture & Design, System Dev & Infrastructure, Testing & Optimization) with task durations and progress sliders.
-- **Late Justification Interceptor**: Intercepts upload actions when `submittedAt > deadlineAt`, requiring formal explanation and attachment for instructor approval.
-- **Capstone 3 ADM v2**: Tracks prototype and midterm defense feedback.
+- **Adviser Gate**: The assigned Adviser approves the schedule before students log daily progress.
+- **Weekly Progress**: Check-ins use approved schedule deadlines; overdue entries require Adviser review and Instructor waiver.
+- **Prototype Clearance**: GitHub and media evidence plus Adviser clearance gate system defense scheduling.
+- **ADM v2**: Tracks prototype defense feedback; grades remain hidden until Instructor release.
 
-### 2.5 Phase 4: Final Defense, Blind Shield & Auto-Archival
-- **Full Manuscript**: Chapters 1-5 combined upload with certificates.
-- **Blind Evaluation Shield**: Panelists independently score rubrics; aggregate scores are masked on student dashboards until chair deliberations conclude.
-- **FRINS6 Compliance Synthesis**: Server synthesizes approved manuscript, rubric scores, plagiarism certificate, and cryptographically signed ADM.
-- **Auto-Archiving Pipeline**: Chair final sign-off atomically sets `isArchived = true`, `projectStatus = 'archived'`, populates public **Research Archive**, streams approved PDF, and formats APA 7th / IEEE citations.
+### 2.5 Phase 4: Capstone 3 Final Defense & Archival
+- **Sequential Review**: Chapters 4 and 5 require Adviser approval before final manuscript compilation.
+- **Dual Deliverables**: Compile the complete academic manuscript and condensed journal paper; both must pass plagiarism checks before defense clearance.
+- **Grade Visibility**: Final panel scores remain hidden until the Capstone Instructor releases them.
+- **ADM v3 & Archive**: Complete required signatures and approval sheet before archive indexing and completion certificate generation.
 
 ### 2.6 Concurrency, Sync & Atomic Patching
 - **Granular Endpoint**: `PATCH /api/adm/:projectId/rows/:itemId` targets only `{ "rows.$.suggestions": val }` or `{ "rows.$.actionsTaken": val }`.

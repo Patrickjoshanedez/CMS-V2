@@ -1,0 +1,20 @@
+import { createRequire } from 'node:module';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { createHash } from 'node:crypto';
+
+if (process.env.ISOLATED_UPLOAD_BENCHMARK !== 'true') throw new Error('Isolated benchmark opt-in required.');
+const require = createRequire(new URL('../../server/package.json', import.meta.url));
+const AdmZip = require('adm-zip');
+const zip = new AdmZip();
+zip.addFile('[Content_Types].xml', Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'));
+zip.addFile('_rels/.rels', Buffer.from('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'));
+const paragraphs = Array.from({ length: 30 }, (_, i) => `<w:p><w:r><w:t>Controlled upload fixture paragraph ${i + 1}. This is deterministic test content for acceptance and storage verification, not a research manuscript or evidence of plagiarism detection.</w:t></w:r></w:p>`).join('');
+zip.addFile('word/document.xml', Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Chapter 1: Isolated Upload Benchmark</w:t></w:r></w:p>${paragraphs}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/></w:sectPr></w:body></w:document>`));
+const bytes = zip.toBuffer();
+const output = '/app/scratch/review-upload/benchmark-upload.docx';
+await mkdir(dirname(output), { recursive: true });
+await writeFile(output, bytes);
+const metadata = { path: output, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), parts: zip.getEntries().map((entry) => entry.entryName) };
+await writeFile('/app/scratch/review-upload/fixture.json', JSON.stringify(metadata, null, 2));
+console.log(JSON.stringify(metadata));

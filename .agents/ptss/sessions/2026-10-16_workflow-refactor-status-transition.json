@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-10-16_workflow-refactor-status-transition",
+  "date": "2026-10-16",
+  "status": "active-partial-refactor",
+  "task_summary": "Corrected phase advancement and submission compatibility so approved seeded projects move to the matching capstone stage and active project status, and stale proposal_approved records can submit only when the phase is already unlocked. The larger requested workflow refactor is not fully closed.",
+  "changes": [
+    "Updated ADM-driven phase progression and instructor-driven phase progression to set stage=capstone_2 or stage=capstone_3 and projectStatus=active.",
+    "Added a phase-aware submission status guard so legacy proposal_approved projects can submit in an unlocked phase while archived projects remain blocked.",
+    "Added targeted assertions for the controller and released-grade service transition paths.",
+    "Hardened the Evaluation.find test stub to support both direct defenseType and $in query shapes."
+  ],
+  "verification": [
+    "Focused ADM progression unit file passed 8/8 with database calls mocked and without the MongoMemoryServer global setup.",
+    "Scoped ESLint passed with no errors.",
+    "node --check passed for the changed controller, service, and test files.",
+    "Endpoint parity passed: 225 server routes, 205 client endpoints, 0 unmatched.",
+    "Agentic checks passed 60/60; workspace evidence checks passed 34/34; governance validation and workspace guardrail passed."
+  ],
+  "live_state": "Re-inspected the signed-in synthetic student project. The UI still shows Capstone 3 active; no API or database mutations were made in this correction turn, so the previously seeded project record remains unchanged.",
+  "remaining": [
+    "Re-run the seeded Chapter 4 submission after the backend transition fix is active and verify persisted status through the official UI/API.",
+    "Complete or explicitly scope remaining weekly Gantt check-in late-justification and adviser/instructor waiver workflow, automated QR completion certificate generation, and final archive vector indexing.",
+    "Finish the authorized synthetic lifecycle only when application prerequisites and test artifacts are available; do not bypass gates with raw database writes."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

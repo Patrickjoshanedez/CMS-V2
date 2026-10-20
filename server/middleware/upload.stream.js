@@ -22,9 +22,39 @@ import env from '../config/env.js';
 export const streamUploadMiddleware = (options = {}) => {
   const maxFileSizeBytes = options.maxFileSize || 50 * 1024 * 1024; // 50MB hard boundary
 
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.is('multipart/form-data')) {
       return next();
+    }
+
+    // Pre-authorization gate: prevent unauthorized students from streaming bytes to S3/MinIO
+    if (req.params?.projectId && req.user?.role === 'student') {
+      try {
+        const Project = (await import('../modules/projects/project.model.js')).default;
+        const Team = (await import('../modules/teams/team.model.js')).default;
+        const project = await Project.findById(req.params.projectId)
+          .select('teamId memberRoleAssignments')
+          .lean();
+        if (project) {
+          const userIdStr = String(req.user._id || req.user.id || '');
+          const team = project.teamId
+            ? await Team.findById(project.teamId).select('members leaderId').lean()
+            : null;
+          const isMember =
+            project.memberRoleAssignments?.some((m) => String(m.userId) === userIdStr) ||
+            team?.members?.some((m) => String(m?._id || m) === userIdStr) ||
+            String(team?.leaderId?._id || team?.leaderId || '') === userIdStr;
+          if (!isMember) {
+            const forbiddenErr = new Error(
+              'You do not have permission to upload files to this project.',
+            );
+            forbiddenErr.statusCode = 403;
+            return next(forbiddenErr);
+          }
+        }
+      } catch (err) {
+        return next(err);
+      }
     }
 
     let busboy;
@@ -68,6 +98,7 @@ export const streamUploadMiddleware = (options = {}) => {
       });
 
       let firstChunk = true;
+      let verifiedMime = 'application/octet-stream';
 
       fileStream.on('data', (chunk) => {
         bytesUploaded += chunk.length;
@@ -97,6 +128,43 @@ export const streamUploadMiddleware = (options = {}) => {
                 // Ignore abort error
               }
             }
+          } else {
+            verifiedMime = isPdf
+              ? 'application/pdf'
+              : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+            activeUpload = new Upload({
+              client: s3Client,
+              params: {
+                Bucket: env.S3_BUCKET,
+                Key: storageKey,
+                Body: passThrough,
+                ContentType: verifiedMime,
+              },
+              queueSize: 4,
+              partSize: 5 * 1024 * 1024,
+              leavePartsOnError: false,
+            });
+
+            uploadPromise = activeUpload
+              .done()
+              .then((result) => ({
+                key: storageKey,
+                storageKey,
+                location:
+                  result.Location || `${env.S3_ENDPOINT || ''}/${env.S3_BUCKET}/${storageKey}`,
+                filename: sanitizedFilename,
+                originalname: filename,
+                mimeType: verifiedMime,
+                mimetype: verifiedMime,
+                size: bytesUploaded,
+              }))
+              .catch((err) => {
+                if (streamValidationFailed) {
+                  return null;
+                }
+                throw err;
+              });
           }
         }
       });
@@ -120,38 +188,6 @@ export const streamUploadMiddleware = (options = {}) => {
       });
 
       fileStream.pipe(passThrough);
-
-      activeUpload = new Upload({
-        client: s3Client,
-        params: {
-          Bucket: env.S3_BUCKET,
-          Key: storageKey,
-          Body: passThrough,
-          ContentType: mimeType || 'application/octet-stream',
-        },
-        queueSize: 4,
-        partSize: 5 * 1024 * 1024,
-        leavePartsOnError: false,
-      });
-
-      uploadPromise = activeUpload
-        .done()
-        .then((result) => ({
-          key: storageKey,
-          storageKey,
-          location: result.Location || `${env.S3_ENDPOINT || ''}/${env.S3_BUCKET}/${storageKey}`,
-          filename: sanitizedFilename,
-          originalname: filename,
-          mimeType,
-          mimetype: mimeType,
-          size: bytesUploaded,
-        }))
-        .catch((err) => {
-          if (streamValidationFailed) {
-            return null;
-          }
-          throw err;
-        });
     });
 
     busboy.on('error', (err) => {

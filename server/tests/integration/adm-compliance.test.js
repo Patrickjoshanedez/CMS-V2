@@ -154,7 +154,7 @@ describe('ADM Compliance & Committee Gap Integration Suite', () => {
       expect(patchRes.body.data.admStatus).toBe('under_panel_review');
     });
 
-    it('records digital signature and auto-archives project when Panel Chair signs off final row (FR-4.5)', async () => {
+    it('records a Panel Chair row signature without archiving before final ADM clearance', async () => {
       project.actionDoneMatrix = [
         {
           panelName: 'Louie Jay Labastida',
@@ -182,13 +182,13 @@ describe('ADM Compliance & Committee Gap Integration Suite', () => {
       expect(signRes.body.success).toBe(true);
       expect(signRes.body.data.item.signatures.length).toBe(1);
       expect(signRes.body.data.item.signatures[0].name).toContain('Panelist');
-      expect(signRes.body.data.projectStatus).toBe('archived');
-      expect(signRes.body.data.isArchived).toBe(true);
+      expect(signRes.body.data.projectStatus).not.toBe('archived');
+      expect(signRes.body.data.isArchived).toBe(false);
 
       const archivedProject = await Project.findById(project._id);
-      expect(archivedProject.projectStatus).toBe('archived');
-      expect(archivedProject.isArchived).toBe(true);
-      expect(archivedProject.admStatus).toBe('approved');
+      expect(archivedProject.projectStatus).not.toBe('archived');
+      expect(archivedProject.isArchived).toBe(false);
+      expect(archivedProject.admStatus).toBe('under_panel_review');
     });
   });
 
@@ -349,6 +349,56 @@ describe('ADM Compliance & Committee Gap Integration Suite', () => {
       expect(response.body.error?.message).toContain(
         'Defense results and grading rubrics are locked',
       );
+    });
+
+    it('does not count the assigned secretary as a panel evaluator', async () => {
+      const panelist2 = await createAuthenticatedUserWithRole('panelist', {
+        email: 'adm-p2-grade@test.com',
+      });
+      const panelist3 = await createAuthenticatedUserWithRole('panelist', {
+        email: 'adm-p3-grade@test.com',
+      });
+      const secretary = await createAuthenticatedUserWithRole('faculty', {
+        email: 'adm-sec-grade@test.com',
+      });
+      const assignedPanelists = [panelist._id, panelist2.user._id, panelist3.user._id];
+
+      project.panelistIds = assignedPanelists;
+      project.secretaryId = secretary.user._id;
+      project.panelists = [
+        { userId: assignedPanelists[0], role: 'chair' },
+        { userId: assignedPanelists[1], role: 'member' },
+        { userId: assignedPanelists[2], role: 'member' },
+        { userId: secretary.user._id, role: 'secretary' },
+      ];
+      await project.save();
+
+      const createReleasedEvaluation = (panelistId) => ({
+        projectId: project._id,
+        panelistId,
+        defenseType: 'proposal',
+        stage: 'proposal',
+        status: EVALUATION_STATUSES.RELEASED,
+        criteria: [{ name: 'Synthetic test criterion', maxScore: 100, score: 96 }],
+        totalScore: 96,
+        maxTotalScore: 100,
+        decision: 'passed',
+      });
+
+      await Evaluation.create(assignedPanelists.slice(0, 2).map(createReleasedEvaluation));
+      const incompleteResponse = await studentAgent.get(
+        `/api/evaluations/project/${project._id}/consolidated-grades?defenseType=proposal`,
+      );
+      expect(incompleteResponse.status).toBe(403);
+
+      await Evaluation.create(createReleasedEvaluation(assignedPanelists[2]));
+      const completeResponse = await studentAgent.get(
+        `/api/evaluations/project/${project._id}/consolidated-grades?defenseType=proposal`,
+      );
+
+      expect(completeResponse.status).toBe(200);
+      expect(completeResponse.body.status).toBe('grades_released');
+      expect(completeResponse.body.data.evaluations).toHaveLength(3);
     });
 
     it('releases grades to student once all panel evaluations are submitted and released', async () => {

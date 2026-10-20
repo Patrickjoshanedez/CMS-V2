@@ -81,6 +81,17 @@ const mockPdfSubmission = {
   createdAt: '2026-09-08T11:00:00.000Z',
 };
 
+const mockTextSubmission = {
+  _id: 'sub-text-001',
+  chapter: 3,
+  version: 1,
+  fileName: 'Chapter3_TestFixture.txt',
+  fileType: 'text/plain',
+  fileSize: 46,
+  status: 'pending',
+  createdAt: '2026-09-08T12:00:00.000Z',
+};
+
 describe('SophisticatedDocumentViewer', () => {
   let container;
   let root;
@@ -137,6 +148,54 @@ describe('SophisticatedDocumentViewer', () => {
     expect(el.textContent).toContain('Chapter 1: Problem Definition & Objectives');
     expect(el.textContent).toContain('AgriPulse_Chapter1_Proposal.docx');
     expect(el.textContent).toContain('v2');
+  });
+
+  it('previews TXT manuscripts in the canonical document viewer', async () => {
+    api.get.mockResolvedValueOnce({
+      data: new Blob(['Synthetic manuscript text is readable.'], { type: 'text/plain' }),
+      headers: { 'content-type': 'text/plain' },
+    });
+    const el = await renderViewer({ submission: mockTextSubmission });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(el.querySelector('[data-testid="text-document-preview"]')).not.toBeNull();
+    expect(el.textContent).toContain('Synthetic manuscript text is readable.');
+    expect(el.textContent).not.toContain('Document Ready');
+  });
+
+  it('shows the full identity bar for archived text manuscripts when requested', async () => {
+    const fileBlob = new Blob(['Archived manuscript text.'], { type: 'text/plain' });
+    const el = await renderViewer({
+      submission: {
+        _id: 'archive-document',
+        isArchive: true,
+        fileName: 'synthetic-manuscript.txt',
+        fileType: 'text/plain',
+        fileSize: 26,
+        version: 1,
+        originalityScore: 100,
+      },
+      fileBlob,
+      fileName: 'synthetic-manuscript.txt',
+      chapterTitle: 'Academic Paper',
+      embedded: true,
+      isArchive: true,
+      showArchiveIdentity: true,
+      isSubmission: false,
+      showRevisionDiff: false,
+      showComments: false,
+      canComment: false,
+    });
+
+    expect(el.textContent).toContain('Academic Paper');
+    expect(el.textContent).toContain('v1');
+    expect(el.textContent).toContain('Text Document');
+    expect(el.textContent).toContain('100% Original');
+    expect(el.textContent).toContain('synthetic-manuscript.txt');
+    expect(el.textContent).toContain('26 B');
   });
 
   it('calls onOpenChange when close button is clicked', async () => {

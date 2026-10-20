@@ -23,9 +23,9 @@ This skill provides deterministic patterns for fast, accurate context discovery 
 To maximize coding velocity and prevent context compaction:
 
 1. **Index-First Discovery**: Always query repository maps first:
-   - [FILES_INDEX.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/FILES_INDEX.md) for module architectures and endpoint summaries.
-   - [package.json](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/package.json) for workspace scripts, dependencies, and test flags.
-   - [shared/src/](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/shared/) for canonical role enums (`ROLES`, `PANEL_ROLES`, `CAPSTONE_PHASES`).
+   - [FILES_INDEX.md](file:///c:/Users/patri/dev/CMS-V2/FILES_INDEX.md) for module architectures and endpoint summaries.
+   - [package.json](file:///c:/Users/patri/dev/CMS-V2/package.json) for workspace scripts, dependencies, and test flags.
+   - [shared/src/](file:///c:/Users/patri/dev/CMS-V2/shared/) for canonical role enums (`ROLES`, `PANEL_ROLES`, `CAPSTONE_PHASES`).
 
 2. **Bounded Line-Slice Views**:
    - Never dump entire files (>100 lines) into the context window.

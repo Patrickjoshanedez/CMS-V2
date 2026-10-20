@@ -1,14 +1,15 @@
 import mongoose from 'mongoose';
 import softDeletePlugin from '../../middleware/softDelete.js';
+import { ACADEMIC_TERM_VALUES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
-const STANDARD_CAPSTONE_ROLES = [
+export const STANDARD_CAPSTONE_ROLES = Object.freeze([
   'Project Lead & Systems Analyst',
   'Frontend & UI/UX Developer',
   'Backend & Database Developer',
   'Full-Stack Developer',
   'QA & Technical Documentor',
-];
+]);
 
 const LEGACY_TEAM_ROLES = [
   'Programmer',
@@ -67,6 +68,11 @@ const teamSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Academic year is required'],
       match: [/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY (e.g., 2025-2026)'],
+    },
+    academicTerm: {
+      type: String,
+      enum: [...ACADEMIC_TERM_VALUES, null],
+      default: null,
     },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -168,6 +174,7 @@ teamSchema.pre('validate', function () {
 /** Maximum number of members allowed per team */
 teamSchema.statics.MAX_MEMBERS = MAX_TEAM_MEMBERS;
 teamSchema.statics.MEMBER_ROLES = TEAM_MEMBER_ROLES;
+teamSchema.statics.STANDARD_CAPSTONE_ROLES = STANDARD_CAPSTONE_ROLES;
 
 teamSchema.plugin(softDeletePlugin);
 

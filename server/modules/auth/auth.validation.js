@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { STRICT_EMAIL_REGEX, isBuksuInstitutionalEmail } from '@cms/shared';
+import { STRICT_EMAIL_REGEX, isBuksuStudentEmail } from '@cms/shared';
 
 /**
  * Zod validation schemas for all auth endpoints.
@@ -28,9 +28,8 @@ export const registerSchema = z.object({
     .trim()
     .email('Please provide a valid email address')
     .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
-    .refine((email) => process.env.NODE_ENV === 'test' || isBuksuInstitutionalEmail(email), {
-      message:
-        'Only BukSU institutional email accounts (@buksu.edu.ph or @student.buksu.edu.ph) are permitted.',
+    .refine((email) => process.env.NODE_ENV === 'test' || isBuksuStudentEmail(email), {
+      message: 'Student registration requires a @student.buksu.edu.ph email address.',
     })
     .toLowerCase(),
   password: z

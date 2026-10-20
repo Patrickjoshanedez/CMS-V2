@@ -1121,7 +1121,7 @@ export default function ExistingCapstoneUploadPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto min-w-0 max-w-5xl space-y-6 lg:space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -1139,8 +1139,7 @@ export default function ExistingCapstoneUploadPage() {
               Archive Capstone Documents
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Upload the Academic Paper, Academic Journal, or both. Auto-fill metadata using the OCR
-              extraction model.
+              Upload a paper, a journal, or both. Extract document details to help fill the form.
             </p>
           </div>
 
@@ -1148,7 +1147,7 @@ export default function ExistingCapstoneUploadPage() {
             variant="outline"
             size="sm"
             onClick={() => navigate('/archive')}
-            className="gap-2 shrink-0 self-start sm:self-auto"
+            className="min-h-11 gap-2 shrink-0 self-start sm:self-auto"
           >
             <Archive className="h-4 w-4" />
             Browse Archive
@@ -1157,10 +1156,10 @@ export default function ExistingCapstoneUploadPage() {
 
         <Card className="shadow-lg">
           <CardHeader className="border-b pb-6">
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Sparkles className="h-6 w-6 text-primary" /> OCR Auto-Fill Capstone Upload
+            <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+              <Sparkles className="h-5 w-5 text-primary" /> Document Bundle
             </CardTitle>
-            <CardDescription className="mt-2 text-base">
+            <CardDescription className="mt-2 text-sm">
               Upload the <strong>Academic Paper</strong> (full manuscript),{' '}
               <strong>Academic Journal</strong> (condensed publication version), or both. Configure
               which document to scan for OCR metadata extraction and which to scan for plagiarism
@@ -1168,14 +1167,11 @@ export default function ExistingCapstoneUploadPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-10 p-6 md:p-8">
+          <CardContent className="space-y-8 p-4 sm:p-6 xl:p-8">
             <Alert variant="info" className="border-primary/20 bg-primary/5">
               <Info className="h-4 w-4 text-primary" />
               <AlertDescription className="text-sm">
-                <strong>Flexible Archival Ingestion:</strong> There is no minimum upload
-                requirement—you may upload only the Academic Paper, only the Academic Journal, or
-                both simultaneously. Archived projects allow viewers to switch between both
-                documents on demand.
+                Upload at least one PDF: the full academic paper, the condensed journal, or both.
               </AlertDescription>
             </Alert>
 
@@ -1185,11 +1181,11 @@ export default function ExistingCapstoneUploadPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-2">
                   <h3 className="text-lg font-semibold text-foreground">1. Upload Bundle Files</h3>
                   <span className="text-xs text-muted-foreground">
-                    At least one document required (no minimum beyond 1)
+                    At least one PDF required
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {/* Academic Paper Card */}
                   <div className="rounded-xl border-2 border-dashed border-border bg-muted/40 p-5 flex flex-col justify-between transition-colors hover:border-primary/40 hover:bg-muted/60">
                     <div className="space-y-2">
@@ -1373,7 +1369,7 @@ export default function ExistingCapstoneUploadPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {/* OCR Metadata Source Selector Card */}
                   <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm">
                     <div className="flex items-center gap-2">
@@ -1392,7 +1388,7 @@ export default function ExistingCapstoneUploadPage() {
                       <Label className="text-xs font-medium text-foreground">
                         Extraction Source Document
                       </Label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Button
                           type="button"
                           variant={metadataTarget === 'academic_journal' ? 'default' : 'outline'}
@@ -1528,7 +1524,7 @@ export default function ExistingCapstoneUploadPage() {
                       <Label className="text-xs font-medium text-foreground">
                         Plagiarism Target Document
                       </Label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Button
                           type="button"
                           variant={plagiarismTarget === 'academic_paper' ? 'default' : 'outline'}

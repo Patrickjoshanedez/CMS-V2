@@ -1,0 +1,34 @@
+{
+  "session_id": "2026-10-16_e2e-synthetic-archive-run",
+  "date": "2026-10-16",
+  "status": "active-partial-e2e-blocked-at-project-status-transition",
+  "task_summary": "Executed the authorized synthetic CMS lifecycle workflow with seeded accounts. Capstone 2 ADM v1 is ratified, but Chapter 4 upload is rejected because persisted projectStatus remains proposal_approved while the UI says Capstone 3 active; final defense and archival remain blocked.",
+  "changes": [
+    "Used the seeded student, adviser, panelist, and instructor accounts through the local CMS UI.",
+    "Verified the project workspace reports Capstone 3 active and 100% progression, while the student submissions page reports 3/5 approved and Chapter 4/5 Not submitted.",
+    "Selected the 575-byte synthetic Chapter 4 TXT fixture with explicit test-only remarks. The form showed 100% upload progress, returned to idle without a visible toast, and remained unsubmitted after closing and refreshing.",
+    "Confirmed adviser and panelist views show zero defense evaluations, Gantt roadmap has no sections or tasks, no demo/prototypes exist, Chapter 4/5 are not started, and ADM v2 has 0 items.",
+    "Read-only project state and service guard inspection confirmed capstonePhase=3, stage=capstone_1, projectStatus=proposal_approved; chapter uploads require an active/pending/revision status.",
+    "Inspected student and instructor UI for a supported status transition; no stream-routing action is exposed. The official backend stream-routing route is present but has no frontend caller in the inspected source.",
+    "Responsive checks at 375px, 768px, and 1440px showed no horizontal page overflow.",
+    "Made no application-code edits or direct database changes; did not submit defense scores, sign ADM v2, or archive without the required materials."
+  ],
+  "findings_needs_review": [
+    "The read-only project API exposes capstonePhase=3, stage=capstone_1, and projectStatus=proposal_approved. The upload guard rejects project statuses outside active, pending-for-submission, pending-in-review, or revision-needed, so PROJECT_NOT_ACTIVE is the likely cause; the actual runtime response remains uncaptured.",
+    "The student upload page provides no visible toast/error after the request returns to idle. The official stream-routing API can set the project active, but the inspected student/instructor UI has no control for it.",
+    "The project has a synthetic overdue defense date and a blank Gantt/prototype/evaluation state; no final archival gate is satisfied."
+  ],
+  "remaining": [
+    "Expose or identify the supported UI transition that resolves proposal_approved versus Phase 3 active, capture the actual upload response, then retry Chapter 4 only when the blocker is clear.",
+    "Submit and review clearly labeled synthetic Chapter 4 and Chapter 5 materials, run progress/final defense workflows, complete ADM v2, and archive only after the application prerequisites are met.",
+    "Verify whether a seeded Dean/admin identity exists before any final degree-clearance step."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "documents",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

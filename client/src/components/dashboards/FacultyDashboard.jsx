@@ -95,8 +95,8 @@ function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
         tones[tone] || tones.default,
       )}
     >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+        <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/80 shadow-2xs">
@@ -113,11 +113,11 @@ function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
 }
 
 // List card container with balanced padding and custom scrollbar
-function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem }) {
+function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem, action }) {
   return (
     <Card className="flex flex-col rounded-xl border border-border/60 bg-card shadow-xs">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/60 bg-muted/20 px-6 py-4">
-        <div className="flex items-center gap-2.5">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
           {Icon && (
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Icon className="h-4 w-4" />
@@ -130,8 +130,9 @@ function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem }
             {items.length}
           </Badge>
         )}
+        {action}
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto p-4 max-h-[380px] custom-scrollbar">
+      <CardContent className="min-w-0 flex-1 p-4 xl:max-h-[480px] xl:overflow-y-auto custom-scrollbar">
         {items.length === 0 ? (
           <div className="flex px-4 py-8 text-xs text-muted-foreground justify-center text-center">
             {emptyState}
@@ -318,18 +319,18 @@ export default function FacultyDashboard({ user }) {
   }
 
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="min-w-0 space-y-6 lg:space-y-8">
       {/* Top Header & Tabs - Linear-Grade Command Bar */}
-      <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Faculty Overview
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage your handled teams and committee roles without friction.
+            Review assigned teams, submissions, and committee work.
           </p>
         </div>
-        <div className="flex shrink-0 rounded-lg border border-border/60 bg-muted/30 p-1 gap-1">
+        <div role="group" aria-label="Committee role" className="grid grid-cols-3 rounded-lg border border-border/60 bg-muted/30 p-1 gap-1 xl:shrink-0">
           {FACULTY_VIEW_TABS.map((tab) => {
             const isActive = mode === tab.mode;
             return (
@@ -337,8 +338,9 @@ export default function FacultyDashboard({ user }) {
                 key={tab.mode}
                 type="button"
                 onClick={() => setMode(tab.mode)}
+                aria-pressed={isActive}
                 className={cn(
-                  'rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer',
+                  'min-h-11 rounded-md px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-semibold transition-colors cursor-pointer',
                   isActive
                     ? 'bg-background shadow-xs text-foreground ring-1 ring-border/80'
                     : 'text-muted-foreground hover:text-foreground',
@@ -354,7 +356,7 @@ export default function FacultyDashboard({ user }) {
       {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
       <div
         className={cn(
-          'flex items-center justify-between rounded-xl border p-4 shadow-xs transition-all',
+          'flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 shadow-xs transition-colors',
           isPeriodLocked
             ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
             : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300',
@@ -378,7 +380,7 @@ export default function FacultyDashboard({ user }) {
             <span className="text-[11px] opacity-85">
               {isPeriodLocked
                 ? 'Modifications and team roster changes are restricted by faculty administration.'
-                : 'Students may form groups (2-4 members) and submit manuscript deliverables for panel evaluation.'}
+                : 'Students may form groups (1-4 members) and submit manuscript deliverables for panel evaluation.'}
             </span>
           </div>
         </div>
@@ -393,7 +395,7 @@ export default function FacultyDashboard({ user }) {
       {mode === VIEW_MODES.ADVISER && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Adviser - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
             <MicroStat
               icon={Users}
               label="Handled Teams"
@@ -424,8 +426,8 @@ export default function FacultyDashboard({ user }) {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-            <div className="lg:col-span-7 space-y-6">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 items-start">
+            <div className="min-w-0 xl:col-span-7 space-y-6">
               <DenseCardList
                 title="Handled Teams (Adviser)"
                 icon={Users}
@@ -442,12 +444,12 @@ export default function FacultyDashboard({ user }) {
                       }`}
                       onClick={() => setSelectedTeam(p)}
                     >
-                      <div className="flex flex-row items-center justify-between gap-3">
+                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-semibold text-foreground">
+                          <span className="break-words text-sm font-semibold text-foreground">
                             {p.teamName}
                           </span>
-                          <span className="truncate text-xs text-muted-foreground">
+                          <span className="break-words text-xs leading-relaxed text-muted-foreground">
                             {p.title || 'Untitled Project'}
                           </span>
                         </div>
@@ -502,6 +504,18 @@ export default function FacultyDashboard({ user }) {
 
               <DenseCardList
                 title="Pending Reviews"
+                action={
+                  user?.role !== ROLES.PANELIST ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-11"
+                      onClick={() => navigate('/adviser/team-review')}
+                    >
+                      View review queue
+                    </Button>
+                  ) : null
+                }
                 icon={ClipboardCheck}
                 items={pendingReviews}
                 emptyState="No pending reviews in queue."
@@ -561,7 +575,7 @@ export default function FacultyDashboard({ user }) {
                         </Badge>
                         <Button
                           size="sm"
-                          className="h-7 px-2.5 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                          className="min-h-11 px-3 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(reviewDest, {
@@ -576,7 +590,7 @@ export default function FacultyDashboard({ user }) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            className="min-h-11 px-3 text-xs text-muted-foreground hover:text-foreground"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/projects/${r.projectId}?tab=capstone_2`);
@@ -599,8 +613,8 @@ export default function FacultyDashboard({ user }) {
                 selectedTeam ||
                 assignedProjects[0];
               return (
-                <div className="lg:col-span-5 rounded-xl border border-border/60 bg-card p-5 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="min-w-0 xl:col-span-5 rounded-xl border border-border/60 bg-card p-5 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                       <Users className="h-4 w-4 text-primary" />
                       Team Roster Details
@@ -788,7 +802,7 @@ export default function FacultyDashboard({ user }) {
                       <div className="pt-2 flex flex-col gap-2">
                         <Button
                           size="sm"
-                          className="w-full gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+                          className="min-h-11 w-full gap-2 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
                           onClick={() =>
                             navigate(`/project/submissions?mode=view&projectId=${activeTeam._id}`)
                           }
@@ -799,7 +813,7 @@ export default function FacultyDashboard({ user }) {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full gap-1.5 text-xs text-foreground hover:bg-muted/30 font-semibold"
+                          className="min-h-11 w-full gap-2 text-sm text-foreground hover:bg-muted/30 font-semibold"
                           onClick={() => navigate(`/projects/${activeTeam._id}?tab=capstone_2`)}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
@@ -824,7 +838,7 @@ export default function FacultyDashboard({ user }) {
       {mode === VIEW_MODES.PANELIST && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Panelist - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
             <MicroStat
               icon={Users}
               label="Handled Panels"
@@ -851,16 +865,16 @@ export default function FacultyDashboard({ user }) {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
             <DenseCardList
               title="Handled Teams (Panelist)"
               icon={Users}
               items={panelTopics.assigned}
               emptyState="You have not been assigned to any panels."
               renderItem={(topic) => (
-                <div className="flex flex-row items-center justify-between gap-3 p-3.5 rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
+                <div className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">
+                    <span className="break-words text-sm font-semibold">
                       {topic.title || 'Untitled'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground mt-0.5">
@@ -882,9 +896,9 @@ export default function FacultyDashboard({ user }) {
               items={panelTopics.available}
               emptyState={panelistLoading ? 'Loading...' : 'No new topics available to select.'}
               renderItem={(topic) => (
-                <div className="flex flex-row items-center justify-between gap-3 p-3.5 rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
+                <div className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">
+                    <span className="break-words text-sm font-semibold">
                       {topic.title || 'Untitled'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground mt-0.5">
@@ -894,7 +908,7 @@ export default function FacultyDashboard({ user }) {
                   <button
                     onClick={() => selectTopicMutation.mutate(topic._id)}
                     disabled={selectTopicMutation.isPending}
-                    className="flex shrink-0 items-center justify-center rounded-md bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
+                    className="flex min-h-11 shrink-0 items-center justify-center rounded-md bg-primary/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
                   >
                     {selectTopicMutation.isPending ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -912,7 +926,7 @@ export default function FacultyDashboard({ user }) {
       {mode === VIEW_MODES.SECRETARY && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Secretary - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
             <MicroStat
               icon={Users}
               label="Handled Teams (Secretary)"
@@ -940,8 +954,8 @@ export default function FacultyDashboard({ user }) {
           </div>
 
           {/* Secretary Workspace Split: Teams on Left (7 cols), Studio Banner on Right (5 cols) */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-            <div className="lg:col-span-7">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 items-start">
+            <div className="min-w-0 xl:col-span-7">
               <DenseCardList
                 title="Secretary Assigned Capstone Teams"
                 icon={FileSignature}
@@ -995,7 +1009,7 @@ export default function FacultyDashboard({ user }) {
                         )}
                         <button
                           onClick={() => navigate(`/secretary-review?projectId=${project._id}`)}
-                          className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer shadow-xs"
+                          className="flex min-h-11 items-center gap-1 rounded-md bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer shadow-xs"
                         >
                           Review Studio
                           <ArrowUpRight className="h-3 w-3" />
@@ -1008,22 +1022,18 @@ export default function FacultyDashboard({ user }) {
             </div>
 
             {/* Secretary Governance Guide & Quick Actions Card */}
-            <div className="lg:col-span-5 rounded-xl border border-border/60 bg-card p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <div className="min-w-0 xl:col-span-5 rounded-xl border border-border/60 bg-card p-5 shadow-xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
                 <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
                   <FileSignature className="h-4 w-4 text-primary" />
-                  Secretary Studio
+                  Secretary Workflow
                 </h3>
-                <Badge variant="secondary" className="text-[10px] uppercase font-mono">
-                  ASDLC Gate
-                </Badge>
               </div>
 
               <div className="space-y-3 text-xs text-muted-foreground">
                 <p className="leading-relaxed">
                   As the <strong className="text-foreground">Committee Secretary</strong>, you
-                  manage the hearing defense minutes and the Action Done Matrix (ADM) compliance
-                  pipeline:
+                  record defense minutes and verify the Action Done Matrix (ADM):
                 </p>
 
                 <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-[11px]">

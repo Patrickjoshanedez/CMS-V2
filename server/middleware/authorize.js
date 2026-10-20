@@ -275,11 +275,24 @@ export const verifyAdmSignatoryRole = () => {
         return next(new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND'));
       }
 
-      const milestone = req.body?.milestone || 'CAPSTONE_1';
-      const targetMilestone = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone;
+      const requestedMilestone = req.body?.milestone;
+      let targetMilestone;
+      if (
+        requestedMilestone &&
+        ['CAPSTONE_1', 'CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'].includes(requestedMilestone)
+      ) {
+        targetMilestone = requestedMilestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : requestedMilestone;
+      } else {
+        const phase = Number(project?.capstonePhase ?? 1);
+        if (phase >= 3) targetMilestone = 'CAPSTONE_3';
+        else if (phase === 2) targetMilestone = 'CAPSTONE_2';
+        else targetMilestone = 'CAPSTONE_1';
+      }
+
       const milestoneSig = project.admSignaturesByMilestone?.[targetMilestone];
       const isSecretaryEndorsed = Boolean(
-        milestoneSig?.secretary?.endorsed || project.admSignatures?.secretary?.endorsed,
+        milestoneSig?.secretary?.endorsed ??
+          (targetMilestone === 'CAPSTONE_1' ? project.admSignatures?.secretary?.endorsed : false),
       );
 
       // 1. Capstone Adviser

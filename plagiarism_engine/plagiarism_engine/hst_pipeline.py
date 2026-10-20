@@ -234,6 +234,35 @@ class HybridSourceTracker:
                 min_span=self.cfg.MIN_MATCH_SPAN,
             )
 
+            # Preserve semantic-only locations even when another part of the
+            # document already has an exact Winnowing match.
+            semantic_spans: list[tuple[int, int, float, str]] = []
+            candidate_vectors = self.store.get_document_embeddings(candidate_id)
+            source_segments = segment_paragraphs(
+                clean_text(candidate_text), min_words=self.cfg.SEGMENT_MIN_WORDS
+            )
+            if (
+                isinstance(candidate_vectors, np.ndarray)
+                and candidate_vectors.ndim == 2
+                and len(candidate_vectors) > 0
+                and len(candidate_vectors) == len(source_segments)
+            ):
+                similarity_matrix = np.clip(np.dot(dense_vectors, candidate_vectors.T), 0.0, 1.0)
+                source_indices = np.argmax(similarity_matrix, axis=1)
+                segment_scores = similarity_matrix[np.arange(len(segments)), source_indices]
+                for segment, segment_score, source_index in zip(segments, segment_scores, source_indices):
+                    overlaps_exact_span = any(
+                        segment.char_start < end and segment.char_end > start
+                        for start, end in matched_spans
+                    )
+                    if segment_score >= self.cfg.HST_SEMANTIC_SPAN_THRESHOLD and not overlaps_exact_span:
+                        semantic_spans.append((
+                            segment.char_start,
+                            segment.char_end,
+                            float(segment_score),
+                            source_segments[int(source_index)].text,
+                        ))
+
             # Syntactic overlap ratio based on matched characters in submitted text
             matched_chars_for_candidate = count_unique_matched_chars(matched_spans, total_chars)
             winnowing_score = min(1.0, matched_chars_for_candidate / max(1, total_chars))
@@ -275,6 +304,22 @@ class HybridSourceTracker:
                         semantic_score=dense_score,
                         source_metadata=source_meta,
                         source_snippet=snippet,
+                    )
+                )
+
+            for span_start, span_end, segment_score, source_segment in semantic_spans:
+                all_unique_spans.append((span_start, span_end))
+                all_match_results.append(
+                    MatchResult(
+                        match_id=str(uuid.uuid4()),
+                        match_text=cleaned[span_start:span_end],
+                        start_index=span_start,
+                        end_index=span_end,
+                        similarity_score=composite_score,
+                        winnow_score=winnowing_score,
+                        semantic_score=round(segment_score, 4),
+                        source_metadata=source_meta,
+                        source_snippet=extract_source_snippet(source_segment, source_segment),
                     )
                 )
 

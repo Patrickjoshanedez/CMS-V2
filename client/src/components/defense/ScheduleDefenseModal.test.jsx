@@ -63,6 +63,30 @@ describe('ScheduleDefenseModal', () => {
     });
   };
 
+  it('associates form labels with controls and names the close button', () => {
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project: { _id: 'proj-123', title: 'CMS Project', defenseSchedule: null },
+    });
+
+    const labeledControls = [
+      ['defense-type', 'Defense Type'],
+      ['defense-round', 'Defense Round'],
+      ['defense-date', 'Defense Date'],
+      ['defense-time', 'Time Slot'],
+      ['defense-venue', 'Venue & Location'],
+      ['defense-client', 'Target Client / Industry Partner'],
+    ];
+
+    for (const [id, label] of labeledControls) {
+      expect(document.getElementById(id)).toBeInTheDocument();
+      expect(document.querySelector(`label[for="${id}"]`)).toHaveTextContent(label);
+    }
+    expect(document.getElementById('defense-date')).toHaveAttribute('type', 'date');
+    expect(document.querySelector('[aria-label="Close schedule dialog"]')).toBeInTheDocument();
+  });
+
   it('does not render "Remove Schedule" button when there is no existing schedule', () => {
     const project = {
       _id: 'proj-123',
@@ -303,5 +327,59 @@ describe('ScheduleDefenseModal', () => {
       a.textContent.includes('View Linked Project Workspace'),
     );
     expect(teamWorkspaceLink?.getAttribute('href')).toBe('/projects/proj-789');
+  });
+
+  it('labels and schedules a pre-course title proposal hearing separately from a defense', async () => {
+    projectService.scheduleDefense.mockResolvedValueOnce({ success: true });
+    const project = {
+      _id: 'proj-title-review',
+      title: 'Synthetic title review project',
+      titleStatus: 'submitted',
+      workflowPhase: 1,
+      capstonePhase: 1,
+      stage: 'proposal',
+      adviserId: { firstName: 'Maria', lastName: 'Santos' },
+      secretaryId: { firstName: 'Arnel', lastName: 'Dela Cruz' },
+      panelistIds: [
+        { firstName: 'Grace', lastName: 'Villanueva' },
+        { firstName: 'Jonathan', lastName: 'Bautista' },
+        { firstName: 'Catherine', lastName: 'Mendoza' },
+      ],
+    };
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project,
+      initialDate: '2026-10-26',
+      initialTime: '10:00 AM - 10:30 AM',
+    });
+
+    expect(document.getElementById('schedule-defense-title')).toHaveTextContent(
+      'Schedule Title Hearing',
+    );
+    expect(document.getElementById('defense-type')).not.toBeInTheDocument();
+    expect(document.querySelector('label[for="defense-date"]')).toHaveTextContent('Hearing Date');
+
+    const submitButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Confirm & Notify Title Review Committee'),
+    );
+    expect(submitButton).toBeDefined();
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    expect(projectService.scheduleDefense).toHaveBeenCalledWith(
+      'proj-title-review',
+      expect.objectContaining({
+        date: '2026-10-26',
+        time: '10:00 AM - 10:30 AM',
+        defenseType: 'proposal',
+        status: 'scheduled',
+      }),
+    );
+    expect(toast.success).toHaveBeenCalledWith(
+      'Title hearing scheduled for Synthetic title review project on 2026-10-26 at 10:00 AM - 10:30 AM.',
+    );
   });
 });

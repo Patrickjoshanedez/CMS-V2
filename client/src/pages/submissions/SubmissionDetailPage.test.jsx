@@ -443,6 +443,8 @@ describe('SubmissionDetailPage Revision Suite', () => {
       fileName: 'Capstone-Proposal.docx',
       fileSize: 312000,
       isLate: false,
+      originalityScore: 100,
+      plagiarismResult: { scanCoverage: 'lexical_only' },
     };
 
     await act(async () => {
@@ -450,6 +452,10 @@ describe('SubmissionDetailPage Revision Suite', () => {
     });
 
     expect(container.textContent).toContain('Awaiting Adviser Defense Endorsement');
+    expect(container.textContent).toContain('Estimated Non-Matching Text');
+    expect(container.textContent).toContain('Preliminary');
+    expect(container.textContent).toContain('Partial scan only; final clearance requires full scan coverage.');
+    expect(container.textContent).not.toContain('100% Originality');
     expect(container.textContent).toContain(
       'Once your adviser or course instructor checks and endorses this submission, your team will be officially signaled as Ready for Defense',
     );

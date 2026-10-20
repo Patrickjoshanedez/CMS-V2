@@ -111,19 +111,15 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
 
     // Check Header
     expect(container.textContent).toContain('Instructor Review');
-    expect(container.textContent).toContain('Evaluation Studio');
+    expect(container.textContent).toContain('Review assigned proposals, manuscripts, and defense progress.');
 
-    // Check KPI Overview Strip
     expect(container.textContent).toContain('Needs Action');
-    expect(container.textContent).toContain('Title Defense');
-    expect(container.textContent).toContain('Manuscripts');
-    expect(container.textContent).toContain('System Dev');
-    expect(container.textContent).toContain('Final Defense');
 
     // Check Task Category Queue Tabs
     expect(container.textContent).toContain('All Capstones');
-    expect(container.textContent).toContain('Phase 1: Title Defense');
-    expect(container.textContent).toContain('Phase 2: Manuscripts');
+    expect(container.textContent).toContain('Capstone 1: Proposal Manuscript');
+    expect(container.textContent).toContain('Capstone 2: System Development');
+    expect(container.textContent).toContain('Capstone 3: Final Manuscript');
   });
 
   it('renders rich project cards with normalized team name, phase pills, and callout banners', async () => {
@@ -135,19 +131,19 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
       );
     });
 
-    // Phase 1 project assertions
-    expect(container.textContent).toContain('Phase 1: Title Defense');
+    // Pre-course topic proposal review assertions
+    expect(container.textContent).toContain('Phase 1: Topic Proposals');
     expect(container.textContent).toContain('Team Beta');
     expect(container.textContent).toContain('3 candidate proposals submitted');
-    expect(container.textContent).toContain('Deliberate Proposals');
+    expect(container.textContent).toContain('Review Title Proposals');
     expect(container.textContent).toContain('Patrick Josh Añedez (Lead)');
     expect(container.textContent).toContain('Adviser: Jonathan Tan');
 
-    // Phase 2 project assertions
-    expect(container.textContent).toContain('Phase 2: Manuscripts');
+    // Capstone 2 project assertions
+    expect(container.textContent).toContain('Capstone 2: System Development');
     expect(container.textContent).toContain('Title Approved');
     expect(container.textContent).toContain('Adviser Unassigned');
-    expect(container.textContent).toContain('Review Manuscript & ADM');
+    expect(container.textContent).toContain('Inspect Prototype & Gantt');
   });
 
   it('switches task category when clicking KPI card or task category tab', async () => {
@@ -159,9 +155,9 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
       );
     });
 
-    // Find "Phase 2: Manuscripts" tab
+    // Find the Capstone 2 system development tab
     const phase2Tab = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Phase 2: Manuscripts'),
+      b.textContent.includes('Capstone 2: System Development'),
     );
     expect(phase2Tab).toBeTruthy();
 
@@ -169,7 +165,7 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
       phase2Tab.click();
     });
 
-    // After clicking Phase 2 tab, it should filter to Phase 2 projects
+    // After clicking the Capstone 2 tab, it should filter to phase 2 projects
     expect(container.textContent).toContain('Barangay Incident Response Platform');
   });
 

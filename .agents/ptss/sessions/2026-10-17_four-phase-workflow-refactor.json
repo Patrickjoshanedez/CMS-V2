@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-10-17_four-phase-workflow-refactor",
+  "date": "2026-10-17",
+  "status": "active-partial",
+  "task_category": "capstone_workflow_refactor",
+  "task_summary": "Refactored CMS-V2 lifecycle phase mapping and academic term/profile/team/Gantt gates to match the requested Phase 0–4 workflow while preserving legacy Capstone course counters.",
+  "changes": [
+    "Separated overall workflowPhase 1–4 from the legacy Capstone course number and aligned server lifecycle gates and client phase displays.",
+    "Added Student ID and academic-term profile fields; require complete, same-section/same-term student profiles before locking teams and scope active-project uniqueness to the academic term.",
+    "Require an Adviser-approved Gantt schedule before student progress increases and limit Gantt edits and system-clearance actions to the assigned Adviser.",
+    "Updated lifecycle documentation, canonical capstone workflow skill, authoritative index, and classification manifest."
+  ],
+  "verification": [
+    "Server comprehensive workflow integration passed: 13/13.",
+    "Focused server Gantt approval/progress gate suite passed: 7/7.",
+    "Focused client profile, Capstone 2 sections, and Gantt suites passed: 24/24.",
+    "Four Playwright captures were produced for light/dark desktop/mobile. No Vite overlay; screenshots show responsive layout, while /api/users/me returned 401 and left academic section data loading. Visual audit is partial.",
+    "Classification manifest parses as valid JSON."
+  ],
+  "live_state": "The previously authorized synthetic project remains archived; this refactor did not mutate it. Existing workspace changes were preserved. A clean fresh synthetic Phase 0–4 lifecycle has not been verified in this session.",
+  "remaining": [
+    "Resolve or classify the profile audit /api/users/me 401 and rerun the visual audit after academic reference data loads.",
+    "Run a clean synthetic Phase 0–4 workflow if full browser-level lifecycle evidence is required.",
+    "Run final governance/evidence gates when completing the remaining verification work."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "aif-loop",
+    "workspace-evidence-maintenance",
+    "long-agent",
+    "context-gathering-and-ast-triage",
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "refactor",
+    "documents:documents"
+  ],
+  "skills_written": [],
+  "skills_patched": ["capstone-lifecycle-orchestrator"]
+}

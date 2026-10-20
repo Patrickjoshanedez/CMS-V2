@@ -20,6 +20,8 @@ const DEADLINE_LABELS = {
   proposal: 'Proposal',
   chapter4: 'Chapter 4',
   chapter5: 'Chapter 5',
+  finalAcademic: 'Full Academic Manuscript',
+  finalJournal: 'Condensed Journal Paper',
   defense: 'Defense',
 };
 

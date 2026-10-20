@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-13T17:45:29.818761Z",
+  "generated_at": "2026-10-20T15:24:35.654050Z",
   "metadata": {
     "agent_count": 11,
     "edges_count": 8,
@@ -104,7 +104,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "100x code reviewer",
+      "target": "thinker pro",
       "bidirectional": false
     },
     {
@@ -114,7 +114,12 @@
     },
     {
       "source": "orchestrator",
-      "target": "thinker pro",
+      "target": "context-manager",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "100x code reviewer",
       "bidirectional": false
     },
     {
@@ -130,11 +135,6 @@
     {
       "source": "orchestrator",
       "target": "test-automation",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "context-manager",
       "bidirectional": false
     }
   ],

@@ -142,6 +142,7 @@ export default function ActionDoneMatrixTab({
     canAddRow,
     canManageReviewType,
     allRowsAddressed,
+    allRowsVerified,
   } = useActionDoneMatrix({
     project,
     user: userProp,
@@ -153,6 +154,8 @@ export default function ActionDoneMatrixTab({
   });
 
   const projectId = project?._id;
+  const isProjectArchived =
+    project?.isArchived === true || project?.projectStatus === 'archived';
 
   // Modals & Uploads
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -341,6 +344,10 @@ export default function ActionDoneMatrixTab({
   // Secretary confirm Endorsement (milestone-isolated)
   const handleConfirmEndorsement = async () => {
     if (!projectId) return;
+    if (!allRowsVerified) {
+      toast.error('Verify every panel recommendation before endorsing the Action Done Matrix.');
+      return;
+    }
     const name = (endorsementTypedName || formatFullName(user, 'Committee Secretary')).trim();
     const sigToUse = signatureDataUrl || user?.digitalSignature;
     if (!name) {
@@ -386,6 +393,10 @@ export default function ActionDoneMatrixTab({
   };
 
   const handleOpenEndorsementModal = () => {
+    if (!allRowsVerified) {
+      toast.error('Verify every panel recommendation before endorsing the Action Done Matrix.');
+      return;
+    }
     setEndorsementTypedName(formatFullName(user, 'Committee Secretary'));
     if (user?.digitalSignature) {
       setSignatureDataUrl(user.digitalSignature);
@@ -724,7 +735,7 @@ export default function ActionDoneMatrixTab({
                 </div>
               </div>
 
-              {/* Milestone Switcher Pills (Capstone 1 / ADM v1, Capstone 2 / ADM v2, Capstone 3 / ADM v3) */}
+              {/* The shared labels distinguish the proposal review from Capstone 2 ADM v1 and Capstone 3 ADM v2. */}
               <div className="flex items-center gap-1 p-0.5 bg-muted/40 rounded-lg border border-border/60 text-xs">
                 {Object.values(ADM_MILESTONES).map((m) => (
                   <button
@@ -783,11 +794,11 @@ export default function ActionDoneMatrixTab({
                   variant="default"
                   size="sm"
                   onClick={handleOpenEndorsementModal}
-                  disabled={!allRowsAddressed}
+                  disabled={!allRowsVerified}
                   title={
-                    allRowsAddressed
+                    allRowsVerified
                       ? undefined
-                      : 'Every remark must be addressed by the student team first.'
+                      : 'Every panel recommendation must be verified before secretary endorsement.'
                   }
                   className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
                 >
@@ -802,6 +813,7 @@ export default function ActionDoneMatrixTab({
                 variant="outline"
                 size="sm"
                 onClick={handleBalancePages}
+                disabled={isProjectArchived}
                 className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
                 title="Automatically balance committee remarks across authentic A4 sheets without print overflow"
                 data-testid="adm-balance-pages-btn"
@@ -816,6 +828,7 @@ export default function ActionDoneMatrixTab({
                 variant="outline"
                 size="sm"
                 onClick={() => handleAddContinuationPage()}
+                disabled={isProjectArchived}
                 className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
                 title="Insert a continuation page before the final sign-off sheet"
                 data-testid="adm-add-page-btn"
@@ -884,6 +897,7 @@ export default function ActionDoneMatrixTab({
                             <button
                               type="button"
                               onClick={() => handleRemovePage(pageIdx)}
+                              disabled={isProjectArchived}
                               className="absolute right-0 top-2 text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print print:hidden font-medium"
                               title="Remove this continuation page"
                             >
@@ -906,7 +920,7 @@ export default function ActionDoneMatrixTab({
                                 value={projectTitle}
                                 onChange={(e) => setProjectTitle(e.target.value)}
                                 onBlur={handleTitleBlur}
-                                disabled={!isFaculty && !isStudent}
+                                disabled={isProjectArchived || (!isFaculty && !isStudent)}
                                 className="w-full font-bold underline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black print:hidden font-serif disabled:cursor-not-allowed disabled:hover:border-transparent"
                                 placeholder="Enter Capstone Project Title..."
                               />
@@ -1004,6 +1018,7 @@ export default function ActionDoneMatrixTab({
                             displayedRows={displayedRows}
                             isFirstPage={isFirstPage}
                             isLastPage={isLastPage}
+                            isReadOnly={isProjectArchived}
                             isCurrentUserStudent={isCurrentUserStudent}
                             isFaculty={isFaculty}
                             isStudent={isStudent}
@@ -1045,9 +1060,9 @@ export default function ActionDoneMatrixTab({
                                   <p className="text-[11px] text-neutral-700">
                                     {isSecretaryEndorsed
                                       ? 'Action Done Matrix Endorsed by Committee Secretary. Committee signatures are unlocked.'
-                                      : allRowsAddressed
-                                        ? 'All Remarks Addressed — Ready for Secretary Endorsement'
-                                        : 'Prerequisite compliance audit: The Committee Secretary must endorse all student revision fulfillments before committee digital signatures can unlock.'}
+                                      : allRowsVerified
+                                        ? 'All Panel Recommendations Verified — Ready for Secretary Endorsement'
+                                        : 'Prerequisite compliance audit: Every panel recommendation must be verified before the Committee Secretary can endorse student revision fulfillments.'}
                                   </p>
                                 </div>
                               </div>
@@ -1105,11 +1120,11 @@ export default function ActionDoneMatrixTab({
                                 <Button
                                   size="sm"
                                   onClick={handleOpenEndorsementModal}
-                                  disabled={!allRowsAddressed}
+                                  disabled={!allRowsVerified}
                                   title={
-                                    allRowsAddressed
+                                    allRowsVerified
                                       ? undefined
-                                      : 'Every remark must be addressed by the student team first.'
+                                      : 'Every panel recommendation must be verified before secretary endorsement.'
                                   }
                                   className="gap-1.5 text-xs h-7 font-medium no-print print:hidden"
                                 >
@@ -1269,6 +1284,7 @@ export default function ActionDoneMatrixTab({
                       issueNo={docMeta.issueNo}
                       issueDate={docMeta.issueDate}
                       onDocMetaChange={handleDocMetaChange}
+                      isReadOnly={isProjectArchived}
                     />
                   </div>
 
@@ -1280,6 +1296,7 @@ export default function ActionDoneMatrixTab({
                         variant="outline"
                         size="sm"
                         onClick={() => handleAddContinuationPage(pageIdx + 1)}
+                        disabled={isProjectArchived}
                         className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 dark:bg-card/90 dark:text-primary dark:border-primary/60 dark:hover:bg-primary/20 backdrop-blur-xs no-print print:hidden"
                         data-testid={`add-continuation-page-btn-${pageNumber}`}
                         title="Insert a continuation page before the final sign-off sheet"
@@ -1636,6 +1653,7 @@ function AdmDocumentFooter({
   issueNo = '002',
   issueDate = 'May 15, 2018',
   onDocMetaChange,
+  isReadOnly = false,
   className = '',
 }) {
   return (
@@ -1653,6 +1671,7 @@ function AdmDocumentFooter({
             type="text"
             value={revisionNo}
             onChange={(e) => onDocMetaChange?.('revisionNo', e.target.value)}
+            disabled={isReadOnly}
             className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Revision No"
           />
@@ -1663,6 +1682,7 @@ function AdmDocumentFooter({
             type="text"
             value={issueNo}
             onChange={(e) => onDocMetaChange?.('issueNo', e.target.value)}
+            disabled={isReadOnly}
             className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Issue No"
           />
@@ -1673,6 +1693,7 @@ function AdmDocumentFooter({
             type="text"
             value={issueDate}
             onChange={(e) => onDocMetaChange?.('issueDate', e.target.value)}
+            disabled={isReadOnly}
             className="print:hidden w-24 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Issue Date"
           />

@@ -95,7 +95,7 @@ function StudentDashboard({ user }) {
   });
 
   const completedChapters = derivedChapterProgress.filter(
-    (chapter) => chapter.status === 'approved',
+    (chapter) => isChapterApprovedLike(chapter.status),
   ).length;
   const chaptersInReview = derivedChapterProgress.filter((chapter) =>
     ['pending', 'under_review', 'revisions_required'].includes(chapter.status),
@@ -173,9 +173,9 @@ function StudentDashboard({ user }) {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-8">
       {/* Linear-Grade Command Header */}
-      <div className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+      <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -183,8 +183,8 @@ function StudentDashboard({ user }) {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {team
-                ? 'Team highlights, project status, and the next actions for your capstone journey.'
-                : 'Phase 0: Team Formation & Academic Onboarding'}
+                ? 'Your team and current capstone status.'
+                : 'Complete your profile and form a capstone team to get started.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -323,7 +323,7 @@ function StudentDashboard({ user }) {
                       <h4 className="text-sm font-semibold text-foreground">Team Formation</h4>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Form a group of 2–4 members, assign 5 standardized project roles, and lock
+                      Form a group of 1–4 members, assign 5 standardized project roles, and lock
                       your roster.
                     </p>
                   </div>
@@ -425,7 +425,7 @@ function StudentDashboard({ user }) {
 
       {!isLoading && team && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid w-full gap-4 sm:grid-cols-2">
             <DashboardCard
               icon={UsersRound}
               title="Team Members"
@@ -483,22 +483,15 @@ function StudentDashboard({ user }) {
                 </div>
               </div>
             </Card>
-            <DashboardCard
-              icon={Bell}
-              title="Recent Updates"
-              metric={recentNotifications.length}
-              description="Latest announcements and status changes"
-              accent="text-amber-600 dark:text-amber-400"
-            />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
             {/* Left Column: Team Highlights & Important Information (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
+            <div className="order-2 min-w-0 xl:order-1 xl:col-span-7 space-y-6 lg:space-y-8">
               {/* Team Highlights */}
               <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
-                <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
-                  <div className="flex items-center justify-between">
+                <CardHeader className="border-b border-border/60 bg-muted/20 px-4 sm:px-6 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
                         <FolderKanban className="h-4 w-4" />
@@ -517,7 +510,7 @@ function StudentDashboard({ user }) {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 space-y-5">
+                <CardContent className="p-4 sm:p-6 space-y-5">
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-3.5">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -531,7 +524,7 @@ function StudentDashboard({ user }) {
                   </div>
 
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Team Members
                       </p>
@@ -627,7 +620,7 @@ function StudentDashboard({ user }) {
             </div>
 
             {/* Right Column: Project Status & Defense Calendar (5 cols) */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="order-1 min-w-0 xl:order-2 xl:col-span-5 space-y-6 lg:space-y-8">
               {/* Project Status */}
               <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
                 <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">

@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import CitationExportModal from './CitationExportModal';
 import PdfViewerWorkspace from '@/components/submissions/PdfViewerWorkspace';
 import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import api from '@/services/api';
 
 /* ──────────────────────────────────────────────────────────────
@@ -337,6 +338,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   const [showPrototypesModal, setShowPrototypesModal] = useState(false);
   const [isCitationModalOpen, setIsCitationModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [documentBlob, setDocumentBlob] = useState(null);
+  const [documentFileName, setDocumentFileName] = useState('');
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(true);
   const [_pdfError, setPdfError] = useState(null);
@@ -691,19 +694,25 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
     return `/projects/${project._id}/manuscript?type=${activeDocType}`;
   }, [project, activeDocType]);
 
-  // Fetch or prepare PDF blob stream
+  // Fetch the approved manuscript without changing its stored file type.
   useEffect(() => {
     let active = true;
     let createdObjectUrl = null;
     if (!manuscriptUrl) {
+      setDocumentBlob(null);
+      setDocumentFileName('');
+      setPdfBlobUrl(null);
       setPdfLoading(false);
       return;
     }
 
     setPdfLoading(true);
     setPdfError(null);
+    setDocumentBlob(null);
+    setDocumentFileName('');
+    setPdfBlobUrl(null);
 
-    // Stream the PDF via authenticated api client with multi-endpoint fallback
+    // Stream the approved file via authenticated api client with multi-endpoint fallback
     const tryFetchPdf = async () => {
       const endpointsToTry = [
         manuscriptUrl,
@@ -720,10 +729,52 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
         try {
           const res = await api.get(cleanUrl, { responseType: 'blob' });
           if (!active) return;
-          if (res.data && (res.data.size > 0 || res.data.length > 0 || res.data.byteLength > 0)) {
-            const blob = new Blob([res.data], { type: 'application/pdf' });
-            createdObjectUrl = URL.createObjectURL(blob);
-            setPdfBlobUrl(createdObjectUrl);
+          const responseData = res.data;
+          const hasContent =
+            responseData instanceof Blob
+              ? responseData.size > 0
+              : Boolean(responseData && (responseData.length > 0 || responseData.byteLength > 0));
+          if (hasContent) {
+            const responseType = String(res.headers?.['content-type'] || '')
+              .split(';')[0]
+              .trim();
+            const fileType = responseType || responseData.type || 'application/octet-stream';
+            const blob =
+              responseData instanceof Blob && responseData.type === fileType
+                ? responseData
+                : new Blob([responseData], { type: fileType });
+            const disposition = String(res.headers?.['content-disposition'] || '');
+            const filenameMatch = disposition.match(/filename\s*=\s*"?([^";]+)"?/i);
+            let filename = filenameMatch?.[1] || '';
+            try {
+              filename = decodeURIComponent(filename);
+            } catch (_decodeError) {
+              // Keep the server-provided filename when it is not URI-encoded.
+            }
+            if (!filename) {
+              const sanitizedTitle = (project?.title || 'manuscript')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .slice(0, 50);
+              const suffix = activeDocType === 'final_journal' ? 'academic-journal' : 'academic-paper';
+              const extension = fileType.includes('pdf')
+                ? 'pdf'
+                : fileType.includes('wordprocessingml')
+                  ? 'docx'
+                  : fileType.includes('msword')
+                    ? 'doc'
+                    : fileType.includes('text/plain')
+                      ? 'txt'
+                      : 'bin';
+              filename = `${sanitizedTitle}-${suffix}.${extension}`;
+            }
+
+            setDocumentBlob(blob);
+            setDocumentFileName(filename);
+            if (fileType.toLowerCase().includes('pdf')) {
+              createdObjectUrl = URL.createObjectURL(blob);
+              setPdfBlobUrl(createdObjectUrl);
+            }
             setPdfLoading(false);
             return;
           }
@@ -760,37 +811,33 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
     }
   };
 
-  // Handle Download PDF
+  // Handle downloading the stored manuscript in its original format.
   const handleDownloadPdf = () => {
-    if (!pdfBlobUrl && !manuscriptUrl) {
-      toast.error('PDF file is not available for download.');
+    if (!documentBlob && !manuscriptUrl) {
+      toast.error('Manuscript file is not available for download.');
       return;
     }
 
-    const sanitizedTitle = (project?.title || 'manuscript')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .slice(0, 50);
-    const docSuffix = activeDocType === 'final_journal' ? 'academic-journal' : 'academic-paper';
-    const filename = `${sanitizedTitle}-${docSuffix}.pdf`;
-
-    if (pdfBlobUrl) {
+    if (documentBlob) {
+      const filename = documentFileName || 'capstone-manuscript';
+      const objectUrl = URL.createObjectURL(documentBlob);
       const a = document.createElement('a');
-      a.href = pdfBlobUrl;
+      a.href = objectUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } else {
       const downloadHref = `${manuscriptUrl}${manuscriptUrl.includes('?') ? '&' : '?'}download=true`;
       const a = document.createElement('a');
       a.href = downloadHref;
-      a.download = filename;
+      a.download = 'capstone-manuscript';
       a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       a.remove();
-      toast.success(`Downloading ${filename}...`);
+      toast.success('Downloading manuscript...');
     }
   };
 
@@ -1009,16 +1056,16 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               </div>
             </div>
 
-            {/* 2. Download PDF Action */}
+            {/* 2. Download Manuscript Action */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleDownloadPdf}
               className="h-8 px-2.5 text-xs font-medium flex items-center gap-1.5"
-              title="Download manuscript PDF"
+              title={`Download ${pdfBlobUrl ? 'manuscript PDF' : 'manuscript file'}`}
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Download PDF</span>
+              <span className="hidden sm:inline">{pdfBlobUrl ? 'Download PDF' : 'Download Document'}</span>
             </Button>
 
             {/* 3. Cite Modal Trigger */}
@@ -1102,51 +1149,52 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
       {/* ── Main Full-Viewport Document Canvas ── */}
       <main className="flex-1 flex overflow-hidden relative">
-        {/* PDF Document Stream Viewport */}
+        {/* Canonical approved manuscript document viewport */}
         <div className="flex-1 bg-muted/20 flex flex-col items-center justify-start overflow-y-auto p-2 sm:p-6">
           {pdfLoading && (
             <div className="my-auto py-16 flex flex-col items-center justify-center space-y-3">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-xs text-muted-foreground">Streaming approved PDF manuscript...</p>
+              <p className="text-xs text-muted-foreground">Loading approved manuscript...</p>
             </div>
           )}
 
-          {!pdfLoading && pdfBlobUrl && (
+          {!pdfLoading && documentBlob && (
             <div className="w-full flex flex-col items-center gap-3">
-              {/* Optional Canvas Mode Bar when PDF is loaded */}
-              <div className="flex items-center gap-2 bg-card/90 backdrop-blur-xs border border-border/80 rounded-lg p-1 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('clean')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
-                    viewMode === 'clean'
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="View clean manuscript PDF"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Clean Manuscript</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewMode('integrity');
-                    setShowOriginalityDrawer(true);
-                  }}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
-                    viewMode === 'integrity'
-                      ? 'bg-destructive text-destructive-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="View Turnitin-style score-gradient highlight overlays"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Integrity Highlights</span>
-                </button>
-              </div>
+              {pdfBlobUrl && (
+                <div className="flex items-center gap-2 bg-card/90 backdrop-blur-xs border border-border/80 rounded-lg p-1 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('clean')}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
+                      viewMode === 'clean'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="View clean manuscript"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Clean Manuscript</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('integrity');
+                      setShowOriginalityDrawer(true);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
+                      viewMode === 'integrity'
+                        ? 'bg-destructive text-destructive-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="View Turnitin-style score-gradient highlight overlays"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <span>Integrity Highlights</span>
+                  </button>
+                </div>
+              )}
 
-              {viewMode === 'integrity' ? (
+              {viewMode === 'integrity' && pdfBlobUrl ? (
                 <div
                   className="w-full max-w-5xl bg-card rounded-lg shadow-md border border-border overflow-hidden transition-all flex flex-col h-[calc(100vh-8.5rem)]"
                   style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
@@ -1165,20 +1213,40 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 </div>
               ) : (
                 <div
-                  className="w-full max-w-4xl bg-card rounded-lg shadow-md border border-border overflow-hidden transition-all"
+                  className="w-full max-w-5xl"
                   style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
                 >
-                  <iframe
-                    src={`${pdfBlobUrl}#toolbar=0&navpanes=0`}
-                    title={`Manuscript: ${project.title}`}
-                    className="w-full h-[calc(100vh-8.5rem)] border-0"
+                  <SophisticatedDocumentViewer
+                    key={activeDocType}
+                    submission={{
+                      _id: 'archive-document',
+                      isArchive: true,
+                      fileName: documentFileName,
+                      fileType: documentBlob.type,
+                      fileSize: documentBlob.size,
+                      version: project?.version || 1,
+                      originalityScore: project?.originalityScore ?? originalityScore,
+                    }}
+                    fileBlob={documentBlob}
+                    fileName={documentFileName}
+                    chapterTitle={
+                      activeDocType === 'final_journal' ? 'Academic Journal' : 'Academic Paper'
+                    }
+                    embedded
+                    isArchive
+                    showArchiveIdentity
+                    isSubmission={false}
+                    showRevisionDiff={false}
+                    showComments={false}
+                    canComment={false}
+                    className="max-w-full"
                   />
                 </div>
               )}
             </div>
           )}
 
-          {!pdfLoading && !pdfBlobUrl && (
+          {!pdfLoading && !documentBlob && (
             <div className="w-full flex flex-col items-center gap-6 py-6 px-4">
               {/* Status Header matching test expectations & providing seamless switch */}
               <div className="w-full max-w-4xl bg-card border border-border/80 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">

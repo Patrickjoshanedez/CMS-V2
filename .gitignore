@@ -131,6 +131,7 @@ validation_final_run.txt
 
 # Local PowerShell utility scripts
 *.ps1
+!scripts/start-hybrid-plagiarism.ps1
 
 # Temporary markdown and documentation
 PLAN.md

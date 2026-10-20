@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -13,6 +13,8 @@ import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions, useCompileProposal } from '@/hooks/useSubmissions';
+import { useProjectMilestoneDeadlines } from '@/hooks/useProjectMilestoneDeadlines';
+import { getMilestoneDeadlineState, resolveProjectSubmissionDeadlines } from '@/utils/milestoneDeadlines';
 import { PROJECT_STATUSES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
@@ -122,6 +124,16 @@ export default function ProposalCompilationPage() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
   const { data: project, isLoading: projectLoading, error: projectError } = useMyProject();
+  const { data: milestoneDeadlineRecords = [] } = useProjectMilestoneDeadlines(project);
+  const { deadlines, policies: deadlinePolicies } = useMemo(
+    () => resolveProjectSubmissionDeadlines(project, milestoneDeadlineRecords),
+    [project, milestoneDeadlineRecords],
+  );
+  const proposalDeadlineState = getMilestoneDeadlineState(deadlines.proposal);
+  const proposalLateSubmissionClosed =
+    proposalDeadlineState === 'overdue' && deadlinePolicies.proposal?.allowLateSubmission === false;
+  const requiresLateJustification =
+    proposalDeadlineState === 'overdue' && !proposalLateSubmissionClosed;
   const {
     data: submissionsData,
     isLoading: submissionsLoading,
@@ -278,6 +290,22 @@ export default function ProposalCompilationPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (proposalLateSubmissionClosed) {
+      const message = 'The scheduled deadline has passed and late proposal uploads are closed.';
+      setWorkflowState('error');
+      setFeedbackMessage(message);
+      toast.error(message);
+      return;
+    }
+
+    if (requiresLateJustification && !remarks.trim()) {
+      const message = 'Add a late-submission justification before uploading the proposal.';
+      setWorkflowState('error');
+      setFeedbackMessage(message);
+      toast.error(message);
+      return;
+    }
 
     if (!project || !file || !canCompile || compileProposal.isPending) {
       return;
@@ -659,6 +687,31 @@ export default function ProposalCompilationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div
+              className={`mb-5 rounded-md border px-3 py-2 text-xs ${
+                proposalDeadlineState === 'overdue'
+                  ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                  : 'border-border/60 bg-muted/30 text-muted-foreground'
+              }`}
+              data-testid="proposal-deadline-status"
+              data-status={proposalDeadlineState}
+            >
+              {!deadlines.proposal
+                ? 'No proposal deadline scheduled'
+                : proposalDeadlineState === 'overdue'
+                  ? proposalLateSubmissionClosed
+                    ? `Deadline passed (${new Date(deadlines.proposal).toLocaleString()}); late uploads are closed.`
+                    : `Overdue since ${new Date(deadlines.proposal).toLocaleString()}; a justification is required.`
+                  : `Due ${new Date(deadlines.proposal).toLocaleString()}`}
+            </div>
+            {proposalLateSubmissionClosed && (
+              <Alert variant="destructive" className="mb-5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  The instructor has closed late submissions for the proposal milestone.
+                </AlertDescription>
+              </Alert>
+            )}
             <form className="space-y-6" onSubmit={handleSubmit}>
               {/* Interactive File Dropzone */}
               <div className="space-y-2">
@@ -669,11 +722,13 @@ export default function ProposalCompilationPage() {
                 {!file ? (
                   <label
                     htmlFor="proposal-file"
-                    onDragOver={handleDragOver}
+                    onDragOver={proposalLateSubmissionClosed ? undefined : handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
+                    onDrop={proposalLateSubmissionClosed ? undefined : handleDrop}
                     className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all ${
-                      isDragging
+                      proposalLateSubmissionClosed
+                        ? 'cursor-not-allowed border-border/60 bg-muted/30 opacity-60'
+                        : isDragging
                         ? 'border-primary bg-primary/10'
                         : 'border-muted-foreground/25 bg-muted/20 hover:border-primary/50 hover:bg-muted/40'
                     }`}
@@ -692,7 +747,7 @@ export default function ProposalCompilationPage() {
                       type="file"
                       accept={ACCEPT_STRING}
                       onChange={handleFileChange}
-                      disabled={!canCompile || compileProposal.isPending}
+                      disabled={!canCompile || proposalLateSubmissionClosed || compileProposal.isPending}
                       className="sr-only"
                     />
                   </label>
@@ -752,16 +807,24 @@ export default function ProposalCompilationPage() {
                     className="text-sm font-semibold text-foreground"
                   >
                     Remarks
+                    {requiresLateJustification && <span className="text-destructive"> *</span>}
                   </Label>
-                  <span className="text-xs text-muted-foreground">Visible to reviewers</span>
+                  <span className="text-xs text-muted-foreground">
+                    {requiresLateJustification ? 'Required for late submission' : 'Visible to reviewers'}
+                  </span>
                 </div>
                 <Textarea
                   id="proposal-remarks"
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                   rows={4}
-                  placeholder="Add notes about the compilation, late submission context, or other remarks."
+                  placeholder={
+                    requiresLateJustification
+                      ? 'Explain why this proposal is being submitted after its deadline.'
+                      : 'Add notes about the compilation, late submission context, or other remarks.'
+                  }
                   className="resize-y"
+                  aria-required={requiresLateJustification}
                 />
               </div>
 
@@ -805,7 +868,12 @@ export default function ProposalCompilationPage() {
                 <Button
                   type="submit"
                   disabled={
-                    !file || !canCompile || compileProposal.isPending || workflowState === 'success'
+                    !file ||
+                    !canCompile ||
+                    proposalLateSubmissionClosed ||
+                    (requiresLateJustification && !remarks.trim()) ||
+                    compileProposal.isPending ||
+                    workflowState === 'success'
                   }
                   className="gap-2 font-semibold shadow-xs"
                 >

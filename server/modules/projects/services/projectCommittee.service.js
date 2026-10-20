@@ -5,6 +5,7 @@ import AppError from '../../../utils/AppError.js';
 import { emitToUser } from '../../../services/socket.service.js';
 import { ROLES } from '@cms/shared';
 import projectCoreService from './projectCore.service.js';
+import { withOptionalTransaction } from '../../../utils/dbTransaction.js';
 
 class ProjectCommitteeService {
   async _getProjectOrFail(projectId) {
@@ -24,6 +25,7 @@ class ProjectCommitteeService {
    */
   async assignAdviser(projectId, instructorId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     const adviser = await User.findById(data.adviserId);
     const isFacultyEligible =
@@ -65,12 +67,18 @@ class ProjectCommitteeService {
       );
     }
 
-    project.adviserId = data.adviserId;
-    await project.save();
+    await withOptionalTransaction(async (session) => {
+      project.adviserId = data.adviserId;
+      await project.save({ session: session || undefined });
 
-    if (project.teamId) {
-      await Team.findByIdAndUpdate(project.teamId, { adviserId: data.adviserId });
-    }
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(
+          project.teamId,
+          { adviserId: data.adviserId },
+          { session: session || undefined },
+        );
+      }
+    });
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
@@ -109,6 +117,7 @@ class ProjectCommitteeService {
    */
   async assignPanelist(projectId, instructorId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     const panelist = await User.findById(data.panelistId);
     const isFacultyEligible =
@@ -159,25 +168,31 @@ class ProjectCommitteeService {
       );
     }
 
-    project.panelistIds.push(data.panelistId);
-    if (!Array.isArray(project.panelists)) {
-      project.panelists = [];
-    }
-    if (
-      !project.panelists.some(
-        (p) => (p.userId?._id || p.userId)?.toString() === data.panelistId.toString(),
-      )
-    ) {
-      project.panelists.push({
-        userId: data.panelistId,
-        role: project.panelists.length === 0 ? 'chair' : 'member',
-      });
-    }
-    await project.save();
+    await withOptionalTransaction(async (session) => {
+      project.panelistIds.push(data.panelistId);
+      if (!Array.isArray(project.panelists)) {
+        project.panelists = [];
+      }
+      if (
+        !project.panelists.some(
+          (p) => (p.userId?._id || p.userId)?.toString() === data.panelistId.toString(),
+        )
+      ) {
+        project.panelists.push({
+          userId: data.panelistId,
+          role: project.panelists.length === 0 ? 'chair' : 'member',
+        });
+      }
+      await project.save({ session: session || undefined });
 
-    if (project.teamId) {
-      await Team.findByIdAndUpdate(project.teamId, { panelistIds: project.panelistIds });
-    }
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(
+          project.teamId,
+          { panelistIds: project.panelistIds },
+          { session: session || undefined },
+        );
+      }
+    });
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
@@ -216,6 +231,7 @@ class ProjectCommitteeService {
    */
   async removePanelist(projectId, instructorId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
     const panelist = await User.findById(data.panelistId);
 
     const idx = project.panelistIds.findIndex((id) => id.toString() === data.panelistId);
@@ -227,17 +243,23 @@ class ProjectCommitteeService {
       );
     }
 
-    project.panelistIds.splice(idx, 1);
-    if (Array.isArray(project.panelists)) {
-      project.panelists = project.panelists.filter(
-        (p) => (p.userId?._id || p.userId)?.toString() !== data.panelistId.toString(),
-      );
-    }
-    await project.save();
+    await withOptionalTransaction(async (session) => {
+      project.panelistIds.splice(idx, 1);
+      if (Array.isArray(project.panelists)) {
+        project.panelists = project.panelists.filter(
+          (p) => (p.userId?._id || p.userId)?.toString() !== data.panelistId.toString(),
+        );
+      }
+      await project.save({ session: session || undefined });
 
-    if (project.teamId) {
-      await Team.findByIdAndUpdate(project.teamId, { panelistIds: project.panelistIds });
-    }
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(
+          project.teamId,
+          { panelistIds: project.panelistIds },
+          { session: session || undefined },
+        );
+      }
+    });
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
@@ -269,6 +291,7 @@ class ProjectCommitteeService {
    */
   async assignSecretary(projectId, instructorId, data) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     const secretary = await User.findById(data.secretaryId);
     const isFacultyEligible =
@@ -310,13 +333,19 @@ class ProjectCommitteeService {
       );
     }
 
-    project.secretaryId = data.secretaryId;
-    await project.save();
+    await withOptionalTransaction(async (session) => {
+      project.secretaryId = data.secretaryId;
+      await project.save({ session: session || undefined });
 
-    // Synchronize team secretaryId if project belongs to a team
-    if (project.teamId) {
-      await Team.findByIdAndUpdate(project.teamId, { secretaryId: data.secretaryId });
-    }
+      // Synchronize team secretaryId if project belongs to a team
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(
+          project.teamId,
+          { secretaryId: data.secretaryId },
+          { session: session || undefined },
+        );
+      }
+    });
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('secretaryId', 'firstName middleName lastName email profilePicture');
@@ -355,6 +384,7 @@ class ProjectCommitteeService {
    */
   async removeSecretary(projectId, instructorId) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     if (!project.secretaryId) {
       throw new AppError(
@@ -365,12 +395,18 @@ class ProjectCommitteeService {
     }
 
     const previousSecretaryId = project.secretaryId;
-    project.secretaryId = null;
-    await project.save();
+    await withOptionalTransaction(async (session) => {
+      project.secretaryId = null;
+      await project.save({ session: session || undefined });
 
-    if (project.teamId) {
-      await Team.findByIdAndUpdate(project.teamId, { secretaryId: null });
-    }
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(
+          project.teamId,
+          { secretaryId: null },
+          { session: session || undefined },
+        );
+      }
+    });
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('secretaryId', 'firstName middleName lastName email profilePicture');
@@ -402,6 +438,7 @@ class ProjectCommitteeService {
    */
   async selectAsPanelist(projectId, panelistId) {
     const project = await this._getProjectOrFail(projectId);
+    projectCoreService._assertProjectWritable(project);
 
     if (project.panelistIds.length >= 3) {
       throw new AppError(

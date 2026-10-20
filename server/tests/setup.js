@@ -1,18 +1,27 @@
-import { beforeAll, afterAll, afterEach } from 'vitest';
+import { beforeAll, afterAll, afterEach, expect } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 
 /**
- * Global test setup for server integration tests.
+ * Global test setup for server integration and unit tests.
  *
- * Spins up an in-memory MongoDB instance before all tests,
+ * Spins up an in-memory MongoDB instance before integration tests,
  * clears all collections between tests, and tears down after.
+ * Pure unit tests in tests/unit/ bypass MongoMemoryServer startup for zero-lag execution.
  *
  * Environment variables are set in-process so env.js config
  * picks them up without a .env file.
  */
 
 let mongoServer;
+
+function requiresMongoMemoryServer() {
+  const testPath = (expect.getState()?.testPath || '').replace(/\\/g, '/');
+  if (testPath.includes('/tests/unit/') && !testPath.endsWith('/app-request-limits.test.js')) {
+    return false;
+  }
+  return true;
+}
 
 // Set required env vars before any module imports them
 process.env.NODE_ENV = 'test';
@@ -30,6 +39,10 @@ process.env.COOKIE_SAME_SITE = 'lax';
 process.env.BCRYPT_ROUNDS = '4';
 
 beforeAll(async () => {
+  if (!requiresMongoMemoryServer()) {
+    return;
+  }
+
   mongoServer = await MongoMemoryServer.create({
     instance: { launchTimeout: 60000 },
   });
@@ -44,6 +57,9 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  if (!mongoServer || mongoose.connection.readyState !== 1) {
+    return;
+  }
   // Clear all collections between tests for isolation
   const collections = mongoose.connection.collections;
   for (const key in collections) {

@@ -1,0 +1,41 @@
+{
+  "session_id": "2026-10-15_chapter-upload-version-fix",
+  "date": "2026-10-15",
+  "status": "targeted-fix-verified-release-gates-incomplete",
+  "task_summary": "Atomic project/chapter version reservation and uncommitted-file compensation; corrected isolated one- and two-process bursts accepted 50/50 each",
+  "changes": [
+    "submissionVersion.model.js",
+    "chapterVersion.service.js",
+    "submission.service.js upload wrapper and compensation",
+    "15 targeted regression tests",
+    "isolated multi-process benchmark harness",
+    "Google Doc Section 4.4.9"
+  ],
+  "verification": {
+    "allocator_unit": "10/10 model-double tests",
+    "cleanup_unit": "5/5 storage-double tests",
+    "eslint": "passed for three production files and two tests",
+    "endpoint_parity": "222 server / 202 client / 0 unmatched",
+    "agentic": "60/60",
+    "governance": "combined command Python launcher failed; all three remaining steps passed explicitly using bundled Python (11 agents,8 DAG edges,zero coherence errors/warnings)",
+    "evidence_registry": "34/34 checks passed",
+    "workspace_guardrail": "passed",
+    "http_trials": "50/50 single process, 50/50 two processes; response versions 1..102 including preflights",
+    "readback": "interrupted by premature cleanup; no corrected-run stored-file integrity claim",
+    "repeat": "two 110-second import-startup watchdog failures; no further retry",
+    "cleanup": "zero labeled containers remain; network removed",
+    "google_doc": "readback verified Section 4.4.9 heading/content; seven tables and seven figures retained"
+  },
+  "remaining": [
+    "Diagnose startup import stall",
+    "Repeat independent MongoDB/object/hash readback before cleanup",
+    "Full workflow and governance gates",
+    "Real storage failure tests",
+    "Late justification upload failure handling",
+    "Postcommit response/idempotency behavior"
+  ],
+  "report": "docs/benchmarks/chapter-upload-version-fix-2026-10-15.md",
+  "skills_used": ["automated-qa-tester", "workspace-evidence-maintenance", "google-docs"],
+  "skills_written": [],
+  "skills_patched": ["automated-qa-tester"]
+}

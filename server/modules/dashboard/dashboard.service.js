@@ -18,13 +18,24 @@ import Notification from '../notifications/notification.model.js';
 import AppError from '../../utils/AppError.js';
 import {
   ROLES,
-  TITLE_STATUSES,
   SUBMISSION_STATUSES,
   PROJECT_STATUSES,
   EVALUATION_STATUSES,
+  TITLE_STATUSES,
 } from '@cms/shared';
 import { WorkloadOptimizationContext } from '../optimization/WorkloadOptimizationContext.js';
 import cacheService from '../../services/cache.service.js';
+
+/**
+ * Resolve the displayed course from persisted workflow state. Legacy phase 4
+ * records belong to Capstone 3; dashboard reads never promote or persist phases.
+ */
+export function resolveDashboardCapstonePhase(project) {
+  if (project?.capstonePhase == null) return project?.stage === 'final' ? 3 : 1;
+  const phase = Number(project.capstonePhase);
+  if (phase === 4) return 3;
+  return Number.isFinite(phase) && phase >= 1 && phase <= 3 ? phase : 1;
+}
 
 class DashboardService {
   /**
@@ -69,6 +80,24 @@ class DashboardService {
       await cacheService.set(cacheKey, stats, 30);
     }
     return stats;
+  }
+
+  /**
+   * Invalidate dashboard statistics cache.
+   * If userId is provided, clears all cached roles for that user; otherwise clears all dashboard stats caches.
+   * @param {string} [userId]
+   * @returns {Promise<void>}
+   */
+  async invalidateStatsCache(userId = null) {
+    try {
+      if (userId) {
+        await cacheService.delPattern(`dashboard:stats:*:${userId}`);
+      } else {
+        await cacheService.delPattern('dashboard:stats:*');
+      }
+    } catch (err) {
+      // Non-blocking cache invalidation
+    }
   }
 
   /**
@@ -180,7 +209,12 @@ class DashboardService {
 
       const totalMilestones = chapterProgress.length;
       const approvedMilestones = chapterProgress.filter(
-        (item) => item.status === 'approved',
+        (item) =>
+          [
+            SUBMISSION_STATUSES.APPROVED,
+            SUBMISSION_STATUSES.ACCEPTED,
+            SUBMISSION_STATUSES.LOCKED,
+          ].includes(item.status),
       ).length;
       const inReviewMilestones = chapterProgress.filter((item) =>
         [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW].includes(item.status),
@@ -243,6 +277,7 @@ class DashboardService {
       totalUsers,
       totalTeams,
       totalProjects,
+      pendingTitlesCount,
       pendingTitles,
       recentSubmissions,
       projectsByStatus,
@@ -254,6 +289,7 @@ class DashboardService {
       User.countDocuments({ isActive: true }),
       Team.countDocuments(),
       Project.countDocuments(),
+      Project.countDocuments({ titleStatus: TITLE_STATUSES.SUBMITTED, isArchived: { $ne: true } }),
       Project.find({ titleStatus: TITLE_STATUSES.SUBMITTED, isArchived: { $ne: true } })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
@@ -266,6 +302,7 @@ class DashboardService {
           match: { isArchived: { $ne: true } },
         })
         .sort({ createdAt: -1 })
+        .limit(25)
         .lean()
         .then((subs) => subs.filter((s) => s.projectId).slice(0, 10)),
       Project.aggregate([{ $group: { _id: '$projectStatus', count: { $sum: 1 } } }]),
@@ -311,7 +348,7 @@ class DashboardService {
         users: totalUsers,
         teams: totalTeams,
         projects: totalProjects,
-        pendingTitles: pendingTitles.length,
+        pendingTitles: pendingTitlesCount,
         assignedProjects: assignedProjects.length,
         pendingReviews: pendingReviews.length,
         panelAssignments: panelProjects.length,
@@ -1044,7 +1081,6 @@ class DashboardService {
     }
 
     const hydrated = [];
-    const updatesToPersist = [];
 
     for (const p of projects) {
       const pid = p._id?.toString();
@@ -1073,32 +1109,7 @@ class DashboardService {
         }
       }
 
-      // Determine effective capstone phase:
-      // Once title is approved, project is in Capstone 2 (Chapters 1-3) or beyond.
-      let effectivePhase = Number(p.capstonePhase || 1);
-      if (p.titleStatus === TITLE_STATUSES.APPROVED && effectivePhase < 2) {
-        effectivePhase = 2;
-      }
-      if (
-        effectivePhase < 3 &&
-        (approvedChaptersCount >= 3 || (pendingChapter && pendingChapter >= 4))
-      ) {
-        effectivePhase = 3;
-      }
-      if (
-        p.projectStatus === PROJECT_STATUSES.DEFENDED ||
-        p.projectStatus === PROJECT_STATUSES.ARCHIVED ||
-        p.isArchived
-      ) {
-        effectivePhase = 4;
-      }
-
-      if (
-        p.titleStatus === TITLE_STATUSES.APPROVED &&
-        Number(p.capstonePhase || 1) < effectivePhase
-      ) {
-        updatesToPersist.push({ id: p._id, phase: effectivePhase });
-      }
+      const effectivePhase = resolveDashboardCapstonePhase(p);
 
       const team = p.teamId;
       const memberRoleMap = new Map();
@@ -1160,15 +1171,6 @@ class DashboardService {
         chapterProgressSummary: `${approvedChaptersCount}/5 approved`,
         isLocked: team?.isLocked || false,
       });
-    }
-
-    // Persist any updated phases in background
-    if (updatesToPersist.length > 0) {
-      Promise.all(
-        updatesToPersist.map((u) =>
-          Project.updateOne({ _id: u.id }, { $set: { capstonePhase: u.phase } }).exec(),
-        ),
-      ).catch(() => {});
     }
 
     return hydrated;

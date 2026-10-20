@@ -39,6 +39,7 @@ const mockProjectData = {
   teamId: 'team-solo-1',
   team: { name: 'Team Solo Leveling' },
 };
+let mockMilestoneDeadlineRecords = [];
 
 vi.mock('@/hooks/useProjects', () => ({
   useMyProject: () => ({
@@ -46,6 +47,10 @@ vi.mock('@/hooks/useProjects', () => ({
     isLoading: false,
     error: null,
   }),
+}));
+
+vi.mock('@/hooks/useProjectMilestoneDeadlines', () => ({
+  useProjectMilestoneDeadlines: () => ({ data: mockMilestoneDeadlineRecords }),
 }));
 
 const mockSubmissionsList = [
@@ -81,6 +86,7 @@ describe('ProposalCompilationPage UI consistency', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMilestoneDeadlineRecords = [];
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -146,6 +152,65 @@ describe('ProposalCompilationPage UI consistency', () => {
     const fileInput = container.querySelector('#proposal-file');
     expect(fileInput).not.toBeNull();
     expect(fileInput.type).toBe('file');
+  });
+
+  it('blocks proposal uploads after an overdue milestone closes late submissions', async () => {
+    mockMilestoneDeadlineRecords = [
+      {
+        batchYear: '2025-2026',
+        targetType: 'batch',
+        deliverable: 'capstone_1_proposal',
+        deadlineDate: new Date(Date.now() - 86400000).toISOString(),
+        allowLateSubmission: false,
+      },
+    ];
+
+    await act(async () => {
+      root.render(<ProposalCompilationPage />);
+    });
+
+    const deadline = container.querySelector('[data-testid="proposal-deadline-status"]');
+    expect(deadline?.getAttribute('data-status')).toBe('overdue');
+    expect(container.textContent).toContain('late submissions for the proposal milestone');
+    expect(container.querySelector('#proposal-file')?.disabled).toBe(true);
+    expect(
+      Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent.includes('Compile Proposal'),
+      )?.disabled,
+    ).toBe(true);
+  });
+
+  it('requires a justification when the proposal deadline is overdue but late uploads are allowed', async () => {
+    mockMilestoneDeadlineRecords = [
+      {
+        batchYear: '2025-2026',
+        targetType: 'batch',
+        deliverable: 'capstone_1_proposal',
+        deadlineDate: new Date(Date.now() - 86400000).toISOString(),
+        allowLateSubmission: true,
+      },
+    ];
+
+    await act(async () => {
+      root.render(<ProposalCompilationPage />);
+    });
+
+    const fileInput = container.querySelector('#proposal-file');
+    const dummyFile = new File(['dummy proposal content'], 'AgroSense_Compiled_Proposal_v1.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', { value: [dummyFile], writable: true });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const remarks = container.querySelector('#proposal-remarks');
+    expect(remarks?.getAttribute('aria-required')).toBe('true');
+    expect(
+      Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent.includes('Compile Proposal'),
+      )?.disabled,
+    ).toBe(true);
   });
 
   it('displays file preview card and enable submit when valid file is selected', async () => {

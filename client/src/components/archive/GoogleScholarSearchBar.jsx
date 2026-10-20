@@ -116,38 +116,14 @@ export default function GoogleScholarSearchBar({
     <div ref={containerRef} className="relative w-full max-w-4xl mx-auto">
       <form
         onSubmit={handleSubmit}
-        className={`flex items-center rounded-lg border bg-card shadow-xs transition-all ${
+        className={`grid grid-cols-2 items-center gap-2 rounded-lg border bg-card p-2 shadow-xs transition-all sm:flex sm:gap-0 sm:p-0 ${
           isFocused
-            ? 'border-blue-600 ring-1 ring-blue-500 shadow-md dark:border-blue-500'
+            ? 'border-primary ring-1 ring-primary shadow-md'
             : 'border-border/80 hover:border-border'
         }`}
       >
-        {/* Scope Selector Dropdown */}
-        <div className="relative border-r border-border shrink-0">
-          <select
-            value={scope}
-            onChange={(e) => onScopeChange(e.target.value)}
-            className="h-11 pl-3 pr-8 text-xs font-medium bg-transparent text-foreground rounded-l-lg appearance-none cursor-pointer focus:outline-hidden hover:bg-muted/40 transition-colors"
-            aria-label="Search scope"
-          >
-            <option value="all" className="bg-card text-foreground">
-              Full-Text
-            </option>
-            <option value="title" className="bg-card text-foreground">
-              Title Only
-            </option>
-            <option value="metadata" className="bg-card text-foreground">
-              Authors & Meta
-            </option>
-            <option value="doi" className="bg-card text-foreground">
-              DOI Match
-            </option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-
         {/* Main Search Input with Browser Normalization */}
-        <div className="relative flex-1 flex items-center">
+        <div className="relative col-span-2 flex min-w-0 items-center sm:order-2 sm:flex-1">
           <Search className="absolute left-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
             ref={inputRef}
@@ -178,9 +154,9 @@ export default function GoogleScholarSearchBar({
                 ? 'Enter DOI (e.g. 10.1234/buksu.2025.042)...'
                 : scope === 'title'
                   ? 'Search article title...'
-                  : 'Search BukSU research archive (title, author, abstract, DOI)...'
+                  : 'Search title, author, abstract, or DOI...'
             }
-            className="w-full h-11 pl-10 pr-9 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden appearance-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden"
+            className="w-full min-w-0 h-11 pl-10 pr-9 bg-transparent text-base sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden appearance-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden"
           />
 
           {/* Single Unified Clear Action Button */}
@@ -196,10 +172,34 @@ export default function GoogleScholarSearchBar({
           )}
         </div>
 
+        {/* Scope Selector Dropdown */}
+        <div className="relative min-w-0 rounded-md border border-border sm:order-1 sm:shrink-0 sm:rounded-none sm:border-0 sm:border-r">
+          <select
+            value={scope}
+            onChange={(e) => onScopeChange(e.target.value)}
+            className="h-11 w-full pl-3 pr-8 text-xs font-medium bg-transparent text-foreground rounded-l-lg appearance-none cursor-pointer focus:outline-hidden hover:bg-muted/40 transition-colors sm:w-auto"
+            aria-label="Search scope"
+          >
+            <option value="all" className="bg-card text-foreground">
+              Full-Text
+            </option>
+            <option value="title" className="bg-card text-foreground">
+              Title Only
+            </option>
+            <option value="metadata" className="bg-card text-foreground">
+              Authors & Meta
+            </option>
+            <option value="doi" className="bg-card text-foreground">
+              DOI Match
+            </option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+
         {/* Single Subtle Submit Trigger */}
         <Button
           type="submit"
-          className="h-9 mr-1.5 px-4 bg-[#1a0dab] hover:bg-[#150a8a] text-white dark:bg-blue-600 dark:hover:bg-blue-700 rounded-md font-medium text-xs tracking-wide shrink-0 transition-colors"
+          className="h-11 w-full px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium text-xs tracking-wide transition-colors sm:order-3 sm:mr-1.5 sm:h-9 sm:w-auto sm:shrink-0"
         >
           <Search className="mr-1.5 h-3.5 w-3.5" />
           Search

@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-10-15_review-validation",
+  "date": "2026-10-15",
+  "task_summary": "Attempted independent-source manuscript validation, workflow reruns, and real concurrency testing; documented partial outcomes without invented passes.",
+  "status": "partial",
+  "completed": [
+    "Two live 50-client read-only title-screening trials",
+    "Three CC-BY PLOS manuscript provenance records",
+    "Isolated manuscript-service attempt and cleanup",
+    "Workflow harness attempts and watchdog cleanup",
+    "Dedicated upload-target preflight and guarded runner",
+    "Follow-up report, evidence registry, and Google Doc Section 4.4.7 updated"
+  ],
+  "results": {
+    "concurrency_run_1": { "requests": 100, "successful": 93, "timeouts": 7 },
+    "concurrency_run_2": { "requests": 100, "successful": 89, "timeouts": 11 },
+    "workflow_completed_scenarios": 0,
+    "independent_detection_metrics": "none; ingestion timeout"
+  },
+  "remaining": [
+    "Identify workflow-worker startup/import blockage",
+    "Stabilize isolated model loading",
+    "Supply eligible dedicated upload project",
+    "Run independent labeled evaluation and accepted-submission workload"
+  ],
+  "evidence": "docs/benchmarks/review-validation-2026-10-15.md",
+  "skills_patched": ["automated-qa-tester"]
+}

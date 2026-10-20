@@ -25,7 +25,14 @@ export default function CertificatePage() {
   const certificateErrorCode = error?.response?.data?.error?.code ?? error?.code;
   const isMissingCertificate = certificateErrorCode === 'NO_CERTIFICATE';
   const certificateUrl = certData?.url ?? null;
+  const isSealedCertificate = Boolean(certData?.verificationHash);
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  let certificateDescription = 'View and download the completion certificate.';
+  if (isInstructor) {
+    certificateDescription = isSealedCertificate
+      ? 'The archived certificate is sealed and includes a QR verification link.'
+      : 'Upload or manage the completion certificate for this project.';
+  }
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0] ?? null;
@@ -86,27 +93,31 @@ export default function CertificatePage() {
         <Card className="bg-card border">
           <CardHeader>
             <CardTitle className="text-lg">Certificate</CardTitle>
-            <CardDescription>
-              {isInstructor
-                ? 'Upload or manage the completion certificate for this project.'
-                : 'View and download the completion certificate.'}
-            </CardDescription>
+            <CardDescription>{certificateDescription}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
             {/* Current certificate display */}
             {certificateUrl && (
-              <div className="flex items-center justify-between rounded-lg border bg-background p-4">
+              <div className="flex flex-col gap-4 rounded-lg border border-border/60 bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <FileText className="h-8 w-8 text-muted-foreground" />
                   <div>
                     <p className="font-medium text-foreground">Completion Certificate</p>
-                    <Badge variant="secondary" className="mt-1">
-                      Uploaded
+                    <Badge variant={isSealedCertificate ? 'success' : 'secondary'} className="mt-1">
+                      {isSealedCertificate ? 'QR verified' : 'Uploaded'}
                     </Badge>
+                    {isSealedCertificate && (
+                      <p
+                        className="mt-2 max-w-[min(72vw,360px)] truncate font-mono text-xs text-muted-foreground"
+                        title={certData.verificationHash}
+                      >
+                        Verification: {certData.verificationHash}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -134,7 +145,15 @@ export default function CertificatePage() {
             )}
 
             {/* Upload form for instructors */}
-            {isInstructor && (
+            {isInstructor && isSealedCertificate && (
+              <Alert>
+                <AlertDescription>
+                  This certificate was generated after archival and is sealed. Its QR code opens the public verification record.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isInstructor && !isSealedCertificate && (
               <div className="space-y-4 rounded-lg border bg-background p-4">
                 <p className="text-sm font-medium text-foreground">
                   {certificateUrl ? 'Replace Certificate' : 'Upload Certificate'}

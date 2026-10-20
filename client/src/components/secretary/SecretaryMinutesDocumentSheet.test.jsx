@@ -173,6 +173,26 @@ describe('SecretaryMinutesDocumentSheet Component', () => {
     expect(printTextDivs.length).toBeGreaterThan(0);
   });
 
+  it('locks save and clear actions for archived projects', async () => {
+    await act(async () => {
+      root.render(
+        <SecretaryMinutesDocumentSheet
+          project={{ ...mockProject, isArchived: true, projectStatus: 'archived' }}
+        />,
+      );
+    });
+
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const saveButton = buttons.find((button) => button.textContent.includes('Save Minutes'));
+    const clearButton = buttons.find((button) => button.textContent.trim() === 'Clear');
+
+    expect(saveButton?.disabled).toBe(true);
+    expect(clearButton?.disabled).toBe(true);
+    expect(container.querySelector('[data-testid="secretary-minutes-fieldset"]')?.disabled).toBe(
+      true,
+    );
+  });
+
   it('renders the "Balance Pages" action button in the top toolbar', async () => {
     await act(async () => {
       root.render(<SecretaryMinutesDocumentSheet project={mockProject} />);
@@ -332,7 +352,7 @@ describe('SecretaryMinutesDocumentSheet Component', () => {
     expect(verdictButtons.length).toBe(3);
     const verdictPrintTwins = page3.querySelectorAll('.final-signoff-section .hidden.print\\:flex');
     expect(verdictPrintTwins.length).toBe(3);
-    expect(verdictPrintTwins[0].textContent).toContain('(✓)');
+    expect(verdictPrintTwins[0].textContent).toContain('( )');
     expect(verdictPrintTwins[0].textContent).toContain('Approved with Minor Revision');
   });
 });

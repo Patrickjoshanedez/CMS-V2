@@ -91,6 +91,7 @@ export default function ActionDoneMatrixSection({
         className,
       )}
       data-testid="adm-section-card"
+      data-milestone={meta.id}
     >
       <CardContent className="p-4 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 no-print">

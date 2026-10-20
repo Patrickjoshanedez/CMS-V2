@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-10-15_isolated-upload",
+  "date": "2026-10-15",
+  "status": "experiment_completed_defect_found",
+  "authorization": "User selected isolated test environment",
+  "task_summary": "Created disposable private-network MongoDB/Redis/MinIO/application/client environment, provisioned via official services, ran real DOCX upload preflight and 50-client same-project burst, verified accepted file bytes, and removed owned test resources.",
+  "results": {
+    "preflight": "HTTP 201",
+    "burst_requests": 50,
+    "accepted": 15,
+    "rejected_duplicate_version": 35,
+    "accepted_including_preflight": 16,
+    "verified_matching_files": 16,
+    "versions": "1 through 16"
+  },
+  "limitations": [
+    "Single account/project/chapter contention burst",
+    "1163-byte synthetic upload fixture",
+    "No background worker completion",
+    "Temporary memory-backed test storage",
+    "Storage-object orphan enumeration unmeasured",
+    "Roster-lock contract discrepancy"
+  ],
+  "cleanup": "All labeled test containers and private network removed",
+  "evidence": "docs/benchmarks/isolated-upload-2026-10-15.md",
+  "paper_update": "Google Doc Section 4.4.8",
+  "follow_up": "Fix atomic version allocation and storage compensation before rerunning acceptance; no production implementation changed during this experiment"
+}

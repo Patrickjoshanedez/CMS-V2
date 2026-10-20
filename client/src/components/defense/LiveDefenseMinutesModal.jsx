@@ -67,6 +67,8 @@ const VERDICTS = [
   { value: 'rejected', label: 'Rejected (Redefense Required)' },
 ];
 
+const EMPTY_PANELISTS = Object.freeze([]);
+
 // Sample institutional data from BukSU OVPAA-F-INS-032 reference artifact
 const INSTITUTIONAL_SAMPLE = {
   venue: 'COT Conference Room',
@@ -140,7 +142,7 @@ export default function LiveDefenseMinutesModal({
   defenseType = 'midterm',
   projectTitle = '',
   project,
-  panelists = [],
+  panelists = EMPTY_PANELISTS,
   user,
   onPublished,
   onMinutesPublished,
@@ -159,13 +161,13 @@ export default function LiveDefenseMinutesModal({
   const [liveScores, setLiveScores] = useState(null);
 
   // OVPAA-F-INS-032 Document State
-  const [venue, setVenue] = useState('COT Conference Room');
-  const [round, setRound] = useState('2nd');
-  const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
+  const [venue, setVenue] = useState('');
+  const [round, setRound] = useState('1st');
+  const [clientName, setClientName] = useState('');
   const [clientComments, setClientComments] = useState([]);
   const [newClientComment, setNewClientComment] = useState('');
   const [overallRecommendations, setOverallRecommendations] = useState('');
-  const [selectedVerdict, setSelectedVerdict] = useState('approved_with_minor_revisions');
+  const [selectedVerdict, setSelectedVerdict] = useState('');
   const [verdictRemarks, setVerdictRemarks] = useState('');
 
   // Quick entry form state

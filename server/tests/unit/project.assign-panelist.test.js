@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import projectService from '../../modules/projects/project.service.js';
 import Project from '../../modules/projects/project.model.js';
+import Team from '../../modules/teams/team.model.js';
 import User from '../../modules/users/user.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import * as socketService from '../../services/socket.service.js';
@@ -39,6 +40,10 @@ describe('projectService.assignPanelist & assignAdviser - Institutional Role Gua
     };
 
     vi.spyOn(Project, 'findById').mockImplementation(() => createQueryMock(mockProject));
+    vi.spyOn(Team, 'findById').mockImplementation(() =>
+      createQueryMock({ _id: '65e000000000000000000099', members: [] }),
+    );
+    vi.spyOn(Team, 'findByIdAndUpdate').mockResolvedValue({ _id: '65e000000000000000000099' });
     vi.spyOn(Notification, 'create').mockResolvedValue({ _id: 'notif-1' });
     vi.spyOn(projectService, '_notifyTeamMembers').mockResolvedValue(true);
   });

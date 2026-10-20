@@ -114,6 +114,7 @@ async function parsePdf(pdfBuffer) {
         numpages: parsed.metadata?.page_count || 1,
         ocrStatus: parsed.ocrStatus || 'complete',
         info: {
+          ocrStatus: parsed.ocrStatus || 'complete',
           Title: parsed.metadata?.title || null,
           Author: Array.isArray(parsed.metadata?.authors)
             ? parsed.metadata.authors.join(', ')
@@ -1214,6 +1215,10 @@ function extractTitle(text, pdfInfo) {
         metaTitle,
       );
     if (!isNoise && metaTitle.length > 10 && metaTitle.length < 300) {
+      if (pdfInfo.ocrStatus === 'complete') {
+        logger.debug({ source: 'paddleocr-vl', title: metaTitle }, 'Title from OCR metadata');
+        return { value: metaTitle, confidence: 0.9 };
+      }
       const keyWords = metaTitle
         .toLowerCase()
         .split(/\s+/)

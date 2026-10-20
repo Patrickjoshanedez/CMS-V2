@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/useProjects';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
+import { CAPSTONE_PHASES, resolveWorkflowPhase, TITLE_STATUSES } from '@cms/shared';
 
 const VENUE_PRESETS = [
   'COT Conference Room',
@@ -77,6 +78,9 @@ export default function ScheduleDefenseModal({
   const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const modalRef = useModalAccessibility({ open: isOpen, onClose, busy: isSubmitting });
+  const isTitleReviewHearing =
+    project?.titleStatus === TITLE_STATUSES.SUBMITTED &&
+    resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_1;
 
   const handleUnschedule = async () => {
     if (!project?._id) return;
@@ -145,14 +149,17 @@ export default function ScheduleDefenseModal({
 
   const hasAdviser = Boolean(project?.adviserId);
   const panelistCount = project?.panelistIds?.length || 0;
-  const hasFullCommittee = hasAdviser && panelistCount >= 3;
+  const hasFullCommittee =
+    hasAdviser &&
+    panelistCount === 3 &&
+    (!isTitleReviewHearing || Boolean(project?.secretaryId));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!project?._id) return;
 
     if (!date) {
-      toast.error('Please select a defense date.');
+      toast.error(`Please select a ${isTitleReviewHearing ? 'hearing' : 'defense'} date.`);
       return;
     }
     if (!time) {
@@ -175,7 +182,7 @@ export default function ScheduleDefenseModal({
       await projectService.scheduleDefense(project._id, payload);
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
       toast.success(
-        `Defense scheduled for ${project.teamId?.name || project.title} on ${date} at ${time}.`,
+        `${isTitleReviewHearing ? 'Title hearing' : 'Defense'} scheduled for ${project.teamId?.name || project.title} on ${date} at ${time}.`,
       );
       if (onScheduled) onScheduled();
       onClose();
@@ -207,19 +214,19 @@ export default function ScheduleDefenseModal({
                   id="schedule-defense-title"
                   className="min-w-0 text-sm sm:text-base font-bold text-foreground truncate"
                 >
-                  Schedule Defense Hearing
+                  {isTitleReviewHearing ? 'Schedule Title Hearing' : 'Schedule Defense Hearing'}
                 </h3>
                 <Badge
                   variant="outline"
                   className="text-[10px] uppercase font-mono tracking-wider border-primary/40 bg-primary/10 text-primary shrink-0"
                 >
-                  Capstone {project?.capstonePhase || 2}
+                  {isTitleReviewHearing ? 'Title Review' : `Capstone ${project?.capstonePhase || 2}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground truncate">
                 {project?.teamId?.name
                   ? `Team ${project.teamId.name.replace(/^Team\s+/i, '')}`
-                  : project?.title || 'Project Defense Hearing'}
+                  : project?.title || (isTitleReviewHearing ? 'Title Proposal Hearing' : 'Project Defense Hearing')}
               </p>
               <a
                 href={`/projects/${project?._id || project?.id}`}
@@ -252,6 +259,7 @@ export default function ScheduleDefenseModal({
               variant="ghost"
               size="sm"
               onClick={onClose}
+              aria-label="Close schedule dialog"
               className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
             >
               <X className="h-4 w-4" />
@@ -283,13 +291,17 @@ export default function ScheduleDefenseModal({
           )}
 
           {/* Defense Round & Type */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {!isTitleReviewHearing && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Label
+                htmlFor="defense-type"
+                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+              >
                 <Layers className="h-3.5 w-3.5 text-primary" />
                 Defense Type
               </Label>
               <select
+                id="defense-type"
                 value={defenseType}
                 onChange={(e) => setDefenseType(e.target.value)}
                 className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
@@ -301,11 +313,15 @@ export default function ScheduleDefenseModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Label
+                htmlFor="defense-round"
+                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+              >
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 Defense Round
               </Label>
               <select
+                id="defense-round"
                 value={round}
                 onChange={(e) => setRound(e.target.value)}
                 className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
@@ -315,16 +331,20 @@ export default function ScheduleDefenseModal({
                 <option value="3rd">3rd Round (Final Attempt)</option>
               </select>
             </div>
-          </div>
+          </div>}
 
           {/* Date & Time Slot */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Label
+                htmlFor="defense-date"
+                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+              >
                 <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                Defense Date
+                {isTitleReviewHearing ? 'Hearing Date' : 'Defense Date'}
               </Label>
               <Input
+                id="defense-date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -334,11 +354,15 @@ export default function ScheduleDefenseModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Label
+                htmlFor="defense-time"
+                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+              >
                 <Clock className="h-3.5 w-3.5 text-primary" />
                 Time Slot
               </Label>
               <select
+                id="defense-time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
@@ -375,11 +399,15 @@ export default function ScheduleDefenseModal({
 
           {/* Venue Selector */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <Label
+              htmlFor="defense-venue"
+              className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+            >
               <MapPin className="h-3.5 w-3.5 text-primary" />
               Venue &amp; Location
             </Label>
             <select
+              id="defense-venue"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
               className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
@@ -393,12 +421,16 @@ export default function ScheduleDefenseModal({
           </div>
 
           {/* Target Client / Industry Partner */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          {!isTitleReviewHearing && <div className="space-y-1.5">
+            <Label
+              htmlFor="defense-client"
+              className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+            >
               <Building className="h-3.5 w-3.5 text-primary" />
               Target Client / Industry Partner
             </Label>
             <Input
+              id="defense-client"
               type="text"
               placeholder="e.g. Dr. Sales G. Aribe Jr."
               value={clientName}
@@ -409,7 +441,7 @@ export default function ScheduleDefenseModal({
               A designated section for client recommendations will appear on the Secretary&apos;s
               Minutes (OVPAA-F-INS-032).
             </p>
-          </div>
+          </div>}
 
           {/* Hearing Committee Notification Roster Snapshot */}
           <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-1.5">
@@ -452,6 +484,14 @@ export default function ScheduleDefenseModal({
                   <span className="text-amber-600 font-sans italic">0 appointed</span>
                 )}
               </p>
+              {isTitleReviewHearing && (
+                <p>
+                  <strong className="text-muted-foreground font-sans">Secretary:</strong>{' '}
+                  {project?.secretaryId?.firstName
+                    ? `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
+                    : <span className="text-amber-600 font-sans italic">Unassigned</span>}
+                </p>
+              )}
             </div>
           </div>
         </form>
@@ -470,7 +510,7 @@ export default function ScheduleDefenseModal({
                 disabled={isSubmitting}
                 className="text-xs h-8 px-3"
               >
-                Remove Schedule
+                {isTitleReviewHearing ? 'Remove Title Hearing' : 'Remove Schedule'}
               </Button>
             )}
           </div>
@@ -499,7 +539,9 @@ export default function ScheduleDefenseModal({
               ) : (
                 <>
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Confirm &amp; Notify Hearing Committee
+                  {isTitleReviewHearing
+                    ? 'Confirm & Notify Title Review Committee'
+                    : 'Confirm & Notify Hearing Committee'}
                 </>
               )}
             </Button>

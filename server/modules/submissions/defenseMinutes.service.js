@@ -5,8 +5,16 @@ import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToRoom } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { EVALUATION_STATUSES, DEFENSE_TYPES } from '@cms/shared';
+import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 
 class DefenseMinutesService {
+  async _assertProjectWritable(projectId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    assertProjectWritable(project);
+    return project;
+  }
+
   /**
    * Helper to compute live evaluation scores across assigned panelists for a defense session.
    */
@@ -109,6 +117,7 @@ class DefenseMinutesService {
       .populate('compositeScores.lockedBy', 'firstName lastName email');
 
     if (!minutes) {
+      assertProjectWritable(project);
       const appointedSecretaryId = project.secretaryId?._id || project.secretaryId || user._id;
       minutes = await DefenseMinutes.create({
         projectId,
@@ -143,6 +152,7 @@ class DefenseMinutesService {
    * Add a structured revision critique entry.
    */
   async addEntry(projectId, defenseType, data, user) {
+    await this._assertProjectWritable(projectId);
     const {
       category = 'General / Other',
       panelistName,
@@ -209,6 +219,7 @@ class DefenseMinutesService {
    * Update an existing revision entry.
    */
   async updateEntry(projectId, defenseType, entryId, data) {
+    await this._assertProjectWritable(projectId);
     const minutes = await DefenseMinutes.findOne({ projectId, defenseType });
     if (!minutes)
       throw new AppError('Defense minutes session not found.', 404, 'MINUTES_NOT_FOUND');
@@ -244,6 +255,7 @@ class DefenseMinutesService {
    * Delete a revision entry.
    */
   async deleteEntry(projectId, defenseType, entryId) {
+    await this._assertProjectWritable(projectId);
     const minutes = await DefenseMinutes.findOne({ projectId, defenseType });
     if (!minutes)
       throw new AppError('Defense minutes session not found.', 404, 'MINUTES_NOT_FOUND');
@@ -269,6 +281,7 @@ class DefenseMinutesService {
    * Update session metadata and client comments (BukSU OVPAA-F-INS-032).
    */
   async updateSessionDetails(projectId, defenseType, data, user) {
+    await this._assertProjectWritable(projectId);
     let minutes = await DefenseMinutes.findOne({ projectId, defenseType });
     if (!minutes) {
       minutes = await DefenseMinutes.create({
@@ -311,6 +324,7 @@ class DefenseMinutesService {
    * Finalize the panel's consensus verdict.
    */
   async finalizeVerdict(projectId, defenseType, data, user) {
+    await this._assertProjectWritable(projectId);
     const { verdict, remarks = '', chairConfirmed = false } = data;
 
     if (!verdict) {
@@ -367,6 +381,7 @@ class DefenseMinutesService {
    * Lock composite scores from individual rubric evaluations.
    */
   async lockCompositeScores(projectId, defenseType, data, user) {
+    await this._assertProjectWritable(projectId);
     const minutes = await DefenseMinutes.findOne({ projectId, defenseType });
     if (!minutes)
       throw new AppError('Defense minutes session not found.', 404, 'MINUTES_NOT_FOUND');
@@ -414,6 +429,7 @@ class DefenseMinutesService {
 
     const project = await Project.findById(projectId);
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    assertProjectWritable(project);
 
     const milestoneMap = {
       [DEFENSE_TYPES.PROPOSAL]: 'CAPSTONE_1',

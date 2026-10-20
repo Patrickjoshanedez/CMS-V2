@@ -13,6 +13,7 @@ export function ADMTableView({
   displayedRows = [],
   isFirstPage = pageIdx === 0,
   isLastPage = pageIdx === totalPages - 1,
+  isReadOnly = false,
   isCurrentUserStudent = false,
   isFaculty = false,
   isStudent = false,
@@ -96,6 +97,7 @@ export function ADMTableView({
                   canEditAction={canEditAction}
                   canVerifyRow={canVerifyRow}
                   canAddRow={canAddRow}
+                  isReadOnly={isReadOnly}
                   handleCellChange={handleCellChange}
                   handleCellBlur={handleCellBlur}
                   handleToggleFulfillment={handleToggleFulfillment}

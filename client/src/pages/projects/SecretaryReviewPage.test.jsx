@@ -14,7 +14,7 @@ const ROUTER_FUTURE_FLAGS = {
   v7_relativeSplatPath: true,
 };
 
-const { mockProject, mockAuthState } = vi.hoisted(() => ({
+const { mockProject, mockProjectListSummary, mockAuthState } = vi.hoisted(() => ({
   mockProject: {
     _id: 'proj-sec-101',
     title: 'AI Smart Plant Disease Classifier with Winnowing Fingerprint',
@@ -31,6 +31,13 @@ const { mockProject, mockAuthState } = vi.hoisted(() => ({
     admStatus: 'pending_secretary_endorsement',
     admSignatures: {
       secretary: { endorsed: false, signatoryName: '', notes: '' },
+    },
+    admSignaturesByMilestone: {
+      CAPSTONE_2: {
+        secretary: { endorsed: false, signatoryName: '', notes: '' },
+        adviser: { signed: false },
+        chair: { signed: false },
+      },
     },
     actionDoneMatrix: [
       {
@@ -52,6 +59,15 @@ const { mockProject, mockAuthState } = vi.hoisted(() => ({
         status: 'addressed',
       },
     ],
+  },
+  mockProjectListSummary: {
+    _id: 'proj-sec-101',
+    title: 'AI Smart Plant Disease Classifier with Winnowing Fingerprint',
+    teamId: { _id: 'team-1', name: 'Team Flora' },
+    capstonePhase: 3,
+    admStatus: 'awaiting_minutes_upload',
+    actionDoneMatrix: [],
+    actionDoneMatrixCount: 0,
   },
   mockAuthState: {
     user: {
@@ -76,7 +92,7 @@ vi.mock('@/stores/authStore', () => ({
 
 vi.mock('@/hooks/useProjects', () => ({
   useProjects: () => ({
-    data: { projects: [mockProject], pagination: { page: 1, totalPages: 1 } },
+    data: { projects: [mockProjectListSummary], pagination: { page: 1, totalPages: 1 } },
     isLoading: false,
     refetch: vi.fn(),
   }),
@@ -132,6 +148,10 @@ describe('SecretaryReviewPage Studio', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed = false;
+    mockProject.actionDoneMatrix.forEach((row) => {
+      row.status = 'addressed';
+    });
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -166,14 +186,41 @@ describe('SecretaryReviewPage Studio', () => {
   it('renders Secretary Review Studio header, assigned team card, and Form OVPAA-F-INS-032 sheet by default', () => {
     const view = renderComponent();
 
-    expect(view.container.textContent).toContain('Committee Secretary Review Studio');
+    expect(view.container.querySelector('h1')?.textContent).toBe('Secretary Review');
     expect(view.container.textContent).toContain('Team Flora');
     expect(view.container.textContent).toContain("Secretary's Minutes Document (OVPAA-F-INS-032)");
     expect(view.container.textContent).toContain('Upload Secretary Minutes (OCR Scan)');
     expect(view.container.textContent).toContain('OVPAA-F-INS-032');
     expect(view.container.textContent).toContain('Bukidnon State University');
 
+    const selectedTeamCard = Array.from(view.container.querySelectorAll('[class]')).find(
+      (element) =>
+        element.classList.contains('cursor-pointer') &&
+        element.textContent.includes('Team Flora'),
+    );
+    expect(selectedTeamCard.textContent).toContain('Phase 3');
+    expect(selectedTeamCard.textContent).toContain('Awaiting Secretary Endorsement');
+    expect(selectedTeamCard.textContent).not.toContain('Needs Minutes');
+
     view.unmount();
+  });
+
+  it('distinguishes secretary endorsement from full committee approval in the team card', () => {
+    const wasEndorsed =
+      mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed;
+    mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed = true;
+    const view = renderComponent();
+
+    const selectedTeamCard = Array.from(view.container.querySelectorAll('[class]')).find(
+      (element) =>
+        element.classList.contains('cursor-pointer') &&
+        element.textContent.includes('Team Flora'),
+    );
+    expect(selectedTeamCard.textContent).toContain('Secretary Endorsed');
+    expect(selectedTeamCard.textContent).not.toContain('Approved');
+
+    view.unmount();
+    mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed = wasEndorsed;
   });
 
   it('autofills project title and committee roster into Form OVPAA-F-INS-032 when clicking autofill', () => {
@@ -217,17 +264,41 @@ describe('SecretaryReviewPage Studio', () => {
     view.unmount();
   });
 
-  it('displays ready to endorse gate banner and opens endorsement modal in ADM tab', () => {
+  it('keeps secretary endorsement locked while addressed rows are pending verification', () => {
     const view = renderComponent('/secretary-review?projectId=proj-sec-101&tab=adm');
 
     expect(view.container.textContent).toContain(
-      'All Remarks Addressed — Ready for Secretary Endorsement',
+      'Every panel recommendation must be verified before the Committee Secretary can endorse student revision fulfillments.',
     );
 
     const endorseButton = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Sign & Endorse Matrix'),
     );
     expect(endorseButton).toBeDefined();
+    expect(endorseButton.disabled).toBe(true);
+
+    act(() => {
+      endorseButton.click();
+    });
+
+    expect(document.body.textContent).not.toContain('Grant Committee Secretary Endorsement');
+    view.unmount();
+  });
+
+  it('opens the endorsement confirmation after every row is verified', () => {
+    const originalStatuses = mockProject.actionDoneMatrix.map((row) => row.status);
+    mockProject.actionDoneMatrix.forEach((row) => {
+      row.status = 'verified';
+    });
+    const view = renderComponent('/secretary-review?projectId=proj-sec-101&tab=adm');
+
+    expect(view.container.textContent).toContain(
+      'All Panel Recommendations Verified — Ready for Secretary Endorsement',
+    );
+    const endorseButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Sign & Endorse Matrix'),
+    );
+    expect(endorseButton.disabled).toBe(false);
 
     act(() => {
       endorseButton.click();
@@ -238,6 +309,9 @@ describe('SecretaryReviewPage Studio', () => {
     expect(document.body.textContent).toContain('Confirm & Sign Endorsement');
 
     view.unmount();
+    mockProject.actionDoneMatrix.forEach((row, index) => {
+      row.status = originalStatuses[index];
+    });
   });
 
   it('keeps the minutes sheet read-only and hides secretary actions for faculty who are not the appointed secretary', () => {

@@ -1,10 +1,113 @@
 import Project from '../project.model.js';
 import Team from '../../teams/team.model.js';
 import Notification from '../../notifications/notification.model.js';
+import Submission from '../../submissions/submission.model.js';
 import AppError from '../../../utils/AppError.js';
 import { emitToRoom, emitToUser } from '../../../services/socket.service.js';
+import { CAPSTONE_PHASES, DEFENSE_TYPES, resolveWorkflowPhase, TITLE_STATUSES } from '@cms/shared';
+import { assertProjectWritable, ganttScheduleHash } from './projectCore.service.js';
 
 class ProjectDefenseService {
+  async _requireApprovedSubmission(projectId, type, chapter = null) {
+    const query = { projectId, type };
+    if (chapter !== null) query.chapter = chapter;
+    const submission = await Submission.findOne(query).sort({ version: -1 }).select('status');
+    if (!submission || !['approved', 'accepted', 'locked'].includes(submission.status)) {
+      throw new AppError(
+        'The required manuscript must be approved by the adviser before this defense can be scheduled.',
+        400,
+        'DEFENSE_MANUSCRIPT_NOT_APPROVED',
+      );
+    }
+  }
+
+  async _assertDefenseReadiness(project, requestedType) {
+    const defenseType =
+      requestedType === 'midterm'
+        ? DEFENSE_TYPES.PROGRESS
+        : requestedType === 'paper'
+          ? DEFENSE_TYPES.FINAL
+          : requestedType;
+
+    const isTitleReviewHearing =
+      defenseType === DEFENSE_TYPES.PROPOSAL &&
+      project.titleStatus === TITLE_STATUSES.SUBMITTED &&
+      Number(project.capstonePhase) === 1 &&
+      resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_1;
+
+    if (isTitleReviewHearing) {
+      const team = await Team.findById(project.teamId);
+      if (!team?.isLocked) {
+        throw new AppError('The team roster must be locked before scheduling its title hearing.', 400, 'TEAM_ROSTER_NOT_LOCKED');
+      }
+
+      const panelistIds = (project.panelistIds || []).map((id) => String(id?._id || id));
+      const committeeIds = [
+        project.adviserId?._id || project.adviserId,
+        project.secretaryId?._id || project.secretaryId,
+        ...panelistIds,
+      ].filter(Boolean).map(String);
+      if (
+        !project.adviserId ||
+        !project.secretaryId ||
+        panelistIds.length !== 3 ||
+        new Set(panelistIds).size !== 3 ||
+        new Set(committeeIds).size !== committeeIds.length
+      ) {
+        throw new AppError(
+          'A complete title hearing committee requires one adviser, one secretary, and three distinct panelists.',
+          400,
+          'TITLE_HEARING_COMMITTEE_INCOMPLETE',
+        );
+      }
+
+      return true;
+    }
+
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError('The project title must be approved before defense scheduling.', 400, 'TITLE_NOT_APPROVED');
+    }
+
+    if (defenseType === DEFENSE_TYPES.PROPOSAL) {
+      if (Number(project.capstonePhase) !== 1) {
+        throw new AppError('Capstone 1 proposal defense can only be scheduled during Capstone 1.', 400, 'WRONG_PHASE');
+      }
+      await this._requireApprovedSubmission(project._id, 'proposal');
+      return false;
+    }
+
+    if (defenseType === DEFENSE_TYPES.PROGRESS) {
+      if (Number(project.capstonePhase) !== 2) {
+        throw new AppError('Capstone 2 system defense can only be scheduled during Capstone 2.', 400, 'WRONG_PHASE');
+      }
+      if (
+        !project.ganttApproval?.approved ||
+        project.ganttApproval.scheduleHash !== ganttScheduleHash(project.ganttPlan || {}) ||
+        !(project.ganttPlan?.tasks || []).length
+      ) {
+        throw new AppError('The Capstone 2 Gantt plan needs adviser approval before scheduling.', 400, 'GANTT_APPROVAL_REQUIRED');
+      }
+      if (!project.systemDefenseApproval?.approved) {
+        throw new AppError('The adviser must clear the working system before scheduling its defense.', 400, 'SYSTEM_DEFENSE_CLEARANCE_REQUIRED');
+      }
+      return false;
+    }
+
+    if (defenseType === DEFENSE_TYPES.FINAL) {
+      if (Number(project.capstonePhase) !== 3) {
+        throw new AppError('The final defense can only be scheduled during Capstone 3.', 400, 'WRONG_PHASE');
+      }
+      for (const chapter of [1, 2, 3, 4, 5]) {
+        await this._requireApprovedSubmission(project._id, 'chapter', chapter);
+      }
+      await this._requireApprovedSubmission(project._id, 'final_academic');
+      await this._requireApprovedSubmission(project._id, 'final_journal');
+      return false;
+    }
+
+    throw new AppError('Unknown defense type.', 400, 'INVALID_DEFENSE_TYPE');
+  }
+
   /**
    * Schedule or update defense hearing for a project (Instructor only).
    */
@@ -13,6 +116,7 @@ class ProjectDefenseService {
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
+    assertProjectWritable(project);
 
     const {
       date,
@@ -23,6 +127,12 @@ class ProjectDefenseService {
       clientName = 'Dr. Sales G. Aribe Jr.',
       status,
     } = data;
+
+    const isClearingRequest =
+      ['pending_scheduling', 'unscheduled', 'cancelled'].includes(status) || date === null || date === '';
+    const isTitleReviewHearing = !isClearingRequest
+      ? await this._assertDefenseReadiness(project, defenseType)
+      : false;
 
     const isClearingSchedule =
       status === 'pending_scheduling' ||
@@ -166,9 +276,11 @@ class ProjectDefenseService {
 
         const notifs = uniqueRecipients.map((uid) => ({
           userId: uid,
-          type: 'defense_scheduled',
-          title: 'Capstone 2 Defense Scheduled',
-          message: `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
+          type: isTitleReviewHearing ? 'title_hearing_scheduled' : 'defense_scheduled',
+          title: isTitleReviewHearing ? 'Title Proposal Hearing Scheduled' : 'Capstone 2 Defense Scheduled',
+          message: isTitleReviewHearing
+            ? `The title proposal hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`
+            : `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
           metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
         }));
 

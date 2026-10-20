@@ -63,7 +63,7 @@ async function main() {
     };
 
     try {
-      const res = await fetch(`${PLAGIARISM_API_URL}/index/sync`, {
+      const res = await fetch(`${PLAGIARISM_API_URL}/index`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

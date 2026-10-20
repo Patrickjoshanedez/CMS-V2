@@ -41,16 +41,16 @@ const KPICards = ({ kpis }) => {
   return (
     <div className="space-y-4">
       {/* 4 Primary Performance KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 items-stretch">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.label}
-              className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-5 shadow-xs transition-colors hover:border-border"
+              className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-4 shadow-xs transition-colors hover:border-border"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                <span className="text-xs font-medium text-muted-foreground">
                   {card.label}
                 </span>
                 <div
@@ -71,13 +71,13 @@ const KPICards = ({ kpis }) => {
       </div>
 
       {/* Project Volume Breakdown - Balanced 3-Column Equal Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 items-stretch">
         <div className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-4 shadow-xs transition-colors hover:border-border">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-medium text-muted-foreground">
               Total Projects
             </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/40 text-muted-foreground border border-border/50">
+            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground border border-border/50">
               <Layers className="h-3.5 w-3.5" />
             </div>
           </div>
@@ -90,11 +90,11 @@ const KPICards = ({ kpis }) => {
         </div>
 
         <div className="flex flex-col justify-between rounded-xl border border-primary/25 bg-primary/5 p-4 shadow-xs transition-colors hover:border-primary/40">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] uppercase font-bold tracking-wider text-primary">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-medium text-primary">
               Active Pipeline
             </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
+            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
               <Activity className="h-3.5 w-3.5" />
             </div>
           </div>
@@ -109,11 +109,11 @@ const KPICards = ({ kpis }) => {
         </div>
 
         <div className="flex flex-col justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 shadow-xs transition-colors hover:border-emerald-500/40">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400">
-              Archived &amp; Completed
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              Completed
             </span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <Archive className="h-3.5 w-3.5" />
             </div>
           </div>

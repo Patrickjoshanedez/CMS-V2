@@ -104,13 +104,39 @@ export function initializeSocket(httpServer) {
       socket.join(`user:${userId}`);
     });
 
-    // Handle capstone defense room subscriptions
-    socket.on('join:project', (projectId) => {
-      if (!projectId) return;
-      const room = `project:${projectId}`;
-      socket.join(room);
-      socket.emit('joined:project', { projectId, room });
-      console.log(`[Socket] User ${userId} joined ${room}`);
+    // Handle capstone defense room subscriptions (enforcing team membership for students)
+    socket.on('join:project', async (projectId) => {
+      if (!projectId || typeof projectId !== 'string' || !/^[a-f\d]{24}$/i.test(projectId)) return;
+      try {
+        if (socket.userRole === 'student') {
+          const mongoose = (await import('mongoose')).default;
+          const Project = mongoose.model('Project');
+          const Team = mongoose.model('Team');
+          const project = await Project.findById(projectId)
+            .select('teamId memberRoleAssignments isArchived')
+            .lean();
+          if (!project) return;
+          const team = project.teamId
+            ? await Team.findById(project.teamId).select('members leaderId').lean()
+            : null;
+          const isMember =
+            project.memberRoleAssignments?.some((m) => m.userId?.toString() === userId) ||
+            team?.members?.some((m) => (m?._id || m)?.toString() === userId) ||
+            (team?.leaderId?._id || team?.leaderId)?.toString() === userId;
+          if (!isMember && !project.isArchived) {
+            console.warn(
+              `[Socket] Unauthorized student ${userId} attempted to join project:${projectId}`,
+            );
+            return;
+          }
+        }
+        const room = `project:${projectId}`;
+        socket.join(room);
+        socket.emit('joined:project', { projectId, room });
+        console.log(`[Socket] User ${userId} joined ${room}`);
+      } catch (err) {
+        console.warn(`[Socket] Error authorizing join:project: ${err.message}`);
+      }
     });
 
     socket.on('leave:project', (projectId) => {

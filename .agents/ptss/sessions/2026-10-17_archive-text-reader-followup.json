@@ -1,0 +1,45 @@
+{
+  "session_id": "2026-10-17_archive-text-reader-followup",
+  "date": "2026-10-17T07:41:14Z",
+  "task_category": "synthetic_capstone_workflow_quality_closure",
+  "task_summary": "Preserved the stored MIME type and filename for archived TXT manuscripts and routed the archive view through the canonical SophisticatedDocumentViewer.",
+  "files_modified": [
+    "client/src/components/archive/CanonicalDocumentViewer.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.test.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.test.jsx",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/tasks/2026-10-17_phase0_capstone1_followup.json",
+    ".agents/ptss/sessions/2026-10-17_archive-text-reader-followup.json",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "verification-loop",
+    "workspace-evidence-maintenance",
+    "documents:documents"
+  ],
+  "key_decisions": [
+    "Treat the reseed DOCX as account reference data, not workflow authority.",
+    "Preserve server response MIME type and Content-Disposition filename when loading an archived manuscript.",
+    "Use SophisticatedDocumentViewer for archive manuscripts while keeping the integrity overlay limited to PDFs.",
+    "Do not mutate the account or its already archived project while closing the archive-reader defect."
+  ],
+  "live_state": "The latest seeded account remains authenticated with a verified profile, section/instructor assignments, and a locked team assigned to an archived 2025–2026 project. The dashboard shows profile setup complete, a locked team, 5/5 chapters approved, and archived status; the profile's section and instructor choices loaded after the initial page loading state.",
+  "focused_verification": {
+    "tests": "CanonicalDocumentViewer and SophisticatedDocumentViewer focused suites passed 27/27.",
+    "visual_review": "The archived synthetic text manuscript rendered in light/dark at desktop 1440x900 and mobile 390x844; identity metadata and mobile toolbar wrapping were visible without overlap.",
+    "lint": "Scoped ESLint completed with 0 errors; 16 warnings remain.",
+    "database_mutated": false,
+    "credentials_recorded": false
+  },
+  "verification_status": "partial",
+  "open_threads": [
+    "Demonstrate a clean Phase 0 through Capstone 1 workflow in an isolated synthetic context; the latest account already has a locked archived project.",
+    "The full client suite and Mongo-backed integration suite remain unverified under their documented watchdog/startup constraints."
+  ]
+}

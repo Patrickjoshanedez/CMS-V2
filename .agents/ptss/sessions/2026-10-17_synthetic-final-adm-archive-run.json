@@ -1,0 +1,43 @@
+{
+  "session_id": "2026-10-17_synthetic-final-adm-archive-run",
+  "date": "2026-10-17",
+  "status": "active-partial",
+  "task_category": "live_e2e_workflow_testing",
+  "task_summary": "Ran the authorized synthetic final-phase workflow with the existing seeded project, corrected verified server and test-fixture defects, and retained the earlier-phase evidence gaps.",
+  "changes": [
+    "Completed synthetic Chapter 4 and Chapter 5 review, final academic and journal submissions, plagiarism scans, released synthetic evaluation scorecards, Secretary endorsement, and five final ADM signatures through official application APIs.",
+    "Archived the existing synthetic project, generated its approval sheet and completion certificate, and verified the anonymous QR certificate endpoint returns valid for the archived project.",
+    "Kept archive corpus indexing marked queued; downstream completion was not confirmed.",
+    "Corrected archive eligibility to honor canonical capstonePhase when legacy stage/course labels are stale, and normalize labels only after successful archival.",
+    "Kept non-Capstone-1 Secretary endorsements in the versioned ADM record instead of overwriting the legacy Capstone-1 signature slot.",
+    "Exempted only the exact public certificate-verification GET route from the app-level authentication gate while retaining maintenance checks.",
+    "Updated integration and UI test fixtures to reflect current pitch-deck fields, navigation labels, plagiarism hero copy, and the deployed deadline-stage options."
+  ],
+  "verification": [
+    "Focused server progression and archive regression suites passed: 21/21 tests.",
+    "Comprehensive server workflow integration passed: 13/13 tests after correcting two stale fixtures without weakening institutional gates.",
+    "Focused client suites passed: 25/25 tests across ProposalTab, Sidebar, MilestoneDeadlinesModal, and PlagiarismComponents.",
+    "Endpoint parity passed with 229 server routes, 209 client endpoints, and 0 unmatched routes; agentic audit passed 60/60; governance, evidence integrity (34/34), and workspace guardrail passed.",
+    "Instructor visual audit passed all 8 light/dark desktop/mobile captures. The initial student audit produced 20 screenshots but flagged a pending title-similarity indicator and one transient notifications 503. A fresh-context student proposal-review diagnostic passed with HTTP 200, expected heading, 0 page errors, no failed API responses, and no horizontal overflow.",
+    "The repeated full student visual loop hit its 110-second watchdog at dark proposal-review navigation; no headless Chrome worker remained afterward. Recent server diagnostics showed no MongoDB errors. The full student visual loop remains incomplete.",
+    "The full client suite was stopped before the 120-second limit while still running. Targeted affected client suites were then repaired and passed; the full client suite has not been re-run."
+  ],
+  "live_state": "The existing seeded project is archived and its anonymous QR certificate verification passed. All final evaluations, minutes, ADM actions, and signatures were explicitly synthetic; no actual defense occurred. Archive indexing is still queued. The existing fixture entered this run with locked proposal/Chapters 1–3 data and conflicting legacy phase labels; it lacked verified Gantt, repository, and prototype evidence, so this run does not certify a clean Phase 0 through Phase 3 lifecycle.",
+  "remaining": [
+    "Use a clean isolated synthetic project to verify the earlier capstone phases, including Gantt, weekly system-development evidence, repository, and prototype artifacts; do not retrofit these onto the archived project.",
+    "Verify that the archive indexing queue completes downstream processing rather than remaining queued.",
+    "Complete the full student visual audit using route-isolated browser contexts and diagnose any remaining title-similarity loading state.",
+    "Reconcile the repository's three-numbered-course-plus-final stage model with the user-provided four-capstone canonical lifecycle before claiming full institutional phase alignment.",
+    "Run or record the full client suite result; only focused affected client tests have passed."
+  ],
+  "skills_used": [
+    "capstone-lifecycle-orchestrator",
+    "automated-qa-tester",
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

@@ -11,6 +11,7 @@
  * 7. HTTP endpoint integration via Express API
  */
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import connectDB from '../server/config/db.js';
 import projectService from '../server/modules/projects/project.service.js';
 import Course from '../server/modules/academics/course.model.js';
@@ -192,14 +193,19 @@ async function runFilterTests() {
   console.log(`[Archive Filter Tests]: ${passed} / ${total} PASSED (100%)`);
   console.log('=============================================\n');
 
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  try {
+    mongoose.connection.removeAllListeners();
+    await mongoose.connection.close();
+  } catch (_) {}
+
+  process.exitCode = (passed === total) ? 0 : 1;
 }
 
-runFilterTests().catch((err) => {
+runFilterTests().catch(async (err) => {
   console.error('[Filter Verification Fatal Error]:', err);
-  process.exit(1);
+  try {
+    mongoose.connection.removeAllListeners();
+    await mongoose.connection.close();
+  } catch (_) {}
+  process.exitCode = 1;
 });

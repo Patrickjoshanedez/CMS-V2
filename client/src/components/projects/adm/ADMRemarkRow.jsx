@@ -78,6 +78,7 @@ export const ADMRemarkRow = React.memo(function ADMRemarkRow({
   canEditAction,
   canVerifyRow,
   canAddRow,
+  isReadOnly = false,
   handleCellChange,
   handleCellBlur,
   handleToggleFulfillment,
@@ -143,6 +144,7 @@ export const ADMRemarkRow = React.memo(function ADMRemarkRow({
             <button
               type="button"
               onClick={() => handleMoveRowUp?.(rowId, pageIdx)}
+              disabled={isReadOnly}
               className="text-[10px] text-blue-600 hover:text-blue-800 font-sans font-medium"
               title={`Move row to Page ${pageIdx}`}
             >
@@ -153,13 +155,14 @@ export const ADMRemarkRow = React.memo(function ADMRemarkRow({
             <button
               type="button"
               onClick={() => handleMoveRowDown?.(rowId, pageIdx)}
+              disabled={isReadOnly}
               className="text-[10px] text-blue-600 hover:text-blue-800 font-sans font-medium"
               title={`Move row to Page ${pageIdx + 2}`}
             >
               ↓ P{pageIdx + 2}
             </button>
           )}
-          {!isLocked && canAddRow && (
+          {!isReadOnly && !isLocked && canAddRow && (
             <button
               type="button"
               onClick={() => handleDeleteRow?.(rowId)}

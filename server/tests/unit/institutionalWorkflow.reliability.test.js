@@ -56,6 +56,21 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
       ).rejects.toThrowError(/Only projects in the final capstone phase.*eligible for archival/i);
     });
 
+    it('uses Capstone 3 as the archival authority when legacy labels are stale', async () => {
+      Project.findById.mockResolvedValue({
+        _id: 'proj-phase-3-stale-labels',
+        title: 'Final Phase Project',
+        capstonePhase: 3,
+        capstoneCourse: 'Capstone 1',
+        stage: 'capstone_1',
+        projectStatus: PROJECT_STATUSES.ACTIVE,
+      });
+
+      await expect(
+        projectArchiveService.archiveProject('proj-phase-3-stale-labels', 'inst-1', {}),
+      ).rejects.toMatchObject({ code: 'SECRETARY_ENDORSEMENT_REQUIRED' });
+    });
+
     it('rejects archival when defense verdict is non-passing with DEFENSE_VERDICT_UNMET', async () => {
       Project.findById.mockResolvedValue({
         _id: 'proj-failed-defense',
@@ -92,7 +107,7 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
       await expect(
         projectArchiveService.archiveProject('proj-unendorsed-adm', 'inst-1', {}),
       ).rejects.toThrowError(
-        /Action Done Matrix \(ADM\) must be endorsed by the committee secretary/i,
+        /final Action Done Matrix must be endorsed by the committee secretary/i,
       );
 
       try {
@@ -100,6 +115,34 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
       } catch (err) {
         expect(err.code).toBe('SECRETARY_ENDORSEMENT_REQUIRED');
       }
+    });
+
+    it('rejects archival until every final ADM signatory has signed', async () => {
+      Project.findById.mockResolvedValue({
+        _id: 'proj-final-adm-incomplete',
+        title: 'Final ADM Awaiting Instructor Signature',
+        capstonePhase: 3,
+        stage: 'capstone_3',
+        projectStatus: PROJECT_STATUSES.ACTIVE,
+        defenseSchedule: { verdict: 'Passed' },
+        panelists: [{ userId: 'chair-1', role: 'chair' }],
+        actionDoneMatrix: [
+          { milestone: 'CAPSTONE_3', status: 'verified', suggestion: 'Final correction' },
+        ],
+        admSignaturesByMilestone: {
+          CAPSTONE_3: {
+            secretary: { endorsed: true },
+            adviser: { signed: true },
+            instructor: { signed: false },
+            chair: { signed: true },
+            panelists: [],
+          },
+        },
+      });
+
+      await expect(
+        projectArchiveService.archiveProject('proj-final-adm-incomplete', 'inst-1', {}),
+      ).rejects.toMatchObject({ code: 'FINAL_ADM_SIGNATURES_INCOMPLETE' });
     });
 
     it('rejects archival if already archived with ALREADY_ARCHIVED', async () => {
@@ -165,16 +208,14 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
 
       const panelistIds = ['inst-user-1'];
       User.find.mockReturnValue({
-        select: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              _id: 'inst-user-1',
-              firstName: 'Prof',
-              lastName: 'Instructor',
-              role: ROLES.INSTRUCTOR,
-            },
-          ]),
+        select: vi.fn().mockResolvedValue([
+          {
+            _id: 'inst-user-1',
+            firstName: 'Prof',
+            lastName: 'Instructor',
+            role: ROLES.INSTRUCTOR,
+          },
+        ]),
       });
 
       await expect(

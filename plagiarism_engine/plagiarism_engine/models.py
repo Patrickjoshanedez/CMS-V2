@@ -359,3 +359,7 @@ class HealthResponse(BaseModel):
     collection_count: int
     model_loaded: bool
     version: str = "1.0.0"
+    model_name: str | None = None
+    configured_model_name: str | None = None
+    embedding_dim: int | None = None
+    settings: dict[str, Any] = Field(default_factory=dict)

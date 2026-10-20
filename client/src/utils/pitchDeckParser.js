@@ -14,6 +14,18 @@ export const PITCH_DECK_FIELDS = [
     placeholder: 'Describe the high prevalence of the issue, existing gaps, and current costs...',
   },
   {
+    key: 'objectives',
+    label: 'Objectives',
+    tag: 'Measurable Outcomes',
+    placeholder: 'List the specific objectives the capstone will achieve...',
+  },
+  {
+    key: 'technicalStack',
+    label: 'Technical Stack',
+    tag: 'Technology Plan',
+    placeholder: 'List the languages, frameworks, platforms, and hardware...',
+  },
+  {
     key: 'proposedSolution',
     label: 'Proposed Solution',
     tag: 'Technical Framework',
@@ -46,6 +58,8 @@ export const PITCH_DECK_FIELDS = [
 export function emptyPitchDeck() {
   return {
     problemStatement: '',
+    objectives: '',
+    technicalStack: '',
     proposedSolution: '',
     uniqueContribution: '',
     targetUsers: '',
@@ -79,9 +93,19 @@ export function parsePitchDeckFromDescription(description = '') {
 
   const patterns = [
     {
+      key: 'objectives',
+      regex:
+        /(?:objectives|specific\s*objectives|project\s*objectives)\s*:\s*([\s\S]*?)(?=(?:technicalStack|technical\s*stack|proposedSolution|proposed\s*solution|$))/i,
+    },
+    {
+      key: 'technicalStack',
+      regex:
+        /(?:technicalStack|technical\s*stack|technology\s*stack)\s*:\s*([\s\S]*?)(?=(?:proposedSolution|proposed\s*solution|$))/i,
+    },
+    {
       key: 'problemStatement',
       regex:
-        /(?:problemStatement|problem\s*statement(?:\s*&\s*literature\s*gap)?)\s*:\s*([\s\S]*?)(?=(?:proposedSolution|proposed\s*solution|uniqueContribution|unique\s*technical|unique\s*contribution|targetUsers|target\s*users|expectedImpact|expected\s*value|expected\s*impact|$))/i,
+        /(?:problemStatement|problem\s*statement(?:\s*&\s*literature\s*gap)?)\s*:\s*([\s\S]*?)(?=(?:objectives|specific\s*objectives|project\s*objectives|technicalStack|technical\s*stack|technology\s*stack|proposedSolution|proposed\s*solution|uniqueContribution|unique\s*technical|unique\s*contribution|targetUsers|target\s*users|expectedImpact|expected\s*value|expected\s*impact|$))/i,
     },
     {
       key: 'proposedSolution',

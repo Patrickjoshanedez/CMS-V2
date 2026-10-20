@@ -355,6 +355,9 @@ describe('PlagiarismReportPage', () => {
     expect(badge.textContent).toContain('Lexical Only');
     expect(container.querySelector('[data-testid="scan-coverage-lexical-banner"]')).not.toBeNull();
     expect(container.textContent).toContain('Fast-Path Lexical Clearance');
+    expect(container.textContent).toContain('Estimated Non-Matching Text');
+    expect(container.textContent).toContain('A similarity score does not verify authorship.');
+    expect(container.textContent).not.toContain('Verified Academic Authenticity');
   });
 
   it('renders Degraded coverage badge and banner when scanCoverage is degraded', () => {

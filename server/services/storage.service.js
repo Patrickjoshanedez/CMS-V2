@@ -15,7 +15,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import zlib from 'zlib';
 import { promisify } from 'util';
-import s3Client from '../config/storage.js';
+import s3Client, { createStorageS3Client } from '../config/storage.js';
 import env from '../config/env.js';
 import AppError from '../utils/AppError.js';
 import { STORAGE_ARCHIVE_PREFIXES, STORAGE_ROOT_PREFIXES } from '@cms/shared';
@@ -23,6 +23,26 @@ import { extractText } from '../utils/extractText.js';
 
 const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
+
+function resolvePublicS3Endpoint() {
+  const configuredPublicUrl = env.S3_PUBLIC_URL?.trim();
+  if (configuredPublicUrl) return configuredPublicUrl.replace(/\/+$/, '');
+
+  if (env.isProduction || typeof env.S3_ENDPOINT !== 'string') return null;
+  try {
+    const endpoint = new URL(env.S3_ENDPOINT.trim());
+    if (['minio', 'localstack'].includes(endpoint.hostname.toLowerCase())) {
+      endpoint.hostname = 'localhost';
+      return endpoint.toString().replace(/\/+$/, '');
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+const publicS3Endpoint = resolvePublicS3Endpoint();
+const publicSigningClient = publicS3Endpoint ? createStorageS3Client(publicS3Endpoint) : s3Client;
 
 class StorageService {
   constructor() {
@@ -455,6 +475,16 @@ class StorageService {
   }
 
   /**
+   * Build a storage key for the final committee approval sheet.
+   * Format: archives/projects/{projectId}/approval/approval-sheet.pdf
+   * @param {string} projectId
+   * @returns {string} S3 object key
+   */
+  buildApprovalSheetKey(projectId) {
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/approval/approval-sheet.pdf`;
+  }
+
+  /**
    * Build a storage key for a bulk-uploaded archive document.
    * Format: archives/bulk/{academicYear}/{fileName}
    *
@@ -542,8 +572,8 @@ class StorageService {
    * Generate a temporary pre-signed URL for viewing/downloading a file.
    * URL expires after the specified duration (default 5 minutes).
    *
-   * If S3_PUBLIC_URL is configured (e.g., ngrok tunnel), the presigned URL
-   * endpoint is replaced with the public URL so external clients can access it.
+   * If a browser-reachable S3 endpoint is configured, the URL is signed against
+   * that endpoint so the SigV4 host remains valid for the requesting client.
    *
    * @param {string} key - S3 object key
    * @param {number} [expiresInSeconds=300] - URL lifetime in seconds
@@ -573,8 +603,7 @@ class StorageService {
         Key: normalizedKey,
       });
 
-      const publicUrl = env.S3_PUBLIC_URL?.trim();
-      if (publicUrl && !env.S3_FORCE_PATH_STYLE) {
+      if (publicS3Endpoint && !env.S3_FORCE_PATH_STYLE) {
         throw new AppError(
           'Storage is misconfigured for public S3 access. Set S3_FORCE_PATH_STYLE=true when S3_PUBLIC_URL is used.',
           503,
@@ -582,29 +611,7 @@ class StorageService {
         );
       }
 
-      let signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
-
-      // Replace internal endpoint with public URL if configured (for ngrok/external access)
-      if (publicUrl && env.S3_ENDPOINT) {
-        // Replace the internal endpoint (e.g., http://localstack:4566 or http://minio:9000) with the public URL
-        // Handle both Docker internal URLs and localhost URLs
-        const internalEndpoint = env.S3_ENDPOINT.trim();
-        if (signedUrl.startsWith(internalEndpoint)) {
-          signedUrl = signedUrl.replace(internalEndpoint, publicUrl);
-        } else if (signedUrl.includes('localstack:')) {
-          // Handle Docker internal hostname when S3_ENDPOINT uses localhost
-          signedUrl = signedUrl.replace(/http:\/\/localstack:\d+/, publicUrl);
-        } else if (signedUrl.includes('minio:')) {
-          signedUrl = signedUrl.replace(/http:\/\/minio:\d+/, publicUrl);
-        }
-      } else if (signedUrl.includes('minio:9000')) {
-        // Automatically translate Docker internal minio:9000 to host-accessible localhost:9000
-        signedUrl = signedUrl.replace('http://minio:9000', 'http://localhost:9000');
-      } else if (signedUrl.includes('localstack:4566')) {
-        signedUrl = signedUrl.replace('http://localstack:4566', 'http://localhost:4566');
-      }
-
-      return signedUrl;
+      return await getSignedUrl(publicSigningClient, getCommand, { expiresIn: expiresInSeconds });
     } catch (error) {
       if (error.isOperational) {
         throw error;

@@ -66,7 +66,7 @@ function getStudentNavItems(badges = {}) {
       path: '/project/submissions',
       badge: badges.submissionsBadge,
       badgeVariant: 'neutral',
-      section: 'tools',
+      section: 'workspace',
     },
     {
       id: 'archive',
@@ -81,6 +81,13 @@ function getStudentNavItems(badges = {}) {
       icon: ShieldCheck,
       path: '/plagiarism-checker',
       section: 'tools',
+    },
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: UserCheck,
+      path: '/profile',
+      section: 'system',
     },
     {
       id: 'settings',
@@ -130,7 +137,7 @@ const instructorNavItems = [
   },
   {
     id: 'archive-group',
-    label: 'Archived Capstone',
+    label: 'Research Archive',
     icon: Archive,
     path: '/archive',
     section: 'tools',
@@ -139,7 +146,7 @@ const instructorNavItems = [
       { id: 'browse-archive', label: 'Browse Archive', icon: Search, path: '/archive' },
       {
         id: 'upload-archive',
-        label: 'Upload Archive (OCR)',
+        label: 'Upload Research',
         icon: Upload,
         path: '/archive/upload/capstone',
       },
@@ -292,7 +299,7 @@ function getActivePath(items, location) {
 /**
  * SidebarNavItem — Navigation node with floating portal tooltip and hover micro-interactions
  */
-function SidebarNavItem({ item, active, collapsed }) {
+function SidebarNavItem({ item, active, collapsed, onNavigate }) {
   const Icon = item.icon;
   const [coords, setCoords] = useState(null);
   let queryClient = null;
@@ -321,6 +328,7 @@ function SidebarNavItem({ item, active, collapsed }) {
     <>
       <Link
         to={item.path}
+        onClick={onNavigate}
         onMouseEnter={(e) => {
           prefetchRoute(item.path, queryClient);
           handleShow(e);
@@ -340,24 +348,24 @@ function SidebarNavItem({ item, active, collapsed }) {
           collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
         } ${
           active
-            ? 'text-blue-700 dark:text-blue-400 font-semibold shadow-2xs'
-            : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+            ? 'text-primary font-semibold shadow-2xs'
+            : 'text-muted-foreground hover:text-foreground'
         }`}
       >
         {/* Background Active Pill */}
         {active && (
-          <div className="absolute inset-0 bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 rounded-lg pointer-events-none transition-all shadow-2xs" />
+          <div className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs transition-all pointer-events-none" />
         )}
 
         {/* Hover wash for inactive items */}
         {!active && (
-          <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 bg-slate-200/50 dark:bg-slate-800/50 transition-opacity pointer-events-none" />
+          <div className="absolute inset-0 rounded-lg bg-accent opacity-0 transition-opacity pointer-events-none group-hover:opacity-100" />
         )}
 
         {/* Leading Icon */}
         <Icon
           className={`w-4 h-4 relative z-10 transition-transform duration-200 shrink-0 group-hover:scale-110 ${
-            active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
+            active ? 'text-primary' : 'text-muted-foreground'
           }`}
         />
 
@@ -379,7 +387,7 @@ function SidebarNavItem({ item, active, collapsed }) {
                 ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
                 : item.badgeVariant === 'success'
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                  : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  : 'bg-muted text-muted-foreground'
             }`}
           >
             {item.badge}
@@ -396,7 +404,7 @@ function SidebarNavItem({ item, active, collapsed }) {
             role="tooltip"
             data-testid="sidebar-tooltip"
             style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-            className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5"
+            className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5"
           >
             {item.label}
             {item.badge !== undefined && (
@@ -406,7 +414,7 @@ function SidebarNavItem({ item, active, collapsed }) {
                     ? 'bg-amber-500 text-white'
                     : item.badgeVariant === 'success'
                       ? 'bg-emerald-500 text-white'
-                      : 'bg-blue-500 text-white'
+                      : 'bg-primary text-primary-foreground'
                 }`}
               >
                 {item.badge}
@@ -422,7 +430,7 @@ function SidebarNavItem({ item, active, collapsed }) {
 /**
  * Collapsible group for sub-items (e.g. Archived Capstone Browse & Upload)
  */
-function SidebarNavGroup({ item, activePath, collapsed }) {
+function SidebarNavGroup({ item, activePath, collapsed, onNavigate }) {
   const { pathname } = useLocation();
   let queryClient = null;
   try {
@@ -456,6 +464,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
       <>
         <Link
           to={item.children?.[0]?.path || item.path}
+          onClick={onNavigate}
           onMouseEnter={(e) => {
             prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
             handleShow(e);
@@ -473,14 +482,14 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
           onBlur={handleHide}
           className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center justify-center px-0 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
             isChildActive
-              ? 'text-blue-700 dark:text-blue-400 font-semibold'
-              : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+              ? 'text-primary font-semibold'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           {isChildActive && (
-            <div className="absolute inset-0 bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 rounded-lg pointer-events-none shadow-2xs" />
+            <div className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs pointer-events-none" />
           )}
-          <Icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover:scale-110 text-slate-500 dark:text-slate-400 shrink-0" />
+          <Icon className="relative z-10 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
         </Link>
 
         {coords &&
@@ -490,7 +499,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
               role="tooltip"
               data-testid="sidebar-tooltip"
               style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-              className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+              className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100"
             >
               {item.label}
             </div>,
@@ -507,8 +516,8 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
         onClick={() => setOpen((prev) => !prev)}
         className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center min-w-0 gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
           isChildActive
-            ? 'text-blue-700 dark:text-blue-400 font-semibold'
-            : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+            ? 'text-primary font-semibold'
+            : 'text-muted-foreground hover:text-foreground'
         }`}
         aria-expanded={open}
       >
@@ -528,7 +537,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden" inert={open ? undefined : ''} aria-hidden={!open}>
-          <div className="ml-4 mt-0.5 space-y-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
+          <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-2">
             {item.children?.map((child) => {
               const isActive = activePath === child.path;
               return (
@@ -537,6 +546,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
                   item={child}
                   active={isActive}
                   collapsed={collapsed}
+                  onNavigate={onNavigate}
                 />
               );
             })}
@@ -645,6 +655,9 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
   const workspaceItems = navItems.filter((i) => i.section === 'workspace');
   const toolsItems = navItems.filter((i) => i.section === 'tools');
   const systemItems = navItems.filter((i) => i.section === 'system');
+  const closeMobileNav = () => {
+    if (mobileView && open) onToggle?.();
+  };
 
   return (
     <aside
@@ -659,7 +672,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
     >
       {/* 1. Header & Collapse Toggle */}
       <div
-        className={`py-3 flex items-center border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem] transition-all duration-300 ${
+        className={`flex min-h-[4rem] items-center border-b border-border/60 py-3 transition-all duration-300 ${
           collapsed ? 'justify-center px-2' : 'justify-between px-3.5 gap-2'
         }`}
       >
@@ -671,7 +684,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
             <div className="flex flex-col min-w-0 pr-1 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span
-                  className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none truncate"
+                  className="truncate text-sm font-bold leading-none tracking-tight text-foreground"
                   title="BukSU CMS"
                 >
                   BukSU CMS
@@ -681,7 +694,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                 </span>
               </div>
               <span
-                className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-1 truncate"
+                className="mt-1 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
                 title="Capstone Studio"
               >
                 Capstone Studio
@@ -693,7 +706,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
         <button
           type="button"
           onClick={onToggle}
-          className="min-h-[44px] min-w-[44px] lg:min-h-0 lg:min-w-0 p-2 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center"
+          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-border bg-background p-2 text-muted-foreground transition-colors hover:bg-accent lg:min-h-0 lg:min-w-0"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -712,7 +725,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
         {/* Workspace Section */}
         <div className="space-y-1">
           {!collapsed && (
-            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase truncate">
+            <p className="truncate px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Workspace
             </p>
           )}
@@ -724,6 +737,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                   item={item}
                   activePath={activePath}
                   collapsed={collapsed}
+                  onNavigate={closeMobileNav}
                 />
               ) : (
                 <SidebarNavItem
@@ -731,6 +745,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                   item={item}
                   active={activePath === item.path}
                   collapsed={collapsed}
+                  onNavigate={closeMobileNav}
                 />
               ),
             )}
@@ -738,10 +753,10 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
         </div>
 
         {/* Tools Section */}
-        <div className="pt-3 border-t border-slate-700 dark:border-slate-800 space-y-1">
+        <div className="space-y-1 border-t border-border/60 pt-3">
           {!collapsed && (
-            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase truncate">
-              Evaluation
+            <p className="truncate px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {user?.role === ROLES.INSTRUCTOR ? 'Management & Tools' : 'Research Tools'}
             </p>
           )}
           <div className="space-y-0.5">
@@ -752,6 +767,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                   item={item}
                   activePath={activePath}
                   collapsed={collapsed}
+                  onNavigate={closeMobileNav}
                 />
               ) : (
                 <SidebarNavItem
@@ -759,6 +775,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                   item={item}
                   active={activePath === item.path}
                   collapsed={collapsed}
+                  onNavigate={closeMobileNav}
                 />
               ),
             )}
@@ -768,7 +785,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
 
       {/* 3. Footer Actions */}
       <div
-        className={`border-t border-slate-700 dark:border-slate-800 space-y-1 shrink-0 ${
+        className={`shrink-0 space-y-1 border-t border-border/60 ${
           collapsed ? 'p-2' : 'p-3'
         }`}
       >
@@ -778,6 +795,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
             item={item}
             active={activePath === item.path}
             collapsed={collapsed}
+            onNavigate={closeMobileNav}
           />
         ))}
 
@@ -810,7 +828,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
           }}
           onMouseLeave={() => setSignOutCoords(null)}
           onBlur={() => setSignOutCoords(null)}
-          className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none select-none ${
+          className={`relative flex min-h-[44px] w-full items-center rounded-lg px-3 py-2 text-xs font-medium text-destructive transition-all group outline-none select-none hover:bg-destructive/10 lg:min-h-10 ${
             collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
           }`}
           title={collapsed ? 'Sign out' : undefined}
@@ -837,7 +855,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
             role="tooltip"
             data-testid="sidebar-tooltip"
             style={{ top: `${signOutCoords.top}px`, left: `${signOutCoords.left}px` }}
-            className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100"
           >
             Sign out
           </div>,

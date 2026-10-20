@@ -9,7 +9,13 @@ import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
 import Evaluation from '../../modules/evaluations/evaluation.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
-import { EVALUATION_STATUSES, DEFENSE_TYPES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  EVALUATION_STATUSES,
+  DEFENSE_TYPES,
+  DEFENSE_DECISIONS,
+  TITLE_STATUSES,
+  PROJECT_STATUSES,
+} from '@cms/shared';
 
 /* ═══════════════════ Helpers ═══════════════════ */
 
@@ -365,6 +371,36 @@ describe('Evaluations API — /api/evaluations', () => {
   /* ────── POST /:projectId/:defenseType/release ────── */
 
   describe('POST /:projectId/:defenseType/release — Release evaluations', () => {
+    it('releases final grades without archiving before the final ADM and manuscripts are cleared', async () => {
+      const evaluation = await Evaluation.create({
+        projectId: project._id,
+        panelistId: panelist._id,
+        defenseType: DEFENSE_TYPES.FINAL,
+        criteria: [{ name: 'Final defense', maxScore: 100, score: 90 }],
+        totalScore: 90,
+        maxTotalScore: 100,
+        percentage: 90,
+        decision: DEFENSE_DECISIONS.PASSED,
+        status: EVALUATION_STATUSES.SUBMITTED,
+      });
+
+      const res = await instructorAgent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.FINAL}/release`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.releasedCount).toBe(1);
+
+      const [releasedEvaluation, persistedProject] = await Promise.all([
+        Evaluation.findById(evaluation._id),
+        Project.findById(project._id),
+      ]);
+      expect(releasedEvaluation.status).toBe(EVALUATION_STATUSES.RELEASED);
+      expect(persistedProject.projectStatus).not.toBe(PROJECT_STATUSES.ARCHIVED);
+      expect(persistedProject.isArchived).toBe(false);
+      expect(persistedProject.defenseSchedule.verdict).toBe('Passed');
+    });
+
     it('should release all submitted evaluations (instructor)', async () => {
       // Create + score + submit an evaluation
       const createRes = await panelistAgent.get(
@@ -402,14 +438,21 @@ describe('Evaluations API — /api/evaluations', () => {
       expect(res.body.success).toBe(false);
     });
 
-    it('should return 0 releasedCount if none submitted', async () => {
+    it('should block release until every assigned panelist has submitted', async () => {
       const res = await instructorAgent.post(
         `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
       );
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.releasedCount).toBe(0);
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('EVALUATIONS_INCOMPLETE');
+
+      const evaluationCount = await Evaluation.countDocuments({
+        projectId: project._id,
+        defenseType: DEFENSE_TYPES.PROPOSAL,
+        status: EVALUATION_STATUSES.RELEASED,
+      });
+      expect(evaluationCount).toBe(0);
     });
   });
 
@@ -455,74 +498,38 @@ describe('Evaluations API — /api/evaluations', () => {
     });
 
     it('should show only released evaluations to student', async () => {
-      // Create one submitted-but-not-released eval via a second panelist
       const p2 = await createAuthenticatedUserWithRole('panelist', {
         email: 'eval-panelist4@test.com',
       });
       await Project.findByIdAndUpdate(project._id, { $push: { panelistIds: p2.user._id } });
 
-      // Panelist 1: submit + release
-      const createRes1 = await panelistAgent.get(
-        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
-      );
-      const evalId1 = createRes1.body.data.evaluation._id;
+      // Seed mixed visibility states directly so this read test stays independent
+      // of the separate all-panelists release gate.
+      await Evaluation.create([
+        {
+          projectId: project._id,
+          panelistId: panelist._id,
+          defenseType: DEFENSE_TYPES.PROPOSAL,
+          criteria: buildScoredCriteria(),
+          totalScore: 87,
+          maxTotalScore: 100,
+          percentage: 87,
+          status: EVALUATION_STATUSES.RELEASED,
+          releasedAt: new Date(),
+        },
+        {
+          projectId: project._id,
+          panelistId: p2.user._id,
+          defenseType: DEFENSE_TYPES.PROPOSAL,
+          criteria: buildScoredCriteria(),
+          totalScore: 87,
+          maxTotalScore: 100,
+          percentage: 87,
+          status: EVALUATION_STATUSES.SUBMITTED,
+          submittedAt: new Date(),
+        },
+      ]);
 
-      await panelistAgent
-        .patch(`/api/evaluations/${evalId1}`)
-        .send({ criteria: buildScoredCriteria(), overallComment: 'P1 done.' });
-
-      await panelistAgent.post(`/api/evaluations/${evalId1}/submit`);
-
-      // Panelist 2: submitted only (not released)
-      const createRes2 = await p2.agent.get(
-        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
-      );
-      const evalId2 = createRes2.body.data.evaluation._id;
-
-      await p2.agent
-        .patch(`/api/evaluations/${evalId2}`)
-        .send({ criteria: buildScoredCriteria(), overallComment: 'P2 done.' });
-
-      await p2.agent.post(`/api/evaluations/${evalId2}/submit`);
-
-      // Release only panelist 1's eval (release all submitted → both become released)
-      // Actually releaseEvaluations releases ALL submitted, so we need a different approach:
-      // Release first, then create a second eval that stays submitted.
-      // Let's release now (both get released), then create a draft for tracking.
-      // Instead, let's use a simpler approach: release first eval only by doing it before p2 submits.
-
-      // Let's redo: release after only p1 has submitted
-      // Clear evaluations and redo
-      await Evaluation.deleteMany({});
-
-      // P1 submits
-      const r1 = await panelistAgent.get(
-        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
-      );
-      const eid1 = r1.body.data.evaluation._id;
-
-      await panelistAgent
-        .patch(`/api/evaluations/${eid1}`)
-        .send({ criteria: buildScoredCriteria(), overallComment: 'P1.' });
-
-      await panelistAgent.post(`/api/evaluations/${eid1}/submit`);
-
-      // Instructor releases (only P1 is submitted at this point)
-      await instructorAgent.post(
-        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
-      );
-
-      // P2 submits AFTER release — this one stays as 'submitted'
-      const r2 = await p2.agent.get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
-      const eid2 = r2.body.data.evaluation._id;
-
-      await p2.agent
-        .patch(`/api/evaluations/${eid2}`)
-        .send({ criteria: buildScoredCriteria(), overallComment: 'P2.' });
-
-      await p2.agent.post(`/api/evaluations/${eid2}/submit`);
-
-      // Student should only see the released eval (P1), not the submitted one (P2)
       const res = await studentAgent.get(
         `/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
       );
@@ -549,6 +556,56 @@ describe('Evaluations API — /api/evaluations', () => {
       expect(summary.submittedCount).toBe(1);
       expect(summary.averagePercentage).toBe(87);
       expect(summary.averageMaxScore).toBe(100);
+    });
+  });
+
+  describe('GET /project/:projectId/:defenseType/report — Evaluation report', () => {
+    const reportPath = () =>
+      `/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}/report`;
+
+    it('keeps an assigned panelist pending when no evaluation has been created', async () => {
+      const res = await instructorAgent.get(reportPath());
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.report.panelists).toHaveLength(1);
+      expect(res.body.data.report.panelists[0]).toMatchObject({
+        panelistName: `${panelist.firstName} ${panelist.lastName}`,
+        status: 'pending',
+        decision: null,
+      });
+      expect(res.body.data.report.summary).toMatchObject({
+        totalPanelists: 1,
+        submitted: 0,
+        averageScore: null,
+        overallDecision: 'pending',
+      });
+    });
+
+    it('does not pass while any assigned panelist has not submitted an evaluation', async () => {
+      const second = await createAuthenticatedUserWithRole('panelist', {
+        email: 'eval-report-panelist2@test.com',
+      });
+      await Project.findByIdAndUpdate(project._id, { $push: { panelistIds: second.user._id } });
+
+      const draftRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
+      const evaluationId = draftRes.body.data.evaluation._id;
+      await panelistAgent
+        .patch(`/api/evaluations/${evaluationId}`)
+        .send({ criteria: buildScoredCriteria(), overallComment: 'Complete.' });
+      await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
+
+      const res = await instructorAgent.get(reportPath());
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.report.panelists).toHaveLength(2);
+      expect(res.body.data.report.summary).toMatchObject({
+        totalPanelists: 2,
+        submitted: 1,
+        overallDecision: 'pending',
+      });
+      expect(res.body.data.report.panelists.find((row) => row.status === 'pending')).toBeDefined();
     });
   });
 

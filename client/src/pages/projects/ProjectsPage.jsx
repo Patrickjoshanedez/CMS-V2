@@ -2,10 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import ProjectCohortCard from '@/components/projects/ProjectCohortCard';
 import { useProjects } from '@/hooks/useProjects';
@@ -36,10 +34,9 @@ import { cn } from '@/lib/utils';
  * Replaces legacy flat titleStatus filter with workflow-driven queues:
  * - action_needed: Critical queue — pending proposal deliberation, defense endorsement, or revision
  * - all: Complete active cohort directory
- * - capstone_1: Phase 1 — Title Proposals & Proposal Defense
- * - capstone_2: Phase 2 — Chapters 1–3 Manuscripts & Midterm Defense
- * - capstone_3: Phase 3 — System Dev, Interactive Gantt & Prototype Progress
- * - capstone_4: Phase 4 — Final Defense, Dean ADM Sign-off & Archival
+ * - capstone_1: Capstone 1 — Chapters 1–3 & Proposal Defense
+ * - capstone_2: Capstone 2 — System Development & Prototype Defense
+ * - capstone_3: Capstone 3 — Chapters 4–5, Final Defense & Archival
  */
 const TASK_CATEGORIES = [
   {
@@ -57,100 +54,24 @@ const TASK_CATEGORIES = [
   },
   {
     id: 'capstone_1',
-    label: 'Phase 1: Title Defense',
+    label: 'Capstone 1: Proposal Manuscript',
     phase: 1,
-    icon: Sparkles,
-    description: 'Title proposals, SDG mapping & proposal defense hearing',
+    icon: BookOpen,
+    description: 'Chapters 1–3, proposal defense, grades & ADM v1',
   },
   {
     id: 'capstone_2',
-    label: 'Phase 2: Manuscripts',
+    label: 'Capstone 2: System Development',
     phase: 2,
-    icon: BookOpen,
-    description: 'Chapters 1–3 manuscripts, midterm defense & ADM v1 sign-off',
+    icon: Layers,
+    description: 'Adviser-approved Gantt, weekly progress & prototype defense',
   },
   {
     id: 'capstone_3',
-    label: 'Phase 3: System Dev',
+    label: 'Capstone 3: Final Manuscript',
     phase: 3,
-    icon: Layers,
-    description: 'Prototype implementation, Gantt milestones & progress demo',
-  },
-  {
-    id: 'capstone_4',
-    label: 'Phase 4: Final Defense',
-    phase: 4,
     icon: GraduationCap,
-    description: '5-Chapter manuscript, academic journal, Dean ADM sign-off & archival',
-  },
-];
-
-const KPI_METRIC_CONFIG = [
-  {
-    id: 'action_needed',
-    label: 'Needs Action',
-    countKey: 'actionNeeded',
-    subtitle: 'Awaiting deliberation',
-    icon: Zap,
-    colorClasses: {
-      active: 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30',
-      hover: 'hover:border-amber-500/40',
-      badgeText: 'text-amber-600 dark:text-amber-400',
-      iconBox: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
-    },
-    hasPing: true,
-  },
-  {
-    id: 'capstone_1',
-    label: 'Title Defense',
-    countKey: 'phase1',
-    subtitle: 'Capstone 1 proposals',
-    icon: Sparkles,
-    colorClasses: {
-      active: 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30',
-      hover: 'hover:border-amber-500/40',
-      badgeText: 'text-muted-foreground',
-      iconBox: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
-    },
-  },
-  {
-    id: 'capstone_2',
-    label: 'Manuscripts',
-    countKey: 'phase2',
-    subtitle: 'Ch 1–3 & ADM v1',
-    icon: BookOpen,
-    colorClasses: {
-      active: 'border-blue-500/60 bg-blue-500/10 ring-2 ring-blue-500/30',
-      hover: 'hover:border-blue-500/40',
-      badgeText: 'text-muted-foreground',
-      iconBox: 'bg-blue-500/10 border-blue-500/20 text-blue-500',
-    },
-  },
-  {
-    id: 'capstone_3',
-    label: 'System Dev',
-    countKey: 'phase3',
-    subtitle: 'Gantt & prototypes',
-    icon: Layers,
-    colorClasses: {
-      active: 'border-indigo-500/60 bg-indigo-500/10 ring-2 ring-indigo-500/30',
-      hover: 'hover:border-indigo-500/40',
-      badgeText: 'text-muted-foreground',
-      iconBox: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
-    },
-  },
-  {
-    id: 'capstone_4',
-    label: 'Final Defense',
-    countKey: 'phase4',
-    subtitle: 'Oral defense & archival',
-    icon: GraduationCap,
-    colorClasses: {
-      active: 'border-emerald-500/60 bg-emerald-500/10 ring-2 ring-emerald-500/30',
-      hover: 'hover:border-emerald-500/40',
-      badgeText: 'text-muted-foreground',
-      iconBox: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
-    },
+    description: 'Chapters 4–5, final defense, approval sheet & archival',
   },
 ];
 
@@ -205,12 +126,11 @@ export default function ProjectsPage() {
       base.actionNeeded = true;
     } else if (activeCategory === 'capstone_1') {
       base.capstonePhase = 1;
+      base.titleStatus = TITLE_STATUSES.APPROVED;
     } else if (activeCategory === 'capstone_2') {
       base.capstonePhase = 2;
     } else if (activeCategory === 'capstone_3') {
       base.capstonePhase = 3;
-    } else if (activeCategory === 'capstone_4') {
-      base.capstonePhase = 4;
     }
 
     return base;
@@ -294,10 +214,6 @@ export default function ProjectsPage() {
     const initial = {
       total: active.length,
       actionNeeded: 0,
-      phase1: 0,
-      phase2: 0,
-      phase3: 0,
-      phase4: 0,
     };
 
     return active.reduce((acc, p) => {
@@ -308,11 +224,6 @@ export default function ProjectsPage() {
       ) {
         acc.actionNeeded += 1;
       }
-      const phaseNum = Number(p.capstonePhase ?? 1);
-      if (phaseNum === 1) acc.phase1 += 1;
-      else if (phaseNum === 2) acc.phase2 += 1;
-      else if (phaseNum === 3) acc.phase3 += 1;
-      else if (phaseNum >= 4) acc.phase4 += 1;
       return acc;
     }, initial);
   }, [allProjectsData?.projects]);
@@ -354,7 +265,7 @@ export default function ProjectsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="min-w-0 space-y-6 lg:space-y-8 max-w-7xl mx-auto">
         {/* ========================================================= */}
         {/* 1. INSTITUTIONAL HEADER & TITLE BAR                       */}
         {/* ========================================================= */}
@@ -365,19 +276,12 @@ export default function ProjectsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                   {pageTitle}
                 </h1>
-                <Badge
-                  variant="outline"
-                  className="hidden sm:inline-flex bg-primary/5 text-primary border-primary/20 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5"
-                >
-                  Evaluation Studio
-                </Badge>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                Review candidate proposals, evaluate defense progression, and manage committee
-                oversight.
+                Review assigned proposals, manuscripts, and defense progress.
               </p>
             </div>
           </div>
@@ -392,11 +296,11 @@ export default function ProjectsPage() {
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="h-8 text-xs gap-1.5"
+              className="min-h-11 text-sm gap-1.5"
               title="Refresh project listings"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Refresh</span>
+              <span>Refresh</span>
             </Button>
           </div>
         </div>
@@ -404,63 +308,10 @@ export default function ProjectsPage() {
         {/* ========================================================= */}
         {/* 2. EXECUTIVE KPI METRIC OVERVIEW STRIP (DECLARATIVE)      */}
         {/* ========================================================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
-          {KPI_METRIC_CONFIG.map((kpi) => {
-            const Icon = kpi.icon;
-            const count = metricCounts[kpi.countKey] || 0;
-            const isActive = activeCategory === kpi.id;
-            return (
-              <Card
-                key={kpi.id}
-                onClick={() => handleSelectCategory(kpi.id)}
-                className={cn(
-                  'cursor-pointer transition-all duration-200 hover:shadow-md border bg-card',
-                  isActive
-                    ? kpi.colorClasses.active
-                    : cn('border-border/70', kpi.colorClasses.hover),
-                )}
-              >
-                <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
-                  <div>
-                    <div
-                      className={cn(
-                        'flex items-center gap-1.5 text-[11px] font-medium',
-                        kpi.colorClasses.badgeText,
-                      )}
-                    >
-                      {kpi.hasPing && (
-                        <span className="relative flex h-2 w-2">
-                          {count > 0 && (
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                          )}
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                        </span>
-                      )}
-                      <span>{kpi.label}</span>
-                    </div>
-                    <div className="font-mono tabular-nums text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground mt-1">
-                      {count}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground truncate">{kpi.subtitle}</p>
-                  </div>
-                  <div
-                    className={cn(
-                      'h-9 w-9 rounded-lg border flex items-center justify-center shrink-0',
-                      kpi.colorClasses.iconBox,
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
         {/* ========================================================= */}
         {/* 3. PRIMARY TASK CATEGORY QUEUE FILTER TABS                */}
         {/* ========================================================= */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/60">
+        <div role="group" aria-label="Review queue" className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 p-1.5 bg-muted/50 rounded-xl border border-border/60">
           {TASK_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
@@ -469,8 +320,9 @@ export default function ProjectsPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => handleSelectCategory(cat.id)}
+                aria-pressed={isActive}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none',
+                  'flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer select-none',
                   isActive
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
@@ -479,12 +331,11 @@ export default function ProjectsPage() {
               >
                 <Icon
                   className={cn(
-                    'h-3.5 w-3.5',
+                    'h-3.5 w-3.5 shrink-0',
                     cat.id === 'action_needed' && 'text-amber-500',
                     cat.id === 'capstone_1' && 'text-amber-500',
                     cat.id === 'capstone_2' && 'text-blue-500',
                     cat.id === 'capstone_3' && 'text-indigo-500',
-                    cat.id === 'capstone_4' && 'text-emerald-500',
                   )}
                 />
                 <span>{cat.label}</span>
@@ -501,7 +352,7 @@ export default function ProjectsPage() {
         {/* ========================================================= */}
         {/* 4. SECONDARY SEARCH, STATUS, AND COHORT CONTROLS          */}
         {/* ========================================================= */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -512,7 +363,8 @@ export default function ProjectsPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-card border-border/70"
+              aria-label="Search projects"
+              className="pl-9 pr-11 min-h-11 text-base sm:text-sm bg-card border-border/70"
             />
             {search && (
               <button
@@ -530,15 +382,16 @@ export default function ProjectsPage() {
           </div>
 
           {/* Status Quick Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <select
+                aria-label="Title status"
                 value={titleStatus}
                 onChange={(e) => {
                   setTitleStatus(e.target.value);
                   setPage(1);
                 }}
-                className="h-9 px-3 pr-8 text-xs rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                className="min-h-11 max-w-full px-3 pr-8 text-sm rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 {STATUS_FILTERS.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -552,12 +405,13 @@ export default function ProjectsPage() {
             {availableAcademicYears.length > 1 && (
               <div className="relative">
                 <select
+                  aria-label="Academic year"
                   value={academicYear}
                   onChange={(e) => {
                     setAcademicYear(e.target.value);
                     setPage(1);
                   }}
-                  className="h-9 px-3 pr-8 text-xs rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer font-mono"
+                  className="min-h-11 max-w-full px-3 pr-8 text-sm rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer font-mono"
                 >
                   <option value="">All Cohorts</option>
                   {availableAcademicYears.map((ay) => (
@@ -575,18 +429,18 @@ export default function ProjectsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                className="min-h-11 px-3 text-sm text-muted-foreground hover:text-foreground gap-1"
                 title="Reset all search and category filters"
               >
                 <RotateCcw className="h-3 w-3" />
-                <span className="hidden sm:inline">Reset</span>
+                <span>Reset</span>
               </Button>
             )}
           </div>
         </div>
 
         {/* Results Counter Summary */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground px-1">
           <span>
             Showing <strong className="text-foreground">{projects.length}</strong> of{' '}
             <strong className="text-foreground">{pagination.total || projects.length}</strong>{' '}
@@ -601,7 +455,7 @@ export default function ProjectsPage() {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-xs text-primary hover:underline cursor-pointer"
+              className="min-h-11 text-sm text-primary hover:underline cursor-pointer"
             >
               Clear filters
             </button>
@@ -632,6 +486,8 @@ export default function ProjectsPage() {
         {/* Empty State */}
         {!isLoading && !error && projects.length === 0 && (
           <EmptyState
+            compact
+            gradient={false}
             icon={FileText}
             title="No projects found"
             description={
@@ -676,7 +532,7 @@ export default function ProjectsPage() {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
-              className="h-8 text-xs gap-1"
+              className="min-h-11 text-sm gap-1"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Previous
@@ -689,7 +545,7 @@ export default function ProjectsPage() {
               size="sm"
               disabled={page >= pagination.totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="h-8 text-xs gap-1"
+              className="min-h-11 text-sm gap-1"
             >
               Next
               <ChevronRight className="h-3.5 w-3.5" />

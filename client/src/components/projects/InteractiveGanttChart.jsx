@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { projectService } from '@/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import AcademicExcelGanttChart, {
   DEFAULT_ACADEMIC_SECTIONS,
   DEFAULT_ACADEMIC_TASKS,
@@ -16,7 +18,9 @@ import AcademicExcelGanttChart, {
   extractProjectMembers,
   dateToDayCol,
   addWorkingDays,
+  canEditGanttSchedule,
 } from './AcademicExcelGanttChart';
+import WeeklyProgressCheckIns from './WeeklyProgressCheckIns';
 
 // Re-export CANONICAL_MEMBERS for external use
 export { CANONICAL_MEMBERS };
@@ -30,11 +34,17 @@ export default function InteractiveGanttChart({
   isReadOnly = false,
   defaultView = 'excel',
 }) {
+  const user = useAuthStore((state) => state.user);
+  const canEditSchedule = !isReadOnly && canEditGanttSchedule(project, user);
+  const isScheduleReadOnly = !canEditSchedule;
+  const isProjectArchived = project?.isArchived === true || project?.projectStatus === 'archived';
   const [selectedOwner, setSelectedOwner] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [viewMode, setViewMode] = useState(defaultView); // 'excel' | 'compact'
+  const [planProjectId, setPlanProjectId] = useState(null);
+  const [ganttApproval, setGanttApproval] = useState(project?.ganttApproval || {});
 
   // Canonical proponent list — extracted from project team members or empty fallback
   const proponentList = useMemo(() => extractProjectMembers(project), [project]);
@@ -48,6 +58,9 @@ export default function InteractiveGanttChart({
 
   // Hoisted state for tasks and sections (defaults to empty arrays when no data exists)
   const [tasks, setTasks] = useState(() => {
+    if (project?.ganttPlan?.updatedAt && Array.isArray(project.ganttPlan.tasks)) {
+      return project.ganttPlan.tasks;
+    }
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
@@ -58,6 +71,9 @@ export default function InteractiveGanttChart({
   });
 
   const [sections, setSections] = useState(() => {
+    if (project?.ganttPlan?.updatedAt && Array.isArray(project.ganttPlan.sections)) {
+      return project.ganttPlan.sections;
+    }
     try {
       const saved = localStorage.getItem(sectionsStorageKey);
       if (saved) return JSON.parse(saved);
@@ -67,21 +83,38 @@ export default function InteractiveGanttChart({
     return [];
   });
 
-  // Re-sync with localStorage if storageKey changes
+  // Load the server-owned plan once per project; local data is a migration fallback.
   useEffect(() => {
     try {
+      const serverPlan = project?.ganttPlan;
       const savedTasks = localStorage.getItem(storageKey);
-      setTasks(savedTasks ? JSON.parse(savedTasks) : []);
       const savedSections = localStorage.getItem(sectionsStorageKey);
-      setSections(savedSections ? JSON.parse(savedSections) : []);
+      setTasks(
+        serverPlan?.updatedAt && Array.isArray(serverPlan.tasks)
+          ? serverPlan.tasks
+          : savedTasks
+            ? JSON.parse(savedTasks)
+            : [],
+      );
+      setSections(
+        serverPlan?.updatedAt && Array.isArray(serverPlan.sections)
+          ? serverPlan.sections
+          : savedSections
+            ? JSON.parse(savedSections)
+            : [],
+      );
+      setGanttApproval(project?.ganttApproval || {});
+      setPlanProjectId(String(project?._id || project?.id || ''));
     } catch (_) {
       /* ignore */
     }
-  }, [storageKey, sectionsStorageKey]);
+  }, [storageKey, sectionsStorageKey, project?._id, project?.id]);
 
   // Debounced autosave across both views
   const saveTimerRef = useRef(null);
   useEffect(() => {
+    if (isScheduleReadOnly) return undefined;
+
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       try {
@@ -94,7 +127,37 @@ export default function InteractiveGanttChart({
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [tasks, sections, storageKey, sectionsStorageKey]);
+  }, [tasks, sections, storageKey, sectionsStorageKey, isScheduleReadOnly]);
+
+  useEffect(() => {
+    const projectId = String(project?._id || project?.id || '');
+    if (
+      !projectId ||
+      planProjectId !== projectId ||
+      isScheduleReadOnly ||
+      (!tasks.length && !sections.length)
+    ) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      projectService
+        .updateGanttPlan(projectId, { tasks, sections })
+        .then((response) => {
+          const savedProject = response.data?.data?.project;
+          if (savedProject?.ganttApproval) setGanttApproval(savedProject.ganttApproval);
+        })
+        .catch((error) => {
+          toast.error(error.response?.data?.message || 'The shared Gantt plan could not be saved.');
+        });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [project?._id, project?.id, tasks, sections, planProjectId, canEditSchedule, isScheduleReadOnly]);
+
+  const projectWithGanttApproval = project
+    ? { ...project, ganttApproval }
+    : project;
 
   // Combined canonical sections list
   const allSections = useMemo(() => {
@@ -304,7 +367,7 @@ export default function InteractiveGanttChart({
             </button>
           </div>
 
-          {!isReadOnly && (
+          {!isScheduleReadOnly && (
             <Button
               size="sm"
               variant="outline"
@@ -315,7 +378,7 @@ export default function InteractiveGanttChart({
             </Button>
           )}
 
-          {viewMode === 'compact' && !isReadOnly && (
+          {viewMode === 'compact' && !isScheduleReadOnly && (
             <Button
               size="sm"
               onClick={() => setIsAddModalOpen(true)}
@@ -331,7 +394,7 @@ export default function InteractiveGanttChart({
       {viewMode === 'excel' ? (
         /* AcademicExcelGanttChart controlled with hoisted state for 100% view sync */
         <AcademicExcelGanttChart
-          project={project}
+          project={projectWithGanttApproval}
           tasks={tasks}
           setTasks={setTasks}
           sections={allSections}
@@ -342,7 +405,10 @@ export default function InteractiveGanttChart({
           onDeleteSection={handleDeleteSection}
           selectedOwner={selectedOwner}
           onOwnerChange={setSelectedOwner}
-          isReadOnly={isReadOnly}
+          isReadOnly={isScheduleReadOnly}
+          onGanttApprovalChange={(approved) =>
+            setGanttApproval((current) => ({ ...current, approved }))
+          }
         />
       ) : (
         <Card className="border-border/60 bg-card shadow-xs min-w-0">
@@ -388,7 +454,7 @@ export default function InteractiveGanttChart({
                 </select>
               </div>
 
-              {!isReadOnly && (
+              {!isScheduleReadOnly && (
                 <>
                   <Button
                     size="sm"
@@ -421,13 +487,13 @@ export default function InteractiveGanttChart({
                     <th className="p-3 w-[90px]">Duration</th>
                     <th className="p-3 w-[130px]">% Complete</th>
                     <th className="p-3 min-w-[200px]">Sprint Timeline (Weeks 1–12)</th>
-                    {!isReadOnly && <th className="p-3 w-[60px] text-center">Act</th>}
+                    {!isScheduleReadOnly && <th className="p-3 w-[60px] text-center">Act</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {allSections.length === 0 ? (
                     <tr>
-                      <td colSpan={isReadOnly ? 6 : 7} className="p-12 text-center">
+                      <td colSpan={isScheduleReadOnly ? 6 : 7} className="p-12 text-center">
                         <div className="flex flex-col items-center justify-center space-y-2 max-w-md mx-auto">
                           <div className="p-3 bg-primary/10 rounded-full text-primary mb-1">
                             <FolderPlus className="h-6 w-6" />
@@ -440,7 +506,7 @@ export default function InteractiveGanttChart({
                             &ldquo;Add Section&rdquo; to create your first milestone section, or add
                             deliverable rows.
                           </p>
-                          {!isReadOnly && (
+                          {!isScheduleReadOnly && (
                             <Button
                               size="sm"
                               onClick={() => setIsAddSectionOpen(true)}
@@ -455,7 +521,7 @@ export default function InteractiveGanttChart({
                   ) : visibleSections.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={isReadOnly ? 6 : 7}
+                        colSpan={isScheduleReadOnly ? 6 : 7}
                         className="p-8 text-center text-muted-foreground"
                       >
                         No tasks match the selected filter.
@@ -468,7 +534,7 @@ export default function InteractiveGanttChart({
                         <React.Fragment key={sec}>
                           {/* Section Header Row */}
                           <tr className="bg-muted/25 border-y border-border/60 font-bold text-[11px] text-primary tracking-wider uppercase">
-                            <td colSpan={isReadOnly ? 6 : 7} className="p-2.5 px-3">
+                            <td colSpan={isScheduleReadOnly ? 6 : 7} className="p-2.5 px-3">
                               <div className="flex items-center justify-between">
                                 <span className="flex items-center gap-2">
                                   <span>{sec}</span>
@@ -479,7 +545,7 @@ export default function InteractiveGanttChart({
                                     {secTasks.length} {secTasks.length === 1 ? 'task' : 'tasks'}
                                   </Badge>
                                 </span>
-                                {!isReadOnly && (
+                                {!isScheduleReadOnly && (
                                   <div className="flex items-center gap-1.5 lowercase">
                                     <button
                                       type="button"
@@ -507,11 +573,11 @@ export default function InteractiveGanttChart({
                           {secTasks.length === 0 && (
                             <tr className="border-b border-border/40">
                               <td
-                                colSpan={isReadOnly ? 6 : 7}
+                                colSpan={isScheduleReadOnly ? 6 : 7}
                                 className="p-4 text-center text-xs text-muted-foreground italic"
                               >
                                 No deliverable tasks in this section yet.{' '}
-                                {!isReadOnly && (
+                                {!isScheduleReadOnly && (
                                   <button
                                     type="button"
                                     onClick={() => handleAddRow(sec)}
@@ -578,7 +644,7 @@ export default function InteractiveGanttChart({
                                     </div>
                                   </div>
                                 </td>
-                                {!isReadOnly && (
+                                    {!isScheduleReadOnly && (
                                   <td className="p-3 text-center">
                                     <button
                                       type="button"
@@ -853,6 +919,10 @@ export default function InteractiveGanttChart({
           </div>
         </div>
       )}
+      <WeeklyProgressCheckIns
+        project={project}
+        isReadOnly={isReadOnly || isProjectArchived}
+      />
     </div>
   );
 }
