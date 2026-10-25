@@ -1,9 +1,17 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TeamCommitteeAssignmentsView from './TeamCommitteeAssignmentsView';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.ResizeObserver ??= class ResizeObserver {
+  observe() {}
+
+  unobserve() {}
+
+  disconnect() {}
+};
+HTMLElement.prototype.scrollIntoView ??= function scrollIntoView() {};
 
 const mockUseAcademicYears = vi.fn();
 const mockUseSections = vi.fn();
@@ -81,6 +89,13 @@ const mockFacultyList = [
     email: 'rlecaros@buksu.edu.ph',
     role: 'panelist',
   },
+  {
+    _id: 'ins-1',
+    firstName: 'Casey',
+    lastName: 'Instructor',
+    email: 'cinstructor@buksu.edu.ph',
+    role: 'instructor',
+  },
 ];
 
 const mockTeams = [
@@ -149,6 +164,11 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
     });
   });
 
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
+
   const renderComponent = async () => {
     await act(async () => {
       root.render(<TeamCommitteeAssignmentsView />);
@@ -161,6 +181,13 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
     expect(container.textContent).toContain('Committee Assignments');
     expect(container.textContent).toContain('Faculty Coordination');
     expect(container.querySelector('input[placeholder*="Search team name"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Filter by academic year"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Filter by section"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Filter by committee status"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Jump to team"]')).toBeTruthy();
+    expect(mockUseUsers.mock.calls.at(-1)[0]).toEqual(
+      expect.objectContaining({ role: 'faculty', isActive: true, page: 1, limit: 200 }),
+    );
 
     // Quick team select option
     expect(container.textContent).toContain('Jump to:');
@@ -196,6 +223,15 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
     expect(container.textContent).toContain('Lead / Chair');
   });
 
+  it('keeps course instructors out of committee appointment candidates', async () => {
+    await renderComponent();
+
+    await act(async () => container.querySelector('#panelist-add-combobox').click());
+
+    expect(document.body.textContent).toContain('Raul Lecaros');
+    expect(document.body.textContent).not.toContain('Casey Instructor');
+  });
+
   it('renders elevated prerequisite alert when a team without an approved project is selected', async () => {
     // Select team-2 which has no project
     mockUseProject.mockReturnValue({ data: null });
@@ -204,11 +240,15 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
       root.render(<TeamCommitteeAssignmentsView />);
     });
 
-    const select = container.querySelector('select[class*="min-w-[220px]"]');
+    const select = container.querySelector('[aria-label="Jump to team"]');
     await act(async () => {
-      select.value = 'team-2';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.click();
     });
+    const teamOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent.includes('Team Alpha'),
+    );
+    expect(teamOption).toBeTruthy();
+    await act(async () => teamOption.click());
 
     expect(container.textContent).toContain('Assignment Locked');
     expect(container.textContent).toContain('This team must submit an initial title proposal');
@@ -243,5 +283,102 @@ describe('TeamCommitteeAssignmentsView UI/UX Suite', () => {
 
     expect(container.textContent).not.toContain('Project Milestones & Deadlines');
     expect(container.textContent).not.toContain('Configure chapter submission cutoffs');
+  });
+
+  it('updates academic-year and section filters through shared Select controls', async () => {
+    await renderComponent();
+
+    await act(async () =>
+      container.querySelector('[aria-label="Filter by academic year"]').click(),
+    );
+    const yearOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent.includes('2024–2025'),
+    );
+    expect(yearOption).toBeTruthy();
+    await act(async () => yearOption.click());
+
+    expect(mockUseSections).toHaveBeenLastCalledWith(
+      { academicYear: '2024–2025' },
+      { enabled: true },
+    );
+    expect(mockUseTeams.mock.calls.at(-1)[0]).toEqual(
+      expect.objectContaining({ academicYear: '2024–2025', sectionId: undefined }),
+    );
+
+    await act(async () => container.querySelector('[aria-label="Filter by section"]').click());
+    const sectionOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent.includes('BSIT-3C'),
+    );
+    expect(sectionOption).toBeTruthy();
+    await act(async () => sectionOption.click());
+    expect(mockUseTeams.mock.calls.at(-1)[0]).toEqual(
+      expect.objectContaining({ academicYear: '2024–2025', sectionId: 'sec-1' }),
+    );
+  });
+
+  it('filters committee completion status through the shared Select control', async () => {
+    await renderComponent();
+
+    await act(async () =>
+      container.querySelector('[aria-label="Filter by committee status"]').click(),
+    );
+    const completeOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent.includes('Complete Committee'),
+    );
+    expect(completeOption).toBeTruthy();
+    await act(async () => completeOption.click());
+
+    expect(container.textContent).toContain('No Teams Found');
+    expect(container.textContent).not.toContain('Team Patrick');
+  });
+
+  it('shows an empty state when filters produce no teams', async () => {
+    mockUseTeams.mockReturnValue({
+      data: { teams: [], pagination: { total: 0 } },
+      isLoading: false,
+      isError: false,
+    });
+
+    await renderComponent();
+
+    expect(container.textContent).toContain('No Teams Found');
+    expect(container.textContent).toContain('Adjust the filters above.');
+  });
+
+  it('shows a workspace-shaped skeleton while teams load', async () => {
+    mockUseTeams.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    });
+
+    await renderComponent();
+
+    expect(
+      container.querySelector('[role="status"][aria-label="Loading committee assignments"]'),
+    ).toBeTruthy();
+    expect(container.textContent).toContain('Loading team roster and committee assignments.');
+    expect(container.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(5);
+  });
+
+  it('offers a retry action when teams fail to load', async () => {
+    const refetch = vi.fn();
+    mockUseTeams.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: { response: { data: { error: { message: 'Service unavailable.' } } } },
+      refetch,
+    });
+
+    await renderComponent();
+
+    expect(container.textContent).toContain('Service unavailable.');
+    await act(async () => {
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent.includes('Retry'))
+        .click();
+    });
+    expect(refetch).toHaveBeenCalledOnce();
   });
 });

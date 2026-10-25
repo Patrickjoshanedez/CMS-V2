@@ -8,21 +8,39 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
 import { useProjects, projectKeys } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { projectService, academicService } from '@/services/authService';
 import { settingsService } from '@/services/settingsService';
 import { toast } from 'sonner';
+
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
 import MilestoneDeadlinesModal from '@/components/instructor/MilestoneDeadlinesModal';
-import {
-  CAPSTONE_PHASES,
-  CAPSTONE_STAGES,
-  STAGE_DELIVERABLE_MAP,
-  DELIVERABLE_CATEGORY_MAP,
-  DELIVERABLE_TYPES,
-  resolveWorkflowPhase,
-} from '@cms/shared';
+import { CAPSTONE_STAGES, STAGE_DELIVERABLE_MAP } from '@cms/shared';
 import {
   CalendarClock,
   Calendar,
@@ -45,10 +63,6 @@ import {
   AlertTriangle,
   RotateCcw,
   CalendarPlus,
-  FileText,
-  CheckCircle2,
-  X,
-  Info,
 } from 'lucide-react';
 
 import {
@@ -71,6 +85,9 @@ import {
   getTeamCapstoneLabel,
   getTransparentDragImage,
 } from './utils/defenseSchedulingHelpers';
+
+const ALL_FILTER_VALUE = '__all__';
+const EMPTY_DEADLINES = [];
 
 export {
   TIMELINE_START_HOUR,
@@ -132,7 +149,6 @@ export default function DefenseSchedulingPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [popoverMonth, setPopoverMonth] = useState(() => new Date());
-  const datePickerPopoverRef = useRef(null);
 
   const [draggedProject, setDraggedProject] = useState(null);
   const [dragOverState, setDragOverState] = useState(null); // { dateStr, topPx, heightPx, slotTime, minutesFrom8AM }
@@ -149,21 +165,6 @@ export default function DefenseSchedulingPage() {
     }
   });
   const [isTrayDragOver, setIsTrayDragOver] = useState(false);
-
-  // Close mini-calendar popover on outside click
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (datePickerPopoverRef.current && !datePickerPopoverRef.current.contains(event.target)) {
-        setIsDatePopoverOpen(false);
-      }
-    }
-    if (isDatePopoverOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isDatePopoverOpen]);
 
   // Fetch all active capstone projects (limit 100 to list all teams)
   const {
@@ -248,7 +249,9 @@ export default function DefenseSchedulingPage() {
     staleTime: 60 * 1000,
   });
 
-  const milestoneDeadlines = Array.isArray(milestoneDeadlinesData) ? milestoneDeadlinesData : [];
+  const milestoneDeadlines = Array.isArray(milestoneDeadlinesData)
+    ? milestoneDeadlinesData
+    : EMPTY_DEADLINES;
 
   // Query instructor-created academic years
   const { data: createdAcademicYears = [] } = useAcademicYears();
@@ -942,30 +945,28 @@ export default function DefenseSchedulingPage() {
 
           {/* Card 2: Ready for Scheduling */}
           <Card
-            className={`cursor-pointer transition-all hover:shadow-md border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/15 ${
-              activeTab === 'pending_scheduling' ? 'ring-2 ring-emerald-500/50' : ''
+            className={`cursor-pointer transition-all hover:shadow-md border-success/30 bg-success/10 ${
+              activeTab === 'pending_scheduling' ? 'ring-2 ring-success/50' : ''
             }`}
             onClick={() => setActiveTab('pending_scheduling')}
           >
             <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-success flex items-center gap-1.5">
                   Ready for Defense
                   {kpis.pending > 0 && (
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
                     </span>
                   )}
                 </p>
-                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">
-                  {kpis.pending}
-                </p>
-                <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
+                <p className="text-2xl font-bold text-success mt-1">{kpis.pending}</p>
+                <p className="text-[11px] text-success/80 mt-0.5">
                   Adviser endorsed &amp; awaiting schedule
                 </p>
               </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-success/15 text-success">
                 <ShieldCheck className="h-5 w-5" />
               </div>
             </CardContent>
@@ -973,24 +974,20 @@ export default function DefenseSchedulingPage() {
 
           {/* Card 3: Scheduled Hearings */}
           <Card
-            className={`cursor-pointer transition-all hover:shadow-md border-blue-500/30 bg-blue-500/5 dark:bg-blue-950/15 ${
-              activeTab === 'scheduled' ? 'ring-2 ring-blue-500/50' : ''
+            className={`cursor-pointer transition-all hover:shadow-md border-primary/30 bg-primary/10 ${
+              activeTab === 'scheduled' ? 'ring-2 ring-primary/50' : ''
             }`}
             onClick={() => setActiveTab('scheduled')}
           >
             <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
                   Scheduled Hearings
                 </p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
-                  {kpis.scheduled}
-                </p>
-                <p className="text-[11px] text-blue-600/80 dark:text-blue-400/80 mt-0.5">
-                  Timeslot &amp; venue confirmed
-                </p>
+                <p className="text-2xl font-bold text-primary mt-1">{kpis.scheduled}</p>
+                <p className="text-[11px] text-primary/80 mt-0.5">Timeslot &amp; venue confirmed</p>
               </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400">
+              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-primary/15 text-primary">
                 <Calendar className="h-5 w-5" />
               </div>
             </CardContent>
@@ -1024,118 +1021,143 @@ export default function DefenseSchedulingPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Tabs */}
           <div className="grid grid-cols-2 items-center gap-1.5 rounded-xl border border-border bg-card p-1 sm:flex sm:flex-wrap">
-            <button
+            <Button
               type="button"
+              variant={activeTab === 'all' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('all')}
-              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
-                activeTab === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
+              aria-pressed={activeTab === 'all'}
+              className="min-h-11 rounded-lg px-3 text-xs font-semibold"
             >
               All Teams ({kpis.total})
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant={activeTab === 'pending_scheduling' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('pending_scheduling')}
-              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                activeTab === 'pending_scheduling'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
-              }`}
+              aria-pressed={activeTab === 'pending_scheduling'}
+              className="min-h-11 rounded-lg px-3 text-xs font-semibold"
             >
               Ready for Defense ({kpis.pending})
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant={activeTab === 'scheduled' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('scheduled')}
-              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
-                activeTab === 'scheduled'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-blue-600 dark:text-blue-400 hover:bg-blue-500/10'
-              }`}
+              aria-pressed={activeTab === 'scheduled'}
+              className="min-h-11 rounded-lg px-3 text-xs font-semibold"
             >
               Scheduled ({kpis.scheduled})
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant={activeTab === 'in_progress' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setActiveTab('in_progress')}
-              className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
-                activeTab === 'in_progress'
-                  ? 'bg-muted text-foreground font-bold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
+              aria-pressed={activeTab === 'in_progress'}
+              className="min-h-11 rounded-lg px-3 text-xs font-semibold"
             >
               In Progress ({kpis.inProgress})
-            </button>
+            </Button>
           </div>
 
           {/* Cascading Filter Bar: Batch -> Section -> Stage -> Deliverables -> Search */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Batch Filter */}
-            <select
-              value={selectedBatch}
-              onChange={(e) => setSelectedBatch(e.target.value)}
-              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="Filter by Academic Batch"
+            <Select
+              value={selectedBatch || ALL_FILTER_VALUE}
+              onValueChange={(value) => setSelectedBatch(value === ALL_FILTER_VALUE ? '' : value)}
             >
-              <option value="">All Batches</option>
-              {allBatches.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Filter by Academic Batch"
+                className="min-h-11 w-full sm:w-auto"
+              >
+                <SelectValue placeholder="All Batches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FILTER_VALUE}>All Batches</SelectItem>
+                {allBatches.map((batch) => (
+                  <SelectItem key={batch} value={batch}>
+                    {batch}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Section Filter */}
             {sections.length > 0 && (
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                aria-label="Filter by Section"
+              <Select
+                value={selectedSection || ALL_FILTER_VALUE}
+                onValueChange={(value) =>
+                  setSelectedSection(value === ALL_FILTER_VALUE ? '' : value)
+                }
               >
-                <option value="">All Sections</option>
-                {sections.map((sec) => (
-                  <option key={sec._id} value={sec._id}>
-                    {sec.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-label="Filter by Section" className="min-h-11 w-full sm:w-auto">
+                  <SelectValue placeholder="All Sections" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>All Sections</SelectItem>
+                  {sections.map((section) => (
+                    <SelectItem key={section._id} value={section._id}>
+                      {section.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             {/* Capstone Stage Filter (strictly capstone_1, capstone_2, capstone_3, final; no Capstone 4) */}
-            <select
-              value={selectedStage}
-              onChange={(e) => {
-                setSelectedStage(e.target.value);
+            <Select
+              value={selectedStage || ALL_FILTER_VALUE}
+              onValueChange={(value) => {
+                setSelectedStage(value === ALL_FILTER_VALUE ? '' : value);
                 setSelectedDeliverable('');
               }}
-              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="Filter by Capstone Stage"
             >
-              <option value="">All Stages</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_1}>Phase 2 — Capstone 1 (Proposal Defense)</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_2}>Phase 3 — Capstone 2 (System Defense)</option>
-              <option value={CAPSTONE_STAGES.CAPSTONE_3}>
-                Phase 4 — Capstone 3 (Final Defense & Archival)
-              </option>
-            </select>
+              <SelectTrigger
+                aria-label="Filter by Capstone Stage"
+                className="min-h-11 w-full sm:w-auto"
+              >
+                <SelectValue placeholder="All Stages" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FILTER_VALUE}>All Stages</SelectItem>
+                <SelectItem value={CAPSTONE_STAGES.CAPSTONE_1}>
+                  Phase 2 — Capstone 1 (Proposal Defense)
+                </SelectItem>
+                <SelectItem value={CAPSTONE_STAGES.CAPSTONE_2}>
+                  Phase 3 — Capstone 2 (System Defense)
+                </SelectItem>
+                <SelectItem value={CAPSTONE_STAGES.CAPSTONE_3}>
+                  Phase 4 — Capstone 3 (Final Defense &amp; Archival)
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Deliverables Filter */}
-            <select
-              value={selectedDeliverable}
-              onChange={(e) => setSelectedDeliverable(e.target.value)}
-              className="min-h-11 max-w-full rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="Filter by Deliverable"
+            <Select
+              value={selectedDeliverable || ALL_FILTER_VALUE}
+              onValueChange={(value) =>
+                setSelectedDeliverable(value === ALL_FILTER_VALUE ? '' : value)
+              }
             >
-              <option value="">All Deliverables</option>
-              {availableDeliverablesForFilter.map((deliv) => (
-                <option key={deliv.id} value={deliv.id}>
-                  {deliv.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Filter by Deliverable"
+                className="min-h-11 w-full sm:w-auto"
+              >
+                <SelectValue placeholder="All Deliverables" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_FILTER_VALUE}>All Deliverables</SelectItem>
+                {availableDeliverablesForFilter.map((deliverable) => (
+                  <SelectItem key={deliverable.id} value={deliverable.id}>
+                    {deliverable.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Search Input */}
             <div className="relative min-w-[200px] flex-1 sm:flex-initial">
@@ -1199,142 +1221,156 @@ export default function DefenseSchedulingPage() {
 
               {/* Interactive Date Range Button + Mini-Calendar Popover */}
               <div className="flex items-center gap-3">
-                <div className="relative" ref={datePickerPopoverRef}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPopoverMonth(new Date(selectedDate));
-                      setIsDatePopoverOpen((prev) => !prev);
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/80 bg-muted/60 hover:bg-muted text-xs font-semibold text-foreground font-mono transition-colors shadow-xs cursor-pointer"
-                  >
-                    <Calendar className="h-3.5 w-3.5 text-primary" />
-                    <span>
-                      {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
-                      –{' '}
-                      {weekDays[4].toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </span>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
+                <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPopoverMonth(new Date(selectedDate));
+                      }}
+                      aria-expanded={isDatePopoverOpen}
+                      className="min-h-11 gap-2 px-3 text-xs font-semibold font-mono"
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                      <span>
+                        {weekDays[0].toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}{' '}
+                        –{' '}
+                        {weekDays[4].toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
 
                   {/* Mini-Calendar Popover */}
-                  {isDatePopoverOpen && (
-                    <div className="absolute right-0 sm:right-auto sm:left-0 top-full mt-2 w-72 p-3 bg-card text-card-foreground border border-border rounded-xl shadow-xl z-50 animate-in fade-in-0 zoom-in-95">
-                      <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                        <span className="text-xs font-bold text-foreground">
-                          {popoverMonth.toLocaleDateString('en-US', {
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setPopoverMonth(
-                                (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-                              );
-                            }}
-                          >
-                            <ChevronLeft className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setPopoverMonth(
-                                (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-                              );
-                            }}
-                          >
-                            <ChevronRight className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Day Name Headers */}
-                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground py-2">
-                        <span>Su</span>
-                        <span>Mo</span>
-                        <span>Tu</span>
-                        <span>We</span>
-                        <span>Th</span>
-                        <span>Fr</span>
-                        <span>Sa</span>
-                      </div>
-
-                      {/* Days Grid */}
-                      <div className="grid grid-cols-7 gap-1 text-center">
-                        {popoverDays.map((dayItem, i) => {
-                          const isSelected =
-                            selectedDate.toDateString() === dayItem.date.toDateString();
-                          const isToday = new Date().toDateString() === dayItem.date.toDateString();
-                          const isInCurrentWeek = weekDays.some(
-                            (w) => w.toDateString() === dayItem.date.toDateString(),
-                          );
-
-                          return (
-                            <button
-                              key={`${dayItem.date.toISOString()}-${i}`}
-                              type="button"
-                              onClick={() => {
-                                setSelectedDate(dayItem.date);
-                                if (!dayItem.isCurrentMonth) {
-                                  setPopoverMonth(dayItem.date);
-                                }
-                                setIsDatePopoverOpen(false);
-                              }}
-                              className={`h-7 w-7 text-xs rounded-md font-medium transition-colors flex items-center justify-center cursor-pointer ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                                  : isInCurrentWeek
-                                    ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
-                                    : isToday
-                                      ? 'border border-primary text-primary font-bold'
-                                      : !dayItem.isCurrentMonth
-                                        ? 'text-muted-foreground/40 hover:bg-muted/40'
-                                        : 'text-foreground hover:bg-muted'
-                              }`}
-                            >
-                              {dayItem.date.getDate()}
-                            </button>
-                          );
+                  <PopoverContent align="start" className="w-72 p-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                      <span className="text-xs font-bold text-foreground">
+                        {popoverMonth.toLocaleDateString('en-US', {
+                          month: 'long',
+                          year: 'numeric',
                         })}
-                      </div>
-
-                      <div className="mt-2 pt-2 border-t border-border/60 flex items-center justify-between">
+                      </span>
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={() => {
-                            const now = new Date();
-                            setSelectedDate(now);
-                            setPopoverMonth(now);
-                            setIsDatePopoverOpen(false);
+                            setPopoverMonth(
+                              (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                            );
                           }}
                         >
-                          Jump to Today
+                          <ChevronLeft className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                          onClick={() => setIsDatePopoverOpen(false)}
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setPopoverMonth(
+                              (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                            );
+                          }}
                         >
-                          Close
+                          <ChevronRight className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Day Name Headers */}
+                    <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground py-2">
+                      <span>Su</span>
+                      <span>Mo</span>
+                      <span>Tu</span>
+                      <span>We</span>
+                      <span>Th</span>
+                      <span>Fr</span>
+                      <span>Sa</span>
+                    </div>
+
+                    {/* Days Grid */}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {popoverDays.map((dayItem, i) => {
+                        const isSelected =
+                          selectedDate.toDateString() === dayItem.date.toDateString();
+                        const isToday = new Date().toDateString() === dayItem.date.toDateString();
+                        const isInCurrentWeek = weekDays.some(
+                          (w) => w.toDateString() === dayItem.date.toDateString(),
+                        );
+
+                        return (
+                          <Button
+                            key={`${dayItem.date.toISOString()}-${i}`}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={dayItem.date.toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              setSelectedDate(dayItem.date);
+                              if (!dayItem.isCurrentMonth) {
+                                setPopoverMonth(dayItem.date);
+                              }
+                              setIsDatePopoverOpen(false);
+                            }}
+                            className={`h-8 w-8 p-0 text-xs rounded-md font-medium transition-colors flex items-center justify-center cursor-pointer ${
+                              isSelected
+                                ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                                : isInCurrentWeek
+                                  ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
+                                  : isToday
+                                    ? 'border border-primary text-primary font-bold'
+                                    : !dayItem.isCurrentMonth
+                                      ? 'text-muted-foreground/40 hover:bg-muted/40'
+                                      : 'text-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {dayItem.date.getDate()}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-border/60 flex items-center justify-between">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const now = new Date();
+                          setSelectedDate(now);
+                          setPopoverMonth(now);
+                          setIsDatePopoverOpen(false);
+                        }}
+                      >
+                        Jump to Today
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => setIsDatePopoverOpen(false)}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
                 <span className="text-xs text-muted-foreground hidden md:inline">
                   Drag any team or hearing to schedule / reschedule (
@@ -1361,31 +1397,27 @@ export default function DefenseSchedulingPage() {
                   <CardHeader className="p-3 pb-2 border-b border-border/60 bg-muted/20 space-y-2">
                     {/* Dual Tabs: Awaiting Scheduling vs Submissions */}
                     <div className="flex items-center gap-1 bg-muted/70 p-0.5 rounded-lg border border-border/60 w-full">
-                      <button
+                      <Button
                         type="button"
+                        variant={leftTrayTab === 'awaiting' ? 'secondary' : 'ghost'}
+                        aria-pressed={leftTrayTab === 'awaiting'}
                         onClick={() => setLeftTrayTab('awaiting')}
-                        className={`flex-1 px-2 py-1 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          leftTrayTab === 'awaiting'
-                            ? 'bg-background text-foreground shadow-xs font-bold'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                        className="min-h-11 flex-1 px-2 py-1 text-[11px] font-semibold"
                       >
                         <Users className="h-3 w-3 text-primary" />
                         Awaiting Scheduling
                         <Badge variant="outline" className="text-[10px] font-mono ml-0.5 px-1 py-0">
                           {unscheduledTeams.length}
                         </Badge>
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant={leftTrayTab === 'submissions' ? 'secondary' : 'ghost'}
+                        aria-pressed={leftTrayTab === 'submissions'}
                         onClick={() => setLeftTrayTab('submissions')}
-                        className={`flex-1 px-2 py-1 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                          leftTrayTab === 'submissions'
-                            ? 'bg-background text-foreground shadow-xs font-bold'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
+                        className="min-h-11 flex-1 px-2 py-1 text-[11px] font-semibold"
                       >
-                        <Clock className="h-3 w-3 text-amber-500" />
+                        <Clock className="h-3 w-3 text-warning" />
                         Submissions
                         <Badge
                           variant={
@@ -1397,7 +1429,7 @@ export default function DefenseSchedulingPage() {
                         >
                           {pendingOrOverdueSubmissions.length}
                         </Badge>
-                      </button>
+                      </Button>
                     </div>
 
                     {leftTrayTab === 'awaiting' ? (
@@ -1411,11 +1443,12 @@ export default function DefenseSchedulingPage() {
                           {/* Configurable Typed Default Duration Input */}
                           <div className="flex items-center gap-1 bg-background border border-border/70 rounded-md px-2 py-0.5 shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 transition-all">
                             <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <input
+                            <Input
                               type="number"
                               min={5}
                               max={360}
                               step={5}
+                              aria-label="Default defense duration in minutes"
                               data-testid="defense-duration-input"
                               value={defaultDefenseDuration}
                               onFocus={(e) => e.target.select()}
@@ -1466,7 +1499,7 @@ export default function DefenseSchedulingPage() {
                                   }
                                 }
                               }}
-                              className="w-9 text-[11px] font-bold font-mono bg-transparent border-0 p-0 text-foreground text-right focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="h-8 min-h-0 w-12 border-0 bg-transparent p-0 text-right text-[11px] font-bold font-mono shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               title="Type hearing duration in minutes (e.g. 30, 45, 60)"
                             />
                             <span className="text-[11px] font-bold text-muted-foreground select-none">
@@ -1505,8 +1538,13 @@ export default function DefenseSchedulingPage() {
                           </div>
                         ) : (
                           unscheduledTeams.map((project) => {
-                            const { isScheduled, isReady, isCommitteeIncomplete, committeeNote } =
-                              getDefenseReadiness(project);
+                            const {
+                              isScheduled,
+                              isReady,
+                              isCommitteeIncomplete,
+                              committeeNote,
+                              isTitleReview,
+                            } = getDefenseReadiness(project);
                             const leaderName = getTeamLeaderName(project);
 
                             return (
@@ -1543,11 +1581,11 @@ export default function DefenseSchedulingPage() {
                                     }
                                     className={`text-[10px] shrink-0 ${
                                       isScheduled
-                                        ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+                                        ? 'bg-primary/10 text-primary border-primary/30'
                                         : isReady
-                                          ? 'bg-emerald-600 text-white font-medium'
+                                          ? 'bg-success text-success-foreground font-medium'
                                           : isCommitteeIncomplete
-                                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-medium'
+                                            ? 'bg-warning/10 text-warning border-warning/30 font-medium'
                                             : 'text-muted-foreground'
                                     }`}
                                   >
@@ -1574,7 +1612,7 @@ export default function DefenseSchedulingPage() {
 
                                 {/* Committee warning if incomplete */}
                                 {isCommitteeIncomplete && (
-                                  <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20">
+                                  <div className="flex items-center gap-1 text-[10px] text-warning bg-warning/10 rounded px-1.5 py-0.5 border border-warning/20">
                                     <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
                                     <span className="truncate">{committeeNote}</span>
                                   </div>
@@ -1595,20 +1633,30 @@ export default function DefenseSchedulingPage() {
                                   <span>
                                     Adviser:{' '}
                                     <strong className="text-foreground font-medium">
-                                      {project.adviserId?.lastName || 'TBD'}
+                                      {project.adviserId?.lastName ||
+                                        (isTitleReview ? 'Pending Approval' : 'TBD')}
                                     </strong>
                                   </span>
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="link"
+                                    size="sm"
+                                    aria-label={
+                                      isScheduled ? 'Reschedule defense' : 'Schedule defense'
+                                    }
                                     onClick={() => handleOpenScheduleModal(project)}
-                                    className={`${
-                                      isCommitteeIncomplete
-                                        ? 'text-amber-700 dark:text-amber-400 hover:underline'
-                                        : 'text-primary hover:underline'
-                                    } font-semibold text-[11px] cursor-pointer`}
+                                    className={`h-auto min-h-11 px-1 py-0 text-[11px] font-semibold ${
+                                      isCommitteeIncomplete ? 'text-warning-foreground' : ''
+                                    }`}
                                   >
-                                    {isScheduled ? 'Reschedule Defense' : 'Schedule Defense'}
-                                  </button>
+                                    {isScheduled
+                                      ? isTitleReview
+                                        ? 'Reschedule Hearing'
+                                        : 'Reschedule Defense'
+                                      : isTitleReview
+                                        ? 'Schedule Hearing'
+                                        : 'Schedule Defense'}
+                                  </Button>
                                 </div>
                               </div>
                             );
@@ -1648,7 +1696,7 @@ export default function DefenseSchedulingPage() {
                                   key={id}
                                   className={`rounded-xl border p-3 shadow-xs transition-all space-y-2 bg-card ${
                                     isOverdue
-                                      ? 'border-red-500/40 bg-red-500/[0.02]'
+                                      ? 'border-destructive/40 bg-destructive/[0.02]'
                                       : 'border-border/80 hover:border-primary/50'
                                   }`}
                                 >
@@ -1667,7 +1715,7 @@ export default function DefenseSchedulingPage() {
                                     ) : (
                                       <Badge
                                         variant="outline"
-                                        className="text-[10px] px-1.5 py-0 text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 font-semibold shrink-0"
+                                        className="text-[10px] px-1.5 py-0 text-warning border-warning/30 bg-warning/10 font-semibold shrink-0"
                                       >
                                         Due in {diffDays}d
                                       </Badge>
@@ -1801,12 +1849,13 @@ export default function DefenseSchedulingPage() {
                             dayDeadlines.map((dl) => {
                               const theme = getDeliverableBadgeTheme(dl.deliverable);
                               return (
-                                <button
+                                <Button
                                   key={dl._id}
                                   type="button"
+                                  variant="ghost"
                                   onClick={() => setSelectedMilestoneDetail(dl)}
                                   title={`${dl.title} (${dl.targetType === 'section' ? 'Section' : 'Batch'}) - Click for details`}
-                                  className={`w-full text-left px-2 py-1 rounded-md border text-[11px] font-medium transition-all shadow-2xs flex items-center justify-between gap-1.5 cursor-pointer ${theme.bg}`}
+                                  className={`min-h-11 w-full justify-between px-2 py-1 text-left text-[11px] font-medium shadow-2xs ${theme.bg}`}
                                 >
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     <span
@@ -1817,7 +1866,7 @@ export default function DefenseSchedulingPage() {
                                   <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-background/60 border border-border/50 shrink-0">
                                     {dl.targetType === 'section' ? 'Sec' : 'Batch'}
                                   </span>
-                                </button>
+                                </Button>
                               );
                             })
                           )}
@@ -1979,7 +2028,7 @@ export default function DefenseSchedulingPage() {
                                         {project.defenseSchedule?.time && (
                                           <Badge
                                             variant="outline"
-                                            className="text-[8px] px-1 py-0 font-mono bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 leading-none h-3.5 flex items-center font-bold tracking-tight"
+                                            className="text-[8px] px-1 py-0 font-mono bg-primary/15 text-primary border-primary/30 leading-none h-3.5 flex items-center font-bold tracking-tight"
                                           >
                                             <Clock className="h-2 w-2 mr-0.5" />
                                             {project.defenseSchedule.time.split(' - ')[0]}
@@ -1987,13 +2036,13 @@ export default function DefenseSchedulingPage() {
                                         )}
                                         <Badge
                                           variant="outline"
-                                          className="text-[8px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30 leading-none h-3.5 flex items-center font-semibold"
+                                          className="text-[8px] px-1 py-0 uppercase tracking-tight bg-primary/10 text-primary border-primary/30 leading-none h-3.5 flex items-center font-semibold"
                                         >
                                           {formatDurationLabel(activeDuration)}
                                         </Badge>
                                         <Badge
                                           variant="outline"
-                                          className="text-[8px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30 leading-none h-3.5 flex items-center font-semibold"
+                                          className="text-[8px] px-1 py-0 uppercase tracking-tight bg-primary/10 text-primary border-primary/30 leading-none h-3.5 flex items-center font-semibold"
                                         >
                                           {project.defenseSchedule?.round || '1st'} Rnd
                                         </Badge>
@@ -2025,7 +2074,7 @@ export default function DefenseSchedulingPage() {
                                         {project.defenseSchedule?.time && (
                                           <Badge
                                             variant="outline"
-                                            className="text-[9px] px-1.5 py-0.5 font-mono bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 font-bold flex items-center"
+                                            className="text-[9px] px-1.5 py-0.5 font-mono bg-primary/15 text-primary border-primary/30 font-bold flex items-center"
                                           >
                                             <Clock className="h-2.5 w-2.5 mr-1" />
                                             {project.defenseSchedule.time}
@@ -2033,13 +2082,13 @@ export default function DefenseSchedulingPage() {
                                         )}
                                         <Badge
                                           variant="outline"
-                                          className="text-[9px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30"
+                                          className="text-[9px] px-1 py-0 uppercase tracking-tight bg-primary/10 text-primary border-primary/30"
                                         >
                                           {formatDurationLabel(activeDuration)}
                                         </Badge>
                                         <Badge
                                           variant="outline"
-                                          className="text-[9px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30"
+                                          className="text-[9px] px-1 py-0 uppercase tracking-tight bg-primary/10 text-primary border-primary/30"
                                         >
                                           {project.defenseSchedule?.round || '1st'} Rnd
                                         </Badge>
@@ -2107,32 +2156,39 @@ export default function DefenseSchedulingPage() {
         {viewMode === 'table' && (
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                    <th className="py-3 px-4">Team &amp; Capstone Project</th>
-                    <th className="py-3 px-4">Section / Capstone</th>
-                    <th className="py-3 px-4">Adviser &amp; Committee</th>
-                    <th className="py-3 px-4">Defense Readiness</th>
-                    <th className="py-3 px-4">Hearing Details</th>
-                    <th className="py-3 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
+              <Table className="min-w-[980px] w-full table-fixed border-collapse text-left text-xs">
+                <TableHeader>
+                  <TableRow className="border-b border-border bg-muted/40 font-semibold text-muted-foreground hover:bg-muted/40">
+                    <TableHead className="w-[26%] min-w-[220px] py-3 px-4">
+                      Team &amp; Capstone Project
+                    </TableHead>
+                    <TableHead className="py-3 px-4">Section / Capstone</TableHead>
+                    <TableHead className="py-3 px-4">Adviser &amp; Committee</TableHead>
+                    <TableHead className="py-3 px-4">Defense Readiness</TableHead>
+                    <TableHead className="py-3 px-4">Hearing Details</TableHead>
+                    <TableHead className="py-3 px-4 text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-border/60">
                   {filteredProjects.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                         <FolderOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                         <p className="font-semibold text-foreground">No capstone teams found</p>
                         <p className="text-xs mt-0.5">
                           Try adjusting your filters or search query.
                         </p>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     filteredProjects.map((project) => {
-                      const { isReady, isScheduled, isCommitteeIncomplete, committeeNote } =
-                        getDefenseReadiness(project);
+                      const {
+                        isReady,
+                        isScheduled,
+                        isCommitteeIncomplete,
+                        committeeNote,
+                        isTitleReview,
+                      } = getDefenseReadiness(project);
                       const leaderName = getTeamLeaderName(project);
                       const teamName = project.teamId?.name
                         ? project.teamId.name.replace(/^Team\s+/i, '').trim()
@@ -2141,24 +2197,28 @@ export default function DefenseSchedulingPage() {
                         project.sectionId?.name || project.teamId?.sectionId?.name || 'BSIT';
                       const adviserName = project.adviserId
                         ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                        : 'Unassigned';
+                        : isTitleReview
+                          ? 'To be assigned after approval'
+                          : 'Unassigned';
 
                       return (
-                        <tr
+                        <TableRow
                           key={project._id}
                           className={`hover:bg-muted/30 transition-colors ${
-                            isReady ? 'bg-emerald-500/[0.02]' : ''
+                            isReady ? 'bg-success/[0.02]' : ''
                           }`}
                         >
                           {/* 1. Team & Project */}
-                          <td className="py-3.5 px-4 max-w-xs">
+                          <TableCell className="w-[26%] max-w-xs min-w-[220px] py-3.5 px-4">
                             <div className="space-y-0.5">
-                              <p className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                                {teamName}
+                              <p className="flex min-w-0 items-start gap-1.5 text-sm font-bold text-foreground">
+                                <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                                  {teamName}
+                                </span>
                                 {isReady && (
                                   <Badge
                                     variant="outline"
-                                    className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] py-0 px-1"
+                                    className="border-success/40 text-success bg-success/10 text-[10px] py-0 px-1"
                                   >
                                     Ready
                                   </Badge>
@@ -2171,16 +2231,16 @@ export default function DefenseSchedulingPage() {
                                 </p>
                               )}
                               <p
-                                className="text-xs text-muted-foreground line-clamp-1"
+                                className="break-words text-xs text-muted-foreground line-clamp-1 [overflow-wrap:anywhere]"
                                 title={project.title}
                               >
                                 {project.title || 'Untitled Project'}
                               </p>
                             </div>
-                          </td>
+                          </TableCell>
 
                           {/* 2. Section / Capstone */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <TableCell className="py-3.5 px-4 whitespace-nowrap">
                             <div className="space-y-1">
                               <Badge variant="secondary" className="text-[11px] font-mono">
                                 {sectionName}
@@ -2189,10 +2249,10 @@ export default function DefenseSchedulingPage() {
                                 Capstone {project.capstonePhase || 2}
                               </p>
                             </div>
-                          </td>
+                          </TableCell>
 
                           {/* 3. Adviser & Committee */}
-                          <td className="py-3.5 px-4 max-w-[200px]">
+                          <TableCell className="py-3.5 px-4 max-w-[200px]">
                             <div className="space-y-0.5 text-xs">
                               <p className="font-medium text-foreground flex items-center gap-1">
                                 <UserCheck className="h-3 w-3 text-primary shrink-0" />
@@ -2204,17 +2264,17 @@ export default function DefenseSchedulingPage() {
                                 {project.panelistIds?.length || 0} Panelists appointed
                               </p>
                             </div>
-                          </td>
+                          </TableCell>
 
                           {/* 4. Defense Readiness */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <TableCell className="py-3.5 px-4 whitespace-nowrap">
                             {isReady ? (
-                              <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-[11px] shadow-xs">
+                              <Badge className="bg-success hover:bg-success text-success-foreground gap-1 text-[11px] shadow-xs">
                                 <ShieldCheck className="h-3 w-3" />
                                 Ready for Scheduling
                               </Badge>
                             ) : isScheduled ? (
-                              <Badge className="bg-blue-600 hover:bg-blue-700 text-white gap-1 text-[11px] shadow-xs">
+                              <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1 text-[11px] shadow-xs">
                                 <Calendar className="h-3 w-3" />
                                 Scheduled
                               </Badge>
@@ -2222,12 +2282,12 @@ export default function DefenseSchedulingPage() {
                               <div className="space-y-0.5">
                                 <Badge
                                   variant="outline"
-                                  className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1 text-[11px]"
+                                  className="bg-warning/10 text-warning border-warning/30 gap-1 text-[11px]"
                                 >
                                   <AlertTriangle className="h-3 w-3" />
                                   Committee Incomplete
                                 </Badge>
-                                <p className="text-[10px] text-amber-600/90 dark:text-amber-400/90 font-medium">
+                                <p className="text-[10px] text-warning/90 font-medium">
                                   {committeeNote}
                                 </p>
                               </div>
@@ -2240,14 +2300,14 @@ export default function DefenseSchedulingPage() {
                                 In Progress
                               </Badge>
                             )}
-                          </td>
+                          </TableCell>
 
                           {/* 5. Hearing Details */}
-                          <td className="py-3.5 px-4 text-xs whitespace-nowrap">
+                          <TableCell className="py-3.5 px-4 text-xs whitespace-nowrap">
                             {isScheduled && project.defenseSchedule?.date ? (
                               <div className="space-y-0.5">
                                 <p className="font-semibold text-foreground flex items-center gap-1">
-                                  <Calendar className="h-3 w-3 text-blue-500" />
+                                  <Calendar className="h-3 w-3 text-primary" />
                                   {new Date(project.defenseSchedule.date).toLocaleDateString(
                                     undefined,
                                     {
@@ -2263,29 +2323,29 @@ export default function DefenseSchedulingPage() {
                                 </p>
                               </div>
                             ) : isReady ? (
-                              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 italic">
+                              <span className="text-[11px] text-success italic">
                                 Awaiting Instructor Scheduling
                               </span>
                             ) : isCommitteeIncomplete ? (
-                              <span className="text-[11px] text-amber-600 dark:text-amber-400 italic">
+                              <span className="text-[11px] text-warning italic">
                                 Appoint committee first
                               </span>
                             ) : (
                               <span className="text-[11px] text-muted-foreground">—</span>
                             )}
-                          </td>
+                          </TableCell>
 
                           {/* 6. Actions */}
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <TableCell className="py-3.5 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 size="sm"
                                 variant={isReady ? 'default' : 'outline'}
                                 className={`text-xs gap-1 h-8 ${
                                   isReady
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                                    ? 'bg-success hover:bg-success text-success-foreground shadow-xs'
                                     : isCommitteeIncomplete
-                                      ? 'border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10'
+                                      ? 'border-warning/30 text-warning hover:bg-warning/10'
                                       : ''
                                 }`}
                                 onClick={() => handleOpenScheduleModal(project)}
@@ -2307,13 +2367,13 @@ export default function DefenseSchedulingPage() {
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
@@ -2329,8 +2389,13 @@ export default function DefenseSchedulingPage() {
               </div>
             ) : (
               filteredProjects.map((project) => {
-                const { isReady, isScheduled, isCommitteeIncomplete, committeeNote } =
-                  getDefenseReadiness(project);
+                const {
+                  isReady,
+                  isScheduled,
+                  isCommitteeIncomplete,
+                  committeeNote,
+                  isTitleReview,
+                } = getDefenseReadiness(project);
                 const leaderName = getTeamLeaderName(project);
                 const teamName = project.teamId?.name
                   ? project.teamId.name.replace(/^Team\s+/i, '').trim()
@@ -2339,13 +2404,15 @@ export default function DefenseSchedulingPage() {
                   project.sectionId?.name || project.teamId?.sectionId?.name || 'BSIT';
                 const adviserName = project.adviserId
                   ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                  : 'Unassigned';
+                  : isTitleReview
+                    ? 'To be assigned after approval'
+                    : 'Unassigned';
 
                 return (
                   <Card
                     key={project._id}
                     className={`flex flex-col justify-between transition-all hover:shadow-md ${
-                      isReady ? 'border-emerald-500/40 bg-emerald-500/[0.02]' : ''
+                      isReady ? 'border-success/40 bg-success/[0.02]' : ''
                     }`}
                   >
                     <CardHeader className="pb-3">
@@ -2367,17 +2434,17 @@ export default function DefenseSchedulingPage() {
                           </CardTitle>
                         </div>
                         {isReady ? (
-                          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px]">
+                          <Badge className="bg-success hover:bg-success text-success-foreground text-[10px]">
                             Ready
                           </Badge>
                         ) : isScheduled ? (
-                          <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px]">
+                          <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground text-[10px]">
                             Scheduled
                           </Badge>
                         ) : isCommitteeIncomplete ? (
                           <Badge
                             variant="outline"
-                            className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1"
+                            className="bg-warning/10 text-warning border-warning/30 text-[10px] gap-1"
                           >
                             <AlertTriangle className="h-2.5 w-2.5" />
                             Incomplete Committee
@@ -2395,7 +2462,7 @@ export default function DefenseSchedulingPage() {
 
                     <CardContent className="space-y-3 pt-0 text-xs">
                       {isCommitteeIncomplete && (
-                        <div className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-md p-2 border border-amber-500/20">
+                        <div className="flex items-center gap-1 text-[11px] text-warning bg-warning/10 rounded-md p-2 border border-warning/20">
                           <AlertTriangle className="h-3 w-3 shrink-0" />
                           <span>{committeeNote}</span>
                         </div>
@@ -2418,7 +2485,7 @@ export default function DefenseSchedulingPage() {
                         {isScheduled && project.defenseSchedule?.date && (
                           <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
                             <span className="text-muted-foreground">Hearing:</span>
-                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                            <span className="font-semibold text-primary">
                               {new Date(project.defenseSchedule.date).toLocaleDateString(
                                 undefined,
                                 {
@@ -2437,7 +2504,7 @@ export default function DefenseSchedulingPage() {
                           size="sm"
                           variant={isReady ? 'default' : 'outline'}
                           className={`flex-1 text-xs gap-1.5 h-8 ${
-                            isReady ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
+                            isReady ? 'bg-success hover:bg-success text-success-foreground' : ''
                           }`}
                           onClick={() => handleOpenScheduleModal(project)}
                         >
@@ -2480,28 +2547,27 @@ export default function DefenseSchedulingPage() {
         />
 
         {/* Milestone Detail Dialog */}
-        {selectedMilestoneDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in-50">
-            <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4 my-auto">
-              <div className="flex items-start justify-between">
-                <div>
-                  <Badge variant="outline" className="text-[10px] font-mono uppercase mb-1">
-                    {selectedMilestoneDetail.targetType === 'section'
-                      ? 'Section-Specific'
-                      : 'Batch-Wide'}
-                  </Badge>
-                  <h3 className="text-base font-bold text-foreground">
-                    {selectedMilestoneDetail.title}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedMilestoneDetail(null)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+        <Dialog
+          open={Boolean(selectedMilestoneDetail)}
+          onOpenChange={(open) => {
+            if (!open) setSelectedMilestoneDetail(null);
+          }}
+        >
+          {selectedMilestoneDetail && (
+            <DialogContent className="max-w-md space-y-4">
+              <DialogHeader>
+                <Badge variant="outline" className="mb-1 w-fit text-[10px] font-mono uppercase">
+                  {selectedMilestoneDetail.targetType === 'section'
+                    ? 'Section-Specific'
+                    : 'Batch-Wide'}
+                </Badge>
+                <DialogTitle className="text-base font-bold">
+                  {selectedMilestoneDetail.title}
+                </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Milestone deadline requirements and late-submission policy.
+                </DialogDescription>
+              </DialogHeader>
 
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-border/50">
@@ -2542,7 +2608,7 @@ export default function DefenseSchedulingPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <DialogFooter>
                 <Button
                   variant="outline"
                   size="sm"
@@ -2563,10 +2629,10 @@ export default function DefenseSchedulingPage() {
                   <Calendar className="h-3.5 w-3.5" />
                   Manage Deadlines
                 </Button>
-              </div>
-            </div>
-          </div>
-        )}
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Dialog>
 
         {/* Milestone Deadlines Management Modal */}
         <MilestoneDeadlinesModal

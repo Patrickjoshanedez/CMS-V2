@@ -5,15 +5,25 @@ import { SettingSection } from './SettingsShared';
 import { SignaturePad } from '@/components/ui/SignaturePad';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/AlertDialog';
 import { toast } from 'sonner';
 import {
   PenTool,
   CheckCircle2,
-  RotateCcw,
   ShieldCheck,
   Save,
   Trash2,
-  Loader2,
   FileSignature,
 } from 'lucide-react';
 
@@ -87,10 +97,10 @@ export default function DigitalSignatureSection() {
       <div className="space-y-6">
         {/* State 1: Active Saved Signature Card */}
         {user?.digitalSignature && !isEditing ? (
-          <div className="rounded-xl border border-border bg-card/60 p-6 space-y-6">
+          <Card className="space-y-6 border-border bg-card/60 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                <ShieldCheck className="h-5 w-5 text-success" />
                 <div>
                   <h4 className="text-sm font-semibold text-foreground">
                     Active Verified Signature
@@ -111,26 +121,45 @@ export default function DigitalSignatureSection() {
                 >
                   <FileSignature className="h-3.5 w-3.5 text-primary" /> Change Signature
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="h-8 text-xs gap-1.5 text-destructive hover:bg-destructive/10"
-                >
-                  {isDeleting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                  Remove
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isDeleting}
+                      className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove your digital signature?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This removes the saved signature from your account. You will need to
+                        create and save a new signature before using it for Action Done Matrix
+                        endorsements or approval sheets.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep signature</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                      >
+                        Remove signature
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
 
             {/* Signature Preview Block (Matching Institutional Hierarchy) */}
-            <div className="flex flex-col items-center justify-center p-6 bg-muted/20 border border-border/40 rounded-lg max-w-md mx-auto space-y-2">
+            <Card className="mx-auto flex max-w-md flex-col items-center justify-center space-y-2 border-border/40 bg-muted/20 p-6">
               <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground">
                 Official Signature Preview
               </span>
@@ -150,25 +179,22 @@ export default function DigitalSignatureSection() {
               </p>
 
               {/* Bottom: Horizontal Underline & Designation */}
-              <div className="w-full max-w-[240px] border-b border-black dark:border-border my-0.5" />
+              <div className="my-0.5 w-full max-w-[240px] border-b border-border" />
               <p className="text-xs text-muted-foreground">
                 Signature over Printed Name of {roleLabel}
               </p>
 
               {/* Verified Stamp */}
               <div className="pt-2">
-                <Badge
-                  variant="secondary"
-                  className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1 py-0.5 px-2"
-                >
+                <Badge variant="success" className="gap-1 px-2 py-0.5 text-[10px]">
                   <CheckCircle2 className="h-3 w-3" /> Configured in Account
                 </Badge>
               </div>
-            </div>
-          </div>
+            </Card>
+          </Card>
         ) : (
           /* State 2: Signature Pad / Creator */
-          <div className="space-y-4 rounded-xl border border-border bg-card/60 p-5">
+          <Card className="space-y-4 border-border bg-card/60 p-5">
             <div>
               <h4 className="text-sm font-semibold text-foreground">
                 {user?.digitalSignature ? 'Update Your Signature' : 'Create Your Digital Signature'}
@@ -214,21 +240,15 @@ export default function DigitalSignatureSection() {
                   size="sm"
                   onClick={handleSave}
                   disabled={isSaving || !signatureDraft}
+                  loading={isSaving}
+                  loadingText="Saving..."
                   className="h-8 text-xs gap-1.5"
                 >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-3.5 w-3.5" /> Save Signature
-                    </>
-                  )}
+                  <Save className="h-3.5 w-3.5" /> Save Signature
                 </Button>
               </div>
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </SettingSection>

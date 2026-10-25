@@ -9,7 +9,7 @@ const mockMutate = vi.fn();
 const mockOnOpenChange = vi.fn();
 
 vi.mock('@/hooks/useTeams', () => ({
-  useInviteCandidates: (teamId, query) => ({
+  useInviteCandidates: (_teamId, _query) => ({
     data: [
       {
         _id: 'cand-1',
@@ -99,6 +99,9 @@ describe('BulkInviteModal', () => {
     });
 
     expect(document.body.textContent).toContain('Invite Teammates');
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toHaveAttribute('data-state', 'open');
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
     expect(document.body.textContent).toContain('Team Alpha');
     expect(document.body.textContent).toContain('Team Slots: 1 of 4 Filled');
     expect(document.body.textContent).toContain('3 Slots Available');

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -48,8 +48,8 @@ const PITCH_DECK_FIELDS = [
     key: 'problemStatement',
     label: 'Problem Statement & Literature Gap',
     icon: AlertTriangle,
-    accent: 'border-l-4 border-amber-500/80',
-    color: 'text-amber-600 dark:text-amber-400',
+    accent: 'border-l-4 border-warning',
+    color: 'text-warning-foreground',
   },
   {
     key: 'objectives',
@@ -76,22 +76,22 @@ const PITCH_DECK_FIELDS = [
     key: 'uniqueContribution',
     label: 'Unique Technical Innovation',
     icon: ShieldCheck,
-    accent: 'border-l-4 border-blue-500/80',
-    color: 'text-blue-600 dark:text-blue-400',
+    accent: 'border-l-4 border-primary',
+    color: 'text-primary',
   },
   {
     key: 'targetUsers',
     label: 'Target Users / Beneficiaries',
     icon: Layers,
-    accent: 'border-l-4 border-emerald-500/80',
-    color: 'text-emerald-600 dark:text-emerald-400',
+    accent: 'border-l-4 border-success',
+    color: 'text-success',
   },
   {
     key: 'expectedImpact',
     label: 'Expected Value / Impact',
     icon: CheckCircle2,
-    accent: 'border-l-4 border-indigo-500/80',
-    color: 'text-indigo-600 dark:text-indigo-400',
+    accent: 'border-l-4 border-info',
+    color: 'text-foreground',
   },
 ];
 
@@ -502,7 +502,7 @@ export default function TitleApprovalPage() {
         content: pitch.problemStatement || 'Not provided.',
         type: 'statement',
         icon: AlertTriangle,
-        accent: 'border-l-4 border-amber-500/80',
+        accent: 'border-l-4 border-warning',
       },
       {
         id: 3,
@@ -524,7 +524,7 @@ export default function TitleApprovalPage() {
         content: pitch.uniqueContribution || 'Not provided.',
         type: 'innovation',
         icon: ShieldCheck,
-        accent: 'border-l-4 border-blue-500/80',
+        accent: 'border-l-4 border-primary',
       },
       {
         id: 5,
@@ -535,7 +535,7 @@ export default function TitleApprovalPage() {
         content: pitch.targetUsers || 'Not provided.',
         type: 'users',
         icon: Layers,
-        accent: 'border-l-4 border-emerald-500/80',
+        accent: 'border-l-4 border-success',
       },
       {
         id: 6,
@@ -546,7 +546,7 @@ export default function TitleApprovalPage() {
         content: pitch.expectedImpact || 'Not provided.',
         type: 'impact',
         icon: CheckCircle2,
-        accent: 'border-l-4 border-indigo-500/80',
+        accent: 'border-l-4 border-info',
       },
       {
         id: 7,
@@ -668,9 +668,7 @@ export default function TitleApprovalPage() {
             ? 'In Progress'
             : 'Pending',
       badgeStyle:
-        isDefenseScheduled && !isApproved
-          ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-          : null,
+        isDefenseScheduled && !isApproved ? 'border-success/40 text-success bg-success/10' : null,
       isScheduled: isDefenseScheduled && !isApproved,
       countdownBadge: isDefenseScheduled && !isApproved ? countdown.stepCountdownText : null,
     },
@@ -685,9 +683,9 @@ export default function TitleApprovalPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6">
+      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6 [&_button]:min-h-[45px]">
         {/* 1. Header Ribbon */}
-        <div className="rounded-2xl border border-border/70 bg-gradient-to-r from-card via-card to-primary/5 p-4 sm:p-6 shadow-xs">
+        <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -695,7 +693,9 @@ export default function TitleApprovalPage() {
                   Phase 1 · Title review
                 </span>
                 <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs font-medium text-foreground/80">{cleanTeamName}</span>
+                <span className="break-words text-xs font-medium text-foreground/80 [overflow-wrap:anywhere]">
+                  {cleanTeamName}
+                </span>
                 <span className="text-xs text-muted-foreground">·</span>
                 <span className="text-xs text-muted-foreground">{resolvedSectionName}</span>
                 <span className="text-xs text-muted-foreground">·</span>
@@ -734,7 +734,7 @@ export default function TitleApprovalPage() {
               {isApproved && (
                 <Button
                   onClick={() => navigate('/project?tab=capstone_1')}
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  className="gap-2 shadow-sm"
                 >
                   <Award className="h-4 w-4" />
                   Proceed to Capstone 1 Workspace
@@ -777,7 +777,7 @@ export default function TitleApprovalPage() {
             <div className="space-y-2">
               <div className="relative h-2.5 w-full rounded-full bg-muted/80 overflow-hidden border border-border/40">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-primary to-blue-600 transition-all duration-500"
+                  className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{ width: `${defenseProgressPercent}%` }}
                 />
               </div>
@@ -812,13 +812,11 @@ export default function TitleApprovalPage() {
                     className={cn(
                       'relative flex flex-col justify-between gap-3 p-3.5 sm:p-4 rounded-xl border transition-all',
                       isScheduled &&
-                        'border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20 ring-1 ring-emerald-500/30 shadow-xs',
-                      !isScheduled &&
-                        isCompleted &&
-                        'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20',
+                        'border-success/40 bg-success/5 ring-1 ring-success/30 shadow-xs',
+                      !isScheduled && isCompleted && 'border-success/30 bg-success/5',
                       !isScheduled &&
                         isCurrent &&
-                        'border-primary/50 bg-primary/5 dark:bg-primary/10 ring-2 ring-primary/20 shadow-xs',
+                        'border-primary/50 bg-primary/5 ring-2 ring-primary/20 shadow-xs',
                       !isScheduled &&
                         isPending &&
                         'border-border/60 bg-card/50 text-muted-foreground',
@@ -828,7 +826,8 @@ export default function TitleApprovalPage() {
                       <div
                         className={cn(
                           'h-9 w-9 rounded-full flex items-center justify-center shrink-0 transition-all',
-                          (isCompleted || isScheduled) && 'bg-emerald-500 text-white shadow-xs',
+                          (isCompleted || isScheduled) &&
+                            'bg-success text-primary-foreground shadow-xs',
                           !isScheduled &&
                             isCurrent &&
                             'bg-primary text-primary-foreground shadow-xs animate-pulse',
@@ -846,7 +845,7 @@ export default function TitleApprovalPage() {
                           step.badgeStyle
                             ? step.badgeStyle
                             : isCompleted
-                              ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                              ? 'border-success/40 text-success bg-success/10'
                               : isCurrent
                                 ? 'border-primary/40 text-primary bg-primary/10'
                                 : 'border-border/60 text-muted-foreground bg-muted/40',
@@ -879,7 +878,7 @@ export default function TitleApprovalPage() {
                         <div className="pt-1.5 flex items-center">
                           <span
                             data-testid="step-defense-countdown"
-                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] font-semibold font-mono text-success"
                           >
                             <span>⏳</span>
                             <span>{step.countdownBadge}</span>
@@ -898,13 +897,13 @@ export default function TitleApprovalPage() {
         {isDefenseScheduled && !isApproved && (
           <Card
             data-testid="scheduled-defense-banner"
-            className="rounded-2xl border-emerald-500/40 bg-gradient-to-br from-card via-card to-emerald-500/[0.04] shadow-xs overflow-hidden"
+            className="rounded-2xl border-success/40 bg-card shadow-xs overflow-hidden"
           >
             <CardContent className="p-5 sm:p-6 space-y-5">
               {/* Header Bar: Icon, Title, Round Badge, Status Indicator */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 shadow-xs">
+                  <div className="h-10 w-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-success shrink-0 shadow-xs">
                     <Calendar className="h-5 w-5" />
                   </div>
                   <div>
@@ -914,12 +913,12 @@ export default function TitleApprovalPage() {
                       </h3>
                       <Badge
                         variant="outline"
-                        className="text-[10px] font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5"
+                        className="text-[10px] font-semibold border-success/40 text-success bg-success/10 px-2.5 py-0.5"
                       >
                         {defenseRoundBadge}
                       </Badge>
                       {countdown.isToday && !countdown.isPast && !countdown.isOngoing && (
-                        <Badge className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 font-semibold">
+                        <Badge variant="success" className="text-[10px] px-2 py-0.5 font-semibold">
                           Today
                         </Badge>
                       )}
@@ -932,8 +931,8 @@ export default function TitleApprovalPage() {
 
                 <div className="flex items-center gap-2">
                   {countdown.isOngoing ? (
-                    <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 gap-1.5 animate-pulse">
-                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                    <Badge variant="warning" className="text-xs font-semibold px-2.5 py-1 gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning-foreground" />
                       Hearing Session Active Today
                     </Badge>
                   ) : countdown.isPast ? (
@@ -946,7 +945,7 @@ export default function TitleApprovalPage() {
                   ) : (
                     <Badge
                       variant="outline"
-                      className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs font-semibold px-2.5 py-1 gap-1.5"
+                      className="border-success/40 text-success bg-success/10 text-xs font-semibold px-2.5 py-1 gap-1.5"
                     >
                       <Clock className="h-3.5 w-3.5" />
                       Scheduled Hearing
@@ -956,12 +955,12 @@ export default function TitleApprovalPage() {
               </div>
 
               {/* Prominent Countdown Timer Block */}
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/20 p-4 sm:p-5">
+              <div className="rounded-xl border border-success/20 bg-success/5 p-4 sm:p-5">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      <Clock className="h-4 w-4 text-success" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-success">
                         Live Defense Hearing Countdown
                       </span>
                     </div>
@@ -1117,7 +1116,7 @@ export default function TitleApprovalPage() {
                       </span>
                     )}
                     {project.panelistIds?.[0] && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-2 py-0.5">
                         <span className="font-semibold">Chair:</span>
                         {project.panelistIds[0].firstName} {project.panelistIds[0].lastName}
                       </span>
@@ -1132,7 +1131,7 @@ export default function TitleApprovalPage() {
                       </span>
                     ))}
                     {team?.secretaryId && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-warning/10 text-warning-foreground px-2 py-0.5">
                         <span className="font-semibold">Secretary:</span>
                         {team.secretaryId.firstName} {team.secretaryId.lastName}
                       </span>
@@ -1158,15 +1157,15 @@ export default function TitleApprovalPage() {
 
         {/* 3. Approved Banner Notice */}
         {isApproved && (
-          <Alert className="border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <Alert className="border-success/40 bg-success/10 text-foreground">
+            <CheckCircle2 className="h-5 w-5 text-success" />
             <div className="space-y-1 ml-2">
-              <p className="font-semibold text-sm">
-                Title approved
-              </p>
+              <p className="font-semibold text-sm">Title approved</p>
               <p className="text-xs text-muted-foreground">
                 The Capstone Committee has approved your research title:{' '}
-                <span className="font-semibold text-foreground">&ldquo;{project.title}&rdquo;</span>
+                <span className="break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+                  &ldquo;{project.title}&rdquo;
+                </span>
                 . You may now proceed to Capstone 1 (Chapters 1–3 Manuscript Development).
               </p>
             </div>
@@ -1201,7 +1200,7 @@ export default function TitleApprovalPage() {
               </div>
 
               <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400">
+                <span className="text-[10px] uppercase font-bold text-primary">
                   Defense Panel Chair
                 </span>
                 <p className="font-semibold text-foreground truncate">
@@ -1215,7 +1214,7 @@ export default function TitleApprovalPage() {
               </div>
 
               <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">
+                <span className="text-[10px] uppercase font-bold text-warning-foreground">
                   Committee Secretary
                 </span>
                 <p className="font-semibold text-foreground truncate">
@@ -1229,7 +1228,7 @@ export default function TitleApprovalPage() {
               </div>
 
               <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="text-[10px] uppercase font-bold text-success">
                   Defense Panel Members
                 </span>
                 <p className="font-semibold text-foreground truncate">
@@ -1310,7 +1309,7 @@ export default function TitleApprovalPage() {
                   className={cn(
                     'rounded-2xl border transition-all duration-200 overflow-hidden shadow-xs',
                     prop.isApproved
-                      ? 'border-emerald-500/80 dark:border-emerald-500/60 bg-emerald-500/[0.02]'
+                      ? 'border-success/80 bg-success/5'
                       : 'border-border/70 bg-card hover:border-border',
                   )}
                 >
@@ -1323,13 +1322,13 @@ export default function TitleApprovalPage() {
                             Proposal {prop.index + 1} {prop.index === 0 ? '(Primary Choice)' : ''}
                           </span>
                           {prop.isApproved ? (
-                            <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1">
+                            <Badge variant="success" className="text-[10px] gap-1">
                               <Award className="h-3 w-3" /> Officially Approved Title
                             </Badge>
                           ) : isSubmitted ? (
                             <Badge
                               variant="outline"
-                              className="text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10"
+                              className="text-[10px] border-primary/30 text-primary bg-primary/10"
                             >
                               Under Committee Review
                             </Badge>
@@ -1382,11 +1381,11 @@ export default function TitleApprovalPage() {
                       </div>
                       <span className="text-muted-foreground text-xs hidden sm:inline">·</span>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <Globe className="h-3.5 w-3.5 text-success shrink-0" />
                         {prop.sdgs.map((s, i) => (
                           <span
                             key={i}
-                            className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                            className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-md bg-success/10 text-success border border-success/20"
                           >
                             {s}
                           </span>
@@ -1500,22 +1499,34 @@ export default function TitleApprovalPage() {
 
                             <div className="flex items-center gap-1">
                               {slides.map((_, sIdx) => (
-                                <button
+                                <Button
                                   key={sIdx}
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() =>
                                     setActiveSlideIndex((prev) => ({
                                       ...prev,
                                       [prop.index]: sIdx,
                                     }))
                                   }
+                                  aria-label={`Show slide ${sIdx + 1}`}
+                                  aria-current={sIdx === slideIdx ? 'step' : undefined}
                                   className={cn(
-                                    'h-1.5 rounded-full transition-all',
+                                    'h-11 w-11 p-0 transition-colors',
                                     sIdx === slideIdx
-                                      ? 'w-4 bg-primary'
-                                      : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                                      ? 'text-primary'
+                                      : 'text-muted-foreground/60 hover:text-muted-foreground',
                                   )}
-                                  title={`Slide ${sIdx + 1}`}
-                                />
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                      'h-1.5 rounded-full',
+                                      sIdx === slideIdx ? 'w-4 bg-primary' : 'w-1.5 bg-current',
+                                    )}
+                                  />
+                                </Button>
                               ))}
                             </div>
 

@@ -105,6 +105,18 @@ describe('CertificatePage', () => {
     expect(container.textContent).toContain('Accepted format: PDF only');
   });
 
+  it('announces certificate loading with the shared status spinner', () => {
+    mockIsLoading = true;
+
+    act(() => {
+      root.render(<CertificatePage />);
+    });
+
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      'Loading certificate',
+    );
+  });
+
   it('shows the sealed QR verification state and removes replacement upload controls', () => {
     mockCertData = {
       url: 'https://example.com/certificate.pdf',

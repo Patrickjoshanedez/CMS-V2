@@ -9,13 +9,10 @@ import { AlertCircle, CheckCircle2, Info, XCircle } from 'lucide-react';
 
 const alertVariants = {
   default: 'bg-background text-foreground border',
-  success:
-    'border-green-500/50 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20',
-  destructive:
-    'border-destructive/50 text-destructive dark:text-red-400 bg-red-50 dark:bg-red-950/20',
-  warning:
-    'border-amber-500/50 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20',
-  info: 'border-blue-500/50 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20',
+  success: 'border-success/30 bg-success/10 text-success-foreground',
+  destructive: 'border-destructive/30 bg-destructive/10 text-destructive-text',
+  warning: 'border-warning/30 bg-warning/10 text-warning-foreground',
+  info: 'border-info/30 bg-info/10 text-foreground',
 };
 
 const alertIcons = {
@@ -35,7 +32,7 @@ const Alert = forwardRef(({ className, variant = 'default', children, ...props }
       ref={ref}
       role="alert"
       className={cn(
-        'relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground',
+        'relative w-full rounded-md border p-4 [&>svg~*]:pl-7 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-current',
         alertVariants[resolvedVariant],
         className,
       )}

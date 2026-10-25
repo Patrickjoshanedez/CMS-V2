@@ -1,6 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { getSimilarityStatus, SIGNAL_CONFIG } from '../utils/plagiarismReportHelpers';
 
 /**
@@ -16,11 +18,15 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
   const semanticPct = source.semanticScore !== null ? Math.round(source.semanticScore * 100) : null;
 
   return (
-    <button
+    <Button
       type="button"
+      variant={isActive ? 'secondary' : 'outline'}
+      aria-pressed={isActive}
+      aria-label={`${source.sourceTitle}, ${percentage}% similarity, ${source.matchedBlocks.length} matches`}
+      data-testid={`plagiarism-source-row-${source.sourceId}`}
       onClick={() => onSelect(source.sourceId)}
       className={cn(
-        'w-full rounded-lg border p-3 text-left transition-all',
+        'h-auto w-full justify-start whitespace-normal rounded-lg border p-3 text-left text-foreground shadow-none transition-all',
         isActive
           ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary'
           : 'border-border/60 bg-card hover:border-border hover:bg-muted/40',
@@ -28,12 +34,13 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
     >
       <div className="flex items-start gap-2.5">
         {/* Numbered badge */}
-        <span
+        <Badge
+          variant="outline"
           className="mt-0.5 inline-flex h-6 min-w-[1.5rem] shrink-0 items-center justify-center rounded-full border text-[11px] font-bold"
           style={source.palette?.badgeStyle}
         >
           {source.sourceNumber}
-        </span>
+        </Badge>
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-start justify-between gap-1.5">
@@ -41,14 +48,12 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
               {source.sourceTitle}
             </p>
             {/* Context signal badge */}
-            <span
-              className={cn(
-                'shrink-0 inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
-                signal.className,
-              )}
+            <Badge
+              variant={signal.badgeVariant}
+              className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
             >
               {signal.label}
-            </span>
+            </Badge>
           </div>
 
           {/* Blended similarity bar */}
@@ -78,7 +83,7 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
                   <span className="w-14 shrink-0 text-[9px] text-muted-foreground">Exact</span>
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                      className="h-full rounded-full bg-warning transition-all duration-300"
                       style={{ width: `${winnowPct}%` }}
                     />
                   </div>
@@ -92,7 +97,7 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
                   <span className="w-14 shrink-0 text-[9px] text-muted-foreground">Semantic</span>
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                      className="h-full rounded-full bg-info transition-all duration-300"
                       style={{ width: `${semanticPct}%` }}
                     />
                   </div>
@@ -105,7 +110,7 @@ export function PlagiarismSourceRow({ source, isActive, onSelect }) {
           )}
         </div>
       </div>
-    </button>
+    </Button>
   );
 }
 

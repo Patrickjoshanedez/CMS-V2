@@ -111,6 +111,7 @@ describe('ExistingCapstoneUploadPage', () => {
         keywords: 89,
       },
     });
+    mockSubmitMetadataFeedback.mockResolvedValue(undefined);
 
     mockScanArchive.mockResolvedValue({
       data: {
@@ -152,6 +153,46 @@ describe('ExistingCapstoneUploadPage', () => {
     expect(container.textContent).toContain('Academic Paper (PDF)');
     expect(container.textContent).toContain('Academic Journal (PDF)');
     expect(container.textContent).toContain('Verify Metadata');
+  });
+
+  it('collects metadata feedback in an accessible dialog and updates the corrected field on success', async () => {
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent.includes('Send Title Feedback'))
+        .click();
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Send Title feedback');
+
+    const correctionInput = dialog.querySelector('#metadata-correction');
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    valueSetter.call(correctionInput, 'Corrected archival study title');
+    await act(async () => {
+      correctionInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await act(async () => {
+      Array.from(dialog.querySelectorAll('button'))
+        .find((button) => button.textContent.includes('Submit feedback'))
+        .click();
+    });
+
+    expect(mockSubmitMetadataFeedback).toHaveBeenCalledWith({
+      fieldName: 'title',
+      extractedValue: '',
+      correctedValue: 'Corrected archival study title',
+      confidence: undefined,
+      sourceFileName: '',
+      context: 'archive/capstone-upload',
+    });
+    expect(container.querySelector('#title').value).toBe('Corrected archival study title');
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('navigates back to /archive when clicking Back to Archive or Browse Archive', () => {

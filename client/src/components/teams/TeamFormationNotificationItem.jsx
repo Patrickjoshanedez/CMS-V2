@@ -24,7 +24,7 @@ function formatRelativeTime(dateString) {
 export function TeamFormationNotificationItem({
   teamId = '',
   teamName = 'Team Patrick',
-  groupCode = '#10A80B',
+  groupCode = '10A80B',
   section = 'BSIT 3C',
   sectionCode = 'T87',
   leaderName = 'Patrick Josh S. Añedez',
@@ -111,7 +111,7 @@ export function TeamFormationNotificationItem({
       <Card
         className={
           isFullyAssigned
-            ? 'border-border/60 bg-card/50 transition-all hover:border-emerald-500/40 hover:bg-card'
+            ? 'border-border/60 bg-card/50 transition-all hover:border-success/40 hover:bg-card'
             : 'border-border/60 bg-card/70 transition-all hover:border-primary/40 hover:bg-card'
         }
       >
@@ -122,7 +122,7 @@ export function TeamFormationNotificationItem({
               <div
                 className={
                   isFullyAssigned
-                    ? 'mt-0.5 rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-500/20'
+                    ? 'mt-0.5 shrink-0 rounded-lg border border-success/20 bg-success/10 p-2.5 text-success'
                     : 'mt-0.5 rounded-lg bg-primary/10 p-2.5 text-primary shrink-0 border border-primary/20'
                 }
               >
@@ -141,16 +141,16 @@ export function TeamFormationNotificationItem({
                   </span>
                   {isFullyAssigned ? (
                     <Badge
-                      variant="outline"
-                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium py-0 px-1.5 flex items-center gap-1"
+                      variant="success"
+                      className="flex items-center gap-1 px-1.5 py-0 text-[10px] font-medium"
                     >
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <Check className="h-3 w-3" />
                       Committee Assigned
                     </Badge>
                   ) : (
                     <Badge
-                      variant="outline"
-                      className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-[10px] font-medium py-0 px-1.5"
+                      variant="warning"
+                      className="px-1.5 py-0 text-[10px] font-medium"
                     >
                       Action Required
                     </Badge>
@@ -216,17 +216,17 @@ export function TeamFormationNotificationItem({
             </div>
 
             {/* Right Column: Interaction Controls */}
-            <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+            <div className="flex w-full flex-wrap items-center justify-start gap-2 self-start sm:w-auto sm:justify-end lg:self-center">
               {isFullyAssigned ? (
                 <>
-                  <div className="flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-medium text-success-foreground">
                     <Check className="h-3.5 w-3.5" />
                     <span>Assigned</span>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-border/70 hover:bg-muted/40 gap-1.5"
+                    className="h-8 gap-1.5 text-xs"
                     onClick={handleAssign}
                   >
                     <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -235,7 +235,7 @@ export function TeamFormationNotificationItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-border/70 hover:bg-muted/40"
+                    className="h-8 text-xs"
                     onClick={handleInspect}
                   >
                     Inspect Roster
@@ -246,14 +246,14 @@ export function TeamFormationNotificationItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-border/70 hover:bg-muted/40"
+                    className="h-8 text-xs"
                     onClick={handleInspect}
                   >
                     Inspect Roster
                   </Button>
                   <Button
                     size="sm"
-                    className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                    className="h-8 gap-1.5 text-xs"
                     onClick={handleAssign}
                   >
                     <UserCheck className="h-3.5 w-3.5" />

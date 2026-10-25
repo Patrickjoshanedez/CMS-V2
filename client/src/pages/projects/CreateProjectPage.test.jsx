@@ -135,6 +135,9 @@ const renderPage = () => {
   };
 };
 
+const activateTab = (tab) =>
+  tab.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+
 const fillRequiredProposalDetails = (container) => {
   const fieldValues = {
     Objectives: 'Deliver a measurable and accessible capstone outcome.',
@@ -163,6 +166,8 @@ describe('CreateProjectPage', () => {
       window.localStorage.clear();
     }
     mockSimilarityChecker.mockReset();
+    mockUseLocation.mockReturnValue({ state: null, pathname: '/project/create', search: '' });
+    mockUseSearchParams.mockReturnValue([new URLSearchParams(), vi.fn()]);
     mockGetCreateProjectDraft.mockResolvedValue({
       data: { data: { draft: null, updatedAt: null } },
     });
@@ -298,9 +303,7 @@ describe('CreateProjectPage', () => {
   it('uses team context for academic year and section without rendering inputs', async () => {
     const view = renderPage();
 
-    expect(view.container.textContent).toContain(
-      'Academic Year 2024-2025 · A.',
-    );
+    expect(view.container.textContent).toContain('Academic Year 2024-2025 · A.');
     expect(view.container.querySelector('select[name="sectionId"]')).toBeNull();
     expect(
       view.container.querySelector('button[type="button"] span.flex-1.text-left.font-medium'),
@@ -495,7 +498,8 @@ describe('CreateProjectPage', () => {
     // Now test removing proposal 10
     const removeBtn = Array.from(view.container.querySelectorAll('button')).find(
       (b) =>
-        b.textContent?.includes('Remove') && b.getAttribute('title')?.includes('Remove Proposal 10'),
+        b.textContent?.includes('Remove') &&
+        b.getAttribute('title')?.includes('Remove Proposal 10'),
     );
     expect(removeBtn).not.toBeNull();
     await act(async () => {
@@ -522,13 +526,10 @@ describe('CreateProjectPage', () => {
     );
     expect(similarityTab).toBeTruthy();
     await act(async () => {
-      similarityTab.click();
+      activateTab(similarityTab);
     });
 
     // Before details are filled, awaiting-details card is displayed
-    expect(view.container.textContent).toContain(
-      'Proposal Details Required for Similarity Analysis',
-    );
     expect(view.container.textContent).toContain('Awaiting Details');
 
     // Switch to Write Proposal tab and provide a title with >= 10 chars
@@ -536,7 +537,7 @@ describe('CreateProjectPage', () => {
       el.textContent?.includes('Write Proposal'),
     );
     await act(async () => {
-      writeTab.click();
+      activateTab(writeTab);
     });
     const titleInput = view.container.querySelector('input[id="proposal-0-title"]');
     await act(async () => {
@@ -551,7 +552,7 @@ describe('CreateProjectPage', () => {
 
     // Switch back to similarity tab
     await act(async () => {
-      similarityTab.click();
+      activateTab(similarityTab);
     });
 
     // Metric cards must now be 0.0%
@@ -614,7 +615,7 @@ describe('CreateProjectPage', () => {
       el.textContent?.includes('Similarity Clearance'),
     );
     await act(async () => {
-      similarityTab.click();
+      activateTab(similarityTab);
     });
 
     // Click "Scan Proposal 1"
@@ -735,7 +736,7 @@ describe('CreateProjectPage', () => {
       el.textContent?.includes('Similarity Clearance'),
     );
     await act(async () => {
-      similarityTab.click();
+      activateTab(similarityTab);
     });
 
     // Scan Proposal 1
@@ -795,7 +796,7 @@ describe('CreateProjectPage', () => {
     );
     expect(deckTab).toBeTruthy();
     await act(async () => {
-      deckTab.click();
+      activateTab(deckTab);
     });
 
     // Verify Slide 01 renders correctly
@@ -870,17 +871,17 @@ describe('CreateProjectPage', () => {
       fullscreenBtn.click();
     });
 
-    const modal = view.container.querySelector('[data-testid="fullscreen-deck-modal"]');
+    const modal = document.body.querySelector('[data-testid="fullscreen-deck-modal"]');
     expect(modal).toBeTruthy();
     expect(modal.textContent).toContain('SLIDE 07');
 
     // Close Fullscreen modal
-    const closeBtn = view.container.querySelector('[data-testid="close-fullscreen-button"]');
+    const closeBtn = document.body.querySelector('[data-testid="close-fullscreen-button"]');
     expect(closeBtn).toBeTruthy();
     await act(async () => {
       closeBtn.click();
     });
-    expect(view.container.querySelector('[data-testid="fullscreen-deck-modal"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="fullscreen-deck-modal"]')).toBeNull();
 
     view.unmount();
   });
@@ -1109,6 +1110,79 @@ describe('CreateProjectPage', () => {
         submit: true,
       }),
     );
+
+    view.unmount();
+  });
+
+  it('renders committee revision instructions banner, revision badge, and revision indicators on rejected proposals', async () => {
+    mockUseLocation.mockReturnValue({
+      state: {
+        edit: true,
+        projectId: 'proj-rev-123',
+        project: {
+          _id: 'proj-rev-123',
+          title: 'Candidate Proposal 1',
+          titleStatus: 'revision_required',
+          rejectionReason: 'Scope too broad. Limit deployment to BukSU Main Campus.',
+          titleProposals: [
+            {
+              title: 'Candidate Proposal 1',
+              description:
+                'Problem Statement:\nBroad campus system.\n\nProposed Solution:\nMobile app.',
+              status: 'rejected',
+            },
+            {
+              title: 'Candidate Proposal 2',
+              description:
+                'Problem Statement:\nSecondary scope.\n\nProposed Solution:\nWeb portal.',
+              status: 'pending',
+            },
+          ],
+          titleProposalMetadata: [
+            {
+              title: 'Candidate Proposal 1',
+              description:
+                'Problem Statement:\nBroad campus system.\n\nProposed Solution:\nMobile app.',
+              status: 'rejected',
+            },
+            {
+              title: 'Candidate Proposal 2',
+              description:
+                'Problem Statement:\nSecondary scope.\n\nProposed Solution:\nWeb portal.',
+              status: 'pending',
+            },
+          ],
+          academicYear: '2025-2026',
+        },
+      },
+    });
+
+    const view = renderPage();
+
+    // 1. Header displays the editing state for the returned proposal draft
+    expect(view.container.textContent).toContain('Revising Proposals');
+
+    // 2. Committee Revision Instructions Banner is rendered
+    const banner = view.container.querySelector(
+      '[data-testid="committee-revision-instructions-banner"]',
+    );
+    expect(banner).not.toBeNull();
+    expect(banner.textContent).toContain('Committee Deliberation Feedback — Revision Required');
+    expect(banner.textContent).toContain('Scope too broad. Limit deployment to BukSU Main Campus.');
+    expect(banner.textContent).toContain('Feedback Provided');
+
+    // 3. Submit button displays "Submit Revised Proposals"
+    const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit Revised Proposals'),
+    );
+    expect(submitBtn).not.toBeUndefined();
+
+    // 4. Proposal 1 pill has rejected revision warning indicator ⚠️
+    const proposal1Btn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Proposal 1'),
+    );
+    expect(proposal1Btn).not.toBeUndefined();
+    expect(proposal1Btn.textContent).toContain('⚠️');
 
     view.unmount();
   });

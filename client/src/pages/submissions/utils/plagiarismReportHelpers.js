@@ -1,99 +1,34 @@
 /* ──────────────────────────────────────────────────────────────
-   Color palette for source highlighting (Turnitin-style bands)
-   Uses translucent RGBA so marks render beautifully in light & dark modes
+   Theme-aware source palette for Turnitin-style match highlighting.
    ────────────────────────────────────────────────────────────── */
-export const SOURCE_PALETTE = [
-  {
-    badgeStyle: {
-      background: 'rgba(239, 68, 68, 0.15)',
-      color: '#ef4444',
-      border: '1px solid rgba(239, 68, 68, 0.35)',
-    },
-    dot: '#ef4444',
-    mark: { background: 'rgba(239, 68, 68, 0.22)', outline: '1px solid rgba(239, 68, 68, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(249, 115, 22, 0.15)',
-      color: '#f97316',
-      border: '1px solid rgba(249, 115, 22, 0.35)',
-    },
-    dot: '#f97316',
-    mark: { background: 'rgba(249, 115, 22, 0.22)', outline: '1px solid rgba(249, 115, 22, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(234, 179, 8, 0.15)',
-      color: '#ca8a04',
-      border: '1px solid rgba(234, 179, 8, 0.35)',
-    },
-    dot: '#ca8a04',
-    mark: { background: 'rgba(234, 179, 8, 0.22)', outline: '1px solid rgba(234, 179, 8, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(16, 185, 129, 0.15)',
-      color: '#10b981',
-      border: '1px solid rgba(16, 185, 129, 0.35)',
-    },
-    dot: '#10b981',
-    mark: { background: 'rgba(16, 185, 129, 0.22)', outline: '1px solid rgba(16, 185, 129, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(59, 130, 246, 0.15)',
-      color: '#3b82f6',
-      border: '1px solid rgba(59, 130, 246, 0.35)',
-    },
-    dot: '#3b82f6',
-    mark: { background: 'rgba(59, 130, 246, 0.22)', outline: '1px solid rgba(59, 130, 246, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(168, 85, 247, 0.15)',
-      color: '#a855f7',
-      border: '1px solid rgba(168, 85, 247, 0.35)',
-    },
-    dot: '#a855f7',
-    mark: { background: 'rgba(168, 85, 247, 0.22)', outline: '1px solid rgba(168, 85, 247, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(20, 184, 166, 0.15)',
-      color: '#14b8a6',
-      border: '1px solid rgba(20, 184, 166, 0.35)',
-    },
-    dot: '#14b8a6',
-    mark: { background: 'rgba(20, 184, 166, 0.22)', outline: '1px solid rgba(20, 184, 166, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(236, 72, 153, 0.15)',
-      color: '#ec4899',
-      border: '1px solid rgba(236, 72, 153, 0.35)',
-    },
-    dot: '#ec4899',
-    mark: { background: 'rgba(236, 72, 153, 0.22)', outline: '1px solid rgba(236, 72, 153, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(34, 197, 94, 0.15)',
-      color: '#22c55e',
-      border: '1px solid rgba(34, 197, 94, 0.35)',
-    },
-    dot: '#22c55e',
-    mark: { background: 'rgba(34, 197, 94, 0.22)', outline: '1px solid rgba(34, 197, 94, 0.45)' },
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(244, 63, 94, 0.15)',
-      color: '#f43f5e',
-      border: '1px solid rgba(244, 63, 94, 0.35)',
-    },
-    dot: '#f43f5e',
-    mark: { background: 'rgba(244, 63, 94, 0.22)', outline: '1px solid rgba(244, 63, 94, 0.45)' },
-  },
+const SOURCE_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
+  'hsl(var(--chart-9))',
+  'hsl(var(--chart-10))',
 ];
+
+const colorMix = (color, opacity) =>
+  `color-mix(in srgb, ${color} ${Math.round(opacity * 100)}%, transparent)`;
+
+export const SOURCE_PALETTE = SOURCE_COLORS.map((color) => ({
+  badgeStyle: {
+    background: colorMix(color, 0.15),
+    color,
+    border: `1px solid ${colorMix(color, 0.35)}`,
+  },
+  dot: color,
+  mark: {
+    background: colorMix(color, 0.22),
+    outline: `1px solid ${colorMix(color, 0.45)}`,
+  },
+}));
 
 /* ── Score-gradient highlight system ──────────────────────────────────
    Modulates highlight intensity based on individual block similarity score.
@@ -120,10 +55,14 @@ export function getScoreHighlightStyle(paletteDot, similarityPercent) {
   const bgAlpha = 0.1 + score * 0.5; // 0.10 at 0%, 0.60 at 100%
   const borderAlpha = 0.3 + score * 0.55; // 0.30 → 0.85
   const borderWidth = score >= 0.9 ? '3px' : score >= 0.7 ? '2px' : '1px';
+  const tint = (alpha) =>
+    paletteDot?.startsWith('#')
+      ? hexToRgba(paletteDot, alpha)
+      : colorMix(paletteDot || 'hsl(var(--muted-foreground))', alpha);
   return {
-    background: hexToRgba(paletteDot, bgAlpha),
-    outline: `1px solid ${hexToRgba(paletteDot, borderAlpha * 0.5)}`,
-    borderBottom: `${borderWidth} solid ${hexToRgba(paletteDot, borderAlpha)}`,
+    background: tint(bgAlpha),
+    outline: `1px solid ${tint(borderAlpha * 0.5)}`,
+    borderBottom: `${borderWidth} solid ${tint(borderAlpha)}`,
   };
 }
 
@@ -581,9 +520,9 @@ export const buildTextSegments = (text, highlights) => {
 export function getSimilarityStatus(percent) {
   if (percent >= 50) {
     return {
-      color: '#ef4444',
-      textClass: 'text-rose-600 dark:text-rose-400',
-      bgClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
+      color: 'hsl(var(--destructive))',
+      textClass: 'text-destructive',
+      bgClass: 'bg-destructive/10 text-destructive-text border-destructive/20',
       badgeVariant: 'destructive',
       label: 'High Similarity (≥ 50%)',
       statusText: 'Action Required',
@@ -591,18 +530,18 @@ export function getSimilarityStatus(percent) {
   }
   if (percent >= 25) {
     return {
-      color: '#f59e0b',
-      textClass: 'text-amber-600 dark:text-amber-400',
-      bgClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
+      color: 'hsl(var(--warning))',
+      textClass: 'text-warning-foreground',
+      bgClass: 'bg-warning/10 text-warning-foreground border-warning/20',
       badgeVariant: 'warning',
       label: 'Moderate Similarity (25–49%)',
       statusText: 'Review Recommended',
     };
   }
   return {
-    color: '#10b981',
-    textClass: 'text-emerald-600 dark:text-emerald-400',
-    bgClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+    color: 'hsl(var(--success))',
+    textClass: 'text-success-foreground',
+    bgClass: 'bg-success/10 text-success-foreground border-success/20',
     badgeVariant: 'secondary',
     label: 'Compliant (< 25%)',
     statusText: 'Passes BukSU Standard',
@@ -615,14 +554,14 @@ export function getSimilarityStatus(percent) {
 export const SIGNAL_CONFIG = {
   verbatim: {
     label: 'VERBATIM',
-    className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+    badgeVariant: 'destructive',
   },
   paraphrase: {
     label: 'PARAPHRASE',
-    className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30',
+    badgeVariant: 'info',
   },
   mixed: {
     label: 'MIXED',
-    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    badgeVariant: 'warning',
   },
 };

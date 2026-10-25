@@ -149,7 +149,9 @@ describe('PrototypeShowcaseAndDemo Component Suite', () => {
       demoVideoUrl: 'https://vimeo.com/123456789',
     });
 
-    mockMutateDemo.mockRejectedValueOnce({ response: { data: { message: 'URL is not allowed.' } } });
+    mockMutateDemo.mockRejectedValueOnce({
+      response: { data: { message: 'URL is not allowed.' } },
+    });
     await act(async () => {
       saveButton.click();
     });
@@ -167,8 +169,32 @@ describe('PrototypeShowcaseAndDemo Component Suite', () => {
       addBtn.click();
     });
 
-    expect(container.textContent).toContain('Add Prototype Showcase Item');
-    expect(container.textContent).toContain('File Upload');
-    expect(container.textContent).toContain('External Link');
+    expect(document.body.textContent).toContain('Add Prototype Showcase Item');
+    expect(document.body.textContent).toContain('File Upload');
+    expect(document.body.textContent).toContain('External Link');
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
+  });
+
+  it('requires confirmation before removing a prototype item', async () => {
+    await renderComponent();
+
+    const deleteButton = container.querySelector(
+      '[aria-label="Delete Figma System Navigation Prototype"]',
+    );
+    expect(deleteButton).toBeTruthy();
+    await act(async () => deleteButton.click());
+
+    expect(mockRemoveProto).not.toHaveBeenCalled();
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeTruthy();
+
+    const confirmButton = [...document.body.querySelectorAll('button')].find(
+      (button) => button.textContent.trim() === 'Delete item',
+    );
+    await act(async () => confirmButton.click());
+
+    expect(mockRemoveProto).toHaveBeenCalledWith(
+      { projectId: 'proj-500', prototypeId: 'proto-1' },
+      expect.objectContaining({ onSettled: expect.any(Function) }),
+    );
   });
 });

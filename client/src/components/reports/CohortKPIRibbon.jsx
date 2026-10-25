@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
 import { Users, Layers, GraduationCap, Award } from 'lucide-react';
 
 /**
@@ -101,8 +103,9 @@ export default function CohortKPIRibbon({
       subtext: isLoading ? <Skeleton className="h-3.5 w-24 rounded" /> : `${yearText} Cohort`,
       icon: Users,
       badge: isLoading ? <Skeleton className="h-4 w-14 rounded" /> : proponentBadge,
-      colorScheme:
-        'from-blue-500/10 to-transparent border-blue-500/20 text-blue-600 dark:text-blue-400 print:text-[#111827]',
+      iconClassName: 'text-primary',
+      iconSurfaceClassName: 'border-primary/20 bg-primary/5',
+      badgeVariant: isArchivedCohort ? 'success' : 'secondary',
     },
     {
       id: 'teams',
@@ -111,8 +114,9 @@ export default function CohortKPIRibbon({
       subtext: isLoading ? <Skeleton className="h-3.5 w-28 rounded" /> : teamsSubtext,
       icon: Layers,
       badge: isLoading ? <Skeleton className="h-4 w-16 rounded" /> : teamsBadge,
-      colorScheme:
-        'from-emerald-500/10 to-transparent border-emerald-500/20 text-emerald-600 dark:text-emerald-400 print:text-[#111827]',
+      iconClassName: 'text-success',
+      iconSurfaceClassName: 'border-success/20 bg-success/5',
+      badgeVariant: isArchivedCohort ? 'success' : 'info',
     },
     {
       id: 'sections',
@@ -137,8 +141,9 @@ export default function CohortKPIRibbon({
       ) : (
         'BSIT 4A - 4D'
       ),
-      colorScheme:
-        'from-indigo-500/10 to-transparent border-indigo-500/20 text-indigo-600 dark:text-indigo-400 print:text-[#111827]',
+      iconClassName: 'text-info',
+      iconSurfaceClassName: 'border-info/20 bg-info/5',
+      badgeVariant: 'secondary',
     },
     {
       id: 'yield',
@@ -148,8 +153,16 @@ export default function CohortKPIRibbon({
       subtext: isLoading ? <Skeleton className="h-3.5 w-28 rounded" /> : yieldSubtext,
       icon: Award,
       badge: isLoading ? <Skeleton className="h-4 w-16 rounded" /> : sampleBadge,
-      colorScheme:
-        'from-purple-500/10 to-transparent border-purple-500/20 text-purple-600 dark:text-purple-400 print:text-[#111827]',
+      iconClassName: 'text-warning',
+      iconSurfaceClassName: 'border-warning/20 bg-warning/5',
+      badgeVariant:
+        yieldTotal <= 3
+          ? 'warning'
+          : yieldRate >= 90
+            ? 'success'
+            : yieldRate >= 75
+              ? 'secondary'
+              : 'destructive',
     },
   ];
 
@@ -167,39 +180,43 @@ export default function CohortKPIRibbon({
           <Card
             key={kpi.id}
             aria-label={`${kpi.label}: ${isLoading ? 'Loading' : `${textValue}, ${typeof kpi.subtext === 'string' ? kpi.subtext : ''}`}`}
-            className={`relative overflow-hidden border border-border/80 bg-gradient-to-b ${kpi.colorScheme} shadow-xs hover:shadow-md transition-all group print:bg-white print:border-slate-300 print:shadow-none break-inside-avoid`}
+            className="group relative break-inside-avoid overflow-hidden border-border/70 shadow-sm transition-colors hover:border-primary/35 print:shadow-none"
           >
             <CardContent className="p-4 flex flex-col justify-between h-full space-y-3 print:p-3 print:space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground line-clamp-1 print:text-[#111827]">
+                <span className="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   {kpi.label}
                 </span>
                 <div
                   aria-hidden="true"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/80 border border-border/60 shadow-2xs group-hover:scale-105 transition-transform shrink-0 print:bg-white print:border-slate-300"
+                  className={cn(
+                    'flex size-8 shrink-0 items-center justify-center rounded-md border transition-transform group-hover:scale-105',
+                    kpi.iconSurfaceClassName,
+                  )}
                 >
-                  <Icon className="h-4 w-4 print:text-[#111827]" />
+                  <Icon className={cn('size-4', kpi.iconClassName)} />
                 </div>
               </div>
 
               <div>
-                <div className="text-xl sm:text-2xl font-black tracking-tight text-foreground print:text-[#111827] break-words flex items-center min-h-[32px]">
+                <div className="flex min-h-8 items-center break-words text-xl font-bold tracking-tight text-foreground sm:text-2xl">
                   {kpi.value}
                 </div>
-                <div className="flex items-center justify-between gap-1 mt-1 pt-1.5 border-t border-border/40 text-[11px] print:border-slate-200">
+                <div className="mt-1 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5 text-[11px]">
                   <span
-                    className="text-muted-foreground truncate print:text-slate-600 font-medium"
+                    className="truncate font-medium text-muted-foreground"
                     title={typeof kpi.subtext === 'string' ? kpi.subtext : undefined}
                   >
                     {kpi.subtext}
                   </span>
                   {typeof kpi.badge === 'string' ? (
-                    <span
+                    <Badge
                       aria-label={`Status: ${kpi.badge}`}
-                      className="font-semibold text-foreground/80 shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-background/60 border border-border/40 print:bg-slate-100 print:border-slate-300 print:text-[#111827]"
+                      className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold"
+                      variant={kpi.badgeVariant}
                     >
                       {kpi.badge}
-                    </span>
+                    </Badge>
                   ) : (
                     kpi.badge
                   )}

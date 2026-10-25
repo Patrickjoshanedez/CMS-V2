@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -5,6 +6,7 @@ import { BookOpen, ExternalLink } from 'lucide-react';
 import { TITLE_STATUSES } from '@cms/shared';
 
 export default function ProjectContextWidget({ project }) {
+  const isProposal = project?.titleStatus !== TITLE_STATUSES.APPROVED;
   const githubUrl =
     project?.developmentAssets?.githubRepoUrl ||
     project?.teamId?.githubUrl ||
@@ -12,10 +14,10 @@ export default function ProjectContextWidget({ project }) {
     project?.githubRepo;
 
   return (
-    <Card className="rounded-2xl border-border bg-card shadow-lg">
+    <Card className="border-border/60 shadow-sm">
       <CardHeader className="pb-3 border-b border-border">
         <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
-          <BookOpen className="h-4 w-4 text-indigo-500" />
+          <BookOpen className="h-4 w-4 text-primary" />
           Project Context
         </CardTitle>
       </CardHeader>
@@ -28,13 +30,8 @@ export default function ProjectContextWidget({ project }) {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Phase</span>
-          <Badge
-            variant="outline"
-            className="border-indigo-500/30 text-indigo-600 dark:text-indigo-300 bg-indigo-500/10"
-          >
-            {project.titleStatus !== TITLE_STATUSES.APPROVED
-              ? 'Proposal'
-              : `Capstone ${project.capstonePhase || 1}`}
+          <Badge variant={isProposal ? 'warning' : 'secondary'}>
+            {isProposal ? 'Proposal' : `Capstone ${project.capstonePhase || 1}`}
           </Badge>
         </div>
         <div className="flex flex-col gap-1.5 pt-2">
@@ -54,7 +51,7 @@ export default function ProjectContextWidget({ project }) {
               type="button"
               variant="outline"
               size="sm"
-              className="w-full justify-start border-primary/30 text-xs font-semibold"
+              className="w-full justify-start text-xs font-semibold"
               asChild
             >
               <a href={githubUrl} target="_blank" rel="noreferrer">
@@ -68,3 +65,16 @@ export default function ProjectContextWidget({ project }) {
     </Card>
   );
 }
+
+ProjectContextWidget.propTypes = {
+  project: PropTypes.shape({
+    academicYear: PropTypes.string,
+    titleStatus: PropTypes.string,
+    capstonePhase: PropTypes.number,
+    courseId: PropTypes.shape({ name: PropTypes.string }),
+    developmentAssets: PropTypes.shape({ githubRepoUrl: PropTypes.string }),
+    teamId: PropTypes.shape({ githubUrl: PropTypes.string }),
+    githubRepoUrl: PropTypes.string,
+    githubRepo: PropTypes.string,
+  }).isRequired,
+};

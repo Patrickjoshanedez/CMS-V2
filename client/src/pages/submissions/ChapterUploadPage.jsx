@@ -9,15 +9,23 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions, useUploadChapter } from '@/hooks/useSubmissions';
 import { SUBMISSION_STATUSES } from '@cms/shared';
-import { cn } from '@/lib/utils';
 import {
   Upload,
   FileText,
   AlertTriangle,
-  Loader2,
   CheckCircle2,
   X,
   ArrowLeft,
@@ -303,8 +311,17 @@ export default function ChapterUploadPage() {
   if (projectLoading || submissionsLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div
+          className="mx-auto max-w-6xl space-y-6"
+          aria-busy="true"
+          aria-label="Loading chapter submission workspace"
+        >
+          <Skeleton className="h-9 w-72" />
+          <Skeleton className="h-5 w-full max-w-xl" />
+          <div className="grid gap-6 lg:grid-cols-12">
+            <Skeleton className="h-[36rem] lg:col-span-8" />
+            <Skeleton className="h-[28rem] lg:col-span-4" />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -321,7 +338,7 @@ export default function ChapterUploadPage() {
           <div className="rounded-xl border border-dashed border-border bg-card p-10 shadow-xs">
             {isNoTeam ? (
               <>
-                <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+                <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-warning-foreground" />
                 <h3 className="text-lg font-bold text-foreground">No Team Yet</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   You must join or create a capstone team before uploading chapter documents.
@@ -379,7 +396,7 @@ export default function ChapterUploadPage() {
   /* ────── Main Workspace ────── */
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6 [&_button]:min-h-[45px]">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/60">
           <div>
@@ -397,7 +414,10 @@ export default function ChapterUploadPage() {
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Submit deliverables for review on&nbsp;
-              <span className="font-semibold text-foreground">{project.title}</span>.
+              <span className="break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+                {project.title}
+              </span>
+              .
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -435,7 +455,7 @@ export default function ChapterUploadPage() {
                         Target Chapter <span className="text-destructive">*</span>
                       </Label>
                       {isLocked && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning-foreground">
                           <Lock className="h-3 w-3" />
                           Locked to Chapter {chapter} (Revision)
                         </span>
@@ -456,34 +476,38 @@ export default function ChapterUploadPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Lock className="h-3.5 w-3.5 text-amber-500" />
+                          <Lock className="h-3.5 w-3.5 text-warning" />
                           <span className="font-mono text-[11px]">
                             Round {selectedNextRound} (v{nextVersion})
                           </span>
                         </div>
                       </div>
                     ) : (
-                      <select
-                        id="chapter"
-                        value={chapter}
-                        onChange={(e) => setChapter(e.target.value)}
+                      <Select
+                        value={chapter || undefined}
+                        onValueChange={setChapter}
                         disabled={isSubmitting}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <option value="">Select target chapter...</option>
-                        {CHAPTER_LABELS.map((label, idx) => {
-                          const val = idx + 1;
-                          const prev = latestChapterSubmissions.get(val - 1);
-                          const isAllowed =
-                            val === 1 || APPROVED_CHAPTER_STATUSES.includes(prev?.status);
-                          return (
-                            <option key={val} value={val} disabled={!isAllowed}>
-                              {label}: {CHAPTER_DESCRIPTIONS[val]}
-                              {!isAllowed ? ` (Locked — Chapter ${val - 1} Pending Approval)` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
+                        <SelectTrigger id="chapter" aria-label="Target Chapter">
+                          <SelectValue placeholder="Select target chapter..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CHAPTER_LABELS.map((label, idx) => {
+                            const val = idx + 1;
+                            const prev = latestChapterSubmissions.get(val - 1);
+                            const isAllowed =
+                              val === 1 || APPROVED_CHAPTER_STATUSES.includes(prev?.status);
+                            return (
+                              <SelectItem key={val} value={String(val)} disabled={!isAllowed}>
+                                {label}: {CHAPTER_DESCRIPTIONS[val]}
+                                {!isAllowed
+                                  ? ` (Locked — Chapter ${val - 1} Pending Approval)`
+                                  : ''}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
 
@@ -713,12 +737,7 @@ export default function ChapterUploadPage() {
                   {/* Upload Progress Bar */}
                   {isSubmitting && uploadProgress > 0 && (
                     <div className="space-y-1">
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all duration-150"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
+                      <Progress value={uploadProgress} aria-label="Manuscript upload progress" />
                       <p className="text-[11px] text-muted-foreground text-right">
                         {uploadProgress}% uploaded
                       </p>
@@ -748,7 +767,7 @@ export default function ChapterUploadPage() {
                     >
                       {isSubmitting ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Spinner className="h-4 w-4" />
                           Uploading Manuscript...
                         </>
                       ) : (
@@ -813,7 +832,7 @@ export default function ChapterUploadPage() {
                     Prerequisite Status
                   </span>
                   {selectedChapterNumber === 1 ? (
-                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <div className="flex items-center gap-2 text-success-foreground">
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
                       <span className="font-medium">Initial phase deliverable (Unlocked)</span>
                     </div>
@@ -825,7 +844,7 @@ export default function ChapterUploadPage() {
                       </span>
                     </div>
                   ) : selectedChapterNumber ? (
-                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <div className="flex items-center gap-2 text-success-foreground">
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
                       <span className="font-medium">
                         Prerequisites cleared: Chapter {selectedChapterNumber - 1} approved

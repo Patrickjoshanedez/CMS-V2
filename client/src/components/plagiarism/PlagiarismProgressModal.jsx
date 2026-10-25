@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, CheckCircle2, FileSearch, X, ArrowUpRight } from 'lucide-react';
+import { CheckCircle2, FileSearch, X, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
 
 /**
  * PlagiarismProgressModal — floating live progress indicator for plagiarism scans.
@@ -82,26 +86,23 @@ export function PlagiarismProgressModal() {
     const score = reportData?.originalityScore ?? reportData?.similarity_percentage ?? null;
 
     return (
-      <aside
+      <Card
+        role="status"
         data-testid="background-plagiarism-floating-modal"
         aria-label="Background Plagiarism Scan"
-        className="fixed bottom-6 right-6 z-50 w-full max-w-sm rounded-xl border border-border/70 bg-card/95 p-4 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-5"
+        className="fixed bottom-6 right-6 z-50 w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-md transition-all animate-in fade-in slide-in-from-bottom-5"
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className={cn(
-                'rounded-lg p-2 shrink-0',
+                'shrink-0 rounded-lg p-2',
                 isCompleted
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-success/10 text-success-foreground'
                   : 'bg-primary/10 text-primary',
               )}
             >
-              {isCompleted ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
+              {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Spinner />}
             </div>
 
             <div className="min-w-0">
@@ -118,23 +119,23 @@ export function PlagiarismProgressModal() {
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={dismissProgressModal}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
+            className="h-8 w-8 shrink-0 text-muted-foreground"
             aria-label="Dismiss scan notification"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {isCompleted ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs font-medium">
               <span className="text-muted-foreground">Originality Score</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                {score !== null ? `${score}%` : 'Analyzed'}
-              </span>
+              <Badge variant="success">{score !== null ? `${score}%` : 'Analyzed'}</Badge>
             </div>
             <Button
               size="sm"
@@ -148,15 +149,17 @@ export function PlagiarismProgressModal() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <span className="animate-pulse">Analyzing embeddings in background…</span>
+                <span>Analyzing embeddings in background…</span>
                 <span className="font-mono text-[11px] font-semibold text-foreground">
                   {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:
                   {String(elapsedSeconds % 60).padStart(2, '0')}
                 </span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/80">
-                <div className="h-full rounded-full bg-primary animate-pulse w-full" />
-              </div>
+              <Progress
+                indeterminate
+                aria-label="Archive manuscript scan progress"
+                className="h-1.5"
+              />
             </div>
 
             <Button
@@ -169,7 +172,7 @@ export function PlagiarismProgressModal() {
             </Button>
           </div>
         )}
-      </aside>
+      </Card>
     );
   }
 
@@ -177,26 +180,21 @@ export function PlagiarismProgressModal() {
   const isComplete = activeSocketScan.percent >= 100;
 
   return (
-    <aside
+    <Card
+      role="status"
       data-testid="socket-plagiarism-floating-modal"
       aria-label="Plagiarism Progress Indicator"
-      className="fixed bottom-6 right-6 z-50 w-full max-w-sm rounded-xl border border-border/70 bg-card/95 p-4 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-5"
+      className="fixed bottom-6 right-6 z-50 w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-md transition-all animate-in fade-in slide-in-from-bottom-5"
     >
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2.5">
           <div
             className={cn(
               'rounded-lg p-2',
-              isComplete
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'bg-primary/10 text-primary',
+              isComplete ? 'bg-success/10 text-success-foreground' : 'bg-primary/10 text-primary',
             )}
           >
-            {isComplete ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
+            {isComplete ? <CheckCircle2 className="h-4 w-4" /> : <Spinner />}
           </div>
 
           <div>
@@ -208,14 +206,16 @@ export function PlagiarismProgressModal() {
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => setSocketVisible(false)}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
+          className="h-8 w-8 shrink-0 text-muted-foreground"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-1.5">
@@ -225,17 +225,14 @@ export function PlagiarismProgressModal() {
             {activeSocketScan.percent}%
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/80">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all duration-500 ease-out',
-              isComplete ? 'bg-emerald-500' : 'bg-primary',
-            )}
-            style={{ width: `${activeSocketScan.percent}%` }}
-          />
-        </div>
+        <Progress
+          value={activeSocketScan.percent}
+          aria-label="Plagiarism scan progress"
+          indicatorClassName={isComplete ? 'bg-success' : undefined}
+          className="h-1.5"
+        />
       </div>
-    </aside>
+    </Card>
   );
 }
 

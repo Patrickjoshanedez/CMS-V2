@@ -82,8 +82,9 @@ describe('AutoExpandingTextarea component', () => {
   });
 
   it('renders floating savingStatus badge when saving', () => {
-    const { unmount } = renderComponent({ savingStatus: 'saving' });
+    const { textarea, unmount } = renderComponent({ savingStatus: 'saving' });
     expect(container.textContent).toContain('Saving...');
+    expect(textarea.className).toContain('pr-20');
     unmount();
   });
 

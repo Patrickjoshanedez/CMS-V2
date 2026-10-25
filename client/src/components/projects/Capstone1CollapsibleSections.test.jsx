@@ -39,6 +39,22 @@ vi.mock('@/hooks/useProjects', () => ({
   useAddTitleComment: () => ({ mutateAsync: mockAddTitleCommentMutate, isPending: false }),
 }));
 
+vi.mock('@/hooks/useUsers', () => ({
+  useUsers: () => ({
+    data: {
+      users: [
+        { _id: 'fac-1', firstName: 'Alan', lastName: 'Turing', role: 'faculty' },
+        { _id: 'fac-2', firstName: 'Ada', lastName: 'Lovelace', role: 'faculty' },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/components/teams/AssignCommitteeDialog', () => ({
+  default: ({ open }) => (open ? <div data-testid="mock-assign-committee-dialog" /> : null),
+}));
+
 vi.mock('./ActionDoneMatrixTab', () => ({
   default: ({ initialMilestone }) => (
     <div data-testid="mock-adm-tab" data-milestone={initialMilestone}>
@@ -340,7 +356,7 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     });
 
     expect(mockToastError).toHaveBeenCalledWith(
-      'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
+      'The proponent team must have a scheduled title proposal hearing before the title can be approved.',
     );
     // Should also automatically pop the ScheduleDefenseModal for instructor convenience
     expect(container.querySelector('[data-testid="mock-schedule-defense-modal"]')).toBeTruthy();
@@ -369,7 +385,7 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
       proposalBtn.click();
     });
 
-    expect(container.textContent).toContain('Defense Hearing Scheduled:');
+    expect(container.textContent).toContain('Title Proposal Hearing Scheduled:');
 
     const approveBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Approve Proposal as Official Title'),
@@ -413,7 +429,7 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     });
 
     const scheduleBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Schedule Defense Hearing'),
+      b.textContent.includes('Schedule Title Hearing'),
     );
     expect(scheduleBtn).toBeTruthy();
 

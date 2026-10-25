@@ -1,17 +1,21 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/Card';
 
 const StatusPill = ({ label, tone }) => {
   const toneMap = {
     blue: 'bg-primary/15 text-primary',
-    amber: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    amber: 'border border-warning/30 bg-warning/10 text-warning-foreground',
     red: 'bg-destructive/15 text-destructive',
-    green: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    green: 'border border-success/30 bg-success/10 text-success-foreground',
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${toneMap[tone]}`}>{label}</span>
+    <Badge variant="outline" className={`rounded-full px-3 py-1 ${toneMap[tone]}`}>
+      {label}
+    </Badge>
   );
 };
 
@@ -107,36 +111,34 @@ const AdviserWorkloadCard = ({ workload }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <Card><CardContent className="space-y-1 p-4">
           <p className="text-xs font-semibold uppercase text-muted-foreground">To Review</p>
           <p className="text-3xl font-bold text-foreground">{summary.totalToReview}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        </CardContent></Card>
+        <Card><CardContent className="space-y-1 p-4">
           <p className="text-xs font-semibold uppercase text-muted-foreground">In Review</p>
           <p className="text-3xl font-bold text-primary">{summary.currentlyReviewing}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-4">
+        </CardContent></Card>
+        <Card className="border-destructive/25 bg-destructive/5"><CardContent className="space-y-1 p-4">
           <p className="text-xs font-semibold uppercase text-destructive">Overdue</p>
           <p className="text-3xl font-bold text-destructive">{summary.overdue}</p>
-        </div>
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
-          <p className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
+        </CardContent></Card>
+        <Card className="border-warning/25 bg-warning/5"><CardContent className="space-y-1 p-4">
+          <p className="text-xs font-semibold uppercase text-warning-foreground">
             Upcoming
           </p>
-          <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+          <p className="text-3xl font-bold text-warning-foreground">
             {summary.upcomingDeadline}
           </p>
-        </div>
+        </CardContent></Card>
       </div>
 
       {sections.map((section) => {
         const items = workload?.[section.key] || [];
 
         return (
-          <section
-            key={section.key}
-            className="rounded-2xl border border-border bg-card/60 p-5 backdrop-blur-sm"
-          >
+          <Card key={section.key}>
+          <CardContent className="p-5">
             <h3 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h3>
             <div className="space-y-3">
               {items.length === 0 ? (
@@ -147,7 +149,8 @@ const AdviserWorkloadCard = ({ workload }) => {
                 ))
               )}
             </div>
-          </section>
+          </CardContent>
+          </Card>
         );
       })}
     </div>

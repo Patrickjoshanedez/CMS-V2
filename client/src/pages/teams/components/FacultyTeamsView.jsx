@@ -16,6 +16,13 @@ import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import AssignCommitteeDialog from '@/components/teams/AssignCommitteeDialog';
 import { InstructorTemplateConfigModal } from '@/components/teams/InstructorTemplateConfigModal';
 import { InspectRosterDialog } from '@/components/teams/InspectRosterDialog';
@@ -26,6 +33,9 @@ import { useTeamManager } from '../hooks/useTeamManager';
 import EmptyTeamState from './EmptyTeamState';
 import TeamCard from './TeamCard';
 import FacultyTeamDetail from './FacultyTeamDetail';
+
+const ALL_FILTER_VALUE = '__all__';
+const NO_TEAM_VALUE = '__no_team__';
 
 /**
  * FacultyTeamsView - Institutional directory view for Instructors, Advisers, and Panelists
@@ -195,18 +205,12 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
 
       {/* Phase 0 Metric Cards Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div
-          role="button"
-          tabIndex={0}
+        <Button
+          variant="ghost"
+          aria-pressed={statusFilter === 'all'}
           onClick={() => setStatusFilter('all')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('all');
-            }
-          }}
           className={cn(
-            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            'h-auto min-h-24 w-full flex-col items-stretch rounded-lg border p-3 text-left transition-colors',
             statusFilter === 'all'
               ? 'border-primary bg-primary/10 shadow-xs'
               : 'border-border/70 bg-card hover:border-border',
@@ -219,53 +223,41 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             <span className="text-2xl font-bold text-foreground">{stats.total}</span>
             <UsersRound className="h-4 w-4 text-muted-foreground" />
           </div>
-        </div>
+        </Button>
 
-        <div
-          role="button"
-          tabIndex={0}
+        <Button
+          variant="ghost"
+          aria-pressed={statusFilter === 'awaiting_committee'}
           onClick={() => setStatusFilter('awaiting_committee')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('awaiting_committee');
-            }
-          }}
           className={cn(
-            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            'h-auto min-h-24 w-full flex-col items-stretch rounded-lg border p-3 text-left transition-colors',
             statusFilter === 'awaiting_committee'
-              ? 'border-amber-500 bg-amber-500/10 shadow-xs'
+              ? 'border-warning bg-warning/10 shadow-xs'
               : 'border-border/70 bg-card hover:border-border',
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider text-amber-400 font-medium">
+            <span className="text-[11px] uppercase tracking-wider text-warning font-medium">
               Awaiting Committee
             </span>
             {stats.awaitingCommittee > 0 && (
-              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-warning" />
             )}
           </div>
           <div className="flex items-baseline justify-between mt-1">
-            <span className="text-2xl font-bold text-amber-400">{stats.awaitingCommittee}</span>
-            <UserCheck className="h-4 w-4 text-amber-400" />
+            <span className="text-2xl font-bold text-warning">{stats.awaitingCommittee}</span>
+            <UserCheck className="h-4 w-4 text-warning" />
           </div>
-        </div>
+        </Button>
 
-        <div
-          role="button"
-          tabIndex={0}
+        <Button
+          variant="ghost"
+          aria-pressed={statusFilter === 'finalized'}
           onClick={() => setStatusFilter('finalized')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('finalized');
-            }
-          }}
           className={cn(
-            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            'h-auto min-h-24 w-full flex-col items-stretch rounded-lg border p-3 text-left transition-colors',
             statusFilter === 'finalized'
-              ? 'border-emerald-500 bg-emerald-500/10 shadow-xs'
+              ? 'border-success bg-success/10 shadow-xs'
               : 'border-border/70 bg-card hover:border-border',
           )}
         >
@@ -273,25 +265,19 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             Rosters Finalized
           </span>
           <div className="flex items-baseline justify-between mt-1">
-            <span className="text-2xl font-bold text-emerald-400">{stats.finalized}</span>
-            <Lock className="h-4 w-4 text-emerald-400" />
+            <span className="text-2xl font-bold text-success">{stats.finalized}</span>
+            <Lock className="h-4 w-4 text-success" />
           </div>
-        </div>
+        </Button>
 
-        <div
-          role="button"
-          tabIndex={0}
+        <Button
+          variant="ghost"
+          aria-pressed={statusFilter === 'forming'}
           onClick={() => setStatusFilter('forming')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setStatusFilter('forming');
-            }
-          }}
           className={cn(
-            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            'h-auto min-h-24 w-full flex-col items-stretch rounded-lg border p-3 text-left transition-colors',
             statusFilter === 'forming'
-              ? 'border-sky-500 bg-sky-500/10 shadow-xs'
+              ? 'border-info bg-info/10 shadow-xs'
               : 'border-border/70 bg-card hover:border-border',
           )}
         >
@@ -299,10 +285,10 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             In Formation
           </span>
           <div className="flex items-baseline justify-between mt-1">
-            <span className="text-2xl font-bold text-sky-400">{stats.forming}</span>
-            <Clock className="h-4 w-4 text-sky-400" />
+            <span className="text-2xl font-bold text-info">{stats.forming}</span>
+            <Clock className="h-4 w-4 text-info" />
           </div>
-        </div>
+        </Button>
       </div>
 
       {/* Deep-Link Notification Focus Banner */}
@@ -341,46 +327,56 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
               className="pl-8 h-9 text-xs"
             />
             {search && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 size-8 min-h-8 min-w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
 
-          <select
-            value={academicYear}
-            onChange={(e) => {
-              setAcademicYear(e.target.value);
+          <Select
+            value={academicYear || ALL_FILTER_VALUE}
+            onValueChange={(value) => {
+              setAcademicYear(value === ALL_FILTER_VALUE ? '' : value);
               setSectionId('');
             }}
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
           >
-            <option value="">All Academic Years</option>
+            <SelectTrigger aria-label="Filter teams by academic year" className="h-9 min-h-9 text-xs">
+              <SelectValue placeholder="All Academic Years" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_FILTER_VALUE}>All Academic Years</SelectItem>
             {years.map((year) => (
-              <option key={year} value={year}>
+              <SelectItem key={year} value={year}>
                 {year}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
 
-          <select
-            value={sectionId}
-            onChange={(e) => setSectionId(e.target.value)}
+          <Select
+            value={sectionId || ALL_FILTER_VALUE}
+            onValueChange={(value) => setSectionId(value === ALL_FILTER_VALUE ? '' : value)}
             disabled={!academicYear}
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground disabled:opacity-50"
           >
-            <option value="">All Sections</option>
+            <SelectTrigger aria-label="Filter teams by section" className="h-9 min-h-9 text-xs">
+              <SelectValue placeholder="All Sections" />
+            </SelectTrigger>
+            <SelectContent>
+            <SelectItem value={ALL_FILTER_VALUE}>All Sections</SelectItem>
             {sections.map((section) => (
-              <option key={section._id} value={section._id}>
+              <SelectItem key={section._id} value={section._id}>
                 {formatSectionWithCode(section)}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
 
           <div className="flex gap-2">
             <Button type="submit" variant="secondary" className="flex-1 h-9 text-xs">
@@ -416,10 +412,10 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
               type="button"
               variant={statusFilter === 'awaiting_committee' ? 'secondary' : 'ghost'}
               size="sm"
-              className="h-7 text-xs text-amber-400 gap-1.5"
+              className="h-7 gap-1.5 text-xs text-warning"
               onClick={() => setStatusFilter('awaiting_committee')}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-warning" />
               Awaiting Committee ({stats.awaitingCommittee})
             </Button>
             <Button
@@ -443,12 +439,10 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
           </div>
 
           <div className="w-full sm:w-72 shrink-0">
-            <select
-              id="teamQuickSelect"
-              value={selectedTeamId || ''}
-              onChange={(e) => {
-                const id = e.target.value;
-                if (!id) {
+            <Select
+              value={selectedTeamId || NO_TEAM_VALUE}
+              onValueChange={(id) => {
+                if (id === NO_TEAM_VALUE) {
                   setSelectedTeamId(null);
                   return;
                 }
@@ -458,17 +452,21 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
                   handleInspectTeam(found);
                 }
               }}
-              className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs text-foreground"
             >
-              <option value="">Quick Jump to Inspect Team...</option>
+              <SelectTrigger id="teamQuickSelect" aria-label="Quick jump to inspect a team" className="h-9 min-h-9 w-full text-xs">
+                <SelectValue placeholder="Quick Jump to Inspect Team..." />
+              </SelectTrigger>
+              <SelectContent>
+              <SelectItem value={NO_TEAM_VALUE}>Quick Jump to Inspect Team...</SelectItem>
               {teams.map((team) => (
-                <option key={team._id} value={team._id}>
+                <SelectItem key={team._id} value={team._id}>
                   {team.name || 'Untitled Team'}
                   {team.isLocked ? ' [Locked]' : ' [Forming]'}
                   {team.academicYear ? ` • ${team.academicYear}` : ''}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -491,24 +489,19 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             const isSelected = selectedTeamId === team._id;
 
             return (
-              <button
+              <div
                 key={team._id}
-                type="button"
-                onClick={() => {
-                  setSelectedTeamId(team._id);
-                }}
-                className="min-w-0 max-w-full text-left rounded-lg transition-transform focus:outline-none"
-                aria-pressed={isSelected}
-                aria-label={`View details for ${team.name || 'team'}`}
+                className="min-w-0 max-w-full"
               >
                 <TeamCard
                   team={team}
                   isSelected={isSelected}
+                  onSelect={() => setSelectedTeamId(team._id)}
                   canAssignCommittee={canAssignCommittee}
                   onInspect={handleInspectTeam}
                   onAssign={(teamToAssign) => openAssignCommittee(teamToAssign)}
                 />
-              </button>
+              </div>
             );
           })}
         </div>

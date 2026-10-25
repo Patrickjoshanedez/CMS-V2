@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -26,13 +25,15 @@ import {
   ExternalLink,
   X,
   Link as LinkIcon,
-  Loader2,
   ChevronDown,
   SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import { projectService } from '@/services/authService';
@@ -62,10 +63,13 @@ function cleanTeamName(name) {
 
 function getPhaseLabel(phase, project) {
   const resolvedPhase = project ? resolveWorkflowPhase(project) : Number(phase ?? 0);
-  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Capstone 3 Final Defense & Archival';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_4)
+    return 'Phase 4: Capstone 3 Final Defense & Archival';
   if (resolvedPhase >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Capstone 2 System Development';
-  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Capstone 1 Chapters 1–3 & Proposal Defense';
-  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Topic Proposals & Committee Assignment';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_2)
+    return 'Phase 2: Capstone 1 Chapters 1–3 & Proposal Defense';
+  if (resolvedPhase >= CAPSTONE_PHASES.PHASE_1)
+    return 'Phase 1: Topic Proposals & Committee Assignment';
   return 'Phase 0: Team Formation';
 }
 
@@ -138,10 +142,10 @@ export function resolveCurrentStep(project) {
   }
 
   const hasPhaseEvidence =
-    project.workflowPhase != null ||
-    project.stage != null ||
-    project.capstonePhase != null ||
-    project.phase != null;
+    (project.workflowPhase !== null && project.workflowPhase !== undefined) ||
+    (project.stage !== null && project.stage !== undefined) ||
+    (project.capstonePhase !== null && project.capstonePhase !== undefined) ||
+    (project.phase !== null && project.phase !== undefined);
   const phase = resolveWorkflowPhase(project);
   if (status === PROJECT_STATUSES.DEFENDED && !hasPhaseEvidence) return 4;
   return phase;
@@ -163,7 +167,6 @@ export default function CapstoneWorkflowStepper({
   canManageCommittee = false,
   canManageArchive = false,
   onViewFullDocument,
-  hasFullDocument = false,
   onRefresh,
   className,
   defaultActionsExpanded = false,
@@ -180,19 +183,6 @@ export default function CapstoneWorkflowStepper({
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isExternalLinksModalOpen, setIsExternalLinksModalOpen] = useState(false);
   const [isActionsExpanded, setIsActionsExpanded] = useState(defaultActionsExpanded);
-
-  useEffect(() => {
-    if (!isCommitteeModalOpen && !isReportsModalOpen && !isExternalLinksModalOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setIsCommitteeModalOpen(false);
-        setIsReportsModalOpen(false);
-        setIsExternalLinksModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCommitteeModalOpen, isReportsModalOpen, isExternalLinksModalOpen]);
 
   const activeStep = typeof currentStep === 'number' ? currentStep : resolveCurrentStep(project);
   const isArchived =
@@ -244,7 +234,10 @@ export default function CapstoneWorkflowStepper({
       ? `${project.adviserId.firstName} ${project.adviserId.lastName || ''}`.trim()
       : null);
 
-  const phaseLabel = getPhaseLabel(project?.workflowPhase ?? project?.capstonePhase ?? project?.phase, project);
+  const phaseLabel = getPhaseLabel(
+    project?.workflowPhase ?? project?.capstonePhase ?? project?.phase,
+    project,
+  );
 
   const githubUrl =
     project?.developmentAssets?.githubRepoUrl ||
@@ -289,14 +282,14 @@ export default function CapstoneWorkflowStepper({
   );
 
   return (
-    <div
+    <Card
       className={cn(
-        'w-full rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20 p-4 sm:p-5 lg:p-6 shadow-xs min-w-0 transition-all relative overflow-hidden',
+        'w-full rounded-xl border border-border bg-card p-4 sm:p-5 lg:p-6 shadow-xs min-w-0 transition-all relative overflow-hidden',
         className,
       )}
     >
       {/* Subtle top accent border */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-accent" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
 
       {/* Merged Executive Title & Cockpit Header */}
       {project && (
@@ -386,7 +379,7 @@ export default function CapstoneWorkflowStepper({
                 <span className="sm:hidden">Tools</span>
                 {!isCommitteeComplete && (
                   <span
-                    className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
+                    className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse"
                     title="Committee setup pending"
                   />
                 )}
@@ -444,8 +437,8 @@ export default function CapstoneWorkflowStepper({
                       className={cn(
                         'text-[10px] px-1.5 py-0 font-mono font-bold leading-tight',
                         isCommitteeComplete
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+                          ? 'bg-success/10 text-success-foreground border-success/30'
+                          : 'bg-warning/10 text-warning-foreground border-warning/30',
                       )}
                     >
                       {panelCount}/3 Panelists
@@ -461,7 +454,7 @@ export default function CapstoneWorkflowStepper({
                     data-testid="milestone-reports-button"
                     title="Official Academic Reports & Rubrics (FRINS6)"
                   >
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-success" />
                     <span>Academic Reports</span>
                   </Button>
                 </div>
@@ -471,7 +464,7 @@ export default function CapstoneWorkflowStepper({
               <div className="flex flex-col gap-2.5 p-3 rounded-xl bg-background/90 border border-border/50 shadow-2xs">
                 <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
                       <LinkIcon className="h-3.5 w-3.5" />
                     </div>
                     <span className="text-xs font-semibold text-foreground">
@@ -486,7 +479,7 @@ export default function CapstoneWorkflowStepper({
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Google Docs Collaboration Link */}
                   {googleDocUrl ? (
-                    <div className="inline-flex items-center rounded-lg border border-border/80 bg-background shadow-2xs h-8">
+                    <div className="inline-flex min-h-11 items-center rounded-lg border border-border/80 bg-background shadow-2xs">
                       <a
                         href={googleDocUrl}
                         target="_blank"
@@ -495,19 +488,21 @@ export default function CapstoneWorkflowStepper({
                         title="Open Google Doc in new tab"
                         data-testid="google-doc-link-button"
                       >
-                        <FileText className="h-3.5 w-3.5 text-blue-500" />
+                        <FileText className="h-3.5 w-3.5 text-primary" />
                         <span>Google Doc</span>
                         <ExternalLink className="h-3 w-3 text-muted-foreground" />
                       </a>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setIsExternalLinksModalOpen(true)}
-                        className="px-1.5 h-full border-l border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        variant="ghost"
+                        size="icon"
+                        className="h-full w-10 shrink-0 rounded-none border-l border-border/60 px-1.5 text-muted-foreground hover:text-foreground"
                         title="Edit External Links"
                         aria-label="Edit Google Doc Link"
                       >
                         <FileEdit className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <Button
@@ -518,14 +513,14 @@ export default function CapstoneWorkflowStepper({
                       title="Link Google Document"
                       data-testid="add-google-doc-button"
                     >
-                      <FileText className="h-3.5 w-3.5 text-blue-500/70" />
+                      <FileText className="h-3.5 w-3.5 text-primary/70" />
                       <span>+ Google Doc</span>
                     </Button>
                   )}
 
                   {/* GitHub Repository Link */}
                   {githubUrl ? (
-                    <div className="inline-flex items-center rounded-lg border border-border/80 bg-background shadow-2xs h-8">
+                    <div className="inline-flex min-h-11 items-center rounded-lg border border-border/80 bg-background shadow-2xs">
                       <a
                         href={githubUrl}
                         target="_blank"
@@ -538,15 +533,17 @@ export default function CapstoneWorkflowStepper({
                         <span>GitHub</span>
                         <ExternalLink className="h-3 w-3 text-muted-foreground" />
                       </a>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setIsExternalLinksModalOpen(true)}
-                        className="px-1.5 h-full border-l border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        variant="ghost"
+                        size="icon"
+                        className="h-full w-10 shrink-0 rounded-none border-l border-border/60 px-1.5 text-muted-foreground hover:text-foreground"
                         title="Edit External Links"
                         aria-label="Edit GitHub Link"
                       >
                         <FileEdit className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <Button
@@ -581,16 +578,18 @@ export default function CapstoneWorkflowStepper({
 
           {/* Executive Title */}
           <div>
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-foreground leading-snug">
+            <h2 className="max-w-full break-words [overflow-wrap:anywhere] text-lg font-bold leading-snug tracking-tight text-foreground sm:text-xl lg:text-2xl">
               {displayTitle}
             </h2>
           </div>
 
           {/* Project Context Metadata Strip */}
           <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs font-medium text-muted-foreground">
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-primary/80" />
-              <span className="font-semibold text-foreground">{teamDisplayName}</span>
+              <span className="min-w-0 break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+                {teamDisplayName}
+              </span>
             </div>
 
             {project.academicYear && (
@@ -617,9 +616,9 @@ export default function CapstoneWorkflowStepper({
             )}
 
             {adviserName && (
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-success" />
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">
                   Adviser: <strong className="font-medium text-foreground">{adviserName}</strong>
                 </span>
               </div>
@@ -627,12 +626,12 @@ export default function CapstoneWorkflowStepper({
 
             {googleDocUrl && (
               <div className="flex items-center gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                <ExternalLink className="h-3.5 w-3.5 text-primary" />
                 <a
                   href={googleDocUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                  className="text-primary hover:underline font-semibold"
                 >
                   Live Google Doc
                 </a>
@@ -660,15 +659,15 @@ export default function CapstoneWorkflowStepper({
             data-testid="milestone-kpi-grid"
           >
             {/* KPI 1: Avg Score & Evaluation Summary */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
+            <Card className="rounded-xl border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Avg Score
                   </p>
-                  <Award className="h-3.5 w-3.5 text-emerald-500" />
+                  <Award className="h-3.5 w-3.5 text-success" />
                 </div>
-                <p className="text-lg font-bold text-emerald-500">{avgScore}</p>
+                <p className="text-lg font-bold text-success-foreground">{avgScore}</p>
               </div>
               <p
                 className="text-xs leading-relaxed text-muted-foreground mt-1 break-words"
@@ -682,20 +681,14 @@ export default function CapstoneWorkflowStepper({
                   ? `${totalEvals} evaluation record(s)`
                   : 'Detailed scores post-defense'}
               </p>
-            </div>
+            </Card>
 
             {/* KPI 2: Defense Panelists & Quick Committee Opener */}
-            <div
-              role="button"
-              tabIndex={0}
+            <Button
+              type="button"
+              variant="ghost"
               onClick={() => setIsCommitteeModalOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setIsCommitteeModalOpen(true);
-                }
-              }}
-              className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+              className="flex h-auto min-h-11 w-full flex-col items-stretch justify-between rounded-xl border border-border/70 bg-card/60 p-2.5 text-left shadow-xs transition-all hover:border-primary/50 hover:bg-muted/30 group"
               title="Click to view or appoint committee members"
             >
               <div>
@@ -703,9 +696,9 @@ export default function CapstoneWorkflowStepper({
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold group-hover:text-primary transition-colors">
                     Defense Panel
                   </p>
-                  <Users className="h-3.5 w-3.5 text-blue-500" />
+                  <Users className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <p className="text-lg font-bold text-blue-500">{panelCount}/3</p>
+                <p className="text-lg font-bold text-primary">{panelCount}/3</p>
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span>{isCommitteeComplete ? 'Panel complete' : 'Formation pending'}</span>
@@ -713,28 +706,28 @@ export default function CapstoneWorkflowStepper({
                   View &rarr;
                 </span>
               </p>
-            </div>
+            </Button>
 
             {/* KPI 3: Total Evaluations */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
+            <Card className="rounded-xl border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
                     Total Evals
                   </p>
-                  <FileCheck className="h-3.5 w-3.5 text-indigo-500" />
+                  <FileCheck className="h-3.5 w-3.5 text-info" />
                 </div>
-                <p className="text-lg font-bold text-indigo-500">{totalEvals}</p>
+                <p className="text-lg font-bold text-info-foreground">{totalEvals}</p>
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground mt-1 break-words">
                 {totalEvals > 0
                   ? `${totalEvals} submitted evaluation(s)`
                   : 'No submitted defense evaluations yet'}
               </p>
-            </div>
+            </Card>
 
             {/* KPI 4: Plagiarism Threshold & Compliance Bar */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
+            <Card className="rounded-xl border-border/70 bg-card/60 p-2.5 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
@@ -743,7 +736,9 @@ export default function CapstoneWorkflowStepper({
                   <ShieldCheck
                     className={cn(
                       'h-3.5 w-3.5',
-                      similarityScore <= maxThreshold ? 'text-emerald-500' : 'text-destructive',
+                      similarityScore <= maxThreshold
+                        ? 'text-success-foreground'
+                        : 'text-destructive',
                     )}
                   />
                 </div>
@@ -751,7 +746,9 @@ export default function CapstoneWorkflowStepper({
                   <p
                     className={cn(
                       'text-base sm:text-lg font-bold font-mono',
-                      similarityScore <= maxThreshold ? 'text-emerald-500' : 'text-destructive',
+                      similarityScore <= maxThreshold
+                        ? 'text-success-foreground'
+                        : 'text-destructive',
                     )}
                   >
                     {similarityScore}%
@@ -764,7 +761,7 @@ export default function CapstoneWorkflowStepper({
                   <div
                     className={cn(
                       'h-full transition-all duration-500',
-                      similarityScore <= maxThreshold ? 'bg-emerald-500' : 'bg-destructive',
+                      similarityScore <= maxThreshold ? 'bg-success' : 'bg-destructive',
                     )}
                     style={{ width: `${similarityPercent}%` }}
                   />
@@ -776,7 +773,7 @@ export default function CapstoneWorkflowStepper({
               >
                 {similarityScore <= maxThreshold ? 'Within threshold policy' : 'Threshold exceeded'}
               </p>
-            </div>
+            </Card>
           </div>
         </div>
       )}
@@ -805,14 +802,14 @@ export default function CapstoneWorkflowStepper({
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
               !titleApproved && activeStep === 1
-                ? 'bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400'
+                ? 'bg-warning/10 border-warning/25 text-warning-foreground'
                 : 'bg-primary/10 border-primary/20 text-primary',
             )}
           >
             <span
               className={cn(
                 'h-1.5 w-1.5 rounded-full',
-                !titleApproved && activeStep === 1 ? 'bg-amber-500 animate-ping' : 'bg-primary',
+                !titleApproved && activeStep === 1 ? 'bg-warning animate-ping' : 'bg-primary',
               )}
             />
             Current: {currentStepObj.tag} (
@@ -832,7 +829,7 @@ export default function CapstoneWorkflowStepper({
 
           {/* Active Gradient Filled Track Line */}
           <div
-            className="hidden lg:block absolute top-[30px] left-[10%] h-1.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-500 via-primary to-primary transition-all duration-500 z-0"
+            className="hidden lg:block absolute top-[30px] left-[10%] h-1.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-500 z-0"
             style={{
               width: `${progressPercent * 0.8}%`,
             }}
@@ -865,9 +862,10 @@ export default function CapstoneWorkflowStepper({
                   )}
                 >
                   {/* Node Circle Button */}
-                  <button
+                  <Button
                     type="button"
-                    role="button"
+                    variant="ghost"
+                    size="icon"
                     disabled={!onStepClick}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -879,10 +877,10 @@ export default function CapstoneWorkflowStepper({
                       onStepClick &&
                         'cursor-pointer hover:scale-110 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary',
                       isCompleted &&
-                        'bg-emerald-600 text-white shadow-xs ring-4 ring-background dark:bg-emerald-500 hover:bg-emerald-700',
+                        'bg-success text-success-foreground shadow-xs ring-4 ring-background hover:bg-success/90',
                       isCurrent &&
                         (!titleApproved && step.id === 1
-                          ? 'bg-amber-600 text-white shadow-md ring-4 ring-amber-500/25 ring-offset-2 ring-offset-background scale-110 dark:bg-amber-500'
+                          ? 'bg-warning text-warning-foreground shadow-md ring-4 ring-warning/25 ring-offset-2 ring-offset-background scale-110'
                           : 'bg-primary text-primary-foreground shadow-md ring-4 ring-primary/25 ring-offset-2 ring-offset-background scale-110'),
                       isUpcoming &&
                         'bg-muted text-muted-foreground ring-4 ring-background border border-border/80 hover:bg-muted/80',
@@ -895,7 +893,7 @@ export default function CapstoneWorkflowStepper({
                     ) : (
                       <Lock className="h-4 w-4 opacity-70" />
                     )}
-                  </button>
+                  </Button>
 
                   {/* Node Labels */}
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 lg:mt-3 lg:w-full lg:flex-col lg:flex-nowrap lg:gap-0 lg:space-y-0.5 lg:px-1">
@@ -904,9 +902,9 @@ export default function CapstoneWorkflowStepper({
                         'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
                         isCurrent &&
                           (!titleApproved && step.id === 1
-                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 font-extrabold'
+                            ? 'bg-warning/10 text-warning-foreground font-extrabold'
                             : 'bg-primary/10 text-primary font-extrabold'),
-                        isCompleted && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                        isCompleted && 'bg-success/10 text-success-foreground',
                         isUpcoming && 'text-muted-foreground/70 bg-muted/40',
                       )}
                     >
@@ -918,7 +916,7 @@ export default function CapstoneWorkflowStepper({
                         'text-sm lg:text-xs font-semibold leading-snug lg:leading-tight lg:pt-1 break-words lg:line-clamp-2 lg:w-full',
                         isCurrent &&
                           (!titleApproved && step.id === 1
-                            ? 'text-amber-700 dark:text-amber-400 font-bold'
+                            ? 'text-warning-foreground font-bold'
                             : 'text-primary font-bold'),
                         isCompleted && 'text-foreground',
                         isUpcoming && 'text-muted-foreground/80',
@@ -938,7 +936,7 @@ export default function CapstoneWorkflowStepper({
                     {/* Status Pill Indicator */}
                     <div className="ml-auto lg:ml-0 lg:pt-1">
                       {isCompleted && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success-foreground">
                           <CheckCircle2 className="h-3 w-3" />
                           Done
                         </span>
@@ -948,14 +946,14 @@ export default function CapstoneWorkflowStepper({
                           className={cn(
                             'inline-flex items-center gap-1 text-[10px] font-bold',
                             !titleApproved && step.id === 1
-                              ? 'text-amber-600 dark:text-amber-400'
+                              ? 'text-warning-foreground'
                               : 'text-primary',
                           )}
                         >
                           <span
                             className={cn(
                               'h-1.5 w-1.5 rounded-full animate-ping',
-                              !titleApproved && step.id === 1 ? 'bg-amber-500' : 'bg-primary',
+                              !titleApproved && step.id === 1 ? 'bg-warning' : 'bg-primary',
                             )}
                           />
                           Active
@@ -981,31 +979,31 @@ export default function CapstoneWorkflowStepper({
           className={cn(
             'mt-5 rounded-xl border p-4 transition-all space-y-3',
             (titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted') &&
-              'border-amber-500/30 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-950/20',
+              'border-warning/30 bg-warning/10',
             (titleStatus === TITLE_STATUSES.DRAFT || titleStatus === 'draft') &&
-              'border-blue-500/30 bg-blue-500/10 dark:border-blue-800/40 dark:bg-blue-950/20',
+              'border-info/30 bg-info/10',
             (titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
               titleStatus === 'revision_required' ||
               titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION) &&
-              'border-orange-500/30 bg-orange-500/10 dark:border-orange-800/40 dark:bg-orange-950/20',
+              'border-warning/30 bg-warning/10',
             (!titleStatus ||
               (titleStatus !== 'submitted' &&
                 titleStatus !== 'draft' &&
                 titleStatus !== 'revision_required' &&
                 titleStatus !== TITLE_STATUSES.APPROVED_WITH_REVISION)) &&
-              'border-amber-500/30 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-950/20',
+              'border-warning/30 bg-warning/10',
           )}
         >
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted' ? (
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <Clock className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               ) : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
                 titleStatus === 'revision_required' ||
                 titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION ? (
-                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               ) : (
-                <FileEdit className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <FileEdit className="h-5 w-5 text-info shrink-0 mt-0.5" />
               )}
               <div className="space-y-1 min-w-0">
                 <h4 className="text-sm font-bold text-foreground">
@@ -1069,8 +1067,8 @@ export default function CapstoneWorkflowStepper({
           </div>
 
           {/* Lock Notice */}
-          <div className="flex items-center gap-2 rounded-lg bg-background/60 dark:bg-background/40 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5 text-warning shrink-0" />
             <span>
               {isStudent
                 ? 'Chapter submissions and Capstone 1 milestones unlock once your proposal title is approved.'
@@ -1086,7 +1084,7 @@ export default function CapstoneWorkflowStepper({
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {proposalTitles.map((t, idx) => (
-                  <button
+                  <Button
                     key={`prop-chip-${idx}`}
                     type="button"
                     onClick={() => {
@@ -1096,7 +1094,8 @@ export default function CapstoneWorkflowStepper({
                         onStepClick(1);
                       }
                     }}
-                    className="flex items-center gap-2 text-xs rounded-lg bg-background/80 dark:bg-background/60 border border-border/60 p-2 text-foreground font-medium text-left transition-all hover:border-primary/50 hover:bg-muted/50 cursor-pointer group"
+                    variant="outline"
+                    className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal rounded-lg border-border/60 bg-background/80 p-2 text-left text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:bg-muted/50 group"
                   >
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                       {idx + 1}
@@ -1104,7 +1103,7 @@ export default function CapstoneWorkflowStepper({
                     <span className="truncate" title={t}>
                       {t}
                     </span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1114,174 +1113,147 @@ export default function CapstoneWorkflowStepper({
 
       {/* If title is approved but waiting for committee panelists */}
       {titleApproved && !hasPanelists && project && (
-        <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 transition-all">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">
-                Title Approved — Committee Assignment Pending
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {isStudent
-                  ? 'Your capstone title has been formally ratified. Waiting for the course instructor to assign defense panelists before Capstone 1 defense hearings begin.'
-                  : 'Title has been formally approved. Open the Faculty Committee button above to appoint defense panelists and enable defense scheduling.'}
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert variant="success" className="mt-5 rounded-xl">
+          <AlertTitle className="text-sm font-bold">
+            Title Approved — Committee Assignment Pending
+          </AlertTitle>
+          <AlertDescription className="text-xs leading-relaxed">
+            {isStudent
+              ? 'Your capstone title has been formally ratified. Waiting for the course instructor to assign defense panelists before Capstone 1 defense hearings begin.'
+              : 'Title has been formally approved. Open the Faculty Committee button above to appoint defense panelists and enable defense scheduling.'}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Space-Saving Faculty Committee & Proponent Roster Modal Dialog */}
-      {isCommitteeModalOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="milestone-committee-modal-title"
-            data-testid="faculty-committee-dialog"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsCommitteeModalOpen(false);
-            }}
-          >
-            <Card
-              className="w-full max-w-4xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
-                      <Users className="h-4 w-4" />
-                    </div>
-                    <h3
-                      id="milestone-committee-modal-title"
-                      className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
-                    >
-                      Capstone Faculty Committee &amp; Proponent Roster
-                    </h3>
-                    <Badge
-                      variant={isCommitteeComplete ? 'outline' : 'secondary'}
-                      className={cn(
-                        'text-xs font-semibold',
-                        isCommitteeComplete
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-                      )}
-                    >
-                      {isCommitteeComplete ? 'Full Committee Formed' : 'Formation Pending'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Institutional defense committee appointment (Adviser, Chair, Secretary,
-                    Panelists) &amp; standardized proponent roles (FRAD2).
-                  </p>
+      <Dialog open={isCommitteeModalOpen} onOpenChange={setIsCommitteeModalOpen}>
+        <DialogContent
+          data-testid="faculty-committee-dialog"
+          aria-modal="true"
+          className="h-[min(90vh,54rem)] max-w-4xl gap-0 overflow-hidden rounded-xl border-border/80 bg-card p-0 shadow-lg"
+          showClose={false}
+        >
+          <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  <Users className="h-4 w-4" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCommitteeModalOpen(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-                  aria-label="Close dialog"
+                <DialogTitle
+                  id="milestone-committee-modal-title"
+                  className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
                 >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-                <FacultyCommitteeCard project={project} canManage={canManageCommittee} />
-              </div>
-              <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setIsCommitteeModalOpen(false)}
-                  className="text-xs px-4"
+                  Capstone Faculty Committee &amp; Proponent Roster
+                </DialogTitle>
+                <Badge
+                  variant={isCommitteeComplete ? 'outline' : 'secondary'}
+                  className={cn(
+                    'text-xs font-semibold',
+                    isCommitteeComplete
+                      ? 'bg-success/10 text-success-foreground border-success/30'
+                      : 'bg-warning/10 text-warning-foreground border-warning/30',
+                  )}
                 >
-                  Close Committee Roster
-                </Button>
+                  {isCommitteeComplete ? 'Full Committee Formed' : 'Formation Pending'}
+                </Badge>
               </div>
-            </Card>
-          </div>,
-          document.body,
-        )}
+              <DialogDescription className="text-xs text-muted-foreground">
+                Institutional defense committee appointment (Adviser, Chair, Secretary, Panelists)
+                &amp; standardized proponent roles (FRAD2).
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setIsCommitteeModalOpen(false)}
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+            <FacultyCommitteeCard project={project} canManage={canManageCommittee} />
+          </div>
+          <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsCommitteeModalOpen(false)}
+              className="text-xs px-4"
+            >
+              Close Committee Roster
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Space-Saving Academic Assessment & Verification Reports Modal Dialog */}
-      {isReportsModalOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="milestone-reports-modal-title"
-            data-testid="academic-reports-dialog"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsReportsModalOpen(false);
-            }}
-          >
-            <Card
-              className="w-full max-w-2xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <ShieldCheck className="h-4 w-4" />
-                    </div>
-                    <h3
-                      id="milestone-reports-modal-title"
-                      className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
-                    >
-                      Academic Assessment &amp; Verification Reports
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Synthesized institutional defense rubrics, evaluation summaries, and plagiarism
-                    compliance reports (FRINS6).
-                  </p>
+      <Dialog open={isReportsModalOpen} onOpenChange={setIsReportsModalOpen}>
+        <DialogContent
+          data-testid="academic-reports-dialog"
+          aria-modal="true"
+          className="h-[min(90vh,48rem)] max-w-2xl gap-0 overflow-hidden rounded-xl border-border/80 bg-card p-0 shadow-lg"
+          showClose={false}
+        >
+          <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success border border-success/20">
+                  <ShieldCheck className="h-4 w-4" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsReportsModalOpen(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-                  aria-label="Close dialog"
+                <DialogTitle
+                  id="milestone-reports-modal-title"
+                  className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  Academic Assessment &amp; Verification Reports
+                </DialogTitle>
               </div>
-              <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-                <AcademicReportsWidget
-                  project={project}
-                  canManageArchive={canManageArchive}
-                  onArchived={onRefresh}
-                />
-              </div>
-              <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setIsReportsModalOpen(false)}
-                  className="text-xs px-4"
-                >
-                  Close Reports
-                </Button>
-              </div>
-            </Card>
-          </div>,
-          document.body,
-        )}
+              <DialogDescription className="text-xs text-muted-foreground">
+                Synthesized institutional defense rubrics, evaluation summaries, and plagiarism
+                compliance reports (FRINS6).
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setIsReportsModalOpen(false)}
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+            <AcademicReportsWidget
+              project={project}
+              canManageArchive={canManageArchive}
+              onArchived={onRefresh}
+            />
+          </div>
+          <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsReportsModalOpen(false)}
+              className="text-xs px-4"
+            >
+              Close Reports
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* External Collaboration Links Modal Dialog */}
-      {isExternalLinksModalOpen && (
-        <ExternalLinksModal
-          isOpen={isExternalLinksModalOpen}
-          onClose={() => setIsExternalLinksModalOpen(false)}
-          project={project}
-          onRefresh={onRefresh}
-        />
-      )}
-    </div>
+      <ExternalLinksModal
+        isOpen={isExternalLinksModalOpen}
+        onClose={() => setIsExternalLinksModalOpen(false)}
+        project={project}
+        onRefresh={onRefresh}
+      />
+    </Card>
   );
 }
 
@@ -1315,8 +1287,6 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
     }
   }, [isOpen, project]);
 
-  if (!isOpen || typeof document === 'undefined') return null;
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!project?._id) return;
@@ -1338,20 +1308,13 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
     }
   };
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="external-links-modal-title"
-      data-testid="external-links-dialog"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <Card
-        className="w-full max-w-lg border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        data-testid="external-links-dialog"
+        aria-modal="true"
+        className="max-w-lg gap-0 overflow-hidden rounded-xl border-border/80 bg-card p-0 shadow-lg"
+        showClose={false}
       >
         <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 bg-muted/20">
           <div className="space-y-1">
@@ -1359,25 +1322,27 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                 <LinkIcon className="h-4 w-4" />
               </div>
-              <h3
+              <DialogTitle
                 id="external-links-modal-title"
                 className="text-base sm:text-lg font-bold text-foreground tracking-tight"
               >
                 Project Collaboration Links
-              </h3>
+              </DialogTitle>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs text-muted-foreground">
               Configure live Google Docs manuscript and GitHub repository links for this project.
-            </p>
+            </DialogDescription>
           </div>
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+            variant="ghost"
+            size="icon"
+            className="shrink-0 text-muted-foreground"
             aria-label="Close dialog"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -1386,7 +1351,7 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
               htmlFor="ext-google-doc"
               className="text-xs font-semibold text-foreground flex items-center gap-1.5"
             >
-              <FileText className="h-3.5 w-3.5 text-blue-500" />
+              <FileText className="h-3.5 w-3.5 text-primary" />
               Google Docs Manuscript Link
             </label>
             <Input
@@ -1441,14 +1406,13 @@ export function ExternalLinksModal({ isOpen, onClose, project, onRefresh }) {
               disabled={isSubmitting}
               className="text-xs h-8 px-4 gap-1.5"
             >
-              {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {isSubmitting && <Spinner className="h-3.5 w-3.5" />}
               Save Links
             </Button>
           </div>
         </form>
-      </Card>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 

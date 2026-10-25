@@ -1,6 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Loader2, Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Label } from '@/components/ui/Label';
+import { Textarea } from '@/components/ui/Textarea';
+import { Spinner } from '@/components/ui/Spinner';
 
 /**
  * AutoExpandingTextarea
@@ -50,7 +54,7 @@ export function AutoExpandingTextarea({
   const effectiveMinHeight =
     minHeight || (effectiveMinRows > 1 ? Math.max(effectiveMinRows * 24 + 16, 68) : 40);
 
-  const adjustHeight = () => {
+  const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -63,17 +67,17 @@ export function AutoExpandingTextarea({
     if (typeof window !== 'undefined' && window.scrollY !== scrollY) {
       window.scrollTo({ top: scrollY });
     }
-  };
+  }, [effectiveMinHeight]);
 
   useEffect(() => {
     adjustHeight();
-  }, [value, effectiveMinHeight]);
+  }, [value, adjustHeight]);
 
   useEffect(() => {
     const handleResize = () => adjustHeight();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [effectiveMinHeight]);
+  }, [adjustHeight]);
 
   const handleChange = (e) => {
     adjustHeight();
@@ -82,30 +86,34 @@ export function AutoExpandingTextarea({
     }
   };
 
-  const isEditable = !disabled && !readOnly;
   const isGhost = variant === 'ghost';
 
   const baseStyles =
-    'w-full resize-none overflow-y-hidden box-border transition-[height,border-color,box-shadow,background-color] duration-200 ease-out leading-relaxed';
+    'min-h-0 w-full resize-none overflow-y-hidden box-border leading-relaxed transition-[height] duration-200 ease-out';
 
   const variantStyles = isGhost
-    ? isEditable
-      ? 'border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-blue-600 focus:ring-1 focus:ring-blue-100 dark:focus:border-blue-500 dark:focus:ring-blue-900/40 focus:bg-background/70 rounded px-2 py-1.5 focus:outline-hidden text-xs sm:text-sm font-sans'
-      : 'border-none bg-transparent px-1 py-1 cursor-default select-text text-xs sm:text-sm'
-    : 'rounded-lg border border-slate-400/80 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:bg-[#080d18] dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-900/40 shadow-xs outline-none';
+    ? readOnly
+      ? 'cursor-default select-text border-none bg-transparent px-1 py-1 text-xs shadow-none focus-visible:ring-0 sm:text-sm'
+      : 'rounded border-transparent bg-transparent px-2 py-1.5 font-sans text-xs shadow-none hover:border-input focus-visible:border-ring focus-visible:bg-background/70 focus-visible:ring-1 sm:text-sm'
+    : 'rounded-lg px-3.5 py-2.5 text-xs shadow-xs sm:text-sm';
 
   return (
-    <div className="w-full flex flex-col gap-1.5">
+    <div className="flex w-full flex-col gap-1.5">
       {label && (
-        <label
+        <Label
           htmlFor={id}
-          className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-0.5"
+          className="mb-0.5 flex items-center gap-1 text-xs font-bold text-foreground"
         >
-          {label} {required && <span className="text-rose-500">*</span>}
-        </label>
+          {label}{' '}
+          {required && (
+            <span aria-hidden="true" className="text-destructive">
+              *
+            </span>
+          )}
+        </Label>
       )}
       <div className="relative w-full">
-        <textarea
+        <Textarea
           ref={textareaRef}
           id={id}
           rows={effectiveMinRows}
@@ -115,28 +123,42 @@ export function AutoExpandingTextarea({
           placeholder={placeholder}
           disabled={disabled}
           readOnly={readOnly}
-          className={`${baseStyles} ${variantStyles} ${className}`}
+          style={{ minHeight: `${effectiveMinHeight}px` }}
+          className={`${baseStyles} ${variantStyles} ${savingStatus ? 'pr-20' : ''} ${className}`}
           {...props}
         />
         {savingStatus && (
-          <div className="absolute top-1.5 right-1.5 flex items-center gap-1 text-[10px] pointer-events-none print:hidden">
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-1 text-[10px] print:hidden"
+          >
             {savingStatus === 'saving' && (
-              <span className="flex items-center gap-1 text-muted-foreground bg-background/80 px-1.5 py-0.5 rounded border shadow-2xs">
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              <Badge
+                variant="warning"
+                className="gap-1 rounded border bg-background/80 px-1.5 py-0.5 text-[10px] shadow-2xs"
+              >
+                <Spinner className="size-2.5" />
                 <span>Saving...</span>
-              </span>
+              </Badge>
             )}
             {savingStatus === 'saved' && (
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-background/80 px-1.5 py-0.5 rounded border border-emerald-500/30 shadow-2xs">
-                <Check className="h-2.5 w-2.5" />
+              <Badge
+                variant="success"
+                className="gap-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] shadow-2xs"
+              >
+                <Check aria-hidden="true" className="h-2.5 w-2.5" />
                 <span>Saved</span>
-              </span>
+              </Badge>
             )}
             {savingStatus === 'error' && (
-              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400 bg-background/80 px-1.5 py-0.5 rounded border border-rose-500/30 shadow-2xs">
-                <AlertCircle className="h-2.5 w-2.5" />
+              <Badge
+                variant="destructive"
+                className="gap-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] shadow-2xs"
+              >
+                <AlertCircle aria-hidden="true" className="h-2.5 w-2.5" />
                 <span>Error</span>
-              </span>
+              </Badge>
             )}
           </div>
         )}

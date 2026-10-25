@@ -121,10 +121,36 @@ describe('CohortKPIRibbon', () => {
       root.render(<CohortKPIRibbon isLoading={true} activeYear="2025-2026" />);
     });
 
-    const skeletons = container.querySelectorAll('.cms-skeleton-shimmer');
+    const skeletons = Array.from(container.querySelectorAll('[aria-hidden="true"]')).filter(
+      (element) => element.getAttribute('class')?.includes('animate-pulse'),
+    );
     // Each of the 4 cards has value, subtext, and badge skeletons (12 total)
     expect(skeletons.length).toBeGreaterThanOrEqual(12);
     expect(container.textContent).not.toContain('...');
     expect(container.textContent).not.toContain('0 Active In-Progress');
+  });
+
+  it('uses tokenized Card and semantic Badge surfaces for the KPI ribbon', () => {
+    act(() => {
+      root.render(
+        <CohortKPIRibbon
+          summary={{
+            totalTeams: 12,
+            totalCapstonesActive: 8,
+            totalCapstonesArchived: 4,
+            yieldRate: 92,
+            yieldCompleted: 11,
+            yieldTotal: 12,
+          }}
+        />,
+      );
+    });
+
+    expect(
+      container.querySelectorAll('[role="region"] > [aria-label^="Enrolled Proponents:"]'),
+    ).toHaveLength(1);
+    expect(container.querySelectorAll('[aria-label^="Status:"]')).toHaveLength(4);
+    expect(container.querySelector('.bg-gradient-to-b')).toBeNull();
+    expect(container.querySelector('.dark\\:text-blue-400')).toBeNull();
   });
 });

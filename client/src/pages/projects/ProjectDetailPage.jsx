@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -18,6 +18,7 @@ import {
   CAPSTONE_PHASES,
   PROJECT_STATUSES,
   resolveWorkflowPhase,
+  PANEL_ROLES,
 } from '@cms/shared';
 import {
   FileText,
@@ -26,11 +27,9 @@ import {
   Award,
   ChevronLeft,
   FileSpreadsheet,
-  ExternalLink,
   MessageSquareMore,
   BookMarked,
   Code2,
-  Sparkles,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -43,7 +42,8 @@ import Capstone3CollapsibleSections from '@/components/projects/Capstone3Collaps
 import CanonicalDocumentViewer from '@/components/archive/CanonicalDocumentViewer';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import { toast } from 'sonner';
-import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
+import { getSocket } from '@/services/socket';
+import { formatCitation } from '@/pages/projects/projectDetailUtils';
 
 // Lazy-loaded heavy components and modals
 const EvaluationPanel = lazy(() => import('@/components/projects/EvaluationPanel'));
@@ -171,6 +171,18 @@ export default function ProjectDetailPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search || ''), [location.search]);
 
   const { data: project, isLoading, error, refetch } = useProject(projectId);
+
+  // Subscribe to project room for real-time live synchronization
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !projectId) return;
+
+    socket.emit('join:project', projectId);
+
+    return () => {
+      socket.emit('leave:project', projectId);
+    };
+  }, [projectId]);
   const evaluationDefenseType = project
     ? Number(project.capstonePhase) >= 3
       ? DEFENSE_TYPES.FINAL
@@ -278,20 +290,6 @@ export default function ProjectDetailPage() {
     [isArchived, handleTabChange],
   );
 
-  // Memoized citation formatting for archived view
-  const projectAuthors = useMemo(
-    () => (isArchived && project ? getProjectAuthors(project) : []),
-    [isArchived, project],
-  );
-  const apaCitation = useMemo(
-    () => (isArchived && project ? formatCitation(project, 'apa', projectAuthors) : ''),
-    [isArchived, project, projectAuthors],
-  );
-  const ieeeCitation = useMemo(
-    () => (isArchived && project ? formatCitation(project, 'ieee', projectAuthors) : ''),
-    [isArchived, project, projectAuthors],
-  );
-
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -334,6 +332,28 @@ export default function ProjectDetailPage() {
     (project?.panelistIds || []).some(
       (panelist) => (panelist?._id || panelist)?.toString() === user?._id?.toString(),
     );
+  const currentUserId = (user?._id || user?.id)?.toString();
+  const userPanelAppointment = (project?.panelists || []).find(
+    (appointment) =>
+      (appointment?.userId?._id || appointment?.userId)?.toString() === currentUserId,
+  );
+  const isAssignedMinutesSecretary =
+    (project?.secretaryId?._id || project?.secretaryId)?.toString() === currentUserId ||
+    userPanelAppointment?.role === PANEL_ROLES.SECRETARY;
+  const isAssignedMinutesPanelist =
+    Boolean(userPanelAppointment) ||
+    (project?.panelistIds || []).some(
+      (panelistId) => (panelistId?._id || panelistId)?.toString() === currentUserId,
+    );
+  const isAssignedMinutesChair = userPanelAppointment?.role === PANEL_ROLES.CHAIR;
+  const canOpenLiveMinutes =
+    isInstructor || isAssignedMinutesSecretary || isAssignedMinutesPanelist;
+  const canWriteMinutes = canOpenLiveMinutes;
+  const canFinalizeMinutesVerdict =
+    isInstructor || isAssignedMinutesSecretary || isAssignedMinutesChair;
+  const canAggregateMinutesScores =
+    isInstructor || isAssignedMinutesSecretary || isAssignedMinutesChair;
+  const canPublishMinutesToMatrix = isInstructor || isAssignedMinutesSecretary;
   const canReviewTitle = isInstructor || isAssignedAdviser || isAssignedPanelist;
 
   return (
@@ -369,6 +389,22 @@ export default function ProjectDetailPage() {
             className="mb-6 no-print"
           />
 
+          {canOpenLiveMinutes && (
+            <div className="-mt-4 flex justify-end no-print">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsLiveMinutesOpen(true)}
+                className="gap-2"
+                data-testid="open-live-defense-minutes"
+              >
+                <FileText className="h-4 w-4" />
+                Defense minutes
+              </Button>
+            </div>
+          )}
+
           {isArchived && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm no-print">
               <div className="flex items-center gap-3">
@@ -376,7 +412,7 @@ export default function ProjectDetailPage() {
                   <BookOpen className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-foreground">
+                  <h3 className="text-sm font-bold text-foreground">
                     Archived Capstone Record — Read-Only Mode
                   </h3>
                   <p className="text-xs text-muted-foreground">
@@ -479,9 +515,7 @@ export default function ProjectDetailPage() {
               <div className="rounded-xl border border-border/60 bg-card shadow-xs p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-5">
                   <History className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-foreground">
-                    Audit Trail
-                  </h3>
+                  <h3 className="text-base font-bold text-foreground">Audit Trail</h3>
                   <span className="text-xs text-muted-foreground ml-1">
                     — full activity history for this project
                   </span>
@@ -519,6 +553,10 @@ export default function ProjectDetailPage() {
             }
             project={project}
             user={user}
+            canWriteMinutes={canWriteMinutes}
+            canFinalizeVerdict={canFinalizeMinutesVerdict}
+            canAggregateScores={canAggregateMinutesScores}
+            canPublishMatrix={canPublishMinutesToMatrix}
             onPublished={() => refetch()}
             onMinutesPublished={() => refetch()}
           />

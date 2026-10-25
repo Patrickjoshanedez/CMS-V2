@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateAcademicNodeDialog from './CreateAcademicNodeDialog';
 
@@ -48,6 +49,9 @@ describe('CreateAcademicNodeDialog Suite', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    Element.prototype.scrollIntoView ??= vi.fn();
+    Element.prototype.hasPointerCapture ??= vi.fn(() => false);
+    Element.prototype.releasePointerCapture ??= vi.fn();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -78,10 +82,10 @@ describe('CreateAcademicNodeDialog Suite', () => {
       );
     });
 
-    expect(container.textContent).toContain('Create Academic Node');
-    expect(container.textContent).toContain('Class Section');
-    expect(container.textContent).toContain('Program');
-    expect(container.textContent).toContain('School Year');
+    expect(document.body.textContent).toContain('Create Academic Node');
+    expect(document.body.textContent).toContain('Class Section');
+    expect(document.body.textContent).toContain('Program');
+    expect(document.body.textContent).toContain('School Year');
   });
 
   it('does not render when isOpen is false', async () => {
@@ -113,15 +117,15 @@ describe('CreateAcademicNodeDialog Suite', () => {
     });
 
     // Switch to Program tab
-    const programTabBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+    const programTabBtn = Array.from(document.body.querySelectorAll('[role="tab"]')).find((b) =>
       b.textContent.includes('Program'),
     );
     await act(async () => {
-      programTabBtn.click();
+      fireEvent.mouseDown(programTabBtn, { button: 0, ctrlKey: false });
     });
 
-    const codeInput = container.querySelector('#node-course-code');
-    const nameInput = container.querySelector('#node-course-name');
+    const codeInput = document.body.querySelector('#node-course-code');
+    const nameInput = document.body.querySelector('#node-course-name');
 
     const setInputValue = (input, val) => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -137,7 +141,7 @@ describe('CreateAcademicNodeDialog Suite', () => {
       setInputValue(nameInput, 'BS Information Systems');
     });
 
-    const form = container.querySelector('form');
+    const form = document.body.querySelector('form');
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
@@ -164,12 +168,12 @@ describe('CreateAcademicNodeDialog Suite', () => {
     });
 
     // Ensure Section tab is selected
-    const sectionTabBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+    const sectionTabBtn = Array.from(document.body.querySelectorAll('[role="tab"]')).find((b) =>
       b.textContent.includes('Class Section'),
     );
     if (sectionTabBtn) {
       await act(async () => {
-        sectionTabBtn.click();
+        fireEvent.mouseDown(sectionTabBtn, { button: 0, ctrlKey: false });
       });
     }
 
@@ -182,29 +186,31 @@ describe('CreateAcademicNodeDialog Suite', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
-    const setSelectValue = (select, val) => {
-      if (!select) return;
-      select.value = val;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+    const selectOption = async (label, optionText) => {
+      const trigger = document.body.querySelector(`[aria-label="${label}"]`);
+      await act(async () => fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' }));
+      const option = Array.from(document.body.querySelectorAll('[role="option"]')).find((item) =>
+        item.textContent.includes(optionText),
+      );
+      expect(option).toBeTruthy();
+      await act(async () => option.click());
     };
 
-    const courseSelect = container.querySelector('#node-section-course');
-    const nameInput = container.querySelector('#node-section-name');
-    const codeInput = container.querySelector('#node-section-code');
-    const yearSelect = container.querySelector('#node-section-year');
+    const nameInput = document.body.querySelector('#node-section-name');
+    const codeInput = document.body.querySelector('#node-section-code');
 
     await act(async () => {
-      setSelectValue(courseSelect, 'c-1');
       setInputValue(nameInput, '4A');
       setInputValue(codeInput, 'T87');
-      setSelectValue(yearSelect, '2025–2026');
     });
+    await selectOption('Parent Program / Degree', 'BSIT');
+    await selectOption('Academic Year', '2025–2026');
 
     // Verify canonical preview is rendered
-    expect(container.textContent).toContain('Canonical Section Preview:');
-    expect(container.textContent).toContain('BSIT-4A (T87)');
+    expect(document.body.textContent).toContain('Canonical Section Preview:');
+    expect(document.body.textContent).toContain('BSIT-4A (T87)');
 
-    const form = container.querySelector('form');
+    const form = document.body.querySelector('form');
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });

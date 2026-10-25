@@ -3,7 +3,10 @@ import PropTypes from 'prop-types';
 import { useInviteCandidates, useInviteMember } from '@/hooks/useTeams';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { CheckCircle2, Copy, Loader2, Send, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/Popover';
+import { Spinner } from '@/components/ui/Spinner';
+import { Copy, Send, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function InviteMemberForm({ teamId }) {
@@ -69,17 +72,17 @@ export default function InviteMemberForm({ teamId }) {
   return (
     <div className="space-y-3">
       {lastInviteCode && (
-        <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
-            <CheckCircle2 className="h-4 w-4" />
-            Invite sent! Share this code with your teammate:
-          </div>
+        <Alert variant="success" className="rounded-xl p-4">
+          <AlertDescription>
+            <div className="text-sm font-medium">
+              Invite sent! Share this code with your teammate:
+            </div>
           <div className="mt-3 flex items-center justify-between">
             <div className="flex gap-1.5">
               {lastInviteCode.split('').map((char, i) => (
                 <div
                   key={i}
-                  className="flex h-10 w-9 items-center justify-center rounded-md border-2 border-green-500/30 bg-background text-base font-bold tracking-widest"
+                  className="flex h-10 w-9 items-center justify-center rounded-md border-2 border-success/30 bg-background text-base font-bold tracking-widest text-foreground"
                 >
                   {char}
                 </div>
@@ -99,42 +102,51 @@ export default function InviteMemberForm({ teamId }) {
               Copy
             </Button>
           </div>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="relative flex gap-2">
-        <Input
-          placeholder="Type a name (e.g. Leon) or email"
-          type="text"
-          value={email}
-          onChange={(e) => {
-            const value = e.target.value;
-            setEmail(value);
-            setQuery(value);
-            setShowSuggestions(true);
-            if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
-              setSelectedCandidate(null);
-            }
-          }}
-          onFocus={() => {
-            if ((debouncedQuery || query).length >= 2) {
-              setShowSuggestions(true);
-            }
-          }}
-          onBlur={() => {
-            window.setTimeout(() => setShowSuggestions(false), 120);
-          }}
-          required
-          disabled={inviteMember.isPending}
-          className="flex-1"
-          autoComplete="off"
-        />
+      <form onSubmit={handleSubmit} className="flex min-w-0 gap-2">
+        <Popover open={showSuggestions} onOpenChange={setShowSuggestions}>
+          <PopoverAnchor asChild>
+            <div className="min-w-0 flex-1">
+              <Input
+                aria-label="Search student by name or email"
+                placeholder="Type a name (e.g. Leon) or email"
+                type="text"
+                value={email}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEmail(value);
+                  setQuery(value);
+                  setShowSuggestions(true);
+                  if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
+                    setSelectedCandidate(null);
+                  }
+                }}
+                onFocus={() => {
+                  if ((debouncedQuery || query).length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                required
+                disabled={inviteMember.isPending}
+                autoComplete="off"
+              />
+            </div>
+          </PopoverAnchor>
 
-        {showSuggestions && (debouncedQuery.length >= 2 || query.trim().length >= 2) && (
-          <div className="absolute left-0 right-20 top-11 z-20 rounded-md border bg-popover shadow-md">
+          {(debouncedQuery.length >= 2 || query.trim().length >= 2) && (
+            <PopoverContent
+              align="start"
+              side="bottom"
+              sideOffset={4}
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+            >
             {isFetchingCandidates ? (
               <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner className="h-3.5 w-3.5" />
                 Searching students...
               </div>
             ) : candidates.length > 0 ? (
@@ -152,18 +164,15 @@ export default function InviteMemberForm({ teamId }) {
 
                     return (
                       <li key={candidate._id}>
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
                           className={[
-                            'flex w-full flex-col gap-0.5 px-3 py-2.5 text-left transition-colors',
-                            isBlocked
-                              ? 'bg-destructive/5 hover:bg-destructive/10'
-                              : hasSoftWarning
-                                ? 'bg-amber-500/5 hover:bg-amber-500/10'
-                                : 'hover:bg-accent',
+                            'h-auto min-h-0 w-full flex-col items-stretch gap-0.5 whitespace-normal rounded-none px-3 py-2.5 text-left font-normal',
+                            isBlocked ? 'bg-destructive/5 hover:bg-destructive/10' : '',
+                            !isBlocked && hasSoftWarning ? 'bg-warning/5 hover:bg-warning/10' : '',
                           ].join(' ')}
-                          onMouseDown={(event) => {
-                            event.preventDefault();
+                          onClick={() => {
                             setEmail(candidate.email);
                             setQuery(candidate.email);
                             setDebouncedQuery(candidate.email);
@@ -193,7 +202,7 @@ export default function InviteMemberForm({ teamId }) {
                             )}
                             {!isBlocked && hasSoftWarning && (
                               <span className="mt-0.5 shrink-0">
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                               </span>
                             )}
                           </span>
@@ -204,7 +213,7 @@ export default function InviteMemberForm({ teamId }) {
                               key={i}
                               className="flex items-start gap-1 pl-0 text-[11px] leading-snug text-destructive"
                             >
-                              <span className="mt-px shrink-0">✕</span>
+                              <X className="mt-px size-3 shrink-0" aria-hidden="true" />
                               <span>{w.message}</span>
                             </span>
                           ))}
@@ -213,13 +222,16 @@ export default function InviteMemberForm({ teamId }) {
                           {softWarnings.map((w, i) => (
                             <span
                               key={i}
-                              className="flex items-start gap-1 pl-0 text-[11px] leading-snug text-amber-600 dark:text-amber-400"
+                              className="flex items-start gap-1 pl-0 text-[11px] leading-snug text-warning-foreground"
                             >
-                              <span className="mt-px shrink-0">⚠</span>
+                              <AlertTriangle
+                                className="mt-px size-3 shrink-0 text-warning"
+                                aria-hidden="true"
+                              />
                               <span>{w.message}</span>
                             </span>
                           ))}
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
@@ -230,16 +242,21 @@ export default function InviteMemberForm({ teamId }) {
                 No matching students found.
               </div>
             )}
-          </div>
-        )}
-
-        <Button type="submit" size="sm" disabled={inviteMember.isPending || !email.trim()}>
-          {inviteMember.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
+            </PopoverContent>
           )}
-          <span className="ml-2 hidden sm:inline">Invite</span>
+        </Popover>
+
+        <Button
+          type="submit"
+          size="sm"
+          aria-label="Invite teammate"
+          disabled={inviteMember.isPending || !email.trim()}
+          loading={inviteMember.isPending}
+          loadingText="Inviting"
+          className="shrink-0"
+        >
+          {!inviteMember.isPending && <Send className="h-4 w-4" />}
+          <span>Invite</span>
         </Button>
       </form>
     </div>

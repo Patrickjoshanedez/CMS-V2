@@ -6,6 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
+import Spinner from '@/components/ui/Spinner';
 import { useProjectReports } from '@/hooks/useProjects';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { ROLES } from '@cms/shared';
@@ -13,21 +29,9 @@ import { exportReportsToCSV } from '@/utils/exportReportsToCSV';
 import CohortKPIRibbon from '@/components/reports/CohortKPIRibbon';
 import DynamicChartWidget from '@/components/reports/DynamicChartWidget';
 import ReportsFilterDrawer from '@/components/reports/ReportsFilterDrawer';
-import {
-  Loader2,
-  FileText,
-  Download,
-  Printer,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  ShieldCheck,
-  Award,
-  Sparkles,
-  BarChart3,
-  Search,
-  AlertTriangle,
-} from 'lucide-react';
+import { FileText, Download, Printer, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+
+const EMPTY_REPORT_ARRAY = [];
 
 /**
  * ReportsPage — Executive Institutional Capstone Analytics & Reporting Command Center.
@@ -85,8 +89,8 @@ export default function ReportsPage() {
     enabled: hasGenerated,
   });
 
-  const trend = data?.trend || [];
-  const categoryBreakdown = data?.categoryBreakdown || [];
+  const trend = data?.trend ?? EMPTY_REPORT_ARRAY;
+  const categoryBreakdown = data?.categoryBreakdown ?? EMPTY_REPORT_ARRAY;
 
   const table = useMemo(
     () => data?.table || { rows: [], page, limit, total: 0, totalPages: 1 },
@@ -542,8 +546,7 @@ export default function ReportsPage() {
               Capstone Analytics &amp; Reports
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Review cohort progress, research areas, faculty
-              workload, and archived projects.
+              Review cohort progress, research areas, faculty workload, and archived projects.
             </p>
           </div>
 
@@ -566,7 +569,7 @@ export default function ReportsPage() {
               disabled={records.length === 0}
               className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
             >
-              <Download className="h-3.5 w-3.5 text-emerald-600" />
+              <Download className="h-3.5 w-3.5 text-success-foreground" />
               <span>Excel</span>
             </Button>
             <Button
@@ -597,20 +600,23 @@ export default function ReportsPage() {
             data-testid="reports-audit-warnings"
           >
             {auditWarnings.map((warn, idx) => (
-              <div
+              <Alert
                 key={warn.id || warn.code || warn.badge || `warn-${idx}`}
-                className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200 text-xs shadow-2xs print:bg-white print:border-amber-600 print:text-[#111827]"
+                variant="warning"
+                className="break-inside-avoid rounded-xl p-3.5 text-xs shadow-2xs print:bg-white print:border-amber-600 print:text-black"
               >
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 print:text-amber-700" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 print:bg-slate-100 print:text-[#111827] print:border-slate-300">
+                <AlertDescription className="space-y-1 text-current">
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="warning"
+                      className="rounded-sm px-1.5 py-0.5 text-[10px] uppercase tracking-wider print:bg-slate-100 print:text-black print:border-slate-300"
+                    >
                       {warn.badge || warn.code?.replace(/_/g, ' ') || 'Data Audit Discrepancy'}
-                    </span>
+                    </Badge>
                   </div>
                   <p className="leading-relaxed font-medium">{warn.message || warn.description}</p>
-                </div>
-              </div>
+                </AlertDescription>
+              </Alert>
             ))}
           </div>
         )}
@@ -639,8 +645,12 @@ export default function ReportsPage() {
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="py-12 flex flex-col items-center justify-center text-muted-foreground space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div
+            role="status"
+            aria-live="polite"
+            className="py-12 flex flex-col items-center justify-center text-muted-foreground space-y-2"
+          >
+            <Spinner className="h-8 w-8 text-primary" />
             <p className="text-xs font-semibold text-foreground">
               Computing institutional analytics...
             </p>
@@ -650,8 +660,16 @@ export default function ReportsPage() {
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>
-              {error.message || 'Failed to fetch capstone reports data.'}
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>{error.message || 'Failed to fetch capstone reports data.'}</span>
+              <Button
+                type="button"
+                variant="destructiveOutline"
+                size="sm"
+                onClick={() => refetch()}
+              >
+                Retry
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -667,8 +685,8 @@ export default function ReportsPage() {
               xKey="milestone"
               xTickFormatter={(value) => String(value).replace(/\s*\(.*/, '')}
               dataKeys={[
-                { key: 'students', label: 'Proponent Headcount', color: 'hsl(var(--primary))' },
-                { key: 'teams', label: 'Active Teams', color: '#10b981' },
+                { key: 'students', label: 'Proponent Headcount', color: 'hsl(var(--chart-1))' },
+                { key: 'teams', label: 'Active Teams', color: 'hsl(var(--chart-2))' },
               ]}
               availableViews={['bar', 'pie', 'table']}
               defaultView="bar"
@@ -682,9 +700,13 @@ export default function ReportsPage() {
               data={allocationRatioData}
               xKey="section"
               dataKeys={[
-                { key: 'assigned', label: 'Assigned Proponents', color: '#10b981' },
-                { key: 'unassigned', label: 'Unassigned / Orphan', color: '#ef4444' },
-                { key: 'teams', label: 'Formed Teams', color: '#0284c7' },
+                { key: 'assigned', label: 'Assigned Proponents', color: 'hsl(var(--chart-2))' },
+                {
+                  key: 'unassigned',
+                  label: 'Unassigned / Orphan',
+                  color: 'hsl(var(--destructive))',
+                },
+                { key: 'teams', label: 'Formed Teams', color: 'hsl(var(--chart-1))' },
               ]}
               availableViews={['bar', 'line', 'table']}
               defaultView="bar"
@@ -697,7 +719,7 @@ export default function ReportsPage() {
               subtitle="Distribution of approved capstones across core IT departmental fields"
               data={specializationData}
               xKey="name"
-              dataKeys={[{ key: 'projects', label: 'Capstones', color: 'hsl(var(--primary))' }]}
+              dataKeys={[{ key: 'projects', label: 'Capstones', color: 'hsl(var(--chart-1))' }]}
               availableViews={['bar', 'pie', 'table']}
               defaultView="bar"
               height={280}
@@ -710,9 +732,9 @@ export default function ReportsPage() {
               data={facultyWorkloadData}
               xKey="name"
               dataKeys={[
-                { key: 'workloadScore', label: 'Workload Index', color: '#0284c7' },
-                { key: 'advised', label: 'Advised Teams', color: '#10b981' },
-                { key: 'panel', label: 'Panel Hearings', color: '#f59e0b' },
+                { key: 'workloadScore', label: 'Workload Index', color: 'hsl(var(--chart-1))' },
+                { key: 'advised', label: 'Advised Teams', color: 'hsl(var(--chart-2))' },
+                { key: 'panel', label: 'Panel Hearings', color: 'hsl(var(--chart-3))' },
               ]}
               availableViews={['bar', 'line', 'radar', 'table']}
               defaultView="bar"
@@ -725,7 +747,9 @@ export default function ReportsPage() {
               subtitle="Historic trajectory of fully defended and sealed capstone projects"
               data={submissionTrendData}
               xKey="year"
-              dataKeys={[{ key: 'archived', label: 'Archived Projects', color: '#8b5cf6' }]}
+              dataKeys={[
+                { key: 'archived', label: 'Archived Projects', color: 'hsl(var(--chart-4))' },
+              ]}
               availableViews={['line', 'bar', 'table']}
               defaultView="line"
               height={280}
@@ -737,7 +761,7 @@ export default function ReportsPage() {
               subtitle="Winnowing + SentenceTransformers compliance index distribution"
               data={plagiarismRiskData}
               xKey="name"
-              dataKeys={[{ key: 'count', label: 'Projects', color: '#10b981' }]}
+              dataKeys={[{ key: 'count', label: 'Projects', color: 'hsl(var(--chart-2))' }]}
               availableViews={['pie', 'bar', 'table']}
               defaultView="pie"
               height={280}
@@ -751,12 +775,12 @@ export default function ReportsPage() {
             <CardHeader className="p-4 pb-3 border-b border-border/60 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 print:bg-white print:border-slate-200">
               <div>
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm font-bold text-foreground print:text-[#111827]">
+                  <CardTitle className="text-sm font-bold text-foreground print:text-black">
                     Detailed Capstone Records
                   </CardTitle>
                   <Badge
                     variant="outline"
-                    className="text-[10px] font-mono py-0 px-1.5 bg-background print:bg-slate-100 print:text-[#111827] print:border-slate-300"
+                    className="text-[10px] font-mono py-0 px-1.5 bg-background print:bg-slate-100 print:text-black print:border-slate-300"
                   >
                     {table.total} Total
                   </Badge>
@@ -769,20 +793,27 @@ export default function ReportsPage() {
               </div>
 
               {/* Rows per page quick select */}
-              <div className="reports-pagination flex items-center gap-2 text-xs text-muted-foreground print:hidden">
-                <span>Rows:</span>
-                <select
+              <div className="flex items-center gap-2 text-xs text-muted-foreground print:hidden">
+                <span id="reports-rows-label">Rows per page:</span>
+                <Select
                   value={String(limit)}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
+                  onValueChange={(value) => {
+                    setLimit(Number(value));
                     setPage(1);
                   }}
-                  className="h-11 sm:h-7 min-h-[44px] sm:min-h-0 text-xs rounded-md border border-border bg-background px-2.5 sm:px-2 py-1 sm:py-0.5 shadow-2xs cursor-pointer"
                 >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                </select>
+                  <SelectTrigger
+                    aria-labelledby="reports-rows-label"
+                    className="h-11 min-h-[44px] w-20 text-xs sm:h-8 sm:min-h-0"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
 
@@ -805,19 +836,33 @@ export default function ReportsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-xs border-collapse print:min-w-0">
-                    <thead>
-                      <tr className="border-b border-border/80 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider print:bg-slate-100 print:text-[#111827]">
-                        <th className="py-2.5 px-3">Project Title</th>
-                        <th className="py-2.5 px-3">Authors</th>
-                        <th className="py-2.5 px-3">Adviser</th>
-                        <th className="py-2.5 px-3">Program</th>
-                        <th className="py-2.5 px-3">Academic Year</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3 text-right print:hidden">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
+                  <Table className="min-w-[760px] text-left text-xs border-collapse print:min-w-0">
+                    <TableHeader>
+                      <TableRow className="border-b border-border/80 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/40 print:bg-slate-100 print:text-black">
+                        <TableHead scope="col" className="py-2.5">
+                          Project Title
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5">
+                          Authors
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5">
+                          Adviser
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5">
+                          Program
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5">
+                          Academic Year
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5">
+                          Status
+                        </TableHead>
+                        <TableHead scope="col" className="py-2.5 text-right print:hidden">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-border/60">
                       {records.map((r) => {
                         const authorsList = r.authors?.map((a) => a.fullName).join(', ') || 'N/A';
                         const isArchived = Boolean(
@@ -828,44 +873,40 @@ export default function ReportsPage() {
                           ? `/archive/document/${r._id}`
                           : `/projects/${r._id}`;
                         return (
-                          <tr
+                          <TableRow
                             key={r._id}
                             className="hover:bg-muted/30 transition-colors print:hover:bg-transparent"
                           >
-                            <td className="py-2.5 px-3 font-medium text-foreground max-w-xs break-words print:text-[#111827]">
+                            <TableCell className="py-2.5 font-medium text-foreground max-w-xs break-words print:text-black">
                               <Link
                                 to={projectUrl}
-                                className="hover:text-primary hover:underline transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary rounded print:no-underline print:text-[#111827]"
+                                className="hover:text-primary hover:underline transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary rounded print:no-underline print:text-black"
                                 title={`View project details for ${r.title}`}
                               >
                                 {r.title}
                               </Link>
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground print:text-[#111827]">
+                            </TableCell>
+                            <TableCell className="py-2.5 text-muted-foreground print:text-black">
                               {authorsList}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground print:text-[#111827]">
+                            </TableCell>
+                            <TableCell className="py-2.5 text-muted-foreground print:text-black">
                               {r.adviser?.fullName || 'N/A'}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground print:text-[#111827]">
+                            </TableCell>
+                            <TableCell className="py-2.5 text-muted-foreground print:text-black">
                               {r.course?.label || r.course?.name || 'BSIT'}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground print:text-[#111827]">
+                            </TableCell>
+                            <TableCell className="py-2.5 font-mono text-[11px] text-muted-foreground print:text-black">
                               {r.academicYear || 'N/A'}
-                            </td>
-                            <td className="py-2.5 px-3">
+                            </TableCell>
+                            <TableCell className="py-2.5">
                               <Badge
-                                variant={isArchived ? 'default' : 'outline'}
-                                className={`text-[10px] py-0 px-1.5 font-medium ${
-                                  isArchived
-                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30'
-                                } print:bg-white print:text-[#111827] print:border-slate-300`}
+                                variant={isArchived ? 'success' : 'secondary'}
+                                className="px-1.5 py-0 text-[10px] font-medium print:bg-white print:text-black print:border-slate-300"
                               >
                                 {r.status || (isArchived ? 'Archived' : 'Active')}
                               </Badge>
-                            </td>
-                            <td className="py-2.5 px-3 text-right print:hidden">
+                            </TableCell>
+                            <TableCell className="py-2.5 text-right print:hidden">
                               <Link
                                 to={projectUrl}
                                 className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 hover:underline cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 p-2 sm:p-0"
@@ -874,18 +915,18 @@ export default function ReportsPage() {
                                 <span>View</span>
                                 <ExternalLink className="h-3 w-3" />
                               </Link>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
 
               {/* Table Pagination Footer */}
               {records.length > 0 && (
-                <div className="reports-pagination p-3 border-t border-border flex items-center justify-between print:hidden">
+                <div className="flex items-center justify-between border-t border-border p-3 print:hidden">
                   <Button
                     type="button"
                     variant="outline"

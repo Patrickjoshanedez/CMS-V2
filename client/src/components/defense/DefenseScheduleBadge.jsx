@@ -19,11 +19,11 @@ export function formatDefenseDate(dateVal) {
 
 /**
  * Determines defense schedule status and classification:
- * - 'redefense': Red / Rose badge
- * - 'overdue': Red / Rose badge
- * - 'scheduled': Green / Emerald badge
- * - 'pending': Orange / Amber badge
- * - 'completed': Green / Subtle badge
+ * - 'redefense': destructive badge
+ * - 'overdue': destructive badge
+ * - 'scheduled': success badge
+ * - 'pending': warning badge
+ * - 'completed': success badge
  */
 export function resolveDefenseScheduleState(schedule) {
   if (!schedule) return null;
@@ -53,8 +53,7 @@ export function resolveDefenseScheduleState(schedule) {
       type: 'redefense',
       label: formatted ? `Redefense: ${formatted}` : 'Redefense Required',
       dateText: formatted,
-      colorClass:
-        'border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/15',
+      badgeVariant: 'destructive',
       icon: RotateCcw,
       tooltip: `Redefense Required${schedule.venue ? ` • Venue: ${schedule.venue}` : ''}${
         schedule.time ? ` • ${schedule.time}` : ''
@@ -85,8 +84,7 @@ export function resolveDefenseScheduleState(schedule) {
       type: 'overdue',
       label: formatted ? `Overdue: ${formatted}` : 'Schedule Overdue',
       dateText: formatted,
-      colorClass:
-        'border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/15',
+      badgeVariant: 'destructive',
       icon: AlertTriangle,
       tooltip: `Defense Hearing Overdue${formatted ? ` (Scheduled ${formatted})` : ''}`,
     };
@@ -99,7 +97,7 @@ export function resolveDefenseScheduleState(schedule) {
       type: 'completed',
       label: formatted ? `Defense Concluded: ${formatted}` : 'Defense Hearing Concluded',
       dateText: formatted,
-      colorClass: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+      badgeVariant: 'success',
       icon: CheckCircle2,
       tooltip: 'Oral defense hearing has concluded and consensus verdict recorded.',
     };
@@ -112,8 +110,7 @@ export function resolveDefenseScheduleState(schedule) {
       type: 'scheduled',
       label: formatted ? `Scheduled: ${formatted}` : 'Defense Scheduled',
       dateText: formatted,
-      colorClass:
-        'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15',
+      badgeVariant: 'success',
       icon: Calendar,
       tooltip: `Hearing Confirmed: ${formatted || 'Date set'}${
         schedule.time ? ` at ${schedule.time}` : ''
@@ -130,8 +127,7 @@ export function resolveDefenseScheduleState(schedule) {
       type: 'pending',
       label: formatted ? `Pending: ${formatted}` : 'Pending Schedule',
       dateText: formatted,
-      colorClass:
-        'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/15',
+      badgeVariant: 'warning',
       icon: Clock,
       tooltip: 'Defense schedule is pending instructor confirmation.',
     };
@@ -161,11 +157,10 @@ export default function DefenseScheduleBadge({
 
   return (
     <Badge
-      variant="outline"
+      variant={state.badgeVariant}
       title={state.tooltip}
       className={cn(
         'inline-flex items-center gap-1.5 font-medium transition-colors cursor-default text-xs px-2.5 py-0.5',
-        state.colorClass,
         className,
       )}
     >

@@ -9,9 +9,11 @@ import { prefetchRoute } from '@/lib/routePrefetch';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import {
-  Loader2,
   Plus,
   Users,
   ClipboardCheck,
@@ -54,10 +56,9 @@ function getQueueBadgeColor(createdAt) {
   if (!createdAt) return 'text-muted-foreground bg-muted/40';
   const diffMs = Date.now() - new Date(createdAt).getTime();
   const days = diffMs / (1000 * 60 * 60 * 24);
-  if (days < 2)
-    return 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
-  if (days < 5) return 'text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30';
-  return 'text-rose-700 dark:text-rose-400 bg-rose-500/10 border-rose-500/30';
+  if (days < 2) return 'text-success-foreground bg-success/10 border-success/30';
+  if (days < 5) return 'text-warning-foreground bg-warning/10 border-warning/30';
+  return 'text-destructive bg-destructive/10 border-destructive/30';
 }
 
 function isArchivedRecord(item) {
@@ -81,11 +82,9 @@ function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
   const tones = {
     default: 'bg-card text-foreground border-border/60 hover:border-border',
     accent: 'bg-primary/5 text-primary border-primary/25 hover:border-primary/40',
-    warning:
-      'bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/25 hover:border-amber-500/40',
-    success:
-      'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 hover:border-emerald-500/40',
-    info: 'bg-sky-500/5 text-sky-700 dark:text-sky-400 border-sky-500/25 hover:border-sky-500/40',
+    warning: 'bg-warning/5 text-warning-foreground border-warning/25 hover:border-warning/40',
+    success: 'bg-success/5 text-success-foreground border-success/25 hover:border-success/40',
+    info: 'bg-info/5 text-info-foreground border-info/25 hover:border-info/40',
   };
 
   return (
@@ -96,9 +95,7 @@ function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <span className="text-xs font-medium text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/80 shadow-2xs">
           <Icon className="h-4 w-4" />
         </div>
@@ -201,7 +198,7 @@ function ProjectDetailedStatus({ project }) {
     return (
       <Badge
         variant="outline"
-        className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10"
+        className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-warning/40 text-warning-foreground bg-warning/10"
       >
         Review: {phaseLabel}
       </Badge>
@@ -210,10 +207,7 @@ function ProjectDetailedStatus({ project }) {
 
   if (projectStatus === PROJECT_STATUSES.PENDING_FOR_SUBMISSION) {
     return (
-      <Badge
-        variant="outline"
-        className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-sky-500/50 text-sky-600 bg-sky-500/5"
-      >
+      <Badge variant="info" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
         Pending: {phaseLabel}
       </Badge>
     );
@@ -223,7 +217,7 @@ function ProjectDetailedStatus({ project }) {
   return (
     <Badge
       variant="outline"
-      className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-emerald-500/50 text-emerald-600 bg-emerald-500/5"
+      className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-success/50 text-success-foreground bg-success/5"
     >
       {phaseLabel}
     </Badge>
@@ -302,17 +296,23 @@ export default function FacultyDashboard({ user }) {
 
   if (isLoading && !dashboardData) {
     return (
-      <div className="flex flex-col space-y-4 animate-pulse">
-        <div className="h-14 rounded-lg border bg-muted/30" />
-        <div className="h-12 rounded-lg border bg-muted/20" />
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label="Loading faculty dashboard"
+        className="flex flex-col space-y-4"
+      >
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-12 rounded-lg" />
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-16 rounded-lg border bg-muted/20" />
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-16 rounded-lg" />
           ))}
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 h-64 rounded-lg border bg-muted/20" />
-          <div className="h-64 rounded-lg border bg-muted/20" />
+          <Skeleton className="h-64 rounded-lg lg:col-span-2" />
+          <Skeleton className="h-64 rounded-lg" />
         </div>
       </div>
     );
@@ -330,24 +330,25 @@ export default function FacultyDashboard({ user }) {
             Review assigned teams, submissions, and committee work.
           </p>
         </div>
-        <div role="group" aria-label="Committee role" className="grid grid-cols-3 rounded-lg border border-border/60 bg-muted/30 p-1 gap-1 xl:shrink-0">
+        <div
+          role="group"
+          aria-label="Committee role"
+          className="grid grid-cols-3 rounded-lg border border-border/60 bg-muted/30 p-1 gap-1 xl:shrink-0"
+        >
           {FACULTY_VIEW_TABS.map((tab) => {
             const isActive = mode === tab.mode;
             return (
-              <button
+              <Button
                 key={tab.mode}
                 type="button"
+                variant={isActive ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => setMode(tab.mode)}
                 aria-pressed={isActive}
-                className={cn(
-                  'min-h-11 rounded-md px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-semibold transition-colors cursor-pointer',
-                  isActive
-                    ? 'bg-background shadow-xs text-foreground ring-1 ring-border/80'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+                className="min-h-11 px-2 py-2 text-xs font-semibold sm:px-3.5 sm:text-sm"
               >
                 {tab.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -358,15 +359,15 @@ export default function FacultyDashboard({ user }) {
         className={cn(
           'flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 shadow-xs transition-colors',
           isPeriodLocked
-            ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
-            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300',
+            ? 'border-destructive/40 bg-destructive/10 text-destructive'
+            : 'border-success/40 bg-success/10 text-success-foreground',
         )}
       >
         <div className="flex items-center gap-3">
           <div
             className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white shadow-2xs',
-              isPeriodLocked ? 'bg-rose-500' : 'bg-emerald-500',
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-primary-foreground shadow-2xs',
+              isPeriodLocked ? 'bg-destructive' : 'bg-success',
             )}
           >
             {isPeriodLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
@@ -463,16 +464,16 @@ export default function FacultyDashboard({ user }) {
                             : p.capstoneType || 'IT / Software'}
                         </span>
                         {p.chapterProgressSummary && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                          <Badge variant="success" className="gap-1 rounded-sm px-1.5 text-[10px]">
                             <CheckCircle2 className="h-3 w-3" />
                             {p.chapterProgressSummary}
-                          </span>
+                          </Badge>
                         )}
                         {p.pendingChapter && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                          <Badge variant="warning" className="gap-1 rounded-sm px-1.5 text-[10px]">
                             <Clock className="h-3 w-3" />
                             Ch. {p.pendingChapter} in review
-                          </span>
+                          </Badge>
                         )}
                         {p.githubUrl && (
                           <a
@@ -569,7 +570,7 @@ export default function FacultyDashboard({ user }) {
                       <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase bg-amber-500/10 border-amber-500/30 px-2 py-0.5"
+                          className="text-[10px] font-bold text-warning-foreground uppercase bg-warning/10 border-warning/30 px-2 py-0.5"
                         >
                           {r.status?.replace(/_/g, ' ') || 'Pending'}
                         </Badge>
@@ -643,19 +644,17 @@ export default function FacultyDashboard({ user }) {
                           <span className="font-bold text-foreground uppercase tracking-wider text-[10px]">
                             Chapter Progress
                           </span>
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                          <span className="font-semibold text-success-foreground">
                             {activeTeam.chapterProgressSummary ||
                               `${activeTeam.approvedChaptersCount || 0}/5 approved`}
                           </span>
                         </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                            style={{
-                              width: `${Math.round(((activeTeam.approvedChaptersCount || 0) / 5) * 100)}%`,
-                            }}
-                          />
-                        </div>
+                        <Progress
+                          value={Math.round(((activeTeam.approvedChaptersCount || 0) / 5) * 100)}
+                          aria-label="Approved chapter progress"
+                          className="h-1.5"
+                          indicatorClassName="bg-success transition-all duration-500"
+                        />
                         <div className="grid grid-cols-5 gap-1 pt-1">
                           {[1, 2, 3, 4, 5].map((ch) => {
                             const isApproved = ch <= (activeTeam.approvedChaptersCount || 0);
@@ -665,9 +664,9 @@ export default function FacultyDashboard({ user }) {
                                 key={ch}
                                 className={`text-center py-1 rounded text-[10px] font-bold border transition-all ${
                                   isApproved
-                                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                                    ? 'bg-success/15 border-success/30 text-success-foreground'
                                     : isPending
-                                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                                      ? 'bg-warning/15 border-warning/30 text-warning-foreground'
                                       : 'bg-muted/40 border-border/40 text-muted-foreground'
                                 }`}
                                 title={
@@ -748,7 +747,7 @@ export default function FacultyDashboard({ user }) {
                           {activeTeam.isLocked && (
                             <Badge
                               variant="outline"
-                              className="text-[9px] px-1 py-0 h-4 border-rose-500/30 text-rose-600 bg-rose-500/10"
+                              className="text-[9px] px-1 py-0 h-4 border-destructive/30 text-destructive bg-destructive/10"
                             >
                               Locked
                             </Badge>
@@ -905,17 +904,16 @@ export default function FacultyDashboard({ user }) {
                       Area: {topic.researchArea || 'General'}
                     </span>
                   </div>
-                  <button
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => selectTopicMutation.mutate(topic._id)}
                     disabled={selectTopicMutation.isPending}
-                    className="flex min-h-11 shrink-0 items-center justify-center rounded-md bg-primary/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20 disabled:opacity-50 cursor-pointer"
+                    className="min-h-11 shrink-0 px-3 py-2 text-[10px] font-bold uppercase tracking-wider"
                   >
-                    {selectTopicMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      'Select'
-                    )}
-                  </button>
+                    {selectTopicMutation.isPending ? <Spinner className="size-3" /> : 'Select'}
+                  </Button>
                 </div>
               )}
             />
@@ -988,32 +986,34 @@ export default function FacultyDashboard({ user }) {
                         {isEndorsed ? (
                           <Badge
                             variant="outline"
-                            className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-500/10 border-emerald-500/30"
+                            className="text-[10px] uppercase font-bold text-success-foreground bg-success/10 border-success/30"
                           >
                             Endorsed & Unlocked
                           </Badge>
                         ) : hasMinutes ? (
                           <Badge
                             variant="outline"
-                            className="text-[10px] uppercase font-bold text-sky-600 bg-sky-500/10 border-sky-500/30"
+                            className="text-[10px] uppercase font-bold text-info-foreground bg-info/10 border-info/30"
                           >
                             In Revision / Review
                           </Badge>
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-[10px] uppercase font-bold text-amber-600 bg-amber-500/10 border-amber-500/30"
+                            className="text-[10px] uppercase font-bold text-warning-foreground bg-warning/10 border-warning/30"
                           >
                             Needs Minutes Upload
                           </Badge>
                         )}
-                        <button
+                        <Button
+                          type="button"
+                          size="sm"
                           onClick={() => navigate(`/secretary-review?projectId=${project._id}`)}
-                          className="flex min-h-11 items-center gap-1 rounded-md bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer shadow-xs"
+                          className="min-h-11 gap-1 px-3 py-2 text-[11px] font-semibold"
                         >
                           Review Studio
                           <ArrowUpRight className="h-3 w-3" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -1067,13 +1067,14 @@ export default function FacultyDashboard({ user }) {
                   </div>
                 </div>
 
-                <button
+                <Button
+                  type="button"
                   onClick={() => navigate('/secretary-review')}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors cursor-pointer"
+                  className="w-full gap-2 text-xs font-bold"
                 >
                   <FileSignature className="h-4 w-4" />
                   Open Secretary Review Studio
-                </button>
+                </Button>
               </div>
             </div>
           </div>

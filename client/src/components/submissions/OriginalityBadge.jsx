@@ -1,4 +1,6 @@
+import PropTypes from 'prop-types';
 import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
 /**
@@ -29,7 +31,9 @@ export default function OriginalityBadge({ plagiarismResult, className }) {
   if (status === PLAGIARISM_STATUSES.QUEUED) {
     return (
       <Badge variant="info" className={className}>
-        Originality: Queued
+        <span role="status" aria-live="polite">
+          Originality: Queued
+        </span>
       </Badge>
     );
   }
@@ -37,8 +41,10 @@ export default function OriginalityBadge({ plagiarismResult, className }) {
   if (status === PLAGIARISM_STATUSES.PROCESSING) {
     return (
       <Badge variant="info" className={className}>
-        <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current" />
-        Checking…
+        <Spinner className="mr-1 size-3" />
+        <span role="status" aria-live="polite">
+          Checking…
+        </span>
       </Badge>
     );
   }
@@ -47,7 +53,7 @@ export default function OriginalityBadge({ plagiarismResult, className }) {
   if (status === PLAGIARISM_STATUSES.FAILED) {
     return (
       <Badge variant="destructive" className={className}>
-        Check Failed
+        <span role="status">Check Failed</span>
       </Badge>
     );
   }
@@ -60,7 +66,15 @@ export default function OriginalityBadge({ plagiarismResult, className }) {
 
   return (
     <Badge variant={variant} className={className}>
-      {scoreNum}% Original
+      <span role="status">{scoreNum}% Original</span>
     </Badge>
   );
 }
+
+OriginalityBadge.propTypes = {
+  plagiarismResult: PropTypes.shape({
+    status: PropTypes.string,
+    score: PropTypes.number,
+  }),
+  className: PropTypes.string,
+};

@@ -57,9 +57,9 @@ describe('InstructorTemplateConfigModal', () => {
       triggerBtn.click();
     });
 
-    expect(container.textContent).toContain('Manage Institutional Manuscript Template');
-    expect(container.textContent).toContain('Google Docs Copy Link');
-    expect(container.textContent).toContain('Direct File Upload (.DOCX)');
+    expect(document.body.textContent).toContain('Manage Institutional Manuscript Template');
+    expect(document.body.textContent).toContain('Google Docs Copy Link');
+    expect(document.body.textContent).toContain('Direct File Upload (.DOCX)');
 
     cleanup();
   });
@@ -75,7 +75,7 @@ describe('InstructorTemplateConfigModal', () => {
     });
 
     // Find the save button
-    const submitBtn = container.querySelector('button[type="submit"]');
+    const submitBtn = document.body.querySelector('button[type="submit"]');
     expect(submitBtn.textContent).toContain('Save & Cascade to All Approved Teams');
 
     act(() => {

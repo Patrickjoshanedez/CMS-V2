@@ -1,15 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  Users,
-  UserCheck,
-  Search,
-  AlertCircle,
-  CheckCircle2,
-  X,
-  Loader2,
-  AlertTriangle,
-  ExternalLink,
-} from 'lucide-react';
+import { Users, UserCheck, Search, AlertCircle, CheckCircle2, X, ExternalLink } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -19,9 +9,20 @@ import {
   CardFooter,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Avatar, AvatarFallback } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { useTeams, useAssignCommittee, teamKeys } from '@/hooks/useTeams';
 import { useUsers } from '@/hooks/useUsers';
@@ -78,6 +79,7 @@ export default function TeamCommitteeAssignmentsView() {
     isLoading: isTeamsLoading,
     isError: isTeamsError,
     error: teamsError,
+    refetch: refetchTeams,
   } = useTeams({
     academicYear: academicYear || undefined,
     sectionId: sectionId || undefined,
@@ -86,9 +88,7 @@ export default function TeamCommitteeAssignmentsView() {
   });
 
   const { data: facultyData, isLoading: isFacultyLoading } = useUsers({
-    role: [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY]
-      .filter(Boolean)
-      .join(','),
+    role: ROLES.FACULTY,
     isActive: true,
     page: 1,
     limit: 200,
@@ -96,16 +96,15 @@ export default function TeamCommitteeAssignmentsView() {
 
   const allTeams = useMemo(() => teamData?.teams || [], [teamData?.teams]);
 
-  // Filter faculty eligible for committee appointments
+  // Filter faculty eligible for committee appointments (Instructors strictly excluded)
   const eligibleFaculty = useMemo(() => {
     const list = facultyData?.users || [];
     return list.filter(
       (u) =>
-        u.role === ROLES.INSTRUCTOR ||
         u.role === ROLES.ADVISER ||
         u.role === ROLES.PANELIST ||
-        u.role === 'faculty' ||
-        u.role === ROLES.ADMIN,
+        u.role === ROLES.FACULTY ||
+        u.role === 'faculty',
     );
   }, [facultyData]);
 
@@ -311,110 +310,156 @@ export default function TeamCommitteeAssignmentsView() {
       {/* ============================================================ */}
       {/* 1. CONSOLIDATED FILTER & SEARCH TOOLBAR */}
       {/* ============================================================ */}
-      <div className="flex flex-col xl:flex-row items-start justify-between gap-3 rounded-lg border border-border/60 bg-card p-3 shadow-xs">
-        {/* Left Side: Search + Academic Year + Section */}
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
-          <div className="relative w-full min-w-0 xl:flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search team name, leader, or code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 min-h-11 text-base sm:text-sm bg-background/50 border-border/60"
-            />
+      <Card>
+        <CardContent className="flex flex-col items-start justify-between gap-3 p-3 pt-3 xl:flex-row">
+          {/* Left Side: Search + Academic Year + Section */}
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
+            <div className="relative w-full min-w-0 xl:flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search team name, leader, or code..."
+                aria-label="Search team name, leader, or code"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 min-h-11 text-base sm:text-sm bg-background/50 border-border/60"
+              />
+            </div>
+
+            <Select
+              value={academicYear}
+              onValueChange={(value) => {
+                setAcademicYear(value);
+                setSectionId('');
+              }}
+            >
+              <SelectTrigger
+                aria-label="Filter by academic year"
+                className="min-h-11 w-full min-w-[120px] text-xs sm:w-auto"
+              >
+                <SelectValue placeholder="All Academic Years" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    AY {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={sectionId} disabled={!academicYear} onValueChange={setSectionId}>
+              <SelectTrigger
+                aria-label="Filter by section"
+                className="min-h-11 w-full min-w-[120px] text-xs sm:w-auto"
+              >
+                <SelectValue placeholder="All Sections" />
+              </SelectTrigger>
+              <SelectContent>
+                {sections.map((sec) => (
+                  <SelectItem key={sec._id} value={sec._id}>
+                    {formatSectionWithCode(sec)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger
+                aria-label="Filter by committee status"
+                className="min-h-11 w-full min-w-[130px] text-xs sm:w-auto"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="needs-assignment">Needs Assignment</SelectItem>
+                <SelectItem value="assigned">Complete Committee</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <select
-            value={academicYear}
-            onChange={(e) => {
-              setAcademicYear(e.target.value);
-              setSectionId('');
-            }}
-            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px]"
-          >
-            <option value="">All Academic Years</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                AY {year}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={sectionId}
-            disabled={!academicYear}
-            onChange={(e) => setSectionId(e.target.value)}
-            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[120px] disabled:opacity-50"
-          >
-            <option value="">All Sections</option>
-            {sections.map((sec) => (
-              <option key={sec._id} value={sec._id}>
-                {formatSectionWithCode(sec)}
-              </option>
-            ))}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[130px]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="needs-assignment">Needs Assignment</option>
-            <option value="assigned">Complete Committee</option>
-          </select>
-        </div>
-
-        {/* Right Side: Quick Team Select */}
-        <div className="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-2 lg:pt-0">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">Jump to:</span>
-          <select
-            value={selectedTeamId}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="min-h-11 max-w-full rounded-md border border-border/60 bg-background px-3 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[220px] max-w-xs"
-          >
-            {filteredTeams.length === 0 ? (
-              <option value="">No teams available</option>
-            ) : (
-              filteredTeams.map((team) => {
-                const memberCount = (team.members || []).length;
-                return (
-                  <option key={team._id} value={team._id}>
-                    {team.name || 'Untitled Team'} ({memberCount}/4 Members)
-                  </option>
-                );
-              })
-            )}
-          </select>
-        </div>
-      </div>
+          {/* Right Side: Quick Team Select */}
+          <div className="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-2 lg:pt-0">
+            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              Jump to:
+            </span>
+            <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+              <SelectTrigger
+                aria-label="Jump to team"
+                className="min-h-11 w-full min-w-0 max-w-xs text-xs font-medium sm:w-72"
+              >
+                <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                  <SelectValue placeholder="No teams available" />
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                {filteredTeams.map((team) => {
+                  const memberCount = (team.members || []).length;
+                  return (
+                    <SelectItem key={team._id} value={team._id}>
+                      {team.name || 'Untitled Team'} ({memberCount}/4 Members)
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Loading & Error States */}
       {isTeamsLoading && (
-        <div className="flex items-center justify-center p-12 text-xs text-muted-foreground gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          Loading teams and faculty rosters...
+        <div
+          role="status"
+          aria-label="Loading committee assignments"
+          className="grid grid-cols-1 gap-6 xl:grid-cols-3"
+        >
+          <span className="sr-only">Loading team roster and committee assignments.</span>
+          <Card className="xl:col-span-1">
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+          <Card className="xl:col-span-2">
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-4 w-3/4" />
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 p-6 pt-0 min-[1500px]:grid-cols-2">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-24 w-full min-[1500px]:col-span-2" />
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {isTeamsError && (
         <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
+          <AlertTitle>Could not load teams</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             {teamsError?.response?.data?.error?.message || 'Failed to load teams.'}
+            <Button type="button" variant="outline" size="sm" onClick={() => refetchTeams?.()}>
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       )}
 
       {!isTeamsLoading && !isTeamsError && filteredTeams.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border/80 p-12 text-center space-y-2">
-          <Users className="mx-auto h-8 w-8 text-muted-foreground opacity-50" />
-          <h4 className="text-sm font-semibold text-foreground">No Teams Found</h4>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            No student teams match your active search and filter options. Adjust the filters above.
-          </p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No Teams Found"
+          description="No student teams match your active search and filter options. Adjust the filters above."
+          compact
+        />
       )}
 
       {/* ============================================================ */}
@@ -429,8 +474,8 @@ export default function TeamCommitteeAssignmentsView() {
             <Card className="border-border/60 shadow-xs">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base font-bold">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="min-w-0 break-words text-base font-bold [overflow-wrap:anywhere]">
                       {selectedTeam.name || 'Untitled Team'}
                     </CardTitle>
                     <CardDescription className="text-xs mt-0.5">
@@ -439,17 +484,11 @@ export default function TeamCommitteeAssignmentsView() {
                     </CardDescription>
                   </div>
                   {hasApprovedProject ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px] shrink-0 gap-1"
-                    >
+                    <Badge variant="success" className="shrink-0 gap-1 text-[10px]">
                       <CheckCircle2 className="h-2.5 w-2.5" /> Project Approved
                     </Badge>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px] shrink-0 gap-1"
-                    >
+                    <Badge variant="warning" className="shrink-0 gap-1 text-[10px]">
                       <AlertCircle className="h-2.5 w-2.5" /> No Approved Project
                     </Badge>
                   )}
@@ -480,9 +519,14 @@ export default function TeamCommitteeAssignmentsView() {
                     {selectedTeam.leaderId && (
                       <div className="flex items-center justify-between p-2.5 rounded-md border border-border/50 bg-background/60">
                         <div className="flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                            {getInitials(formatFullName(selectedTeam.leaderId))}
-                          </div>
+                          <Avatar
+                            aria-label={`${formatFullName(selectedTeam.leaderId)} initials`}
+                            className="size-8"
+                          >
+                            <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                              {getInitials(formatFullName(selectedTeam.leaderId))}
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="min-w-0">
                             <p className="font-medium text-foreground text-xs leading-tight truncate">
                               {formatFullName(selectedTeam.leaderId)}
@@ -511,9 +555,14 @@ export default function TeamCommitteeAssignmentsView() {
                           className="flex items-center justify-between p-2.5 rounded-md border border-border/50 bg-background/60"
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-bold shrink-0">
-                              {getInitials(formatFullName(member))}
-                            </div>
+                            <Avatar
+                              aria-label={`${formatFullName(member)} initials`}
+                              className="size-8"
+                            >
+                              <AvatarFallback className="text-xs font-bold">
+                                {getInitials(formatFullName(member))}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="min-w-0">
                               <p className="font-medium text-foreground text-xs leading-tight truncate">
                                 {formatFullName(member)}
@@ -537,14 +586,17 @@ export default function TeamCommitteeAssignmentsView() {
                 {/* Quick Link to Project Details if Linked */}
                 {selectedProjectId && (
                   <div className="pt-2">
-                    <a
-                      href={`/projects/${selectedProjectId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+                    <Button
+                      asChild
+                      variant="link"
+                      size="sm"
+                      className="h-auto gap-1.5 px-0 text-xs"
                     >
-                      <ExternalLink className="h-3 w-3" /> View Linked Project Workspace
-                    </a>
+                      <a href={`/projects/${selectedProjectId}`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-3" aria-hidden="true" />
+                        View Linked Project Workspace
+                      </a>
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -557,12 +609,11 @@ export default function TeamCommitteeAssignmentsView() {
           <div className="min-w-0 space-y-6 xl:col-span-2">
             {/* Prerequisite Gate Alert */}
             {!hasApprovedProject && (
-              <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+              <Alert variant="warning">
                 <AlertTitle className="text-xs font-bold uppercase tracking-wider">
                   Assignment Locked
                 </AlertTitle>
-                <AlertDescription className="text-xs mt-1 text-amber-700 dark:text-amber-300">
+                <AlertDescription className="mt-1 text-xs">
                   This team must submit an initial title proposal and receive course instructor
                   endorsement before official faculty committees can be assigned.
                 </AlertDescription>
@@ -613,6 +664,7 @@ export default function TeamCommitteeAssignmentsView() {
                       workloadMap={facultyWorkload}
                       conflictMap={adviserConflictMap}
                       placeholder="-- Search & assign adviser --"
+                      isLoading={isFacultyLoading}
                       disabled={isFacultyLoading || !hasApprovedProject}
                     />
 
@@ -620,9 +672,14 @@ export default function TeamCommitteeAssignmentsView() {
                     {assignedAdviser && (
                       <div className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-background mt-1 shadow-2xs">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/70">
-                            {getInitials(formatFullName(assignedAdviser))}
-                          </div>
+                          <Avatar
+                            aria-label={`${formatFullName(assignedAdviser)} initials`}
+                            className="size-7 border border-border/70"
+                          >
+                            <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+                              {getInitials(formatFullName(assignedAdviser))}
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-foreground truncate">
                               {formatFullName(assignedAdviser)}
@@ -635,11 +692,12 @@ export default function TeamCommitteeAssignmentsView() {
                           </div>
                         </div>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedAdviserId('')}
                           className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                          title="Clear Adviser"
+                          aria-label="Clear assigned adviser"
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -670,6 +728,7 @@ export default function TeamCommitteeAssignmentsView() {
                       workloadMap={facultyWorkload}
                       conflictMap={secretaryConflictMap}
                       placeholder="-- Search & assign secretary --"
+                      isLoading={isFacultyLoading}
                       disabled={isFacultyLoading || !hasApprovedProject}
                     />
 
@@ -677,9 +736,14 @@ export default function TeamCommitteeAssignmentsView() {
                     {assignedSecretary && (
                       <div className="flex items-center justify-between p-2 rounded-lg border border-border/60 bg-background mt-1 shadow-2xs">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/70">
-                            {getInitials(formatFullName(assignedSecretary))}
-                          </div>
+                          <Avatar
+                            aria-label={`${formatFullName(assignedSecretary)} initials`}
+                            className="size-7 border border-border/70"
+                          >
+                            <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+                              {getInitials(formatFullName(assignedSecretary))}
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-foreground truncate">
                               {formatFullName(assignedSecretary)}
@@ -694,11 +758,12 @@ export default function TeamCommitteeAssignmentsView() {
                           </div>
                         </div>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedSecretaryId('')}
                           className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                          title="Clear Secretary"
+                          aria-label="Clear assigned secretary"
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -739,6 +804,7 @@ export default function TeamCommitteeAssignmentsView() {
                       workloadMap={facultyWorkload}
                       placeholder="+ Add faculty member as panelist..."
                       emptyLabel={null}
+                      isLoading={isFacultyLoading}
                       disabled={isFacultyLoading || !hasApprovedProject}
                     />
                   )}
@@ -751,14 +817,16 @@ export default function TeamCommitteeAssignmentsView() {
                       const workload = facultyWorkload[panId] || 0;
 
                       return (
-                        <div
+                        <Card
                           key={panId}
-                          className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 bg-card text-xs shadow-2xs"
+                          className="flex items-center justify-between p-2.5 text-xs shadow-none"
                         >
                           <div className="flex items-center gap-2 min-w-0 pr-1">
-                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/60">
-                              {getInitials(panName)}
-                            </div>
+                            <Avatar aria-label={`${panName} initials`} className="size-7">
+                              <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+                                {getInitials(panName)}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="space-y-0.5 min-w-0">
                               <p className="font-semibold text-foreground leading-none truncate">
                                 {panName}
@@ -777,22 +845,27 @@ export default function TeamCommitteeAssignmentsView() {
                             </div>
                           </div>
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => handleRemovePanelist(panId)}
                             className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                            title="Remove Panelist"
+                            aria-label={`Remove panelist ${panName}`}
                           >
                             <X className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
+                        </Card>
                       );
                     })}
 
                     {selectedPanelistIds.length === 0 && (
-                      <div className="col-span-3 text-center py-6 border border-dashed rounded-md text-xs text-muted-foreground">
-                        No panelists appointed yet. Use the dropdown above to add members.
-                      </div>
+                      <EmptyState
+                        className="col-span-3"
+                        icon={Users}
+                        title="No panelists appointed yet"
+                        description="Use the selector above to add faculty members."
+                        compact
+                      />
                     )}
                   </div>
                 </div>
@@ -806,10 +879,10 @@ export default function TeamCommitteeAssignmentsView() {
                   size="sm"
                   onClick={handleSaveAssignments}
                   disabled={!hasApprovedProject || assignCommitteeMutation.isPending}
-                  className="gap-1.5 text-xs bg-primary hover:bg-primary/90"
+                  className="gap-1.5 text-xs"
                 >
                   {assignCommitteeMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="size-3.5" />
                   ) : (
                     <UserCheck className="h-3.5 w-3.5" />
                   )}

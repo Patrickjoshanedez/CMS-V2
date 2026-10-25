@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { CheckCircle2, Clock, Award, FileText, Layers, Activity, Archive } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/Card';
 
 const KPICards = ({ kpis }) => {
   const totals = kpis?.totals || {};
@@ -13,7 +14,7 @@ const KPICards = ({ kpis }) => {
       value: `${performance.completionRatePercent || 0}%`,
       hint: 'Archived projects over total',
       icon: CheckCircle2,
-      accent: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+      accent: 'text-success bg-success/10 border-success/20',
     },
     {
       label: 'Avg Review Turnaround',
@@ -27,14 +28,14 @@ const KPICards = ({ kpis }) => {
       value: performance.avgEvaluationScore || 0,
       hint: 'Across all active evaluations',
       icon: Award,
-      accent: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+      accent: 'text-warning bg-warning/10 border-warning/20',
     },
     {
       label: 'Pending Submissions',
       value: pipeline.pendingSubmissions || 0,
       hint: `${pipeline.underReview || 0} currently under review`,
       icon: FileText,
-      accent: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20',
+      accent: 'text-info-foreground bg-info/10 border-info/20',
     },
   ];
 
@@ -45,11 +46,12 @@ const KPICards = ({ kpis }) => {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div
+            <Card
               key={card.label}
-              className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-4 shadow-xs transition-colors hover:border-border"
+              className="flex flex-col justify-between transition-colors hover:border-border"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+              <CardContent className="flex flex-col justify-between gap-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   {card.label}
                 </span>
@@ -58,21 +60,23 @@ const KPICards = ({ kpis }) => {
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-              </div>
-              <div>
+                </div>
+                <div>
                 <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
                   {card.value}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground font-normal">{card.hint}</p>
-              </div>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
       {/* Project Volume Breakdown - Balanced 3-Column Equal Grid */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 items-stretch">
-        <div className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-4 shadow-xs transition-colors hover:border-border">
+        <Card className="flex flex-col justify-between transition-colors hover:border-border">
+          <CardContent className="flex flex-col justify-between gap-2 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
             <span className="text-xs font-medium text-muted-foreground">
               Total Projects
@@ -87,9 +91,11 @@ const KPICards = ({ kpis }) => {
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Enrolled capstone teams</p>
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="flex flex-col justify-between rounded-xl border border-primary/25 bg-primary/5 p-4 shadow-xs transition-colors hover:border-primary/40">
+        <Card className="flex flex-col justify-between border-primary/25 bg-primary/5 transition-colors hover:border-primary/40">
+          <CardContent className="flex flex-col justify-between gap-2 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
             <span className="text-xs font-medium text-primary">
               Active Pipeline
@@ -106,24 +112,27 @@ const KPICards = ({ kpis }) => {
               In manuscript &amp; development
             </p>
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="flex flex-col justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 shadow-xs transition-colors hover:border-emerald-500/40">
+        <Card className="flex flex-col justify-between border-success/25 bg-success/5 transition-colors hover:border-success/40">
+          <CardContent className="flex flex-col justify-between gap-2 p-4">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-medium text-success">
               Completed
             </span>
-            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
               <Archive className="h-3.5 w-3.5" />
             </div>
           </div>
           <div>
-            <p className="font-mono text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">
+            <p className="font-mono text-2xl font-bold tracking-tight text-success tabular-nums">
               {totals.completedProjects || 0}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Final defense certified</p>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -4,9 +4,14 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MilestoneDeadlinesModal from './MilestoneDeadlinesModal';
 import api from '@/services/api';
-import { CAPSTONE_STAGES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.ResizeObserver ??= class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+Element.prototype.scrollIntoView ??= vi.fn();
 
 vi.mock('@/hooks/useAcademics', () => ({
   useAcademicYears: () => ({ data: ['2026-2027', '2025-2026'] }),
@@ -111,17 +116,18 @@ describe('MilestoneDeadlinesModal', () => {
       renderComponent();
     });
 
-    expect(container.textContent).toContain('Set Milestone Submission Deadlines');
-    expect(container.textContent).toContain('Schedule New Milestone Cutoff');
+    expect(document.body.textContent).toContain('Set Milestone Submission Deadlines');
+    expect(document.body.textContent).toContain('Schedule New Milestone Cutoff');
 
-    // Stage dropdown verification
-    const stageSelects = Array.from(container.querySelectorAll('select'));
-    const stageSelect = stageSelects.find((s) =>
-      Array.from(s.options).some((o) => o.value === CAPSTONE_STAGES.CAPSTONE_1),
-    );
+    const stageSelect = document.body.querySelector('#deadline-stage');
     expect(stageSelect).toBeTruthy();
+    await act(async () => {
+      stageSelect.click();
+    });
 
-    const stageOptions = Array.from(stageSelect.options).map((o) => o.text);
+    const stageOptions = Array.from(document.body.querySelectorAll('[role="option"]')).map(
+      (option) => option.textContent,
+    );
     expect(stageOptions).toContain('Phase 1 — Title Proposals & Committee');
     expect(stageOptions).toContain('Phase 2 — Capstone 1 (Chapters 1–3 & Proposal Defense)');
     expect(stageOptions).toContain('Phase 3 — Capstone 2 (System Development & Prototype)');
@@ -134,23 +140,27 @@ describe('MilestoneDeadlinesModal', () => {
       renderComponent();
     });
 
-    expect(container.textContent).toContain('Batch-Wide');
-    expect(container.textContent).toContain('Section Only');
+    expect(document.body.textContent).toContain('Batch-Wide');
+    expect(document.body.textContent).toContain('Section Only');
 
-    // Click "Section Only" button
-    const sectionBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Section Only'),
-    );
-    expect(sectionBtn).toBeTruthy();
+    const sectionRadio = document.body.querySelector('#deadline-target-section');
+    expect(sectionRadio).toBeTruthy();
 
     await act(async () => {
-      sectionBtn.click();
+      sectionRadio.click();
     });
 
     // Now Section picker should appear
-    expect(container.textContent).toContain('Target Section');
-    expect(container.textContent).toContain('BSIT-4A');
-    expect(container.textContent).toContain('BSIT-4B');
+    expect(document.body.textContent).toContain('Specific Section');
+    expect(document.body.querySelector('#deadline-section')).toBeTruthy();
+    await act(async () => {
+      document.body.querySelector('#deadline-section').click();
+    });
+    const sectionOptions = Array.from(document.body.querySelectorAll('[role="option"]')).map(
+      (option) => option.textContent,
+    );
+    expect(sectionOptions).toContain('BSIT-4A (IT)');
+    expect(sectionOptions).toContain('BSIT-4B (IT)');
   });
 
   it('submits milestone deadline successfully via POST /settings/deadlines/milestone', async () => {
@@ -162,7 +172,7 @@ describe('MilestoneDeadlinesModal', () => {
     });
 
     // Set deadline date input
-    const dateInput = container.querySelector('input[type="date"]');
+    const dateInput = document.body.querySelector('input[type="date"]');
     expect(dateInput).toBeTruthy();
 
     await act(async () => {
@@ -176,7 +186,7 @@ describe('MilestoneDeadlinesModal', () => {
     });
 
     // Click submit button
-    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+    const submitBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Set Deadline'),
     );
     expect(submitBtn).toBeTruthy();
@@ -193,30 +203,115 @@ describe('MilestoneDeadlinesModal', () => {
         stage: 'proposal',
         deliverable: 'title_proposal',
         deadlineDate: '2026-10-20',
+        sectionId: null,
+        allowLateSubmission: true,
+        isMandatory: true,
       }),
     );
     expect(mockToastSuccess).toHaveBeenCalledWith('Milestone deadline scheduled successfully.');
     expect(mockOnSaved).toHaveBeenCalled();
   });
 
-  it('deletes a milestone deadline when delete button is confirmed', async () => {
+  it('requires a section and preserves section targeting and late-submission choices', async () => {
+    api.post.mockResolvedValue({ data: { success: true } });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    const dateInput = document.body.querySelector('input[type="date"]');
+    await act(async () => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      nativeSetter.call(dateInput, '2026-10-20');
+      dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+      dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      document.body.querySelector('#deadline-target-section').click();
+    });
+    const submitButton = document.body.querySelector('button[type="submit"]');
+    await act(async () => {
+      submitButton.click();
+    });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith('Please complete all required fields.');
+
+    await act(async () => {
+      document.body.querySelector('#deadline-section').click();
+    });
+    const sectionOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent.includes('BSIT-4A'),
+    );
+    await act(async () => {
+      sectionOption.click();
+      document.body.querySelector('#allow-late').click();
+    });
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/settings/deadlines/milestone',
+      expect.objectContaining({
+        targetType: 'section',
+        sectionId: 'sec-1',
+        allowLateSubmission: false,
+        isMandatory: true,
+      }),
+    );
+  });
+
+  it('requires confirmation before deleting a milestone deadline', async () => {
     api.delete.mockResolvedValueOnce({ data: { success: true } });
     const mockOnSaved = vi.fn();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     await act(async () => {
       renderComponent({ onSaved: mockOnSaved });
     });
 
     // Active deadlines list should display Chapter 1 Final Draft
-    expect(container.textContent).toContain('Chapter 1 Final Draft');
-    expect(container.textContent).toContain('Active Milestones (1)');
+    expect(document.body.textContent).toContain('Chapter 1 Final Draft');
+    expect(document.body.textContent).toContain('Active Milestones (1)');
 
-    const deleteBtn = container.querySelector('button[title="Delete deadline"]');
+    const deleteBtn = document.body.querySelector(
+      'button[aria-label="Delete deadline: Chapter 1 Final Draft"]',
+    );
     expect(deleteBtn).toBeTruthy();
 
     await act(async () => {
       deleteBtn.click();
+    });
+
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeTruthy();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    const alertDialog = document.body.querySelector('[role="alertdialog"]');
+    const cancelButton = Array.from(alertDialog.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Cancel'),
+    );
+    expect(cancelButton).toBeTruthy();
+    await act(async () => {
+      cancelButton.click();
+    });
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeFalsy();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deleteBtn.click();
+    });
+
+    const confirmButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Remove deadline'),
+    );
+    expect(confirmButton).toBeTruthy();
+
+    await act(async () => {
+      confirmButton.click();
     });
 
     expect(api.delete).toHaveBeenCalledWith('/settings/deadlines/milestone/dl-1');

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, Loader2, Eye } from 'lucide-react';
+import { Upload, Download, FileText, Eye } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadCertificate, useCertificateUrl } from '@/hooks/useProjects';
 import { ROLES } from '@cms/shared';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Skeleton } from '@/components/ui/Skeleton';
+import Spinner from '@/components/ui/Spinner';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 
 export default function CertificatePage() {
@@ -59,8 +61,22 @@ export default function CertificatePage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="mx-auto max-w-2xl space-y-6 px-4 py-8" role="status" aria-live="polite">
+          <span className="sr-only">Loading certificate</span>
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <Card className="border-border/60">
+            <CardHeader className="space-y-3">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-full max-w-md" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-10 w-32" />
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     );
@@ -71,8 +87,16 @@ export default function CertificatePage() {
       <DashboardLayout>
         <div className="max-w-2xl mx-auto py-8 px-4">
           <Alert variant="destructive">
-            <AlertDescription>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
               {error?.message || 'Failed to load certificate information.'}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                className="min-h-[44px]"
+              >
+                Retry
+              </Button>
             </AlertDescription>
           </Alert>
         </div>
@@ -82,7 +106,7 @@ export default function CertificatePage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
+      <div data-testid="certificate-page-content" className="max-w-2xl mx-auto py-8 px-4 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Completion Certificate</h1>
           <p className="text-muted-foreground mt-1">
@@ -90,7 +114,7 @@ export default function CertificatePage() {
           </p>
         </div>
 
-        <Card className="bg-card border">
+        <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="text-lg">Certificate</CardTitle>
             <CardDescription>{certificateDescription}</CardDescription>
@@ -122,12 +146,13 @@ export default function CertificatePage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-[44px]"
                     onClick={() => setPreviewOpen(true)}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     Preview
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" className="min-h-[44px]" asChild>
                     <a href={certificateUrl} target="_blank" rel="noopener noreferrer">
                       <Download className="h-4 w-4 mr-2" />
                       Download
@@ -148,7 +173,8 @@ export default function CertificatePage() {
             {isInstructor && isSealedCertificate && (
               <Alert>
                 <AlertDescription>
-                  This certificate was generated after archival and is sealed. Its QR code opens the public verification record.
+                  This certificate was generated after archival and is sealed. Its QR code opens the
+                  public verification record.
                 </AlertDescription>
               </Alert>
             )}
@@ -170,6 +196,7 @@ export default function CertificatePage() {
                 <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
+                    className="min-h-[44px]"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadMutation.isPending}
                   >
@@ -184,9 +211,13 @@ export default function CertificatePage() {
                   Accepted format: PDF only (max 10MB)
                 </p>
 
-                <Button onClick={handleUpload} disabled={!selectedFile || uploadMutation.isPending}>
+                <Button
+                  className="min-h-[44px]"
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploadMutation.isPending}
+                >
                   {uploadMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Spinner className="mr-2 h-4 w-4" />
                   ) : (
                     <Upload className="h-4 w-4 mr-2" />
                   )}

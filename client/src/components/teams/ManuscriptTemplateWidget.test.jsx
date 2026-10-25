@@ -1,6 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { ManuscriptTemplateWidget } from './ManuscriptTemplateWidget';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,6 +20,8 @@ describe('ManuscriptTemplateWidget', () => {
     mockUseTeamManuscriptTemplate.mockReturnValue({
       data: null,
       isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -27,7 +30,11 @@ describe('ManuscriptTemplateWidget', () => {
 
   const renderComponent = (props = {}) => {
     act(() => {
-      root.render(<ManuscriptTemplateWidget {...props} />);
+      root.render(
+        <MemoryRouter>
+          <ManuscriptTemplateWidget {...props} />
+        </MemoryRouter>,
+      );
     });
   };
 
@@ -148,6 +155,62 @@ describe('ManuscriptTemplateWidget', () => {
     expect(container.textContent).toContain('AY 2025–2026 v3.0');
     expect(container.textContent).toContain('Oct 15, 2026');
     expect(container.textContent).toContain('Use Google Docs Copy');
+
+    cleanup();
+  });
+
+  it('does not expose a fabricated template action when approval has no configured template', () => {
+    renderComponent({ isTitleApproved: true, templateData: null });
+
+    expect(container.textContent).toContain('Manuscript template unavailable');
+    expect(container.textContent).not.toContain('Use Google Docs Copy');
+    expect(container.textContent).not.toContain('Download .DOCX Template');
+    expect(container.querySelector('button')).toBeNull();
+
+    cleanup();
+  });
+
+  it('does not expose a template action when the configured URL is empty', () => {
+    renderComponent({
+      isTitleApproved: true,
+      templateData: { title: 'Institutional template', type: 'google_docs', url: '  ' },
+    });
+
+    expect(container.textContent).toContain('Manuscript template unavailable');
+    expect(container.querySelector('button')).toBeNull();
+
+    cleanup();
+  });
+
+  it('uses the shared skeleton while the server checks the team gate', () => {
+    mockUseTeamManuscriptTemplate.mockReturnValue({ data: null, isLoading: true, isError: false });
+
+    renderComponent({ teamId: 'team-456' });
+
+    expect(container.querySelector('[role="status"]')?.getAttribute('aria-label')).toBe(
+      'Loading manuscript template',
+    );
+    expect(container.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(0);
+
+    cleanup();
+  });
+
+  it('shows a retry state when the server gate request fails', () => {
+    const refetch = vi.fn();
+    mockUseTeamManuscriptTemplate.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+
+    renderComponent({ teamId: 'team-456' });
+
+    expect(container.textContent).toContain('Unable to load the manuscript template');
+    act(() => {
+      container.querySelector('button').click();
+    });
+    expect(refetch).toHaveBeenCalledOnce();
 
     cleanup();
   });

@@ -57,37 +57,40 @@ export default function FullscreenToolbar({
   return (
     <header
       className={cn(
-        'relative z-20 h-14 shrink-0 px-3 sm:px-6 bg-black/60 backdrop-blur-md border-b border-white/10 flex items-center justify-between gap-2 sm:gap-3 select-none text-white',
+        'relative z-20 flex h-14 shrink-0 select-none items-center justify-between gap-2 border-b border-border/60 bg-background px-3 text-foreground shadow-sm sm:gap-3 sm:px-6',
         className,
       )}
     >
       {/* ── Left: Presentation Identity & Title ── */}
-      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
-        <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 shadow-sm">
-          <Presentation className="h-4 w-4" />
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-warning/20 bg-warning/10 text-warning shadow-sm">
+          <Presentation aria-hidden="true" className="h-4 w-4" />
         </div>
 
         <div className="min-w-0 flex flex-col justify-center overflow-hidden">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] tracking-wider uppercase font-semibold text-amber-400/90 whitespace-nowrap">
+            <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-warning">
               Proposal Defense Rehearsal
             </span>
             {teamName && (
               <Badge
                 variant="outline"
-                className="hidden lg:inline-flex bg-white/5 text-white/80 border-white/10 text-[10px] py-0 px-1.5 h-4"
+                className="hidden h-4 border-border/60 bg-muted/40 px-1.5 py-0 text-[10px] text-foreground/80 lg:inline-flex"
               >
                 {teamName}
               </Badge>
             )}
             {isEditMode && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.2 rounded animate-pulse">
-                <Pencil className="h-2.5 w-2.5" /> Edit Mode
-              </span>
+              <Badge
+                variant="success"
+                className="hidden animate-pulse items-center gap-1 border-success/30 px-1.5 py-0.5 text-[10px] font-bold sm:inline-flex"
+              >
+                <Pencil aria-hidden="true" className="h-2.5 w-2.5" /> Edit Mode
+              </Badge>
             )}
           </div>
           <h3
-            className="text-xs sm:text-sm font-bold text-white truncate max-w-[120px] sm:max-w-xs md:max-w-md lg:max-w-xl"
+            className="max-w-[120px] truncate text-xs font-bold text-foreground sm:max-w-xs sm:text-sm md:max-w-md lg:max-w-xl"
             title={title}
           >
             {title}
@@ -96,21 +99,24 @@ export default function FullscreenToolbar({
       </div>
 
       {/* ── Right: Slide Progress, Text Size Adjuster, Edit Mode & Controls ── */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {/* Slide Counter Badge */}
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] sm:text-xs font-mono font-medium text-white/90 shrink-0">
-          <span className="text-amber-400 font-bold">{slideNumStr}</span>
-          <span className="text-white/40">/</span>
+        <Badge
+          variant="outline"
+          className="shrink-0 gap-1 rounded-full border-border/60 bg-muted/40 px-2 py-1 font-mono text-[11px] font-medium text-foreground/90 sm:gap-1.5 sm:px-2.5 sm:text-xs"
+        >
+          <span className="font-bold text-warning">{slideNumStr}</span>
+          <span className="text-muted-foreground">/</span>
           <span>{totalStr}</span>
-        </div>
+        </Badge>
 
         {/* ── 1. Text Size Adjuster Control (Per-Slide) ── */}
         <div
-          className="flex items-center rounded-lg bg-white/5 border border-white/15 p-0.5 text-xs text-white/90 shadow-xs"
+          className="flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs text-foreground shadow-xs"
           title={`Adjust text size for Slide ${slideNumStr}`}
         >
-          <div className="hidden sm:flex items-center gap-1 px-1.5 text-white/60">
-            <Type className="h-3.5 w-3.5 text-amber-400" />
+          <div className="hidden items-center gap-1 px-1.5 text-muted-foreground sm:flex">
+            <Type aria-hidden="true" className="h-3.5 w-3.5 text-warning" />
           </div>
 
           <Button
@@ -119,21 +125,24 @@ export default function FullscreenToolbar({
             size="sm"
             onClick={onDecreaseFontSize}
             disabled={currentFontSize <= 65}
-            className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30"
+            className="h-7 w-7 p-0 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
             title="Decrease text size (A-)"
             aria-label="Decrease text size"
           >
-            <Minus className="h-3 w-3" />
+            <Minus aria-hidden="true" className="h-3 w-3" />
           </Button>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onResetFontSize}
-            className="px-1.5 py-0.5 text-[11px] font-mono font-semibold text-amber-400/90 hover:text-amber-300 hover:bg-white/10 rounded transition-colors"
+            className="px-1.5 py-0.5 font-mono text-[11px] font-semibold text-warning hover:bg-accent hover:text-warning-foreground"
             title="Click to reset slide text size to 100%"
+            aria-label="Reset slide text size"
           >
             {currentFontSize}%
-          </button>
+          </Button>
 
           <Button
             type="button"
@@ -141,11 +150,11 @@ export default function FullscreenToolbar({
             size="sm"
             onClick={onIncreaseFontSize}
             disabled={currentFontSize >= 180}
-            className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30"
+            className="h-7 w-7 p-0 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
             title="Increase text size (A+)"
             aria-label="Increase text size"
           >
-            <Plus className="h-3 w-3" />
+            <Plus aria-hidden="true" className="h-3 w-3" />
           </Button>
         </div>
 
@@ -154,23 +163,25 @@ export default function FullscreenToolbar({
           type="button"
           size="sm"
           onClick={onToggleEditMode}
+          variant={isEditMode ? 'default' : 'outline'}
+          aria-pressed={isEditMode}
           className={cn(
-            'h-8 px-2 sm:px-2.5 text-xs gap-1 sm:gap-1.5 transition-all cursor-pointer font-medium',
+            'h-8 px-2 text-xs font-medium transition-colors sm:px-2.5',
             isEditMode
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-sm shadow-emerald-950/40'
-              : 'bg-white/5 border border-white/15 text-white/90 hover:bg-white/10 hover:text-white',
+              ? 'border border-success/70 bg-success text-success-foreground hover:bg-success/90'
+              : 'border-border/60 bg-muted/40 text-foreground hover:bg-accent hover:text-accent-foreground',
           )}
           title={isEditMode ? 'Finish editing and save adjustments' : 'Enable inline slide editing'}
         >
           {isEditMode ? (
             <>
-              <Check className="h-3.5 w-3.5 text-white" />
+              <Check aria-hidden="true" className="h-3.5 w-3.5" />
               <span className="hidden sm:inline font-semibold">Done Editing</span>
               <span className="sm:hidden font-semibold">Done</span>
             </>
           ) : (
             <>
-              <Pencil className="h-3.5 w-3.5 text-amber-400" />
+              <Pencil aria-hidden="true" className="h-3.5 w-3.5 text-warning" />
               <span className="hidden sm:inline">Edit Slide</span>
               <span className="sm:hidden">Edit</span>
             </>
@@ -184,10 +195,10 @@ export default function FullscreenToolbar({
             variant="ghost"
             size="sm"
             onClick={onResetSlideEdits}
-            className="h-8 px-1.5 text-xs text-white/60 hover:text-amber-400 hover:bg-white/10 gap-1 hidden md:inline-flex"
+            className="hidden h-8 gap-1 px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-warning md:inline-flex"
             title="Revert slide edits to default proposal pitch"
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw aria-hidden="true" className="h-3 w-3" />
             <span className="text-[10px]">Revert</span>
           </Button>
         )}
@@ -200,10 +211,12 @@ export default function FullscreenToolbar({
             size="sm"
             onClick={onExportPptx}
             disabled={isExportingPptx}
-            className="hidden xl:inline-flex h-8 text-xs gap-1.5 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+            loading={isExportingPptx}
+            loadingText="Exporting PPTX..."
+            className="hidden h-8 gap-1.5 border-border/60 bg-muted/40 text-xs text-foreground hover:bg-accent hover:text-accent-foreground xl:inline-flex"
           >
-            <Download className="h-3.5 w-3.5 text-amber-400" />
-            <span>{isExportingPptx ? 'Exporting...' : 'PPTX'}</span>
+            <Download aria-hidden="true" className="h-3.5 w-3.5 text-warning" />
+            <span>PPTX</span>
           </Button>
         )}
 
@@ -215,10 +228,12 @@ export default function FullscreenToolbar({
             size="sm"
             onClick={onExportPdf}
             disabled={isExportingPdf}
-            className="hidden xl:inline-flex h-8 text-xs gap-1.5 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+            loading={isExportingPdf}
+            loadingText="Exporting PDF..."
+            className="hidden h-8 gap-1.5 border-border/60 bg-muted/40 text-xs text-foreground hover:bg-accent hover:text-accent-foreground xl:inline-flex"
           >
-            <Download className="h-3.5 w-3.5 text-amber-400" />
-            <span>{isExportingPdf ? 'Exporting...' : 'PDF'}</span>
+            <Download aria-hidden="true" className="h-3.5 w-3.5 text-warning" />
+            <span>PDF</span>
           </Button>
         )}
 
@@ -228,13 +243,15 @@ export default function FullscreenToolbar({
           variant="ghost"
           size="sm"
           onClick={onToggleNativeFullscreen}
-          className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          className="h-8 w-8 p-0 text-muted-foreground hover:bg-accent hover:text-foreground"
           title={isNativeFullscreen ? 'Exit Native Fullscreen (F)' : 'Enter Native Fullscreen (F)'}
+          aria-label={isNativeFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          aria-pressed={isNativeFullscreen}
         >
           {isNativeFullscreen ? (
-            <Minimize2 className="h-4 w-4" />
+            <Minimize2 aria-hidden="true" className="h-4 w-4" />
           ) : (
-            <Maximize2 className="h-4 w-4" />
+            <Maximize2 aria-hidden="true" className="h-4 w-4" />
           )}
         </Button>
 
@@ -245,13 +262,17 @@ export default function FullscreenToolbar({
           size="sm"
           onClick={onClose}
           data-testid={closeTestId}
-          className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10 gap-1.5 transition-colors"
+          className="h-8 gap-1.5 px-2 text-muted-foreground hover:bg-accent hover:text-foreground"
           title="Close Rehearsal (Esc)"
+          aria-label="Close rehearsal"
         >
-          <span className="hidden sm:inline-block text-[10px] font-mono px-1 py-0.2 rounded bg-white/10 text-white/60">
+          <span
+            aria-hidden="true"
+            className="hidden rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block"
+          >
             Esc
           </span>
-          <X className="h-4 w-4" />
+          <X aria-hidden="true" className="h-4 w-4" />
         </Button>
       </div>
     </header>

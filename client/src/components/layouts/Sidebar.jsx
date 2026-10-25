@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import {
@@ -33,6 +32,8 @@ import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { ROLES } from '@cms/shared';
 import { prefetchRoute } from '@/lib/routePrefetch';
+import { Button } from '@/components/ui/Button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/Tooltip';
 
 function getStudentNavItems(badges = {}) {
   return [
@@ -301,7 +302,6 @@ function getActivePath(items, location) {
  */
 function SidebarNavItem({ item, active, collapsed, onNavigate }) {
   const Icon = item.icon;
-  const [coords, setCoords] = useState(null);
   let queryClient = null;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -310,120 +310,91 @@ function SidebarNavItem({ item, active, collapsed, onNavigate }) {
     queryClient = appQueryClient;
   }
 
-  const handleShow = (e) => {
-    prefetchRoute(item.path, queryClient || appQueryClient);
-    if (!collapsed) return;
-    const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
-    setCoords({
-      top: (rect.top || 0) + (rect.height || 40) / 2,
-      left: (rect.right || 76) + 10,
-    });
-  };
-
-  const handleHide = () => {
-    setCoords(null);
-  };
-
   return (
-    <>
-      <Link
-        to={item.path}
-        onClick={onNavigate}
-        onMouseEnter={(e) => {
-          prefetchRoute(item.path, queryClient);
-          handleShow(e);
-        }}
-        onMouseOver={(e) => {
-          prefetchRoute(item.path, queryClient);
-          handleShow(e);
-        }}
-        onFocus={() => {
-          prefetchRoute(item.path, queryClient);
-          handleShow();
-        }}
-        onMouseLeave={handleHide}
-        onMouseOut={handleHide}
-        onBlur={handleHide}
-        className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
-          collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
-        } ${
-          active
-            ? 'text-primary font-semibold shadow-2xs'
-            : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        {/* Background Active Pill */}
-        {active && (
-          <div className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs transition-all pointer-events-none" />
-        )}
-
-        {/* Hover wash for inactive items */}
-        {!active && (
-          <div className="absolute inset-0 rounded-lg bg-accent opacity-0 transition-opacity pointer-events-none group-hover:opacity-100" />
-        )}
-
-        {/* Leading Icon */}
-        <Icon
-          className={`w-4 h-4 relative z-10 transition-transform duration-200 shrink-0 group-hover:scale-110 ${
-            active ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        />
-
-        {/* Label Text (hidden when collapsed) */}
-        {!collapsed && (
-          <span
-            className="relative z-10 flex-1 min-w-0 truncate tracking-tight transition-transform duration-150 group-hover:translate-x-0.5"
-            title={item.label}
-          >
-            {item.label}
-          </span>
-        )}
-
-        {/* Trailing Status Badges */}
-        {!collapsed && item.badge !== undefined && (
-          <span
-            className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
-              item.badgeVariant === 'warning'
-                ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-                : item.badgeVariant === 'success'
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                  : 'bg-muted text-muted-foreground'
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            to={item.path}
+            aria-label={collapsed ? item.label : undefined}
+            onClick={onNavigate}
+            onMouseEnter={() => prefetchRoute(item.path, queryClient || appQueryClient)}
+            onFocus={() => prefetchRoute(item.path, queryClient || appQueryClient)}
+            className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background select-none ${
+              collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
+            } ${
+              active
+                ? 'text-primary font-semibold shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {item.badge}
-          </span>
-        )}
-      </Link>
+            {/* Background Active Pill */}
+            {active && (
+              <div className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs transition-all pointer-events-none" />
+            )}
 
-      {/* Portal-Based Floating Tooltip (escapes overflow-y-auto clipping) */}
-      {collapsed &&
-        coords &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            role="tooltip"
-            data-testid="sidebar-tooltip"
-            style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-            className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5"
+            {/* Hover wash for inactive items */}
+            {!active && (
+              <div className="absolute inset-0 rounded-lg bg-accent opacity-0 transition-opacity pointer-events-none group-hover:opacity-100" />
+            )}
+
+            {/* Leading Icon */}
+            <Icon
+              className={`w-4 h-4 relative z-10 transition-transform duration-200 shrink-0 group-hover:scale-110 ${
+                active ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            />
+
+            {/* Label Text (hidden when collapsed) */}
+            {!collapsed && (
+              <span
+                className="relative z-10 flex-1 min-w-0 truncate tracking-tight transition-transform duration-150 group-hover:translate-x-0.5"
+                title={item.label}
+              >
+                {item.label}
+              </span>
+            )}
+
+            {/* Trailing Status Badges */}
+            {!collapsed && item.badge !== undefined && (
+              <span
+                className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
+                  item.badgeVariant === 'warning'
+                    ? 'border border-warning/40 bg-warning/15 text-warning-foreground'
+                    : item.badgeVariant === 'success'
+                      ? 'border border-success/40 bg-success/15 text-success-foreground'
+                      : 'border border-border bg-muted text-muted-foreground'
+                }`}
+              >
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        </TooltipTrigger>
+        {collapsed && (
+          <TooltipContent
+            side="right"
+            sideOffset={8}
+            className="flex items-center gap-2 font-medium"
           >
             {item.label}
             {item.badge !== undefined && (
               <span
                 className={`px-1.5 py-0.2 text-[9px] rounded font-bold ${
                   item.badgeVariant === 'warning'
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-warning text-warning-foreground'
                     : item.badgeVariant === 'success'
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-success text-success-foreground'
                       : 'bg-primary text-primary-foreground'
                 }`}
               >
                 {item.badge}
               </span>
             )}
-          </div>,
-          document.body,
+          </TooltipContent>
         )}
-    </>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -444,77 +415,53 @@ function SidebarNavGroup({ item, activePath, collapsed, onNavigate }) {
   );
   const [open, setOpen] = useState(isChildActive);
   const Icon = item.icon;
-  const [coords, setCoords] = useState(null);
-
-  const handleShow = (e) => {
-    if (!collapsed) return;
-    const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
-    setCoords({
-      top: (rect.top || 0) + (rect.height || 40) / 2,
-      left: (rect.right || 76) + 10,
-    });
-  };
-
-  const handleHide = () => {
-    setCoords(null);
-  };
-
   if (collapsed) {
     return (
-      <>
-        <Link
-          to={item.children?.[0]?.path || item.path}
-          onClick={onNavigate}
-          onMouseEnter={(e) => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
-            handleShow(e);
-          }}
-          onMouseOver={(e) => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
-            handleShow(e);
-          }}
-          onFocus={() => {
-            prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient);
-            handleShow();
-          }}
-          onMouseLeave={handleHide}
-          onMouseOut={handleHide}
-          onBlur={handleHide}
-          className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center justify-center px-0 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
-            isChildActive
-              ? 'text-primary font-semibold'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {isChildActive && (
-            <div className="absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs pointer-events-none" />
-          )}
-          <Icon className="relative z-10 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
-        </Link>
-
-        {coords &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              role="tooltip"
-              data-testid="sidebar-tooltip"
-              style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
-              className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              to={item.children?.[0]?.path || item.path}
+              aria-label={item.label}
+              onClick={onNavigate}
+              onMouseEnter={() =>
+                prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient)
+              }
+              onFocus={() =>
+                prefetchRoute(item.children?.[0]?.path || item.path, queryClient || appQueryClient)
+              }
+              className={`relative flex min-h-[44px] w-full items-center justify-center rounded-lg px-0 py-2 text-xs font-medium transition-all outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:min-h-10 ${
+                isChildActive
+                  ? 'text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              {item.label}
-            </div>,
-            document.body,
-          )}
-      </>
+              {isChildActive && (
+                <div className="pointer-events-none absolute inset-0 rounded-lg border border-primary/30 bg-primary/10 shadow-2xs" />
+              )}
+              <Icon className="relative z-10 size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            sideOffset={8}
+            data-testid="sidebar-tooltip"
+            className="font-medium"
+          >
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   return (
     <div>
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative w-full min-h-[44px] lg:min-h-10 flex items-center min-w-0 gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+        className={`relative h-auto w-full min-h-[44px] min-w-0 justify-start gap-3 rounded-lg px-3 py-2 text-left text-xs font-medium transition-all group select-none whitespace-normal lg:min-h-10 ${
           isChildActive
             ? 'text-primary font-semibold'
             : 'text-muted-foreground hover:text-foreground'
@@ -526,14 +473,14 @@ function SidebarNavGroup({ item, activePath, collapsed, onNavigate }) {
           {item.label}
         </span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-250 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${
             open ? 'rotate-0' : '-rotate-90'
           }`}
         />
-      </button>
+      </Button>
 
       <div
-        className="grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="grid transition-[grid-template-rows] duration-250 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden" inert={open ? undefined : ''} aria-hidden={!open}>
@@ -645,8 +592,6 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
   );
   const activePath = useMemo(() => getActivePath(navItems, location), [navItems, location]);
 
-  const [signOutCoords, setSignOutCoords] = useState(null);
-
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
@@ -661,13 +606,11 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
 
   return (
     <aside
-      role={mobileView && open ? 'dialog' : undefined}
-      aria-modal={mobileView && open ? true : undefined}
       aria-label="Main navigation"
       className={`lg:relative flex flex-col justify-between h-dvh bg-card border-r border-border transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 overflow-hidden ${
         collapsed
           ? 'hidden lg:flex w-20 min-w-[5rem]'
-          : 'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] lg:max-w-[21rem] lg:relative shadow-2xl lg:shadow-none'
+          : 'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-xl lg:relative lg:max-w-[21rem] lg:shadow-none'
       }`}
     >
       {/* 1. Header & Collapse Toggle */}
@@ -678,8 +621,8 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
       >
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden transition-all duration-300">
-            <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
-              <GraduationCap className="h-4 w-4 text-[#E5A823]" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary text-sm font-bold text-primary-foreground shadow-xs">
+              <GraduationCap className="size-4 text-primary-foreground" aria-hidden="true" />
             </div>
             <div className="flex flex-col min-w-0 pr-1 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -689,7 +632,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
                 >
                   BukSU CMS
                 </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded shrink-0">
+                <span className="shrink-0 rounded-sm border border-secondary/60 bg-secondary/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-secondary-foreground">
                   COT
                 </span>
               </div>
@@ -703,17 +646,19 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
           </div>
         )}
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           onClick={onToggle}
-          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-border bg-background p-2 text-muted-foreground transition-colors hover:bg-accent lg:min-h-0 lg:min-w-0"
+          className="min-h-[44px] min-w-[44px] shrink-0 rounded-lg p-2 text-muted-foreground lg:min-h-0 lg:min-w-0"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <ChevronLeft
             className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
           />
-        </button>
+        </Button>
       </div>
 
       {/* 2. Navigation Content */}
@@ -784,11 +729,7 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
       </nav>
 
       {/* 3. Footer Actions */}
-      <div
-        className={`shrink-0 space-y-1 border-t border-border/60 ${
-          collapsed ? 'p-2' : 'p-3'
-        }`}
-      >
+      <div className={`shrink-0 space-y-1 border-t border-border/60 ${collapsed ? 'p-2' : 'p-3'}`}>
         {systemItems.map((item) => (
           <SidebarNavItem
             key={item.id}
@@ -799,68 +740,39 @@ export function Sidebar({ open = true, mobileView = false, onToggle }) {
           />
         ))}
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          onMouseEnter={(e) => {
-            if (!collapsed) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            setSignOutCoords({
-              top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 80) + 10,
-            });
-          }}
-          onMouseOver={(e) => {
-            if (!collapsed) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            setSignOutCoords({
-              top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 80) + 10,
-            });
-          }}
-          onFocus={(e) => {
-            if (!collapsed) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            setSignOutCoords({
-              top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 80) + 10,
-            });
-          }}
-          onMouseLeave={() => setSignOutCoords(null)}
-          onBlur={() => setSignOutCoords(null)}
-          className={`relative flex min-h-[44px] w-full items-center rounded-lg px-3 py-2 text-xs font-medium text-destructive transition-all group outline-none select-none hover:bg-destructive/10 lg:min-h-10 ${
-            collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
-          }`}
-          title={collapsed ? 'Sign out' : undefined}
-          aria-label="Sign out"
-        >
-          <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 shrink-0" />
-          {!collapsed && (
-            <span
-              className="text-xs font-semibold truncate min-w-0 flex-1 text-left"
-              title="Sign out"
-            >
-              Sign out
-            </span>
-          )}
-        </button>
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleLogout}
+                className={`relative flex h-auto min-h-[44px] w-full min-w-0 items-center justify-start rounded-lg px-3 py-2 text-left text-xs font-medium text-destructive transition-all group select-none whitespace-normal hover:bg-destructive/10 lg:min-h-10 ${
+                  collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
+                }`}
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 shrink-0" />
+                {!collapsed && (
+                  <span className="text-xs font-semibold truncate min-w-0 flex-1 text-left">
+                    Sign out
+                  </span>
+                )}
+              </Button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent
+                side="right"
+                sideOffset={8}
+                data-testid="sidebar-tooltip"
+                className="font-medium"
+              >
+                Sign out
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
-
-      {/* Sign Out Tooltip Portal */}
-      {collapsed &&
-        signOutCoords &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            role="tooltip"
-            data-testid="sidebar-tooltip"
-            style={{ top: `${signOutCoords.top}px`, left: `${signOutCoords.left}px` }}
-            className="fixed z-[9999] -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-xs font-semibold text-popover-foreground shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-100"
-          >
-            Sign out
-          </div>,
-          document.body,
-        )}
     </aside>
   );
 }

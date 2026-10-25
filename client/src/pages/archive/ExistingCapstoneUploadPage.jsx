@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2,
   CheckCircle2,
   AlertCircle,
   RotateCcw,
@@ -15,7 +14,6 @@ import {
   Archive,
   ShieldCheck,
   ShieldAlert,
-  Search,
   Trash2,
   FileCheck,
 } from 'lucide-react';
@@ -27,6 +25,23 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
 import { metadataService } from '@/services/metadataService';
 import { plagiarismService } from '@/services/plagiarismService';
 import { getSocket } from '@/services/socket';
@@ -246,45 +261,6 @@ const KEYWORD_STOP_WORDS = new Set([
   'about',
 ]);
 
-const KEYWORD_VENUE_RULES = [
-  {
-    venue: 'International Conference on Artificial Intelligence and Data Science',
-    triggers: [
-      'ai',
-      'machine learning',
-      'deep learning',
-      'neural network',
-      'computer vision',
-      'nlp',
-      'data science',
-      'data analytics',
-    ],
-  },
-  {
-    venue: 'Software Engineering and Information Systems Conference',
-    triggers: [
-      'web',
-      'website',
-      'web application',
-      'mobile',
-      'android',
-      'ios',
-      'react',
-      'node',
-      'api',
-      'database',
-    ],
-  },
-  {
-    venue: 'Cybersecurity and Network Systems Conference',
-    triggers: ['cybersecurity', 'network', 'security', 'encryption', 'forensics'],
-  },
-  {
-    venue: 'Embedded Systems and IoT Engineering Conference',
-    triggers: ['iot', 'internet of things', 'embedded', 'arduino', 'raspberry', 'sensor'],
-  },
-];
-
 const ACRONYM_KEYWORDS = {
   ai: 'AI',
   api: 'API',
@@ -398,31 +374,6 @@ const deriveKeywordsFromText = (text = '') => {
   return dedupeKeywords([...phraseKeywords, ...rankedTokens]);
 };
 
-const inferVenueFromKeywords = (keywords = []) => {
-  if (!Array.isArray(keywords) || keywords.length === 0) {
-    return 'Institutional Capstone Research Journal';
-  }
-
-  const normalizedKeywords = keywords.map((item) => String(item).toLowerCase());
-
-  for (const rule of KEYWORD_VENUE_RULES) {
-    const matched = rule.triggers.some((trigger) =>
-      normalizedKeywords.some((keyword) => keyword.includes(trigger)),
-    );
-    if (matched) {
-      return rule.venue;
-    }
-  }
-
-  return 'Institutional Capstone Research Journal';
-};
-
-const buildFallbackAbstract = (title, keywords) => {
-  const topicPhrase = keywords.length > 0 ? keywords.slice(0, 4).join(', ') : 'computing research';
-  const summary = `This capstone study titled "${title}" focuses on ${topicPhrase}. The paper presents the problem context, implementation approach, and evaluation findings, and concludes with practical recommendations for future improvements.`;
-  return summary.slice(0, 500);
-};
-
 const withFallbackConfidence = (existingValue, fallbackValue) => {
   const numeric = Number(existingValue);
   if (Number.isFinite(numeric) && numeric > 0) return numeric;
@@ -504,6 +455,7 @@ export default function ExistingCapstoneUploadPage() {
   const [extractionSource, setExtractionSource] = useState(''); // 'Academic Paper' | 'Academic Journal'
   const [activeRescanField, setActiveRescanField] = useState('');
   const [feedbackBusyByField, setFeedbackBusyByField] = useState({});
+  const [feedbackRequest, setFeedbackRequest] = useState(null);
 
   const [metadataTarget, setMetadataTarget] = useState('academic_journal'); // 'academic_journal' | 'academic_paper'
   const [plagiarismTarget, setPlagiarismTarget] = useState('academic_paper'); // 'academic_paper' | 'academic_journal'
@@ -535,10 +487,10 @@ export default function ExistingCapstoneUploadPage() {
   const getConfidenceColor = (score) => {
     if (score === null || score === undefined) return '';
     if (score === 0) return 'bg-muted text-muted-foreground border-border';
-    if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
-    if (score >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    if (score > 0) return 'bg-orange-100 text-orange-800 border-orange-200';
-    return 'bg-red-100 text-red-800 border-red-200';
+    if (score >= 80) return 'border-success/30 bg-success/10 text-success-foreground';
+    if (score >= 50) return 'border-warning/30 bg-warning/10 text-warning-foreground';
+    if (score > 0) return 'border-warning/30 bg-warning/10 text-warning-foreground';
+    return 'border-destructive/30 bg-destructive/10 text-destructive';
   };
 
   const getConfidenceLabel = (score) => {
@@ -719,7 +671,7 @@ export default function ExistingCapstoneUploadPage() {
                 cleanup();
                 reject(new Error(jobData.error || 'Document extraction failed.'));
               }
-            } catch (pollErr) {
+            } catch {
               // Ignore transient polling error
             }
           }, 1500);
@@ -819,18 +771,18 @@ export default function ExistingCapstoneUploadPage() {
     await runExtractionPipeline(targetFile, { targetFields: [fieldName], sourceLabel });
   };
 
-  const handleFeedbackForField = async (fieldName) => {
+  const handleFeedbackForField = (fieldName) => {
     const fieldLabel = METADATA_FIELD_LABELS[fieldName] || fieldName;
     const extractedValue = String(form[fieldName] || '').trim();
+    setFeedbackRequest({ fieldName, fieldLabel, extractedValue, correctedValue: extractedValue });
+  };
 
-    const correctedValue = window.prompt(
-      `Enter the corrected ${fieldLabel} value to improve extraction patterns:`,
-      extractedValue,
-    );
+  const submitMetadataFeedback = async (event) => {
+    event.preventDefault();
+    if (!feedbackRequest) return;
 
-    if (correctedValue === null) return;
-
-    const normalizedCorrection = String(correctedValue).trim();
+    const { fieldName, fieldLabel, extractedValue } = feedbackRequest;
+    const normalizedCorrection = String(feedbackRequest.correctedValue || '').trim();
     if (!normalizedCorrection) {
       toast.info('Feedback not submitted because the corrected value is empty.');
       return;
@@ -851,6 +803,7 @@ export default function ExistingCapstoneUploadPage() {
       });
 
       setForm((prev) => ({ ...prev, [fieldName]: normalizedCorrection }));
+      setFeedbackRequest(null);
       toast.success(`${fieldLabel} feedback submitted.`);
     } catch (error) {
       toast.error(
@@ -1121,7 +1074,7 @@ export default function ExistingCapstoneUploadPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto min-w-0 max-w-5xl space-y-6 lg:space-y-8">
+      <div className="mx-auto min-w-0 max-w-5xl space-y-6 lg:space-y-8 [&_button]:min-h-[45px]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -1180,9 +1133,7 @@ export default function ExistingCapstoneUploadPage() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-2">
                   <h3 className="text-lg font-semibold text-foreground">1. Upload Bundle Files</h3>
-                  <span className="text-xs text-muted-foreground">
-                    At least one PDF required
-                  </span>
+                  <span className="text-xs text-muted-foreground">At least one PDF required</span>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -1229,7 +1180,7 @@ export default function ExistingCapstoneUploadPage() {
                               variant="ghost"
                               size="sm"
                               onClick={handleRemoveAcademicPaper}
-                              className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
+                              className="min-h-11 min-w-11 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
                               title="Remove Academic Paper"
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
@@ -1260,7 +1211,7 @@ export default function ExistingCapstoneUploadPage() {
                       >
                         {extractionStatus === 'extracting' &&
                         extractionSource === 'Academic Paper' ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Spinner className="h-4 w-4" />
                         ) : (
                           <Upload className="h-4 w-4" />
                         )}
@@ -1274,7 +1225,7 @@ export default function ExistingCapstoneUploadPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <Files className="h-5 w-5 text-emerald-500 shrink-0" />
+                          <Files className="h-5 w-5 text-primary shrink-0" />
                           <p className="text-sm font-semibold text-foreground">
                             Academic Journal (PDF)
                           </p>
@@ -1297,7 +1248,7 @@ export default function ExistingCapstoneUploadPage() {
                         {files.academicJournalFile ? (
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <FileCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <FileCheck className="h-4 w-4 text-primary shrink-0" />
                               <div className="min-w-0">
                                 <p className="font-medium text-foreground truncate text-xs sm:text-sm">
                                   {files.academicJournalFile.name}
@@ -1312,7 +1263,7 @@ export default function ExistingCapstoneUploadPage() {
                               variant="ghost"
                               size="sm"
                               onClick={handleRemoveAcademicJournal}
-                              className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
+                              className="min-h-11 min-w-11 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
                               title="Remove Academic Journal"
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
@@ -1344,7 +1295,7 @@ export default function ExistingCapstoneUploadPage() {
                       >
                         {extractionStatus === 'extracting' &&
                         extractionSource === 'Academic Journal' ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Spinner className="h-4 w-4" />
                         ) : (
                           <Files className="h-4 w-4" />
                         )}
@@ -1393,7 +1344,7 @@ export default function ExistingCapstoneUploadPage() {
                           type="button"
                           variant={metadataTarget === 'academic_journal' ? 'default' : 'outline'}
                           size="sm"
-                          className="text-xs justify-start h-9"
+                          className="min-h-11 text-xs justify-start"
                           onClick={() => setMetadataTarget('academic_journal')}
                           disabled={!files.academicJournalFile}
                         >
@@ -1404,7 +1355,7 @@ export default function ExistingCapstoneUploadPage() {
                           type="button"
                           variant={metadataTarget === 'academic_paper' ? 'default' : 'outline'}
                           size="sm"
-                          className="text-xs justify-start h-9"
+                          className="min-h-11 text-xs justify-start"
                           onClick={() => setMetadataTarget('academic_paper')}
                           disabled={!files.academicPaperFile}
                         >
@@ -1433,7 +1384,7 @@ export default function ExistingCapstoneUploadPage() {
                       >
                         {extractionStatus === 'extracting' ? (
                           <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting Metadata...
+                            <Spinner className="h-3.5 w-3.5" /> Extracting Metadata...
                           </>
                         ) : (
                           <>
@@ -1450,7 +1401,7 @@ export default function ExistingCapstoneUploadPage() {
                       <Alert className="flex flex-col gap-2 border-primary/30 bg-primary/10 p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2">
-                            <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-primary shrink-0" />
+                            <Spinner className="mt-0.5 size-4 shrink-0 text-primary" />
                             <div>
                               <AlertTitle className="text-xs font-semibold text-primary">
                                 Extracting Metadata
@@ -1465,19 +1416,21 @@ export default function ExistingCapstoneUploadPage() {
                             {extractionProgress}%
                           </span>
                         </div>
-                        <div className="w-full bg-primary/20 rounded-full h-1 overflow-hidden">
-                          <div
-                            className="bg-primary h-1 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.max(5, extractionProgress)}%` }}
-                          />
-                        </div>
+                        <Progress
+                          value={extractionProgress}
+                          className="h-2"
+                          aria-label="Metadata extraction progress"
+                        />
                       </Alert>
                     )}
 
                     {extractionStatus === 'success' && (
-                      <div className="flex items-center justify-between rounded-lg border border-green-500/30 bg-green-500/10 p-2.5 text-xs text-green-700 dark:text-green-400">
+                      <div
+                        role="status"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-success/30 bg-success/10 p-2.5 text-xs text-success-foreground"
+                      >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                           <span className="truncate">
                             <strong className="font-semibold">Extraction Complete:</strong>{' '}
                             Extracted from <strong>{extractionSource || 'document'}</strong>
@@ -1487,7 +1440,7 @@ export default function ExistingCapstoneUploadPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-1.5 text-[11px] text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                          className="min-h-11 px-2 text-[11px] text-success-foreground hover:bg-success/20"
                           onClick={handleTriggerExtraction}
                         >
                           Rescan
@@ -1509,7 +1462,7 @@ export default function ExistingCapstoneUploadPage() {
                   {/* Plagiarism Scan Target Selector Card */}
                   <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-5 w-5 text-indigo-500 shrink-0" />
+                      <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
                       <div>
                         <h4 className="text-sm font-semibold text-foreground">
                           Plagiarism Scan Target
@@ -1529,7 +1482,7 @@ export default function ExistingCapstoneUploadPage() {
                           type="button"
                           variant={plagiarismTarget === 'academic_paper' ? 'default' : 'outline'}
                           size="sm"
-                          className="text-xs justify-start h-9"
+                          className="min-h-11 text-xs justify-start"
                           onClick={() => setPlagiarismTarget('academic_paper')}
                           disabled={!files.academicPaperFile}
                         >
@@ -1540,7 +1493,7 @@ export default function ExistingCapstoneUploadPage() {
                           type="button"
                           variant={plagiarismTarget === 'academic_journal' ? 'default' : 'outline'}
                           size="sm"
-                          className="text-xs justify-start h-9"
+                          className="min-h-11 text-xs justify-start"
                           onClick={() => setPlagiarismTarget('academic_journal')}
                           disabled={!files.academicJournalFile}
                         >
@@ -1569,8 +1522,7 @@ export default function ExistingCapstoneUploadPage() {
                       >
                         {plagiarismStatus === 'scanning' ? (
                           <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Scanning against
-                            Corpus...
+                            <Spinner className="h-3.5 w-3.5" /> Scanning against Corpus...
                           </>
                         ) : (
                           <>
@@ -1584,12 +1536,12 @@ export default function ExistingCapstoneUploadPage() {
 
                     {/* Plagiarism Status & Result */}
                     {plagiarismStatus === 'scanning' && (
-                      <Alert className="border-indigo-500/30 bg-indigo-500/10 p-3">
-                        <Loader2 className="h-4 w-4 animate-spin text-indigo-600 dark:text-indigo-400" />
-                        <AlertTitle className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                      <Alert className="border-primary/30 bg-primary/5 p-3">
+                        <Spinner className="size-4 text-primary" />
+                        <AlertTitle className="text-xs font-semibold text-foreground">
                           Plagiarism Scan in Progress
                         </AlertTitle>
-                        <AlertDescription className="text-indigo-600/90 dark:text-indigo-300/90 text-[11px]">
+                        <AlertDescription className="text-muted-foreground text-[11px]">
                           Comparing text against all approved archived manuscripts and journals...
                         </AlertDescription>
                       </Alert>
@@ -1603,10 +1555,10 @@ export default function ExistingCapstoneUploadPage() {
                               variant="outline"
                               className={
                                 plagiarismResult.originalityScore >= 75
-                                  ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-800'
+                                  ? 'border-success/30 bg-success/10 text-success-foreground'
                                   : plagiarismResult.originalityScore >= 50
-                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800'
-                                    : 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800'
+                                    ? 'border-warning/30 bg-warning/10 text-warning-foreground'
+                                    : 'border-destructive/30 bg-destructive/10 text-destructive'
                               }
                             >
                               {plagiarismResult.originalityScore}% Original
@@ -1620,7 +1572,7 @@ export default function ExistingCapstoneUploadPage() {
                           </span>
                         </div>
                         {plagiarismResult.warningFlag && (
-                          <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                          <div className="flex items-center gap-1.5 text-xs text-warning-foreground">
                             <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
                             <span>
                               Warning: Similarity exceeds the standard capstone threshold (25%).
@@ -1694,7 +1646,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'title' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1709,7 +1661,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.title)}
                       >
                         {feedbackBusyByField.title ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1738,7 +1690,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'abstract' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1753,7 +1705,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.abstract)}
                       >
                         {feedbackBusyByField.abstract ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1781,7 +1733,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'authors' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1796,7 +1748,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.authors)}
                       >
                         {feedbackBusyByField.authors ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1824,7 +1776,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'year' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1839,7 +1791,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.year)}
                       >
                         {feedbackBusyByField.year ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1854,24 +1806,27 @@ export default function ExistingCapstoneUploadPage() {
                         Academic Year
                       </Label>
                     </div>
-                    <select
-                      id="academicYear"
-                      name="academicYear"
-                      value={form.academicYear}
-                      onChange={handleInputChange}
+                    <Select
+                      value={form.academicYear || undefined}
+                      onValueChange={(value) =>
+                        setForm((prev) => ({ ...prev, academicYear: value }))
+                      }
                       disabled={yearsLoading}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <option value="">Select academic year</option>
-                      {academicYears.length === 0 && (
-                        <option value={defaultAcademicYear}>{defaultAcademicYear}</option>
-                      )}
-                      {academicYears.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="academicYear" aria-label="Academic Year">
+                        <SelectValue placeholder="Select academic year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {academicYears.length === 0 && (
+                          <SelectItem value={defaultAcademicYear}>{defaultAcademicYear}</SelectItem>
+                        )}
+                        {academicYears.map((year) => (
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
@@ -1893,7 +1848,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'doi' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1908,7 +1863,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.doi)}
                       >
                         {feedbackBusyByField.doi ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1940,7 +1895,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'venue' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1955,7 +1910,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.venue)}
                       >
                         {feedbackBusyByField.venue ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -1983,7 +1938,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'keywords' && extractionStatus === 'extracting' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
@@ -1998,7 +1953,7 @@ export default function ExistingCapstoneUploadPage() {
                         disabled={Boolean(feedbackBusyByField.keywords)}
                       >
                         {feedbackBusyByField.keywords ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <MessageSquarePlus className="h-3.5 w-3.5" />
                         )}
@@ -2083,7 +2038,7 @@ export default function ExistingCapstoneUploadPage() {
                   >
                     {isPending ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+                        <Spinner className="h-4 w-4" /> Uploading...
                       </>
                     ) : (
                       <>
@@ -2097,6 +2052,69 @@ export default function ExistingCapstoneUploadPage() {
           </CardContent>
         </Card>
       </div>
+      <Dialog
+        open={Boolean(feedbackRequest)}
+        onOpenChange={(open) => {
+          if (!open && !feedbackBusyByField[feedbackRequest?.fieldName]) setFeedbackRequest(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={submitMetadataFeedback} className="space-y-5">
+            <DialogHeader>
+              <DialogTitle>Send {feedbackRequest?.fieldLabel} feedback</DialogTitle>
+              <DialogDescription>
+                Correct the extracted value to help improve future metadata extraction.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="metadata-correction">Corrected {feedbackRequest?.fieldLabel}</Label>
+              {feedbackRequest?.fieldName === 'abstract' ? (
+                <Textarea
+                  id="metadata-correction"
+                  autoFocus
+                  value={feedbackRequest.correctedValue}
+                  onChange={(event) =>
+                    setFeedbackRequest((current) =>
+                      current ? { ...current, correctedValue: event.target.value } : current,
+                    )
+                  }
+                  disabled={Boolean(feedbackBusyByField[feedbackRequest.fieldName])}
+                  rows={6}
+                />
+              ) : (
+                <Input
+                  id="metadata-correction"
+                  autoFocus
+                  value={feedbackRequest?.correctedValue || ''}
+                  onChange={(event) =>
+                    setFeedbackRequest((current) =>
+                      current ? { ...current, correctedValue: event.target.value } : current,
+                    )
+                  }
+                  disabled={Boolean(feedbackBusyByField[feedbackRequest?.fieldName])}
+                />
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setFeedbackRequest(null)}
+                disabled={Boolean(feedbackBusyByField[feedbackRequest?.fieldName])}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={Boolean(feedbackBusyByField[feedbackRequest?.fieldName])}
+                loadingText="Sending feedback..."
+              >
+                Submit feedback
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

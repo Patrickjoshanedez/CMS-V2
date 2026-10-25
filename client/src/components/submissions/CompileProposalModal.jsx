@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import {
-  FileUp,
-  X,
-  Loader2,
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  Sparkles,
-  RefreshCw,
-} from 'lucide-react';
+import { FileUp, X, FileText, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
+import { Progress } from '@/components/ui/Progress';
+import { Textarea } from '@/components/ui/Textarea';
 import submissionService from '@/services/submissionService';
 import { toast } from 'sonner';
 
@@ -29,8 +31,7 @@ export default function CompileProposalModal({
   const [remarks, setRemarks] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-
-  if (!isOpen) return null;
+  const fileInputRef = useRef(null);
 
   const targetVersion = isRevision ? currentVersion + 1 : 1;
 
@@ -102,115 +103,138 @@ export default function CompileProposalModal({
     }
   };
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border/60 p-5 bg-muted/20">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-              {isRevision ? <RefreshCw className="h-4 w-4" /> : <FileUp className="h-4 w-4" />}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                {isRevision
-                  ? `Submit Revised Chapters 1–3 Manuscript`
-                  : 'Compile & Submit Chapters 1–3 Manuscript'}
-                <Badge
-                  variant="outline"
-                  className="text-[10px] font-mono border-primary/30 text-primary"
-                >
-                  v{targetVersion}
-                </Badge>
-              </h3>
-              <p className="text-[11px] text-muted-foreground">
-                {isRevision
-                  ? 'Post-defense revised manuscript with panel and client recommendations incorporated'
-                  : 'Unified proposal document for Adviser review and defense endorsement'}
-              </p>
-            </div>
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isUploading) onClose();
+      }}
+    >
+      <DialogContent
+        showClose={false}
+        aria-describedby="compile-proposal-description"
+        className="max-h-[calc(100dvh-1rem)] max-w-lg gap-0 overflow-y-auto p-0 sm:max-h-[90vh]"
+        onEscapeKeyDown={(event) => isUploading && event.preventDefault()}
+        onInteractOutside={(event) => isUploading && event.preventDefault()}
+      >
+        <DialogHeader className="flex-row items-start gap-3 border-b border-border/60 bg-muted/20 p-5 pr-16">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+            {isRevision ? (
+              <RefreshCw aria-hidden="true" className="size-4" />
+            ) : (
+              <FileUp aria-hidden="true" className="size-4" />
+            )}
           </div>
-          <button
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <DialogTitle className="text-sm font-bold">
+                {isRevision
+                  ? 'Submit Revised Chapters 1–3 Manuscript'
+                  : 'Compile & Submit Chapters 1–3 Manuscript'}
+              </DialogTitle>
+              <Badge variant="outline" className="font-mono text-[10px]">
+                v{targetVersion}
+              </Badge>
+            </div>
+            <DialogDescription id="compile-proposal-description" className="text-xs">
+              {isRevision
+                ? 'Post-defense revised manuscript with panel and client recommendations incorporated'
+                : 'Unified proposal document for Adviser review and defense endorsement'}
+            </DialogDescription>
+          </div>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Close manuscript submission"
+            className="absolute right-3 top-3 min-h-[44px] min-w-[44px]"
             onClick={onClose}
             disabled={isUploading}
-            className="rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+            <X aria-hidden="true" className="size-4" />
+          </Button>
+        </DialogHeader>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* Informational callout */}
-          <div className="rounded-xl border border-border/60 bg-muted/10 p-3.5 space-y-2 text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+        <form onSubmit={handleSubmit} className="space-y-4 p-5">
+          <Alert role="status" variant="info" className="p-3">
+            <AlertTitle className="flex items-center gap-1.5 text-xs">
+              <Sparkles aria-hidden="true" className="size-3.5 text-warning-foreground" />
               {isRevision
                 ? 'Action Done Matrix Synchronization'
                 : 'Capstone 2 Preparation Workflow'}
-            </p>
-            <p className="text-[11px] leading-relaxed">
+            </AlertTitle>
+            <AlertDescription className="text-xs leading-relaxed">
               {isRevision
                 ? 'Make sure that all page numbers cited in your Action Done Matrix correspond accurately to this revised copy. The committee will verify revisions using the Sophisticated Document Viewer comparison mode.'
                 : 'Once your assigned Adviser approves this compiled manuscript, the project is marked ready for defense, and the Course Instructor will be notified to schedule your hearing.'}
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
 
-          {/* File Upload Box */}
-          <div className="space-y-1.5">
-            <Label htmlFor="manuscript-file" className="text-xs font-semibold text-foreground">
+          <div className="space-y-2">
+            <Label htmlFor="manuscript-file-input" className="text-xs font-semibold">
               Manuscript File (.docx or .pdf) <span className="text-destructive">*</span>
             </Label>
-            <div
-              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
+            <input
+              ref={fileInputRef}
+              id="manuscript-file-input"
+              type="file"
+              accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={isUploading}
+              aria-label="Manuscript File (.docx or .pdf)"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading}
+              aria-label={
+                file
+                  ? `Selected file: ${file.name}. Choose another manuscript`
+                  : 'Choose manuscript file'
+              }
+              className={`h-auto min-h-[44px] w-full flex-col whitespace-normal rounded-lg border-2 border-dashed p-4 text-center ${
                 file
                   ? 'border-primary/50 bg-primary/5'
                   : 'border-border/70 hover:border-primary/40 hover:bg-muted/10'
               }`}
-              onClick={() => document.getElementById('manuscript-file-input')?.click()}
+              onClick={() => fileInputRef.current?.click()}
             >
-              <input
-                id="manuscript-file-input"
-                type="file"
-                accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={isUploading}
-              />
               {file ? (
-                <div className="flex items-center justify-center gap-3">
-                  <FileText className="h-6 w-6 text-primary shrink-0" />
-                  <div className="text-left min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate max-w-[280px]">
+                <span className="flex w-full min-w-0 items-center justify-center gap-3">
+                  <FileText aria-hidden="true" className="size-6 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block max-w-[280px] truncate text-xs font-semibold text-foreground">
                       {file.name}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    </span>
+                    <span className="block text-[10px] text-muted-foreground">
                       {(file.size / (1024 * 1024)).toFixed(2)} MB · Ready to upload
-                    </p>
-                  </div>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 ml-auto" />
-                </div>
+                    </span>
+                  </span>
+                  <CheckCircle2
+                    aria-hidden="true"
+                    className="ml-auto size-4 shrink-0 text-success-foreground"
+                  />
+                </span>
               ) : (
-                <div className="space-y-1">
-                  <FileUp className="h-7 w-7 text-muted-foreground mx-auto" />
-                  <p className="text-xs font-medium text-foreground">
+                <span className="space-y-1">
+                  <FileUp aria-hidden="true" className="mx-auto size-7 text-muted-foreground" />
+                  <span className="block text-xs font-medium text-foreground">
                     Click to browse or drag and drop manuscript
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground">
                     Supports Microsoft Word (.docx) or PDF (.pdf) up to 50MB
-                  </p>
-                </div>
+                  </span>
+                </span>
               )}
-            </div>
+            </Button>
           </div>
 
-          {/* Revision Remarks / Justification */}
-          <div className="space-y-1.5">
-            <Label htmlFor="manuscript-remarks" className="text-xs font-semibold text-foreground">
+          <div className="space-y-2">
+            <Label htmlFor="manuscript-remarks" className="text-xs font-semibold">
               {isRevision ? 'Revision Summary / Notes' : 'Submission Remarks (Optional)'}
             </Label>
-            <textarea
+            <Textarea
               id="manuscript-remarks"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
@@ -221,35 +245,28 @@ export default function CompileProposalModal({
               }
               rows={3}
               disabled={isUploading}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[88px] text-xs"
             />
           </div>
 
-          {/* Upload Progress Bar */}
           {isUploading && (
-            <div className="space-y-1 pt-1">
-              <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className="space-y-2 pt-1" aria-live="polite">
+              <div className="flex justify-between gap-3 text-xs text-muted-foreground">
                 <span>Uploading manuscript to secure storage...</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+              <Progress value={uploadProgress} aria-label="Manuscript upload progress" />
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isUploading}
-              className="h-8 text-xs"
+              className="min-h-[44px] w-full text-xs sm:min-h-0 sm:w-auto"
             >
               Cancel
             </Button>
@@ -257,32 +274,30 @@ export default function CompileProposalModal({
               type="submit"
               size="sm"
               disabled={isUploading || !file}
-              className="gap-1.5 h-8 text-xs font-semibold shadow-xs"
+              className="min-h-[44px] w-full gap-1.5 text-xs font-semibold shadow-xs sm:min-h-0 sm:w-auto"
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Spinner className="size-3.5" />
                   Uploading...
                 </>
               ) : isRevision ? (
                 <>
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <RefreshCw aria-hidden="true" className="size-3.5" />
                   Submit Revised Manuscript (v{targetVersion})
                 </>
               ) : (
                 <>
-                  <FileUp className="h-3.5 w-3.5" />
-                  Compile & Submit Manuscript
+                  <FileUp aria-hidden="true" className="size-3.5" />
+                  Compile &amp; Submit Manuscript
                 </>
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
 
 CompileProposalModal.propTypes = {

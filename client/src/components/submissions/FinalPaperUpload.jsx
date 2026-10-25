@@ -1,10 +1,14 @@
 import { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FileText, Lock, Globe, Upload, Loader2, Info, CheckCircle2 } from 'lucide-react';
+import { FileText, Lock, Globe, Upload, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Label } from '@/components/ui/Label';
+import { Textarea } from '@/components/ui/Textarea';
 import { useUploadFinalAcademic, useUploadFinalJournal } from '@/hooks/useSubmissions';
 import { cn } from '@/lib/utils';
 import { getMilestoneDeadlineState } from '@/utils/milestoneDeadlines';
@@ -29,15 +33,30 @@ function UploadSection({
   const isLate = deadlineState === 'overdue';
   const lateSubmissionClosed = isLate && !allowLateSubmission;
 
+  const acceptPdfFile = (selected) => {
+    if (!selected) return;
+    const isPdf =
+      selected.type === 'application/pdf' || selected.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      setFile(null);
+      toast.error('Please select a PDF file.');
+      return;
+    }
+    if (selected.size > 50 * 1024 * 1024) {
+      setFile(null);
+      toast.error('File size exceeds the 50MB limit.');
+      return;
+    }
+    setFile(selected);
+  };
+
   const handleFileChange = (e) => {
-    const selected = e.target.files?.[0];
-    if (selected) setFile(selected);
+    acceptPdfFile(e.target.files?.[0]);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const dropped = e.dataTransfer.files?.[0];
-    if (dropped?.type === 'application/pdf') setFile(dropped);
+    acceptPdfFile(e.dataTransfer.files?.[0]);
   };
 
   const handleUpload = async () => {
@@ -91,7 +110,7 @@ function UploadSection({
         className={cn(
           'rounded-md border px-3 py-2 text-xs',
           isLate
-            ? 'border-destructive/40 bg-destructive/5 text-destructive'
+            ? 'border-destructive/40 bg-destructive/5 text-destructive-text'
             : 'border-border/60 bg-muted/30 text-muted-foreground',
         )}
         data-testid="final-paper-deadline"
@@ -108,16 +127,19 @@ function UploadSection({
 
       {isLate && allowLateSubmission && (
         <div className="space-y-1.5">
-          <label htmlFor={`${label.replace(/\W+/g, '-').toLowerCase()}-late-remarks`} className="text-xs font-medium text-foreground">
+          <Label
+            htmlFor={`${label.replace(/\W+/g, '-').toLowerCase()}-late-remarks`}
+            className="text-xs font-medium"
+          >
             Late-submission justification <span className="text-destructive">*</span>
-          </label>
-          <textarea
+          </Label>
+          <Textarea
             id={`${label.replace(/\W+/g, '-').toLowerCase()}-late-remarks`}
             value={lateRemarks}
             onChange={(event) => setLateRemarks(event.target.value)}
             maxLength={1000}
             rows={3}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="min-h-[88px] text-xs"
             placeholder="Explain why this deliverable is being submitted after its deadline."
             disabled={isLocked || isPending}
             required
@@ -126,32 +148,43 @@ function UploadSection({
         </div>
       )}
 
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        disabled={isLocked || lateSubmissionClosed || isPending}
+        className="hidden"
+        onChange={handleFileChange}
+        aria-label={`${label} PDF file`}
+      />
+
       {/* Drop zone */}
-      <div
-        role={isLocked || lateSubmissionClosed ? 'region' : 'button'}
-        tabIndex={isLocked || lateSubmissionClosed ? -1 : 0}
-        onClick={() => !isLocked && !lateSubmissionClosed && inputRef.current?.click()}
-        onDrop={!isLocked && !lateSubmissionClosed ? handleDrop : undefined}
-        onDragOver={(e) => !isLocked && !lateSubmissionClosed && e.preventDefault()}
-        onKeyDown={(e) =>
-          !isLocked && !lateSubmissionClosed && e.key === 'Enter' && inputRef.current?.click()
+      <Button
+        type="button"
+        variant="outline"
+        disabled={isLocked || lateSubmissionClosed || isPending}
+        onClick={() => inputRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={(event) => event.preventDefault()}
+        aria-label={
+          file ? `Selected file: ${file.name}. Choose another PDF` : `Choose ${label} PDF file`
         }
         className={cn(
-          'flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 transition-all text-center',
+          'h-auto min-h-[44px] w-full flex-col gap-2.5 whitespace-normal rounded-xl border-2 border-dashed p-6 text-center transition-colors',
           isLocked || lateSubmissionClosed
-            ? 'border-border/60 bg-muted/30 opacity-60 cursor-not-allowed'
+            ? 'border-border/60 bg-muted/30 opacity-60'
             : file
-              ? 'border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-500/10 cursor-pointer'
-              : 'border-border/70 bg-muted/20 hover:border-primary/50 hover:bg-muted/40 cursor-pointer',
+              ? 'border-success/50 bg-success/5 hover:bg-success/10'
+              : 'border-border/70 bg-muted/20 hover:border-primary/50 hover:bg-muted/40',
         )}
       >
-        <div
+        <span
           className={cn(
             'flex h-10 w-10 items-center justify-center rounded-full transition-colors',
             isLocked
               ? 'bg-muted text-muted-foreground'
               : file
-                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                ? 'bg-success/15 text-success-foreground'
                 : 'bg-muted text-muted-foreground',
           )}
         >
@@ -162,44 +195,38 @@ function UploadSection({
           ) : (
             <FileText className="h-5 w-5" />
           )}
-        </div>
+        </span>
         {isLocked || lateSubmissionClosed ? (
-          <div>
+          <span className="flex flex-col">
             <span className="text-sm font-medium text-muted-foreground">
               {isLocked ? 'Submission Locked' : 'Late Uploads Closed'}
             </span>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <span className="mt-0.5 text-xs text-muted-foreground">
               {isLocked
                 ? 'Available in the Final Capstone phase after prerequisite milestone completion'
                 : 'The instructor has closed late submissions for this milestone.'}
-            </p>
-          </div>
+            </span>
+          </span>
         ) : file ? (
-          <div className="space-y-1">
+          <span className="flex flex-col space-y-1">
             <span className="max-w-[320px] truncate block text-sm font-semibold text-foreground">
               {file.name}
             </span>
             <span className="text-xs text-muted-foreground">
               {(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
             </span>
-          </div>
+          </span>
         ) : (
-          <div>
+          <span className="flex flex-col">
             <span className="text-sm font-medium text-foreground">
               Click to browse or drag PDF file here
             </span>
-            <p className="text-xs text-muted-foreground mt-0.5">Maximum file size: 50MB (.pdf)</p>
-          </div>
+            <span className="mt-0.5 text-xs text-muted-foreground">
+              Maximum file size: 50MB (.pdf)
+            </span>
+          </span>
         )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf"
-          disabled={isLocked || lateSubmissionClosed}
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      </div>
+      </Button>
 
       {/* Upload button */}
       <div className="flex justify-end">
@@ -217,7 +244,7 @@ function UploadSection({
         >
           {isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner className="h-4 w-4" />
               Uploading…
             </>
           ) : isLocked ? (
@@ -283,10 +310,7 @@ export default function FinalPaperUpload({
                 Final Paper Submission
               </CardTitle>
               {isLocked && (
-                <Badge
-                  variant="outline"
-                  className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[10px] uppercase font-semibold"
-                >
+                <Badge variant="warning" className="text-[10px] font-semibold uppercase">
                   Locked
                 </Badge>
               )}
@@ -302,30 +326,27 @@ export default function FinalPaperUpload({
       <CardContent className="space-y-6 pt-5">
         {/* Lock or Info notice */}
         {isLocked ? (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-800 dark:text-amber-300">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <p className="text-xs leading-relaxed font-medium">
+          <Alert role="status" variant="warning" className="p-3.5">
+            <AlertDescription className="text-xs font-medium leading-relaxed">
               {lockMessage ||
                 'Final Paper Submission unlocks after Chapters 4–5 and Capstone 3 Action Done Matrix (ADM v2) are approved by the committee.'}
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          <Alert role="status" variant="info" className="p-3.5">
+            <AlertDescription className="text-xs leading-relaxed text-muted-foreground">
               The Final Capstone requires both the Complete Academic Manuscript
               (internal/restricted) and the Publishable Journal Version (public repository). Ensure
               all final revisions from defense hearings are incorporated.
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         <UploadSection
           icon={Lock}
           label="Full Academic Manuscript"
           badge="Restricted Access"
-          badgeVariant="outline"
-          badgeClass="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+          badgeVariant="warning"
           description="Complete academic manuscript with all 5 chapters, appendices, and references for faculty committee archives."
           mutation={academicMutation}
           projectId={projectId}
@@ -340,8 +361,7 @@ export default function FinalPaperUpload({
           icon={Globe}
           label="Journal / Publishable Version"
           badge="Public Repository"
-          badgeVariant="outline"
-          badgeClass="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+          badgeVariant="success"
           description="Condensed paper version adhering to IEEE/CHED formats, indexed for the BukSU Institutional Public Archive."
           mutation={journalMutation}
           projectId={projectId}

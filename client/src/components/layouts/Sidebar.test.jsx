@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
-import Sidebar, { AppSidebar } from './Sidebar';
+import Sidebar from './Sidebar';
 import { ROLES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -142,6 +142,12 @@ describe('Sidebar Component', () => {
     expect(aside).not.toBeNull();
     expect(aside.className).toContain('w-20');
 
+    const dashboardLink = Array.from(container.querySelectorAll('a')).find(
+      (link) => link.getAttribute('href') === '/dashboard',
+    );
+    expect(dashboardLink).toHaveAttribute('aria-label', 'Dashboard');
+    expect(dashboardLink).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
+
     const toggleBtn = container.querySelector('button[aria-label="Expand sidebar"]');
     expect(toggleBtn).not.toBeNull();
 
@@ -154,16 +160,19 @@ describe('Sidebar Component', () => {
     unmount();
   });
 
-  it('projects portal tooltips to document.body on mouseEnter when collapsed', async () => {
+  it('projects collapsed navigation tooltips to document.body and cleans up on unmount', async () => {
     const { container, unmount } = renderSidebar({ open: false });
 
     const links = container.querySelectorAll('a');
     const capstoneLink = Array.from(links).find((link) => link.getAttribute('href') === '/project');
     expect(capstoneLink).not.toBeNull();
+    expect(capstoneLink).toHaveAttribute('aria-label', 'My Capstone');
+    expect(capstoneLink).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
 
-    // Trigger hover or focus
+    // Radix tooltips open after pointer movement and the provider's delay.
     await act(async () => {
-      capstoneLink.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      capstoneLink.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 350));
     });
 
     // Check portal tooltip in document.body
@@ -172,15 +181,8 @@ describe('Sidebar Component', () => {
     expect(portalTooltip.textContent).toContain('My Capstone');
     expect(portalTooltip.textContent).toContain('Draft');
 
-    // Trigger leave or blur
-    await act(async () => {
-      capstoneLink.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
-    });
-
-    const portalTooltipAfterLeave = document.body.querySelector('[role="tooltip"]');
-    expect(portalTooltipAfterLeave).toBeNull();
-
     unmount();
+    expect(document.body.querySelector('[role="tooltip"]')).toBeNull();
   });
 
   it('renders role-appropriate navigation for instructors', () => {

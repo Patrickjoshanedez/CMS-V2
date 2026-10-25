@@ -140,10 +140,10 @@ export function TurnitinHighlightOverlay({
             {isFirst && (
               <span
                 data-testid="turnitin-source-badge"
-                className="turnitin-source-badge absolute -top-3.5 left-0 z-30 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs select-none pointer-events-auto leading-none tracking-tight border border-white/40"
+                className="turnitin-source-badge absolute -top-3.5 left-0 z-30 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs select-none pointer-events-auto leading-none tracking-tight border border-background/40"
                 style={{
                   backgroundColor: resolvedColor,
-                  color: '#ffffff',
+                  color: 'hsl(var(--background))',
                 }}
                 onClick={handleClick}
                 title={`[${resolvedSourceNumber}] ${highlight.meta?.sourceTitle || 'Matched Source'} (${highlight.meta?.similarityScore || 0}%)`}

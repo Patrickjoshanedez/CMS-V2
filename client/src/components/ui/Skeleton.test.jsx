@@ -3,17 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   Skeleton,
-  SkeletonCard,
   SkeletonText,
   SkeletonAvatar,
   SkeletonButton,
   SkeletonBadge,
 } from './Skeleton.jsx';
 import PageSkeleton, {
-  DashboardSkeleton,
-  TableSkeleton,
-  DetailSkeleton,
   CardGridSkeleton,
+  DashboardSkeleton,
+  DetailSkeleton,
   FormSkeleton,
   LazyComponent,
 } from './PageSkeleton.jsx';
@@ -39,7 +37,7 @@ describe('Skeleton Components', () => {
     root = null;
   });
 
-  it('renders base Skeleton with shimmer class', () => {
+  it('renders the shadcn base Skeleton with muted pulse styling', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -50,7 +48,8 @@ describe('Skeleton Components', () => {
 
     const el = container.querySelector('[data-testid="skeleton-el"]');
     expect(el).not.toBeNull();
-    expect(el.className).toContain('cms-skeleton-shimmer');
+    expect(el.className).toContain('bg-muted');
+    expect(el.className).toContain('motion-safe:animate-pulse');
     expect(el.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -63,7 +62,7 @@ describe('Skeleton Components', () => {
       root.render(<SkeletonText lines={3} />);
     });
 
-    const lines = container.querySelectorAll('.cms-skeleton-shimmer');
+    const lines = container.querySelectorAll('.motion-safe\\:animate-pulse');
     expect(lines.length).toBe(3);
   });
 
@@ -118,6 +117,30 @@ describe('Skeleton Components', () => {
     const busy = container.querySelector('[aria-busy="true"]');
     expect(busy).not.toBeNull();
     expect(busy.getAttribute('aria-label')).toBe('Loading data table...');
+  });
+
+  it('announces page skeleton layouts without adding a second animation layer', () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <>
+          <DetailSkeleton />
+          <CardGridSkeleton />
+          <FormSkeleton />
+        </>,
+      );
+    });
+
+    const statusRegions = container.querySelectorAll('[role="status"][aria-busy="true"]');
+    expect(statusRegions).toHaveLength(3);
+    statusRegions.forEach((region) => {
+      expect(region.getAttribute('aria-live')).toBe('polite');
+      expect(region.className).not.toContain('animate-pulse');
+    });
+    expect(container.querySelectorAll('.motion-safe\\:animate-pulse').length).toBeGreaterThan(0);
   });
 
   it('renders LazyComponent with fallback skeleton', () => {

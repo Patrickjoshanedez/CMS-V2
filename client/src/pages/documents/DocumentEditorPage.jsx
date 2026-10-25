@@ -5,10 +5,11 @@ import GoogleDocViewer from '@/components/documents/GoogleDocViewer';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useManuscriptOpenLink } from '@/hooks/useDocuments';
 import { parseDocParam } from '@/utils/documentParams';
 import { ROLES, DOCUMENT_TYPES } from '@cms/shared';
-import { Loader2, ArrowLeft, AlertCircle, FileText } from 'lucide-react';
+import { ArrowLeft, AlertCircle, FileText } from 'lucide-react';
 
 /** Human-readable labels for document types */
 const DOC_TYPE_LABELS = {
@@ -44,7 +45,8 @@ export default function DocumentEditorPage() {
   const { data, isLoading, error } = useManuscriptOpenLink(projectId, resolvedDocumentType);
 
   // Determine edit capability based on role
-  const canEdit = user?.role === ROLES.STUDENT || user?.role === ROLES.ADVISER;
+  const canEdit =
+    user?.role === ROLES.STUDENT || user?.role === ROLES.ADVISER || user?.role === ROLES.FACULTY;
 
   const doc = data?.manuscript;
 
@@ -62,14 +64,14 @@ export default function DocumentEditorPage() {
             {doc && (
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <FileText aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <h1 className="truncate text-lg font-semibold">{doc.title}</h1>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge variant="outline">
                     {DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
                   </Badge>
-                  <Badge variant={canEdit ? 'default' : 'secondary'}>
+                  <Badge variant={canEdit ? 'success' : 'secondary'}>
                     {canEdit ? 'Edit Mode' : 'View Only'}
                   </Badge>
                 </div>
@@ -80,8 +82,11 @@ export default function DocumentEditorPage() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div role="status" aria-live="polite" className="flex flex-1 flex-col gap-4">
+            <span className="sr-only">Loading document</span>
+            <Skeleton className="h-7 w-2/5 max-w-sm" />
+            <Skeleton className="h-5 w-3/5 max-w-md" />
+            <Skeleton className="min-h-[50vh] w-full rounded-md" />
           </div>
         )}
 

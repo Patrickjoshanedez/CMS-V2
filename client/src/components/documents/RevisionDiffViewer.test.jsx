@@ -156,16 +156,26 @@ describe('RevisionDiffViewer', () => {
 
   it('switches granularity mode between words, sentences, and lines', async () => {
     const el = await renderDiffViewer();
-    const sentenceBtn = Array.from(el.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Sentence Diff'),
-    );
-    expect(sentenceBtn).not.toBeUndefined();
+    const sentenceOption = el.querySelector('button[aria-label="Sentence Diff"]');
+    expect(sentenceOption).not.toBeNull();
 
     await act(async () => {
-      sentenceBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      sentenceOption.click();
     });
 
-    // Verify button is now active
-    expect(sentenceBtn.className).toContain('bg-primary');
+    expect(sentenceOption.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('uses the shared accessible search, comparison selector, and filter group', async () => {
+    const el = await renderDiffViewer();
+
+    expect(el.querySelector('input[aria-label="Search in revisions"]')).not.toBeNull();
+    expect(
+      el.querySelector('button[aria-label="Select previous version to compare with"]'),
+    ).not.toBeNull();
+    expect(
+      el.querySelector('[role="radiogroup"][aria-label="Revision content filter"]'),
+    ).not.toBeNull();
+    expect(el.querySelector('button[aria-label="All Text"][aria-checked="true"]')).not.toBeNull();
   });
 });

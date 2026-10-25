@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { ROLES } from '@cms/shared';
 import UsersPage from './UsersPage';
 
@@ -57,6 +58,7 @@ const mockUseCreateUser = vi.fn();
 const mockUseChangeRole = vi.fn();
 const mockUseDeleteUser = vi.fn();
 const mockUseActivateUser = vi.fn();
+let mockDeleteMutate;
 
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: (selector) => {
@@ -93,6 +95,10 @@ describe('UsersPage Role Management (RBAC)', () => {
   let root;
 
   beforeEach(() => {
+    Element.prototype.hasPointerCapture ??= vi.fn(() => false);
+    Element.prototype.setPointerCapture ??= vi.fn();
+    Element.prototype.releasePointerCapture ??= vi.fn();
+    HTMLElement.prototype.scrollIntoView ??= vi.fn();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -115,8 +121,9 @@ describe('UsersPage Role Management (RBAC)', () => {
       isPending: false,
     });
 
+    mockDeleteMutate = vi.fn();
     mockUseDeleteUser.mockReturnValue({
-      mutate: vi.fn(),
+      mutate: mockDeleteMutate,
       isPending: false,
     });
 
@@ -124,6 +131,11 @@ describe('UsersPage Role Management (RBAC)', () => {
       mutate: vi.fn(),
       isPending: false,
     });
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
   });
 
   const renderComponent = async () => {
@@ -138,8 +150,9 @@ describe('UsersPage Role Management (RBAC)', () => {
     );
     if (rbacTabTrigger) {
       await act(async () => {
-        rbacTabTrigger.click();
+        fireEvent.mouseDown(rbacTabTrigger, { button: 0, ctrlKey: false });
       });
+      expect(rbacTabTrigger.getAttribute('data-state')).toBe('active');
     }
   };
 
@@ -147,20 +160,25 @@ describe('UsersPage Role Management (RBAC)', () => {
     await renderComponent();
     await switchToRbacTab();
 
-    const roleFilter = container.querySelector('#roleFilter');
-    expect(roleFilter).not.toBeNull();
+    const roleFilter = screen.getByRole('combobox', { name: 'Filter users by role' });
+    expect(roleFilter.textContent).toContain('All Roles');
+    await act(async () => {
+      fireEvent.pointerDown(roleFilter, {
+        button: 0,
+        ctrlKey: false,
+        pointerType: 'mouse',
+        pointerId: 1,
+      });
+    });
 
-    const optionValues = Array.from(roleFilter.options).map((o) => o.value);
-    const optionTexts = Array.from(roleFilter.options).map((o) => o.textContent.trim());
+    const options = await screen.findAllByRole('option');
+    const optionTexts = options.map((option) => option.textContent.trim());
 
-    expect(optionValues).toEqual(['', 'student', 'instructor', 'faculty']);
-    expect(optionTexts).toEqual(['All Roles', 'Student', 'Instructor', 'Faculty']);
-
-    // Ensure legacy roles are NOT present
-    expect(optionValues).not.toContain('adviser');
-    expect(optionValues).not.toContain('panelist');
-    expect(optionValues).not.toContain('chair');
-    expect(optionValues).not.toContain('secretary');
+    expect(optionTexts).toEqual(['Student', 'Instructor', 'Faculty']);
+    expect(optionTexts).not.toContain('Adviser');
+    expect(optionTexts).not.toContain('Panelist');
+    expect(optionTexts).not.toContain('Chair');
+    expect(optionTexts).not.toContain('Secretary');
   });
 
   it('restricts Create User role dropdown strictly to Student, Instructor, and Faculty', async () => {
@@ -168,22 +186,25 @@ describe('UsersPage Role Management (RBAC)', () => {
     await switchToRbacTab();
 
     // Click "New User" button
-    const newUserBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('New User'),
-    );
-    expect(newUserBtn).toBeDefined();
+    const newUserBtn = screen.getByRole('button', { name: 'New User' });
 
     await act(async () => {
-      newUserBtn.click();
+      fireEvent.click(newUserBtn);
     });
 
     const createRoleSelect = container.querySelector('#role');
     expect(createRoleSelect).not.toBeNull();
+    await act(async () => {
+      fireEvent.pointerDown(createRoleSelect, {
+        button: 0,
+        ctrlKey: false,
+        pointerType: 'mouse',
+        pointerId: 2,
+      });
+    });
+    const options = await screen.findAllByRole('option');
+    const optionTexts = options.map((option) => option.textContent.trim());
 
-    const optionValues = Array.from(createRoleSelect.options).map((o) => o.value);
-    const optionTexts = Array.from(createRoleSelect.options).map((o) => o.textContent.trim());
-
-    expect(optionValues).toEqual(['student', 'instructor', 'faculty']);
     expect(optionTexts).toEqual(['Student', 'Instructor', 'Faculty']);
   });
 
@@ -191,30 +212,39 @@ describe('UsersPage Role Management (RBAC)', () => {
     await renderComponent();
     await switchToRbacTab();
 
-    // Check all row selects
-    const rowSelects = container.querySelectorAll('.user-row-card select');
-    expect(rowSelects.length).toBe(3);
+    // Check all accessible role controls, including normalized legacy faculty appointments.
+    const rows = screen.getAllByTestId('user-row');
+    const rowSelects = rows.map((row) => within(row).getByRole('combobox'));
+    expect(rowSelects).toHaveLength(3);
 
-    // First user was seeded with role: 'adviser' (Leon Mentor)
-    expect(rowSelects[0].value).toBe('faculty');
-    const firstSelectOptions = Array.from(rowSelects[0].options).map((o) => o.value);
-    expect(firstSelectOptions).toEqual(['student', 'instructor', 'faculty']);
-
-    // Second user was seeded with role: 'panelist' (Steven Bautista)
-    expect(rowSelects[1].value).toBe('faculty');
-
-    // Third user was student
-    expect(rowSelects[2].value).toBe('student');
+    // Adviser and panelist records are both presented as Faculty; students remain Student.
+    expect(rowSelects[0].textContent).toContain('Faculty');
+    expect(rowSelects[1].textContent).toContain('Faculty');
+    expect(rowSelects[2].textContent).toContain('Student');
 
     // Check badges
-    const badges = Array.from(
-      container.querySelectorAll(
-        '.user-row-card [class*="Badge"], .user-row-card div, .user-row-card span',
-      ),
-    ).map((el) => el.textContent.trim().toLowerCase());
+    const displayedRoles = rows
+      .map((row) => within(row).getByTestId('user-role-badge').textContent.toLowerCase())
+      .sort();
+    expect(displayedRoles).toEqual(['faculty', 'faculty', 'student']);
+  });
 
-    expect(badges).toContain('faculty');
-    expect(badges).not.toContain('adviser');
-    expect(badges).not.toContain('panelist');
+  it('requires confirmation before deactivating a user', async () => {
+    await renderComponent();
+    await switchToRbacTab();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate Leon Mentor' }));
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+    expect(screen.getByText('Are you sure you want to deactivate "Leon Mentor"?')).toBeTruthy();
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Deactivate user' }));
+    });
+
+    expect(mockDeleteMutate).toHaveBeenCalledWith('user-adv-1');
   });
 });

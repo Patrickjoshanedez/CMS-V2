@@ -1,12 +1,12 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ActionDoneMatrixTab, {
   consolidateADMRowsByPanel,
   estimateADMRowWeight,
   autoAllocateADMSheets,
   ADM_PAGE_CAPACITIES,
-  extractSuggestionItems,
   splitADMRowIfOversized,
 } from './ActionDoneMatrixTab';
 
@@ -123,6 +123,28 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     });
   };
 
+  it('exposes the ADM milestone switcher as an accessible pressed-state button group', async () => {
+    await renderComponent();
+
+    const milestoneGroup = container.querySelector(
+      '[role="group"][aria-label="Action Done Matrix milestone"]',
+    );
+    const milestoneButtons = Array.from(milestoneGroup.querySelectorAll('button'));
+
+    expect(milestoneButtons).toHaveLength(3);
+    expect(
+      milestoneButtons.filter((button) => button.getAttribute('aria-pressed') === 'true'),
+    ).toHaveLength(1);
+
+    await act(async () => {
+      fireEvent.click(milestoneButtons[1]);
+    });
+
+    expect(milestoneButtons[0]).toHaveAttribute('aria-pressed', 'false');
+    expect(milestoneButtons[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(milestoneButtons[2]).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('renders institutional BukSU header, title, and contact details', async () => {
     await renderComponent();
 
@@ -185,6 +207,36 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(container.textContent).toContain('Issue Date: May 15, 2018');
   });
 
+  it('opens the minutes upload in an accessible shared dialog and dismisses it with Escape', async () => {
+    await renderComponent({
+      project: {
+        ...mockProject,
+        secretaryId: { _id: 'sec-1', firstName: 'Faculty', lastName: 'Secretary' },
+      },
+      user: { _id: 'sec-1', role: 'faculty' },
+    });
+
+    const uploadButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Upload Hearing Defense Minutes'),
+    );
+    expect(uploadButton).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(uploadButton);
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
+    expect(dialog.textContent).toContain('Upload Defense Minutes PDF');
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  });
+
   it('renders Secretary Compliance Verification Gate and locks signatures until endorsed', async () => {
     await renderComponent({
       user: { _id: 'chair-1', role: 'faculty', facultyRole: 'chair' },
@@ -215,6 +267,44 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
 
     expect(container.textContent).toContain('Endorsed & Unlocked');
     expect(container.textContent).toContain('Sign Digitally');
+  });
+
+  it('opens the official digital signature flow in the shared accessible dialog', async () => {
+    const endorsedProject = {
+      ...mockProject,
+      admSignatures: {
+        ...mockProject.admSignatures,
+        secretary: {
+          endorsed: true,
+          endorsedAt: new Date().toISOString(),
+          signatoryName: 'Secretary Test',
+        },
+      },
+    };
+    await renderComponent({
+      project: endorsedProject,
+      user: { _id: 'chair-1', role: 'faculty', facultyRole: 'chair' },
+    });
+
+    const signButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Sign Digitally'),
+    );
+    expect(signButton).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(signButton);
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Official Committee Endorsement');
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('disables review type checkboxes and shows student-specific empty state for student users', async () => {
@@ -284,7 +374,7 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(minutesTabBtn).toBeTruthy();
 
     await act(async () => {
-      minutesTabBtn.click();
+      fireEvent.mouseDown(minutesTabBtn, { button: 0, ctrlKey: false });
     });
 
     // Should now render Secretary Minutes document sheet
@@ -389,7 +479,8 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(page3).toBeTruthy();
 
     // Page 2 is now a Continuation Sheet
-    expect(page2.textContent).toContain('ACTION DONE MATRIX (CONTINUATION)');
+    expect(page2.textContent).toContain('ACTION DONE MATRIX');
+    expect(page2.textContent).not.toContain('ACTION DONE MATRIX (CONTINUATION)');
     expect(page2.textContent).toContain('Page 2 of 3');
 
     // Page 3 is now the Final Sign-Off Sheet

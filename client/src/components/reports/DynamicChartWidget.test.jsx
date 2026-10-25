@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import DynamicChartWidget from './DynamicChartWidget';
+import DynamicChartWidget, { CHART_PALETTE } from './DynamicChartWidget';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -147,8 +147,8 @@ describe('DynamicChartWidget', () => {
     });
 
     const barBtn = container.querySelector('button[aria-label="Switch to bar view"]');
-    expect(barBtn.className).toContain('min-h-[44px]');
-    expect(barBtn.className).toContain('min-w-[44px]');
+    expect(barBtn.className).toContain('min-h-11');
+    expect(barBtn.className).toContain('min-w-11');
 
     const csvBtn = container.querySelector('button[aria-label="Export Widget Data as CSV"]');
     expect(csvBtn.className).toContain('min-h-[44px]');
@@ -180,7 +180,19 @@ describe('DynamicChartWidget', () => {
     act(() => {
       fsBtn.click();
     });
-    expect(fsBtn.getAttribute('aria-label')).toBe('Exit Fullscreen');
+    const exitButton = document.body.querySelector('button[aria-label="Exit Fullscreen"]');
+    expect(exitButton).toBeTruthy();
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(document.body.querySelector('button[aria-label="Exit Fullscreen"]')).toBeNull();
+  });
+
+  it('uses the centralized semantic chart palette', () => {
+    expect(CHART_PALETTE).toEqual(
+      Array.from({ length: 8 }, (_, index) => `hsl(var(--chart-${index + 1}))`),
+    );
   });
 
   it('renders radar chart and pie chart with safe label handling', () => {

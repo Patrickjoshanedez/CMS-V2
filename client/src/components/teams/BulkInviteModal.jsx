@@ -1,26 +1,30 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Users,
   UserPlus,
-  Mail,
   Search,
   X,
   Check,
-  CheckCircle2,
   Copy,
   AlertTriangle,
-  Loader2,
   ClipboardList,
-  Trash2,
-  ArrowRight,
-  ShieldAlert,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { useInviteCandidates, useBulkInviteMembers } from '@/hooks/useTeams';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -97,18 +101,6 @@ export default function BulkInviteModal({
     }
   }, [open]);
 
-  // Keyboard accessibility: ESC to close
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !bulkInviteMutation.isPending) {
-        onOpenChange(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange, bulkInviteMutation.isPending]);
-
   // Stage a candidate from candidate search
   const handleToggleCandidate = (candidate) => {
     const isAlreadyStaged = stagedCandidates.some(
@@ -176,54 +168,55 @@ export default function BulkInviteModal({
 
   if (!open) return null;
 
-  const modalContent = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-teammates-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !bulkInviteMutation.isPending) {
-          onOpenChange(false);
-        }
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen || !bulkInviteMutation.isPending) onOpenChange(nextOpen);
       }}
     >
-      <Card
-        className="w-full max-w-2xl border-border/80 bg-card shadow-2xl overflow-hidden my-auto max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showClose={false}
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-4rem)] sm:w-full"
+        onEscapeKeyDown={(event) => {
+          if (bulkInviteMutation.isPending) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (bulkInviteMutation.isPending) event.preventDefault();
+        }}
       >
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-4 sm:p-5 pb-4 bg-card">
-          <div className="space-y-1">
+          <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <UserPlus className="h-4 w-4" />
               </div>
-              <h2
-                id="invite-teammates-dialog-title"
-                className="text-lg font-bold tracking-tight text-foreground"
-              >
+              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
                 Invite Teammates
-              </h2>
+              </DialogTitle>
               {teamName && (
                 <Badge variant="secondary" className="text-xs font-semibold px-2 py-0.5">
                   {teamName}
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <DialogDescription className="text-xs leading-relaxed">
               Add student teammates to collaborate on your BukSU Capstone project.
-            </p>
+            </DialogDescription>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            disabled={bulkInviteMutation.isPending}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={bulkInviteMutation.isPending}
+              className="ml-2 shrink-0"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogClose>
         </div>
 
         {/* Capacity Strip */}
@@ -243,17 +236,11 @@ export default function BulkInviteModal({
                 Team Full
               </Badge>
             ) : remainingSlotsAfterStaged === 0 ? (
-              <Badge
-                variant="outline"
-                className="text-[10px] px-2 py-0 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              >
+              <Badge variant="warning" className="text-[10px] px-2 py-0">
                 Max Staged ({stagedCandidates.length})
               </Badge>
             ) : (
-              <Badge
-                variant="outline"
-                className="text-[10px] px-2 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              >
+              <Badge variant="success" className="text-[10px] px-2 py-0">
                 {remainingSlotsAfterStaged} Slot
                 {remainingSlotsAfterStaged === 1 ? '' : 's'} Available
               </Badge>
@@ -262,39 +249,25 @@ export default function BulkInviteModal({
         </div>
 
         {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {batchResults ? (
             /* Results View */
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div
-                className={cn(
-                  'rounded-xl border p-4 text-xs',
-                  batchResults.summary.succeeded > 0
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : 'border-destructive/30 bg-destructive/5',
-                )}
+              <Alert
+                variant={batchResults.summary.succeeded > 0 ? 'success' : 'destructive'}
+                className="p-4 text-xs"
               >
                 <div className="flex items-center justify-between font-semibold">
-                  <span
-                    className={cn(
-                      'flex items-center gap-2 text-sm',
-                      batchResults.summary.succeeded > 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-destructive',
-                    )}
-                  >
-                    <CheckCircle2 className="h-5 w-5" />
-                    Invitation Batch Dispatched
-                  </span>
+                  <AlertTitle className="mb-0 text-sm">Invitation Batch Dispatched</AlertTitle>
                   <Badge variant="secondary" className="text-xs">
                     {batchResults.summary.succeeded} of {batchResults.summary.total} Succeeded
                   </Badge>
                 </div>
-                <p className="mt-1 text-muted-foreground">
+                <AlertDescription className="mt-1">
                   Invite codes have been generated and dispatched via in-app notifications. Share
                   these 6-digit codes with your peers for rapid group joining.
-                </p>
-              </div>
+                </AlertDescription>
+              </Alert>
 
               {/* Codes list */}
               <div className="space-y-2">
@@ -336,7 +309,7 @@ export default function BulkInviteModal({
                           <p className="text-xs font-semibold text-foreground truncate">{name}</p>
                           <p className="text-[11px] text-muted-foreground truncate">{res.email}</p>
                           {!isSuccess && (
-                            <p className="text-[10px] text-destructive font-medium mt-0.5">
+                            <p className="text-[10px] text-destructive-text font-medium mt-0.5">
                               {res.error?.message || 'Invite failed'}
                             </p>
                           )}
@@ -383,15 +356,15 @@ export default function BulkInviteModal({
                     className="pl-9 text-xs h-9"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                    <Spinner className="absolute right-3 top-2.5 size-4 text-muted-foreground" />
                   )}
                 </div>
 
                 {/* Candidate List Container */}
-                <div className="rounded-lg border border-border/60 bg-background max-h-56 overflow-y-auto divide-y divide-border/40">
+                <Card className="max-h-56 divide-y divide-border/40 overflow-y-auto bg-background p-0 shadow-none">
                   {isSearching ? (
                     <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner />
                       Searching candidates...
                     </div>
                   ) : candidates.length > 0 ? (
@@ -436,7 +409,7 @@ export default function BulkInviteModal({
                               {blockingWarnings.map((w, idx) => (
                                 <p
                                   key={idx}
-                                  className="text-[10px] text-destructive font-medium flex items-center gap-1 mt-0.5"
+                                  className="text-[10px] text-destructive-text font-medium flex items-center gap-1 mt-0.5"
                                 >
                                   <AlertTriangle className="h-3 w-3 shrink-0" />
                                   {w.message}
@@ -472,13 +445,21 @@ export default function BulkInviteModal({
                       );
                     })
                   ) : (
-                    <div className="py-6 text-center text-xs text-muted-foreground">
-                      {debouncedSearch
-                        ? 'No matching students found.'
-                        : 'No unassigned classmates found in your section. Use search above to look up students across sections.'}
-                    </div>
+                    <EmptyState
+                      icon={Users}
+                      compact
+                      title={
+                        debouncedSearch ? 'No matching students found' : 'No classmates available'
+                      }
+                      description={
+                        debouncedSearch
+                          ? 'Try a different name or email search.'
+                          : 'No unassigned classmates were found in your section. Search above to look across sections.'
+                      }
+                      className="rounded-none border-0 bg-transparent shadow-none"
+                    />
                   )}
-                </div>
+                </Card>
               </div>
 
               {/* Staged Candidates Tray */}
@@ -489,13 +470,15 @@ export default function BulkInviteModal({
                     Staged for Invitation ({stagedCandidates.length} of {totalAvailableSlots})
                   </span>
                   {stagedCandidates.length > 0 && (
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setStagedCandidates([])}
-                      className="text-[11px] text-destructive hover:underline"
+                      className="h-8 text-[11px] text-destructive-text hover:text-destructive-text"
                     >
                       Clear All
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -512,22 +495,27 @@ export default function BulkInviteModal({
                         <span className="font-medium truncate max-w-[160px] sm:max-w-[200px]">
                           {c.fullName || c.email}
                         </span>
-                        <button
+                        <Button
                           type="button"
+                          size="icon"
+                          variant="ghost"
                           onClick={() => handleRemoveStaged(c.email)}
-                          className="rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="size-7 min-h-7 min-w-7 rounded-full p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text"
                           aria-label={`Remove ${c.fullName || c.email}`}
                         >
                           <X className="h-3 w-3" />
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-4 text-center text-xs text-muted-foreground">
-                    No teammates staged yet. Search and click &ldquo;+ Add&rdquo; on students above
-                    to invite them.
-                  </div>
+                  <EmptyState
+                    icon={ClipboardList}
+                    compact
+                    title="No teammates staged yet"
+                    description="Search and click Add on students above to invite them."
+                    className="rounded-lg border-border/80 bg-muted/10"
+                  />
                 )}
               </div>
             </div>
@@ -535,7 +523,7 @@ export default function BulkInviteModal({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center justify-between border-t border-border/60 bg-muted/20 px-4 sm:px-5 py-3">
+        <DialogFooter className="shrink-0 flex-row items-center justify-between border-t border-border/60 bg-muted/20 px-4 py-3 sm:px-5 sm:justify-between">
           {batchResults ? (
             <div className="flex w-full justify-end">
               <Button
@@ -563,30 +551,21 @@ export default function BulkInviteModal({
                 type="button"
                 size="sm"
                 disabled={bulkInviteMutation.isPending || stagedCandidates.length === 0}
+                loading={bulkInviteMutation.isPending}
+                loadingText="Sending Invitations..."
                 onClick={handleSendInvites}
-                className="text-xs h-8 px-4 bg-primary hover:bg-primary/90 gap-1.5 font-medium"
+                className="text-xs h-8 px-4 gap-1.5 font-medium"
               >
-                {bulkInviteMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Sending Invitations...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="h-3.5 w-3.5" />
-                    Send {stagedCandidates.length} Invitation
-                    {stagedCandidates.length === 1 ? '' : 's'}
-                  </>
-                )}
+                <UserPlus className="h-3.5 w-3.5" />
+                Send {stagedCandidates.length} Invitation
+                {stagedCandidates.length === 1 ? '' : 's'}
               </Button>
             </>
           )}
-        </div>
-      </Card>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
 
 BulkInviteModal.propTypes = {

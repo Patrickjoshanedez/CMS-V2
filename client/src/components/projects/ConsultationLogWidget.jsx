@@ -6,16 +6,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
-import {
-  MessageSquareMore,
-  Calendar,
-  UserCheck,
-  Plus,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  FileCheck,
-} from 'lucide-react';
+import { MessageSquareMore, Calendar, Plus, Clock, CheckCircle2, FileCheck } from 'lucide-react';
 
 const INITIAL_LOGS = [
   {
@@ -39,7 +30,11 @@ const INITIAL_LOGS = [
   },
 ];
 
-export default function ConsultationLogWidget({ project, isAdviser = false, isStudent = false }) {
+export default function ConsultationLogWidget({
+  project: _project,
+  isAdviser = false,
+  isStudent: _isStudent = false,
+}) {
   const [logs, setLogs] = useState(INITIAL_LOGS);
   const [showAddForm, setShowAddForm] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -89,22 +84,24 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
   };
 
   return (
-    <Card className="rounded-2xl border-border bg-card shadow-lg">
+    <Card className="rounded-2xl border-border bg-card shadow-sm">
       <CardHeader className="border-b border-border pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MessageSquareMore className="h-5 w-5 text-indigo-500" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <MessageSquareMore aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
             <CardTitle className="text-base font-bold text-card-foreground">
               Adviser Consultation Log (Research Mentorship)
             </CardTitle>
           </div>
           <Button
-            size="xs"
+            size="sm"
             variant="outline"
             onClick={() => setShowAddForm(!showAddForm)}
             className="gap-1 text-xs"
+            aria-expanded={showAddForm}
+            aria-controls="consultation-log-form"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus aria-hidden="true" className="h-3.5 w-3.5" />
             {showAddForm ? 'Cancel' : 'Log Consultation'}
           </Button>
         </div>
@@ -112,6 +109,7 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
       <CardContent className="space-y-4 pt-4">
         {showAddForm && (
           <form
+            id="consultation-log-form"
             onSubmit={handleAddLog}
             className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3"
           >
@@ -120,8 +118,11 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Meeting Date</Label>
+                <Label htmlFor="consultation-date" className="text-xs">
+                  Meeting Date
+                </Label>
                 <Input
+                  id="consultation-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
@@ -130,8 +131,11 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Discussion Topic / Milestone</Label>
+                <Label htmlFor="consultation-topic" className="text-xs">
+                  Discussion Topic / Milestone
+                </Label>
                 <Input
+                  id="consultation-topic"
                   placeholder="e.g. Chapter 2 Literature Gap Discussion"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
@@ -141,8 +145,11 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Agreed Action Items &amp; Next Deliverables</Label>
+              <Label htmlFor="consultation-actions" className="text-xs">
+                Agreed Action Items &amp; Next Deliverables
+              </Label>
               <Textarea
+                id="consultation-actions"
                 placeholder="List agreed revisions, target deadlines, and deliverables..."
                 value={actionItems}
                 onChange={(e) => setActionItems(e.target.value)}
@@ -152,14 +159,10 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" size="xs" onClick={() => setShowAddForm(false)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                size="xs"
-                className="bg-primary text-primary-foreground font-semibold"
-              >
+              <Button type="submit" size="sm" className="font-semibold">
                 Save Record
               </Button>
             </div>
@@ -170,31 +173,28 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
           {logs.map((log) => (
             <div
               key={log.id}
-              className="rounded-xl border border-border bg-muted/20 p-3 space-y-2 text-xs"
+              className="space-y-2 rounded-xl border border-border bg-muted/20 p-3 text-xs"
             >
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-bold text-foreground">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <span className="flex min-w-0 items-start gap-1.5 font-bold text-foreground">
+                  <Calendar
+                    aria-hidden="true"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                  />
                   {log.date} — {log.topic}
                 </span>
                 {log.status === 'signed' ? (
-                  <Badge
-                    variant="default"
-                    className="h-5 gap-1 bg-emerald-600 text-[10px] text-white"
-                  >
-                    <CheckCircle2 className="h-3 w-3" /> Signed by Adviser
+                  <Badge variant="success" className="h-5 shrink-0 gap-1 px-1.5 text-[10px]">
+                    <CheckCircle2 aria-hidden="true" className="h-3 w-3" /> Signed by Adviser
                   </Badge>
                 ) : (
-                  <Badge
-                    variant="outline"
-                    className="h-5 gap-1 border-amber-500/40 text-amber-600 text-[10px]"
-                  >
-                    <Clock className="h-3 w-3" /> Pending Sign-off
+                  <Badge variant="warning" className="h-5 shrink-0 gap-1 px-1.5 text-[10px]">
+                    <Clock aria-hidden="true" className="h-3 w-3" /> Pending Sign-off
                   </Badge>
                 )}
               </div>
 
-              <div className="space-y-1 pl-5 text-muted-foreground border-l-2 border-primary/20">
+              <div className="space-y-1 border-l-2 border-primary/20 pl-5 text-muted-foreground">
                 <p>
                   <strong className="text-foreground">Agreed Action Items:</strong>{' '}
                   {log.agreedActionItems}
@@ -210,11 +210,13 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
               {isAdviser && log.status !== 'signed' && (
                 <div className="flex justify-end pt-1">
                   <Button
-                    size="xs"
+                    size="sm"
                     onClick={() => handleSignLog(log.id)}
-                    className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px]"
+                    variant="outline"
+                    className="gap-1 border-success/40 text-xs font-semibold text-success-foreground hover:bg-success/10"
                   >
-                    <FileCheck className="h-3.5 w-3.5" /> Sign &amp; Verify Session
+                    <FileCheck aria-hidden="true" className="h-3.5 w-3.5" /> Sign &amp; Verify
+                    Session
                   </Button>
                 </div>
               )}

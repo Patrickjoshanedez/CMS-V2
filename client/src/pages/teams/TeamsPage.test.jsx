@@ -22,6 +22,7 @@ const mockUseMyTeam = vi.fn(() => ({ data: null, isLoading: false, isError: fals
 const mockUseMyProject = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamById = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamManuscriptTemplate = vi.fn(() => ({ data: null, isLoading: false }));
+const mockUseLockTeam = vi.fn(() => ({ mutate: vi.fn(), isPending: false }));
 const mockUseUnlockTeam = vi.fn(() => ({ mutate: vi.fn(), isPending: false }));
 
 let mockSearchParams = new URLSearchParams();
@@ -61,7 +62,7 @@ vi.mock('@/hooks/useTeams', () => ({
   useAssignMemberRole: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateGoogleDocLink: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateGithubLink: () => ({ mutate: vi.fn(), isPending: false }),
-  useLockTeam: () => ({ mutate: vi.fn(), isPending: false }),
+  useLockTeam: (...args) => mockUseLockTeam(...args),
   useUnlockTeam: (...args) => mockUseUnlockTeam(...args),
   useLeaveTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateManuscriptTemplate: () => ({ mutate: vi.fn(), isPending: false }),
@@ -215,9 +216,7 @@ describe('TeamsPage', () => {
   it('renders searchable adviser and panelist inputs for instructors', () => {
     const view = renderTeamsPage();
 
-    const teamButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Team One'),
-    );
+    const teamButton = view.container.querySelector('[data-testid="view-team-btn"]');
 
     expect(teamButton).toBeTruthy();
 
@@ -434,8 +433,6 @@ describe('TeamsPage', () => {
       error: null,
     });
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     const view = renderTeamsPage();
 
     expect(view.container.textContent).toContain('Team Finalized');
@@ -452,10 +449,68 @@ describe('TeamsPage', () => {
       unlockBtn.click();
     });
 
-    expect(confirmSpy).toHaveBeenCalled();
+    const confirmDialog = document.body.querySelector('[role="alertdialog"]');
+    expect(confirmDialog).toBeTruthy();
+    expect(confirmDialog.textContent).toContain('Unlock team roster?');
+    expect(mutateUnlock).not.toHaveBeenCalled();
+
+    const confirmButton = Array.from(confirmDialog.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Unlock roster'),
+    );
+    act(() => confirmButton.click());
     expect(mutateUnlock).toHaveBeenCalledWith({ teamId: 'team-student-locked' });
 
-    confirmSpy.mockRestore();
+    view.unmount();
+  });
+
+  it('requires explicit confirmation before finalizing the team roster', () => {
+    const mutateLock = vi.fn();
+    mockUseLockTeam.mockReturnValue({ mutate: mutateLock, isPending: false });
+    mockUseAuthStore.mockReturnValue({
+      user: { _id: 'student-lead', role: ROLES.STUDENT },
+      isAuthenticated: true,
+    });
+    mockUseMyTeam.mockReturnValue({
+      data: {
+        _id: 'team-student-lock-confirm',
+        name: 'Capstone Titans',
+        isLocked: false,
+        leaderId: 'student-lead',
+        members: [{ _id: 'student-lead', fullName: 'Leader Student' }],
+        memberRoles: [{ userId: 'student-lead', role: 'Full-Stack Developer' }],
+        pendingInvites: [],
+        assignment: {},
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const view = renderTeamsPage();
+    const finalizeButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Finalize & Lock Team'),
+    );
+    expect(finalizeButton.disabled).toBe(false);
+
+    act(() => finalizeButton.click());
+    const confirmDialog = document.body.querySelector('[role="alertdialog"]');
+    expect(confirmDialog).toBeTruthy();
+    expect(mutateLock).not.toHaveBeenCalled();
+
+    const cancelButton = Array.from(confirmDialog.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Cancel'),
+    );
+    act(() => cancelButton.click());
+    expect(mutateLock).not.toHaveBeenCalled();
+
+    act(() => finalizeButton.click());
+    const reopenedDialog = document.body.querySelector('[role="alertdialog"]');
+    const confirmButton = Array.from(reopenedDialog.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Finalize and lock'),
+    );
+    act(() => confirmButton.click());
+    expect(mutateLock).toHaveBeenCalledWith({ teamId: 'team-student-lock-confirm' });
+
     view.unmount();
   });
 });

@@ -1,19 +1,19 @@
 import { getTextPosition } from 'react-pdf-highlighter-plus';
 
 /**
- * Canonical Turnitin 10-Source Color Palette
+ * Canonical ten-source palette backed by the shared chart theme tokens.
  */
 export const TURNITIN_SOURCE_PALETTE = [
-  '#ef4444', // 1: Red
-  '#f97316', // 2: Orange
-  '#ca8a04', // 3: Yellow / Dark Amber
-  '#10b981', // 4: Emerald
-  '#3b82f6', // 5: Blue
-  '#a855f7', // 6: Purple
-  '#14b8a6', // 7: Teal
-  '#ec4899', // 8: Pink
-  '#22c55e', // 9: Green
-  '#f43f5e', // 10: Rose
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-8))',
+  'hsl(var(--chart-9))',
+  'hsl(var(--chart-10))',
 ];
 
 /**

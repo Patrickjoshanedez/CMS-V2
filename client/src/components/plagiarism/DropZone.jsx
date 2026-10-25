@@ -1,6 +1,11 @@
 import { useRef, useState } from 'react';
-import { FileText, UploadCloud, X, CheckCircle2, Loader2, FileCheck2 } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { FileText, UploadCloud, X, CheckCircle2, FileCheck2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Spinner } from '@/components/ui/Spinner';
 
 function formatFileSize(bytes) {
   if (!Number.isFinite(bytes)) return '0 MB';
@@ -8,7 +13,12 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export default function DropZone({ file, scanning, errorMessage, onFileSelected }) {
+export default function DropZone({
+  file = null,
+  scanning = false,
+  errorMessage = '',
+  onFileSelected,
+}) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -50,15 +60,17 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
 
       {file ? (
         /* File selected state - semantic card without nested button role */
-        <div
+        <Card
           className={[
-            'relative rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-5 text-center',
-            errorMessage ? 'border-destructive/50 bg-destructive/5' : '',
+            'relative rounded-xl p-5 text-center',
+            errorMessage
+              ? 'border-destructive/50 bg-destructive/5'
+              : 'border-success/40 bg-success/5',
           ].join(' ')}
         >
           <div className="flex flex-col items-center gap-2.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-success/20 bg-success/10">
+              <CheckCircle2 className="h-5 w-5 text-success" />
             </div>
             <div className="space-y-1 max-w-full px-2">
               <p className="text-sm font-semibold text-foreground truncate max-w-xs">{file.name}</p>
@@ -66,50 +78,51 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">
                   {isDocx ? 'DOCX' : 'PDF'}
                 </Badge>
-                <span>&bull;</span>
+                <span aria-hidden="true">&bull;</span>
                 <span>{formatFileSize(file.size)}</span>
               </div>
             </div>
 
             {scanning ? (
               <div className="flex items-center gap-1.5 text-xs font-medium text-primary mt-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner className="h-3.5 w-3.5" />
                 <span>Preparing document…</span>
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={openPicker}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary min-h-[44px] min-w-[44px] sm:min-h-8 sm:px-2.5 sm:py-1"
+                  className="gap-1.5 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                 >
                   <FileCheck2 className="h-3.5 w-3.5" />
                   Change file
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => onFileSelected(null)}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive min-h-[44px] min-w-[44px] sm:min-h-8 sm:px-2.5 sm:py-1"
+                  className="gap-1.5 text-xs font-medium text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
                 >
                   <X className="h-3.5 w-3.5" />
                   Remove file
-                </button>
+                </Button>
               </div>
             )}
           </div>
-        </div>
+        </Card>
       ) : (
         /* Empty dropzone state */
-        <div
-          role="button"
-          tabIndex={0}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={scanning}
+          aria-disabled={scanning}
+          aria-label={isDragging ? 'Drop your document here' : 'Choose a manuscript file'}
           onClick={openPicker}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openPicker();
-            }
-          }}
           onDragOver={(e) => {
             e.preventDefault();
             if (!scanning) setIsDragging(true);
@@ -120,9 +133,8 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
           }}
           onDrop={handleDrop}
           className={[
-            'group relative rounded-xl border-2 border-dashed p-6 text-center',
-            'transition-colors duration-200 outline-none',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+            'group relative h-auto min-h-40 w-full flex-col whitespace-normal rounded-xl border-2 border-dashed p-6 text-center shadow-none',
+            'transition-colors duration-200',
             scanning ? 'cursor-wait opacity-80' : 'cursor-pointer',
             errorMessage
               ? 'border-destructive/50 bg-destructive/5'
@@ -154,15 +166,22 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
               </p>
             </div>
           </div>
-        </div>
+        </Button>
       )}
 
       {errorMessage && (
-        <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
-          <FileText className="h-3.5 w-3.5 shrink-0" />
-          {errorMessage}
-        </p>
+        <Alert variant="destructive" className="py-3">
+          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       )}
     </section>
   );
 }
+
+DropZone.propTypes = {
+  file: PropTypes.object,
+  scanning: PropTypes.bool,
+  errorMessage: PropTypes.string,
+  onFileSelected: PropTypes.func.isRequired,
+};

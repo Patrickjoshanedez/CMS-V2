@@ -10,6 +10,7 @@ import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
+import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
@@ -36,9 +37,9 @@ function getPasswordStrength(password) {
     { label: '', color: '', className: '' },
     { label: 'Weak', color: 'hsl(var(--destructive))', className: 'text-destructive' },
     { label: 'Fair', color: 'hsl(var(--warning))', className: 'text-warning' },
-    { label: 'Good', color: 'hsl(var(--brand-pink))', className: 'text-brand-pink' },
-    { label: 'Strong', color: 'hsl(var(--brand-purple))', className: 'text-brand-purple' },
-    { label: 'Very strong', color: 'hsl(var(--primary))', className: 'text-primary' },
+    { label: 'Good', color: 'hsl(var(--foreground))', className: 'text-foreground' },
+    { label: 'Strong', color: 'hsl(var(--primary))', className: 'text-primary' },
+    { label: 'Very strong', color: 'hsl(var(--primary))', className: 'text-primary font-semibold' },
   ];
 
   return { score, ...levels[score] };
@@ -53,18 +54,18 @@ function PasswordStrengthMeter({ password }) {
   if (!password) return null;
 
   return (
-    <div className="mt-2 space-y-1">
+    <div className="mt-2 space-y-1" aria-live="polite" aria-atomic="true">
       {/* Bar track */}
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden" aria-hidden="true">
         <div
-          className="strength-bar h-full rounded-full"
+          className="strength-bar h-full rounded-full transition-all duration-200"
           style={{
             width: `${(score / 5) * 100}%`,
             backgroundColor: color,
           }}
         />
       </div>
-      <p className={`text-xs font-medium ${className}`}>{label}</p>
+      <p className={`text-xs font-medium ${className}`}>Password strength: {label}</p>
     </div>
   );
 }
@@ -83,9 +84,11 @@ export default function RegisterPage() {
   const { register: registerUser, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [step, setStep] = useState(1);
   const [captchaError, setCaptchaError] = useState('');
   const [googleError, setGoogleError] = useState('');
   const recaptchaRef = useRef(null);
+  const stepHeadingRef = useRef(null);
   const { theme } = useThemeStore();
 
   useEffect(() => {
@@ -95,18 +98,36 @@ export default function RegisterPage() {
   const {
     control,
     handleSubmit,
+    trigger,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
+    shouldUnregister: false,
     defaultValues: {
       firstName: '',
       middleName: '',
       lastName: '',
+      studentId: '',
       email: '',
       password: '',
       confirmPassword: '',
     },
+    mode: 'onChange',
+    reValidateMode: 'onChange',
   });
+
+  const handleNextStep = useCallback(async () => {
+    const valid = await trigger(['firstName', 'lastName', 'middleName']);
+    if (valid) {
+      setStep(2);
+      setTimeout(() => stepHeadingRef.current?.focus(), 0);
+    }
+  }, [trigger]);
+
+  const handlePrevStep = useCallback(() => {
+    setStep(1);
+    setTimeout(() => stepHeadingRef.current?.focus(), 0);
+  }, []);
 
   const passwordValue = useWatch({
     control,
@@ -161,6 +182,7 @@ export default function RegisterPage() {
           firstName: data.firstName,
           middleName: data.middleName,
           lastName: data.lastName,
+          studentId: data.studentId?.trim(),
           email: data.email,
           password: data.password,
           ...(isRecaptchaEnabled ? { captchaToken } : {}),
@@ -195,151 +217,230 @@ export default function RegisterPage() {
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
-      <form onSubmit={handleFormSubmit}>
-        {/* First name + Last name */}
-        <div className="auth-item mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Controller
-            name="firstName"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="First name"
-                autoComplete="given-name"
-                error={errors.firstName?.message}
-              />
-            )}
-          />
-          <Controller
-            name="lastName"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Last name"
-                autoComplete="family-name"
-                error={errors.lastName?.message}
-              />
-            )}
-          />
+      <form onSubmit={handleFormSubmit} noValidate>
+        <div
+          className="mb-4 flex items-center justify-between text-xs text-muted-foreground"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="font-medium text-foreground">Step {step} of 2</span>
+          <span>* Indicates a required field</span>
         </div>
 
-        {/* Middle name (optional) */}
-        <div className="auth-item mb-4">
-          <Controller
-            name="middleName"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Middle name (optional)"
-                autoComplete="additional-name"
-                error={errors.middleName?.message}
-              />
-            )}
-          />
-        </div>
+        {step === 1 && (
+          <fieldset className="mb-5 rounded-lg border border-border bg-background p-4">
+            <legend
+              ref={stepHeadingRef}
+              tabIndex={-1}
+              className="mb-3 w-full rounded-md bg-muted/50 px-3 py-1.5 text-base font-semibold text-foreground border-b border-border focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+            >
+              1. Personal Identity
+            </legend>
 
-        {/* Email */}
-        <div className="auth-item mb-4">
-          <Controller
-            name="email"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Email"
-                type="email"
-                autoComplete="email"
-                error={errors.email?.message}
+            {/* First name + Last name */}
+            <div className="auth-item mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Controller
+                name="firstName"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="First name *"
+                    autoComplete="given-name"
+                    aria-required="true"
+                    error={errors.firstName?.message}
+                  />
+                )}
               />
-            )}
-          />
-        </div>
-
-        {/* Password + strength meter */}
-        <div className="auth-item mb-4">
-          <Controller
-            name="password"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                error={errors.password?.message}
-                trailing={
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                }
-              />
-            )}
-          />
-          <PasswordStrengthMeter password={passwordValue} />
-        </div>
-
-        {/* Confirm password */}
-        <div className="auth-item mb-4">
-          <Controller
-            name="confirmPassword"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Confirm password"
-                type={showConfirm ? 'text' : 'password'}
-                autoComplete="new-password"
-                error={errors.confirmPassword?.message}
-                trailing={
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    tabIndex={-1}
-                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                }
-              />
-            )}
-          />
-        </div>
-
-        {/* reCAPTCHA widget */}
-        {isRecaptchaEnabled && (
-          <>
-            <div className="auth-item mb-4 flex justify-center">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={recaptchaSiteKey}
-                theme={theme === 'dark' ? 'dark' : 'light'}
+              <Controller
+                name="lastName"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="Last name *"
+                    autoComplete="family-name"
+                    aria-required="true"
+                    error={errors.lastName?.message}
+                  />
+                )}
               />
             </div>
-            {captchaError && (
-              <div className="auth-item mb-4">
-                <p className="text-sm text-destructive text-center">{captchaError}</p>
-              </div>
-            )}
-          </>
+
+            {/* Middle name (optional) */}
+            <div className="auth-item">
+              <Controller
+                name="middleName"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="Middle name (optional)"
+                    autoComplete="additional-name"
+                    error={errors.middleName?.message}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <Button type="button" onClick={handleNextStep} className="w-full sm:w-auto">
+                Continue to Credentials
+              </Button>
+            </div>
+          </fieldset>
         )}
 
-        {/* Submit — gradient button */}
-        <div className="auth-item">
-          <AuthSubmitButton
-            loading={loading}
-            loadingLabel="Creating account…"
-            idleLabel="Create account"
-          />
-        </div>
+        {step === 2 && (
+          <fieldset className="mb-5 rounded-lg border border-border bg-background p-4">
+            <legend
+              ref={stepHeadingRef}
+              tabIndex={-1}
+              className="mb-3 w-full rounded-md bg-muted/50 px-3 py-1.5 text-base font-semibold text-foreground border-b border-border focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+            >
+              2. Account Credentials
+            </legend>
+
+            {/* Email */}
+            <div className="auth-item mb-4">
+              <Controller
+                name="email"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="Institutional Email *"
+                    type="email"
+                    autoComplete="email"
+                    aria-required="true"
+                    error={errors.email?.message}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Student ID no. */}
+            <div className="auth-item mb-4">
+              <Controller
+                name="studentId"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    id="studentId"
+                    label="Student ID no. *"
+                    autoComplete="off"
+                    maxLength={32}
+                    aria-required="true"
+                    error={errors.studentId?.message}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Password + strength meter */}
+            <div className="auth-item mb-4">
+              <Controller
+                name="password"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="Password *"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    aria-required="true"
+                    error={errors.password?.message}
+                    trailing={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 min-h-8 min-w-8"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    }
+                  />
+                )}
+              />
+              <PasswordStrengthMeter password={passwordValue} />
+            </div>
+
+            {/* Confirm password */}
+            <div className="auth-item mb-4">
+              <Controller
+                name="confirmPassword"
+                control={control}
+                render={({ field }) => (
+                  <FloatingInput
+                    {...field}
+                    label="Confirm password *"
+                    type={showConfirm ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    aria-required="true"
+                    error={errors.confirmPassword?.message}
+                    trailing={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 min-h-8 min-w-8"
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    }
+                  />
+                )}
+              />
+            </div>
+
+            {/* reCAPTCHA widget */}
+            {isRecaptchaEnabled && (
+              <>
+                <div className="auth-item mb-4 flex justify-center">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={recaptchaSiteKey}
+                    theme={theme === 'dark' ? 'dark' : 'light'}
+                  />
+                </div>
+                {captchaError && (
+                  <div className="auth-item mb-4" aria-live="polite">
+                    <p className="text-xs text-destructive text-center">{captchaError}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="auth-item mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                onClick={handlePrevStep}
+                disabled={loading}
+                variant="ghost"
+                className="w-full sm:w-auto"
+              >
+                Back
+              </Button>
+              <div className="w-full sm:w-auto sm:min-w-[180px]">
+                <AuthSubmitButton
+                  loading={loading}
+                  loadingLabel="Creating account…"
+                  idleLabel="Create account"
+                />
+              </div>
+            </div>
+          </fieldset>
+        )}
       </form>
 
       {/* ─── Divider ─── */}
@@ -387,7 +488,7 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link
             to="/login"
-            className="font-semibold text-primary hover:text-brand-purple transition-colors"
+            className="font-semibold text-foreground underline-offset-4 hover:underline transition-colors"
           >
             Sign in
           </Link>

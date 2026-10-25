@@ -24,7 +24,7 @@ describe('LoadingScreen', () => {
     root = null;
   });
 
-  it('renders only the beam aperture in fullScreen mode without logo — no text content', () => {
+  it('renders an accessible full-screen loading card without the brand mark', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -33,18 +33,17 @@ describe('LoadingScreen', () => {
       root.render(<LoadingScreen />);
     });
 
-    const statusEl = container.querySelector('[role="status"]');
-    expect(statusEl).not.toBeNull();
-    expect(statusEl.className).toContain('fixed inset-0');
-    expect(container.querySelector('.cms-beam-aperture')).not.toBeNull();
-    expect(container.querySelector('.cms-beam-flare')).not.toBeNull();
-    expect(container.querySelector('.cms-spinner-box')).not.toBeNull();
-    expect(container.querySelector('.cms-badge-pop')).toBeNull();
-    // No text content rendered when showLogo is false
-    expect(container.textContent.trim()).toBe('');
+    expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
+    expect(container.querySelector('[role="status"]')?.getAttribute('aria-label')).toBe(
+      'Loading...',
+    );
+    expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(container.querySelector('svg.animate-spin')).not.toBeNull();
+    expect(container.textContent).toContain('Loading...');
+    expect(container.textContent).not.toContain('BukSU CMS');
   });
 
-  it('renders brand logo and title when showLogo is true on landing/initial session', () => {
+  it('renders the institutional mark and title when showLogo is true', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -53,10 +52,8 @@ describe('LoadingScreen', () => {
       root.render(<LoadingScreen showLogo={true} message="Initializing session..." />);
     });
 
-    const badge = container.querySelector('.cms-badge-pop');
-    expect(badge).not.toBeNull();
-    expect(container.textContent).toContain('CMS');
-    expect(container.textContent).toContain('BukSU');
+    expect(container.querySelector('svg.size-7')).not.toBeNull();
+    expect(container.textContent).toContain('BukSU CMS');
     expect(container.textContent).toContain('Capstone Management System');
     expect(container.textContent).toContain('Initializing session...');
   });
@@ -78,14 +75,14 @@ describe('LoadingScreen', () => {
 
     const statusEl = container.querySelector('[role="status"]');
     expect(statusEl).not.toBeNull();
-    expect(statusEl.className).not.toContain('fixed inset-0');
-    expect(statusEl.className).toContain('min-h-[300px]');
-    expect(container.querySelector('.cms-badge-pop')).toBeNull();
-    // No text rendered in embedded mode without showLogo
-    expect(container.textContent.trim()).toBe('');
+    expect(container.querySelector('.fixed.inset-0')).toBeNull();
+    expect(container.querySelector('.min-h-60')).not.toBeNull();
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
+    expect(container.textContent).toContain('Loading project workspace...');
+    expect(container.textContent).not.toContain('BukSU CMS');
   });
 
-  it('supports size presets (sm)', () => {
+  it('supports the small icon size preset', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -94,19 +91,11 @@ describe('LoadingScreen', () => {
       root.render(<LoadingScreen size="sm" showLogo={true} />);
     });
 
-    const badge = container.querySelector('.cms-badge-pop');
-    expect(badge).not.toBeNull();
-    expect(badge.className).toContain('h-16 w-16');
-
-    const spinnerBox = container.querySelector('.cms-spinner-box');
-    expect(spinnerBox.className).toContain('h-32 w-32');
-
-    const track = container.querySelector('.cms-fluid-track');
-    expect(track).not.toBeNull();
-    expect(track.parentElement.className).toContain('w-32');
+    expect(container.querySelector('svg.size-5')).not.toBeNull();
+    expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
   });
 
-  it('supports size presets (lg)', () => {
+  it('supports the large icon size preset', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -115,15 +104,7 @@ describe('LoadingScreen', () => {
       root.render(<LoadingScreen size="lg" showLogo={true} />);
     });
 
-    const badge = container.querySelector('.cms-badge-pop');
-    expect(badge).not.toBeNull();
-    expect(badge.className).toContain('h-24 w-24');
-
-    const spinnerBox = container.querySelector('.cms-spinner-box');
-    expect(spinnerBox.className).toContain('h-64 w-64');
-
-    const track = container.querySelector('.cms-fluid-track');
-    expect(track).not.toBeNull();
-    expect(track.parentElement.className).toContain('w-64');
+    expect(container.querySelector('svg.size-9')).not.toBeNull();
+    expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
   });
 });

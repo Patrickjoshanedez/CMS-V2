@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
   Calendar as CalendarIcon,
   Clock,
   MapPin,
   X,
-  Loader2,
   CheckCircle2,
   Building,
   Layers,
@@ -16,14 +14,22 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { projectService } from '@/services/authService';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from '@/hooks/useProjects';
-import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import { CAPSTONE_PHASES, resolveWorkflowPhase, TITLE_STATUSES } from '@cms/shared';
 
 const VENUE_PRESETS = [
@@ -77,7 +83,6 @@ export default function ScheduleDefenseModal({
   const [defenseType, setDefenseType] = useState('progress');
   const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const modalRef = useModalAccessibility({ open: isOpen, onClose, busy: isSubmitting });
   const isTitleReviewHearing =
     project?.titleStatus === TITLE_STATUSES.SUBMITTED &&
     resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_1;
@@ -148,11 +153,11 @@ export default function ScheduleDefenseModal({
   if (!isOpen) return null;
 
   const hasAdviser = Boolean(project?.adviserId);
+  const hasSecretary = Boolean(project?.secretaryId);
   const panelistCount = project?.panelistIds?.length || 0;
-  const hasFullCommittee =
-    hasAdviser &&
-    panelistCount === 3 &&
-    (!isTitleReviewHearing || Boolean(project?.secretaryId));
+  const hasFullCommittee = isTitleReviewHearing
+    ? hasSecretary && panelistCount >= 3
+    : hasAdviser && panelistCount >= 3;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -194,14 +199,20 @@ export default function ScheduleDefenseModal({
   };
 
   const modalContent = (
-    <div
-      ref={modalRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="schedule-defense-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200"
+    <Dialog
+      open={isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
     >
-      <div className="relative w-full max-w-xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col">
+      <DialogContent
+        showClose={false}
+        onEscapeKeyDown={(event) => {
+          if (isSubmitting) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        className="flex max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-xl border-border bg-card p-0 shadow-lg sm:max-h-[calc(100dvh-2rem)]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -210,23 +221,23 @@ export default function ScheduleDefenseModal({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3
-                  id="schedule-defense-title"
-                  className="min-w-0 text-sm sm:text-base font-bold text-foreground truncate"
-                >
+                <DialogTitle className="min-w-0 text-sm sm:text-base font-bold text-foreground truncate">
                   {isTitleReviewHearing ? 'Schedule Title Hearing' : 'Schedule Defense Hearing'}
-                </h3>
+                </DialogTitle>
                 <Badge
                   variant="outline"
                   className="text-[10px] uppercase font-mono tracking-wider border-primary/40 bg-primary/10 text-primary shrink-0"
                 >
-                  {isTitleReviewHearing ? 'Title Review' : `Capstone ${project?.capstonePhase || 2}`}
+                  {isTitleReviewHearing
+                    ? 'Title Review'
+                    : `Capstone ${project?.capstonePhase || 2}`}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground truncate">
                 {project?.teamId?.name
                   ? `Team ${project.teamId.name.replace(/^Team\s+/i, '')}`
-                  : project?.title || (isTitleReviewHearing ? 'Title Proposal Hearing' : 'Project Defense Hearing')}
+                  : project?.title ||
+                    (isTitleReviewHearing ? 'Title Proposal Hearing' : 'Project Defense Hearing')}
               </p>
               <a
                 href={`/projects/${project?._id || project?.id}`}
@@ -274,64 +285,81 @@ export default function ScheduleDefenseModal({
         >
           {/* Committee Readiness Advisory Warning Banner */}
           {!hasFullCommittee && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1 text-amber-800 dark:text-amber-300">
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-3.5 space-y-1 text-warning-foreground">
               <div className="flex items-center gap-2 font-bold text-xs">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
                 <span>Institutional Notice: Committee Incomplete</span>
               </div>
-              <p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-300/90">
+              <p className="text-[11px] leading-relaxed text-warning-foreground/90">
                 This project is not yet fully appointed.
-                {!hasAdviser && ' Faculty Adviser is unassigned.'}
-                {panelistCount < 3 &&
-                  ` Only ${panelistCount} of 3 defense panelists are appointed.`}{' '}
-                Defense hearings officially require 1 Adviser and 3 Panelists for rubric
-                ratification.
+                {isTitleReviewHearing ? (
+                  <>
+                    {!hasSecretary && ' Committee Secretary is unassigned.'}
+                    {panelistCount < 3 &&
+                      ` Only ${panelistCount} of 3 defense panelists are appointed.`}{' '}
+                    Title proposal review hearings require 1 Secretary and 3 Panelists (Adviser will
+                    be chosen by the instructor after proposal approval based on the capstone&apos;s
+                    field).
+                  </>
+                ) : (
+                  <>
+                    {!hasAdviser && ' Faculty Adviser is unassigned.'}
+                    {panelistCount < 3 &&
+                      ` Only ${panelistCount} of 3 defense panelists are appointed.`}{' '}
+                    Defense hearings officially require 1 Adviser and 3 Panelists for rubric
+                    ratification.
+                  </>
+                )}
               </p>
             </div>
           )}
 
           {/* Defense Round & Type */}
-          {!isTitleReviewHearing && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="defense-type"
-                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-              >
-                <Layers className="h-3.5 w-3.5 text-primary" />
-                Defense Type
-              </Label>
-              <select
-                id="defense-type"
-                value={defenseType}
-                onChange={(e) => setDefenseType(e.target.value)}
-                className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-              >
-                <option value="proposal">Title/Proposal Defense (Capstone 1)</option>
-                <option value="progress">Prototype / Progress Defense (Capstone 2)</option>
-                <option value="final">Final Manuscript Defense (Capstone 3)</option>
-              </select>
-            </div>
+          {!isTitleReviewHearing && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="defense-type"
+                  className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                >
+                  <Layers className="h-3.5 w-3.5 text-primary" />
+                  Defense Type
+                </Label>
+                <Select value={defenseType} onValueChange={setDefenseType}>
+                  <SelectTrigger id="defense-type" className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="proposal">Title/Proposal Defense (Capstone 1)</SelectItem>
+                    <SelectItem value="progress">
+                      Prototype / Progress Defense (Capstone 2)
+                    </SelectItem>
+                    <SelectItem value="final">Final Manuscript Defense (Capstone 3)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="defense-round"
-                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Defense Round
-              </Label>
-              <select
-                id="defense-round"
-                value={round}
-                onChange={(e) => setRound(e.target.value)}
-                className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-              >
-                <option value="1st">1st Round (Standard Defense)</option>
-                <option value="2nd">2nd Round (Re-defense)</option>
-                <option value="3rd">3rd Round (Final Attempt)</option>
-              </select>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="defense-round"
+                  className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  Defense Round
+                </Label>
+                <Select value={round} onValueChange={setRound}>
+                  <SelectTrigger id="defense-round" className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1st">1st Round (Standard Defense)</SelectItem>
+                    <SelectItem value="2nd">2nd Round (Re-defense)</SelectItem>
+                    <SelectItem value="3rd">3rd Round (Final Attempt)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>}
+          )}
 
           {/* Date & Time Slot */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -361,18 +389,18 @@ export default function ScheduleDefenseModal({
                 <Clock className="h-3.5 w-3.5 text-primary" />
                 Time Slot
               </Label>
-              <select
-                id="defense-time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-              >
-                {TIME_PRESETS.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
+              <Select value={time} onValueChange={setTime}>
+                <SelectTrigger id="defense-time" className="h-9 text-xs font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_PRESETS.map((slot) => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -382,18 +410,16 @@ export default function ScheduleDefenseModal({
               Quick Slots:
             </span>
             {POPULAR_TIME_CHIPS.map((t) => (
-              <button
+              <Button
                 type="button"
                 key={t}
                 onClick={() => setTime(t)}
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
-                  time === t
-                    ? 'border-primary bg-primary/15 text-primary font-bold shadow-2xs'
-                    : 'border-border/80 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
+                variant={time === t ? 'secondary' : 'outline'}
+                aria-pressed={time === t}
+                className="h-7 rounded-md px-2 py-0.5 text-[10px] font-mono"
               >
                 {t.split(' - ')[0]}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -406,42 +432,44 @@ export default function ScheduleDefenseModal({
               <MapPin className="h-3.5 w-3.5 text-primary" />
               Venue &amp; Location
             </Label>
-            <select
-              id="defense-venue"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-            >
-              {VENUE_PRESETS.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <Select value={venue} onValueChange={setVenue}>
+              <SelectTrigger id="defense-venue" className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VENUE_PRESETS.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Target Client / Industry Partner */}
-          {!isTitleReviewHearing && <div className="space-y-1.5">
-            <Label
-              htmlFor="defense-client"
-              className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-            >
-              <Building className="h-3.5 w-3.5 text-primary" />
-              Target Client / Industry Partner
-            </Label>
-            <Input
-              id="defense-client"
-              type="text"
-              placeholder="e.g. Dr. Sales G. Aribe Jr."
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="h-9 text-xs"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              A designated section for client recommendations will appear on the Secretary&apos;s
-              Minutes (OVPAA-F-INS-032).
-            </p>
-          </div>}
+          {!isTitleReviewHearing && (
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="defense-client"
+                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+              >
+                <Building className="h-3.5 w-3.5 text-primary" />
+                Target Client / Industry Partner
+              </Label>
+              <Input
+                id="defense-client"
+                type="text"
+                placeholder="e.g. Dr. Sales G. Aribe Jr."
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="h-9 text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                A designated section for client recommendations will appear on the Secretary&apos;s
+                Minutes (OVPAA-F-INS-032).
+              </p>
+            </div>
+          )}
 
           {/* Hearing Committee Notification Roster Snapshot */}
           <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-1.5">
@@ -450,14 +478,14 @@ export default function ScheduleDefenseModal({
                 <Users className="h-3 w-3 text-primary" /> Hearing Committee Roster
               </span>
               <Badge
-                variant={hasFullCommittee ? 'default' : 'outline'}
-                className={`text-[9px] h-4 px-1.5 font-bold ${
-                  hasFullCommittee
-                    ? 'bg-emerald-600 text-white'
-                    : 'border-amber-500/40 text-amber-600 bg-amber-500/10'
-                }`}
+                variant={hasFullCommittee ? 'success' : 'warning'}
+                className="h-4 px-1.5 text-[9px] font-bold"
               >
-                {hasFullCommittee ? 'Committee Complete' : `${panelistCount}/3 Panelists`}
+                {hasFullCommittee
+                  ? 'Committee Complete'
+                  : isTitleReviewHearing && !hasSecretary
+                    ? 'Missing Secretary'
+                    : `${panelistCount}/3 Panelists`}
               </Badge>
             </div>
             <div className="text-[11px] text-foreground space-y-0.5 font-mono">
@@ -465,8 +493,12 @@ export default function ScheduleDefenseModal({
                 <strong className="text-muted-foreground font-sans">Adviser:</strong>{' '}
                 {project?.adviserId?.firstName ? (
                   `${project.adviserId.firstName} ${project.adviserId.lastName}`
+                ) : isTitleReviewHearing ? (
+                  <span className="text-muted-foreground font-sans italic">
+                    To be chosen after approval based on field
+                  </span>
                 ) : (
-                  <span className="text-amber-600 font-sans italic">Unassigned</span>
+                  <span className="text-warning-foreground font-sans italic">Unassigned</span>
                 )}
               </p>
               <p>
@@ -481,15 +513,19 @@ export default function ScheduleDefenseModal({
                     </span>
                   ))
                 ) : (
-                  <span className="text-amber-600 font-sans italic">0 appointed</span>
+                  <span className="text-warning-foreground font-sans italic">0 appointed</span>
                 )}
               </p>
-              {isTitleReviewHearing && (
+              {(isTitleReviewHearing || project?.secretaryId) && (
                 <p>
                   <strong className="text-muted-foreground font-sans">Secretary:</strong>{' '}
-                  {project?.secretaryId?.firstName
-                    ? `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
-                    : <span className="text-amber-600 font-sans italic">Unassigned</span>}
+                  {project?.secretaryId?.firstName ? (
+                    `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
+                  ) : (
+                    <span className="text-warning-foreground font-sans italic">
+                      Unassigned (Required)
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -533,7 +569,7 @@ export default function ScheduleDefenseModal({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Spinner className="h-3.5 w-3.5" />
                   Scheduling...
                 </>
               ) : (
@@ -547,11 +583,11 @@ export default function ScheduleDefenseModal({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
+  return modalContent;
 }
 
 ScheduleDefenseModal.propTypes = {

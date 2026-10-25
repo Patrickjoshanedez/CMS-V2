@@ -69,4 +69,29 @@ describe('LandingPage — Minimal Redesign', () => {
     // 5. Verify FAQ is present
     expect(textContent).toContain('Who can use the portal?');
   });
+
+  it('provides shared mobile navigation and keyboard-operable FAQ disclosure', () => {
+    act(() => {
+      root.render(
+        <BrowserRouter>
+          <LandingPage />
+        </BrowserRouter>,
+      );
+    });
+
+    const menuTrigger = container.querySelector('button[aria-label="Open navigation menu"]');
+    expect(menuTrigger).toBeTruthy();
+    act(() => menuTrigger.click());
+
+    const navigationDialog = document.body.querySelector('[role="dialog"]');
+    expect(navigationDialog?.textContent).toContain('Explore BukSU CMS');
+    expect(navigationDialog?.querySelector('a[href="#features"]')).toBeTruthy();
+
+    const faqTrigger = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Who can use the portal?'),
+    );
+    expect(faqTrigger).toBeTruthy();
+    act(() => faqTrigger.click());
+    expect(document.body.textContent).toContain('Students, course instructors and faculty');
+  });
 });

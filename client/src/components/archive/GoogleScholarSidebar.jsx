@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Input } from '@/components/ui/Input';
+import { Sheet, SheetClose, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -75,15 +78,17 @@ export default function GoogleScholarSidebar({
           <SlidersHorizontal className="w-3.5 h-3.5" />
           Filter Results
         </span>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onResetFilters}
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors focus:outline-hidden focus:ring-1 focus:ring-blue-500 rounded-xs"
+          className="min-h-[44px] gap-1 text-xs text-muted-foreground"
           title="Reset all filters"
         >
           <RotateCcw className="w-3 h-3" />
           Reset
-        </button>
+        </Button>
       </div>
 
       {/* Date Filtering */}
@@ -94,20 +99,21 @@ export default function GoogleScholarSidebar({
             const isSelected = dateFilter === preset.id;
             return (
               <li key={preset.id}>
-                <button
+                <Button
                   type="button"
+                  variant={isSelected ? 'secondary' : 'ghost'}
+                  aria-pressed={isSelected}
                   onClick={() => onDateFilterChange(preset.id)}
-                  className={`w-full text-left px-2 py-1 rounded-md text-xs transition-colors flex items-center justify-between ${
-                    isSelected
-                      ? 'font-bold text-[#1a0dab] dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
-                      : 'text-foreground/80 hover:text-foreground hover:bg-muted/50'
-                  }`}
+                  className="h-auto min-h-[44px] w-full justify-between whitespace-normal px-2 py-1 text-left text-xs"
                 >
                   <span>{preset.label}</span>
                   {isSelected && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1a0dab] dark:bg-blue-400" />
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                    />
                   )}
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -117,24 +123,26 @@ export default function GoogleScholarSidebar({
         {dateFilter === 'custom' && (
           <form onSubmit={handleCustomSubmit} className="pt-2 space-y-2 animate-in fade-in-50">
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="number"
+                aria-label="Publication year from"
                 placeholder="From"
                 value={localMinYear}
                 onChange={(e) => setLocalMinYear(e.target.value)}
                 min="1990"
                 max="2100"
-                className="w-1/2 h-8 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                className="h-9 min-h-[44px] w-1/2 px-2 text-xs"
               />
               <span className="text-xs text-muted-foreground">-</span>
-              <input
+              <Input
                 type="number"
+                aria-label="Publication year to"
                 placeholder="To"
                 value={localMaxYear}
                 onChange={(e) => setLocalMaxYear(e.target.value)}
                 min="1990"
                 max="2100"
-                className="w-1/2 h-8 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                className="h-9 min-h-[44px] w-1/2 px-2 text-xs"
               />
             </div>
             <Button
@@ -161,20 +169,21 @@ export default function GoogleScholarSidebar({
                 (opt._id && String(program) === String(opt._id));
               return (
                 <li key={opt.id}>
-                  <button
+                  <Button
                     type="button"
+                    variant={isSelected ? 'secondary' : 'ghost'}
+                    aria-pressed={isSelected}
                     onClick={() => onProgramChange(opt.id)}
-                    className={`w-full text-left px-2 py-1 rounded-md text-xs transition-colors flex items-center justify-between ${
-                      isSelected
-                        ? 'font-bold text-[#1a0dab] dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
-                        : 'text-foreground/80 hover:text-foreground hover:bg-muted/50'
-                    }`}
+                    className="h-auto min-h-[44px] w-full justify-between whitespace-normal px-2 py-1 text-left text-xs"
                   >
                     <span>{opt.label}</span>
                     {isSelected && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#1a0dab] dark:bg-blue-400" />
+                      <span
+                        aria-hidden="true"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                      />
                     )}
-                  </button>
+                  </Button>
                 </li>
               );
             })}
@@ -187,36 +196,32 @@ export default function GoogleScholarSidebar({
         <h3 className="text-xs font-semibold text-foreground tracking-tight">Sort By</h3>
         <ul className="space-y-1">
           <li>
-            <button
+            <Button
               type="button"
+              variant={sortBy === 'relevance' ? 'secondary' : 'ghost'}
+              aria-pressed={sortBy === 'relevance'}
               onClick={() => onSortByChange('relevance')}
-              className={`w-full text-left px-2 py-1 rounded-md text-xs transition-colors flex items-center justify-between ${
-                sortBy === 'relevance'
-                  ? 'font-bold text-[#1a0dab] dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
-                  : 'text-foreground/80 hover:text-foreground hover:bg-muted/50'
-              }`}
+              className="h-auto min-h-[44px] w-full justify-between whitespace-normal px-2 py-1 text-left text-xs"
             >
               <span>Sort by relevance</span>
               {sortBy === 'relevance' && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1a0dab] dark:bg-blue-400" />
+                <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
               )}
-            </button>
+            </Button>
           </li>
           <li>
-            <button
+            <Button
               type="button"
+              variant={sortBy === 'date' ? 'secondary' : 'ghost'}
+              aria-pressed={sortBy === 'date'}
               onClick={() => onSortByChange('date')}
-              className={`w-full text-left px-2 py-1 rounded-md text-xs transition-colors flex items-center justify-between ${
-                sortBy === 'date'
-                  ? 'font-bold text-[#1a0dab] dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
-                  : 'text-foreground/80 hover:text-foreground hover:bg-muted/50'
-              }`}
+              className="h-auto min-h-[44px] w-full justify-between whitespace-normal px-2 py-1 text-left text-xs"
             >
               <span>Sort by date</span>
               {sortBy === 'date' && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1a0dab] dark:bg-blue-400" />
+                <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
               )}
-            </button>
+            </Button>
           </li>
         </ul>
       </div>
@@ -225,23 +230,33 @@ export default function GoogleScholarSidebar({
       <div className="space-y-2.5 pt-2 border-t border-border">
         <h3 className="text-xs font-semibold text-foreground tracking-tight">Search Coverage</h3>
         <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-foreground/90 select-none hover:text-foreground">
-            <input
-              type="checkbox"
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-xs text-foreground/90">
+            <Checkbox
+              id="include-citations"
+              aria-labelledby="include-citations-label"
               checked={includeCitations}
-              onChange={(e) => onToggleCitations?.(e.target.checked)}
-              className="rounded border-border text-[#1a0dab] focus:ring-blue-500 w-3.5 h-3.5"
+              onCheckedChange={(checked) => onToggleCitations?.(checked === true)}
             />
-            <span>Include citations</span>
+            <span
+              id="include-citations-label"
+              className="flex min-h-[44px] flex-1 items-center text-xs"
+            >
+              Include citations
+            </span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-foreground/90 select-none hover:text-foreground">
-            <input
-              type="checkbox"
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-xs text-foreground/90">
+            <Checkbox
+              id="include-filings"
+              aria-labelledby="include-filings-label"
               checked={includeFilings}
-              onChange={(e) => onToggleFilings?.(e.target.checked)}
-              className="rounded border-border text-[#1a0dab] focus:ring-blue-500 w-3.5 h-3.5"
+              onCheckedChange={(checked) => onToggleFilings?.(checked === true)}
             />
-            <span>Include capstone filings</span>
+            <span
+              id="include-filings-label"
+              className="flex min-h-[44px] flex-1 items-center text-xs"
+            >
+              Include capstone filings
+            </span>
           </label>
         </div>
       </div>
@@ -259,25 +274,25 @@ export default function GoogleScholarSidebar({
       </aside>
 
       {/* Mobile Slide-out Drawer (<768px Viewport) */}
-      {isOpenMobile && (
-        <div className="fixed inset-0 z-50 md:hidden bg-background/80 backdrop-blur-xs flex">
-          <div className="relative w-72 max-w-[85vw] h-full bg-card border-r border-border p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left-50 duration-200">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
-              <span className="font-semibold text-sm text-foreground">Filter Archive</span>
-              <button
+      <Sheet open={isOpenMobile} onOpenChange={(open) => !open && onCloseMobile?.()}>
+        <SheetContent side="left" className="md:hidden">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <SheetTitle className="text-sm">Filter Archive</SheetTitle>
+            <SheetClose asChild>
+              <Button
                 type="button"
-                onClick={onCloseMobile}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                variant="ghost"
+                size="icon"
+                className="size-[44px] min-h-[44px] min-w-[44px]"
                 aria-label="Close filters"
               >
                 <X className="w-5 h-5" />
-              </button>
-            </div>
-            {sidebarContent}
+              </Button>
+            </SheetClose>
           </div>
-          <div className="flex-1" onClick={onCloseMobile} />
-        </div>
-      )}
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

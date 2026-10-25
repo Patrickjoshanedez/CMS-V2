@@ -87,6 +87,7 @@ describe('AuditLogPage', () => {
     const actionInput = view.container.querySelector('#actionFilter');
     expect(actionInput).toBeTruthy();
     expect(actionInput.getAttribute('placeholder')).toContain('project.created');
+    expect(view.container.querySelector('#targetTypeFilter')).toBeTruthy();
 
     view.unmount();
   });
@@ -141,22 +142,37 @@ describe('AuditLogPage', () => {
       inspectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    const modal = view.container.querySelector('[role="dialog"]');
+    const modal = document.body.querySelector('[role="dialog"]');
     expect(modal).toBeTruthy();
-    expect(view.container.querySelector('#audit-inspector-title')).toBeTruthy();
-    expect(view.container.textContent).toContain('Metadata Payload (JSON)');
-    expect(view.container.textContent).toContain('Chapter1.docx');
+    expect(document.body.querySelector('#audit-inspector-title')).toBeTruthy();
+    expect(modal.textContent).toContain('Metadata Payload (JSON)');
+    expect(modal.textContent).toContain('Chapter1.docx');
 
     // Close modal
-    const closeBtn = view.container.querySelector('button[aria-label="Close inspector"]');
+    const closeBtn = document.body.querySelector('button[aria-label="Close inspector"]');
     expect(closeBtn).toBeTruthy();
 
     act(() => {
       closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(view.container.querySelector('[role="dialog"]')).toBeFalsy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeFalsy();
 
+    view.unmount();
+  });
+
+  it('applies category filters through the accessible quick-filter controls', () => {
+    const view = renderPage();
+    const categoryButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Auth & Security'),
+    );
+
+    act(() => {
+      categoryButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(mockUseAuditLogs.mock.calls.at(-1)[0].action).toBe('auth.');
+    expect(categoryButton.getAttribute('aria-pressed')).toBe('true');
     view.unmount();
   });
 });

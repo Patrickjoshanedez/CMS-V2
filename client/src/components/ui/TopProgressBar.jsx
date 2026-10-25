@@ -7,7 +7,6 @@ import { topProgress } from '@/lib/topProgress';
  */
 function useSafeLocation() {
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const location = useLocation();
     return location || { pathname: '', search: '' };
   } catch {
@@ -30,11 +29,14 @@ export default function TopProgressBar() {
 
   // Subscribe to topProgress state machine & initialize capture listeners
   useEffect(() => {
-    topProgress.initGlobalListeners();
+    const releaseGlobalListeners = topProgress.initGlobalListeners();
     const unsubscribe = topProgress.subscribe((s) => {
       setState({ ...s });
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      releaseGlobalListeners();
+    };
   }, []);
 
   // When location changes (route commits), complete progress if not currently in Suspense
@@ -49,15 +51,19 @@ export default function TopProgressBar() {
       // will hold the bar active and complete it when the page component actually mounts.
       // Otherwise (for synchronous or preloaded routes), complete cleanly on layout render.
       if (!topProgress.isSuspended) {
+        const generation = topProgress.generation;
+        let frame = null;
         if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
-          requestAnimationFrame(() => {
-            if (!topProgress.isSuspended) {
-              topProgress.done();
-            }
+          frame = requestAnimationFrame(() => {
+            topProgress.done(generation);
           });
         } else {
-          topProgress.done();
+          topProgress.done(generation);
         }
+
+        return () => {
+          if (frame !== null) cancelAnimationFrame(frame);
+        };
       }
     }
   }, [location.pathname, location.search]);
@@ -69,30 +75,21 @@ export default function TopProgressBar() {
   return (
     <div
       role="progressbar"
-      aria-valuenow={progress}
-      aria-valuemin="0"
-      aria-valuemax="100"
       aria-label="Loading page"
-      className="fixed top-0 left-0 right-0 z-[999999] h-[2.5px] pointer-events-none overflow-hidden"
+      {...(status === 'completing'
+        ? { 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': 100 }
+        : {})}
+      data-status={status}
+      className="cms-route-progress fixed inset-x-0 top-0 z-[999999] h-1 overflow-hidden bg-primary/10 pointer-events-none"
       style={{
         opacity: status === 'idle' ? 0 : 1,
         transition: status === 'idle' ? 'opacity 250ms ease-out' : 'none',
       }}
     >
       <div
-        className="h-full bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple relative"
-        style={{
-          width: `${progress}%`,
-          transition:
-            status === 'completing'
-              ? 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)'
-              : 'width 200ms ease-out',
-          boxShadow: '0 0 10px rgba(233, 30, 99, 0.7), 0 0 5px rgba(255, 87, 34, 0.5)',
-        }}
-      >
-        {/* Glowing aura at the leading head of the bar */}
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-r from-transparent to-white/40 shadow-xs" />
-      </div>
+        className="cms-route-progress-indicator h-full rounded-r-full bg-primary transition-[width] duration-200 ease-out"
+        style={status === 'completing' ? { width: '100%' } : undefined}
+      />
     </div>
   );
 }

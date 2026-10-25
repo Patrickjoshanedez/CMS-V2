@@ -53,6 +53,13 @@ vi.mock('@/hooks/useTeams', () => ({
   }),
 }));
 
+vi.mock('@/services/authService', () => ({
+  projectService: {
+    getCreateProjectDraft: vi.fn().mockResolvedValue({ data: { data: { draft: null } } }),
+    clearCreateProjectDraft: vi.fn(),
+  },
+}));
+
 vi.mock('@/hooks/useSubmissions', () => ({
   useProjectSubmissions: () => ({
     data: mockSubmissionsData,
@@ -190,6 +197,28 @@ describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {
     expect(text).toContain('Capstone 3');
     expect(text).not.toContain('Action Done Matrix');
     expect(text).toContain('Consultations');
+  });
+
+  it('renders the no-project route state and explains the team-lock prerequisite', async () => {
+    mockUser = { _id: 'student-no-project', firstName: 'Maya', lastName: 'Reyes', role: 'student' };
+    mockSearchParams = new URLSearchParams();
+    mockProjectData = null;
+    mockTeamData = null;
+    window.localStorage.removeItem('cms.create_project_draft.student-no-project');
+    window.localStorage.removeItem('cms.create_project_draft.backup.student-no-project');
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(container.textContent).toContain('Proceed to Create Capstone Proposal');
+    expect(container.textContent).toContain('Finalize and lock your team first');
+    expect(container.textContent).toContain('Go to Dashboard');
+    expect(container.querySelector('[aria-label="Loading dashboard..."]')).toBeNull();
   });
 
   it('ensures document submission upload dropzones are NOT present on My Capstone page', async () => {

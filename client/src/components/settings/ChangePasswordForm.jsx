@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import { Lock, AlertTriangle, Eye, EyeOff, Loader2, Check } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { SettingRow } from './SettingsShared';
 import { toast } from 'sonner';
@@ -83,16 +84,14 @@ export default function ChangePasswordForm() {
     return (
       <div className="space-y-3">
         {success && (
-          <Alert variant="default" className="border-green-500/50 bg-green-500/10">
-            <Check className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700 dark:text-green-400">
+          <Alert variant="success">
+            <AlertDescription>
               Password changed successfully.
             </AlertDescription>
           </Alert>
         )}
         <SettingRow label="Change Password" description="Update your account password.">
           <Button variant="outline" size="sm" onClick={() => setShow(true)}>
-            <Lock className="mr-1.5 h-3.5 w-3.5" />
             Change
           </Button>
         </SettingRow>
@@ -101,96 +100,121 @@ export default function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border p-4">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Lock className="h-4 w-4 text-primary" />
-        Change Password
-      </div>
+    <Card className="p-4">
+      <form onSubmit={handleSubmit}>
+        <fieldset className="space-y-4">
+          <legend className="mb-2 flex w-full items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-base font-semibold text-foreground border-b border-border">
+            <span>Update Account Password</span>
+            <span className="text-xs font-normal text-muted-foreground">* Required</span>
+          </legend>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+          {error && (
+            <Alert variant="destructive" aria-live="polite" aria-atomic="true">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-      <div className="space-y-2">
-        <Label htmlFor="settings-currentPassword">Current Password</Label>
-        <div className="relative">
-          <Input
-            id="settings-currentPassword"
-            type={showCurrent ? 'text' : 'password'}
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            onClick={() => setShowCurrent(!showCurrent)}
-            tabIndex={-1}
-          >
-            {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-currentPassword" className="text-sm font-medium">
+              Current Password *
+            </Label>
+            <div className="relative">
+              <Input
+                id="settings-currentPassword"
+                type={showCurrent ? 'text' : 'password'}
+                className="pr-12"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                aria-required="true"
+                autoComplete="current-password"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 size-8 min-h-8 min-w-8 -translate-y-1/2"
+                onClick={() => setShowCurrent(!showCurrent)}
+                aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
+              >
+                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="settings-newPassword">New Password</Label>
-        <div className="relative">
-          <Input
-            id="settings-newPassword"
-            type={showNew ? 'text' : 'password'}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            onClick={() => setShowNew(!showNew)}
-            tabIndex={-1}
-          >
-            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          At least 8 characters with uppercase, lowercase, and a number.
-        </p>
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-newPassword" className="text-sm font-medium">
+              New Password *
+            </Label>
+            <div className="relative">
+              <Input
+                id="settings-newPassword"
+                type={showNew ? 'text' : 'password'}
+                className="pr-12"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                aria-required="true"
+                aria-describedby="settings-newPassword-helper"
+                minLength={8}
+                autoComplete="new-password"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 size-8 min-h-8 min-w-8 -translate-y-1/2"
+                onClick={() => setShowNew(!showNew)}
+                aria-label={showNew ? 'Hide new password' : 'Show new password'}
+              >
+                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p id="settings-newPassword-helper" className="text-xs text-muted-foreground">
+              At least 8 characters with uppercase, lowercase, and a number.
+            </p>
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="settings-confirmPassword">Confirm New Password</Label>
-        <Input
-          id="settings-confirmPassword"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-confirmPassword" className="text-sm font-medium">
+              Confirm New Password *
+            </Label>
+            <Input
+              id="settings-confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              aria-required="true"
+              autoComplete="new-password"
+            />
+          </div>
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Update Password
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            resetForm();
-            setShow(false);
-          }}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                resetForm();
+                setShow(false);
+              }}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              loadingText="Updating..."
+              className="w-full sm:w-auto"
+            >
+              Update Password
+            </Button>
+          </div>
+          </fieldset>
+      </form>
+    </Card>
   );
 }

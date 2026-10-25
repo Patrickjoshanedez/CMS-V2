@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import AlignmentSelectorDialog from './AlignmentSelectorDialog';
-import { IT_DISCIPLINES, SDG_GOALS } from '@cms/shared';
+import { IT_DISCIPLINES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -65,6 +65,28 @@ describe('AlignmentSelectorDialog', () => {
     expect(dialog.textContent).toContain('Software Engineering & Web Applications');
     expect(dialog.textContent).toContain('Artificial Intelligence & Machine Learning');
     expect(dialog.textContent).toContain('Cloud Computing & Distributed Systems');
+    unmount();
+  });
+
+  it('exposes an accessible dialog, search field, and pressed domain filter state', () => {
+    const { unmount } = renderDialog({ open: true, type: 'discipline' });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
+    expect(dialog.textContent).toContain('Select IT Fields of Discipline');
+    expect(document.body.querySelector('input[aria-label="Search IT disciplines"]')).not.toBeNull();
+
+    const domainGroup = dialog.querySelector(
+      '[role="group"][aria-label="Filter disciplines by domain"]',
+    );
+    expect(dialog.querySelector('[role="status"][aria-live="polite"]')?.textContent).toContain(
+      'Selected: 1',
+    );
+    const allDomains = Array.from(domainGroup.querySelectorAll('button')).find(
+      (button) => button.textContent === 'ALL',
+    );
+    expect(allDomains.getAttribute('aria-pressed')).toBe('true');
+
     unmount();
   });
 
@@ -148,6 +170,32 @@ describe('AlignmentSelectorDialog', () => {
       'discipline',
     );
     expect(handleOpenChange).toHaveBeenCalledWith(false);
+    unmount();
+  });
+
+  it('enforces the ten-item selection limit', () => {
+    const onSave = vi.fn();
+    const selection = IT_DISCIPLINES.slice(0, 10).map((item) => item.name);
+    const { unmount } = renderDialog({ selectedItems: selection, onSave });
+    const dialog = document.body.querySelector('[role="dialog"]');
+    const nextItem = IT_DISCIPLINES[10];
+    const nextItemLabel = Array.from(dialog.querySelectorAll('label')).find((label) =>
+      label.textContent.includes(nextItem.name),
+    );
+    expect(nextItemLabel).not.toBeNull();
+
+    act(() => {
+      nextItemLabel.click();
+    });
+
+    const applyButton = Array.from(dialog.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Apply Selection'),
+    );
+    act(() => {
+      applyButton.click();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(selection, 'discipline');
     unmount();
   });
 });

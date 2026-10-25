@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Settings, FileText, Link, Upload, Save, X, Loader2 } from 'lucide-react';
+import { Settings, FileText, Link, Upload, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { useUpdateManuscriptTemplate } from '@/hooks/useTeams';
 import { toast } from 'sonner';
 
@@ -67,140 +73,124 @@ export function InstructorTemplateConfigModal({ academicYear = '2025-2026', onSa
         Configure Manuscript Template
       </Button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          showClose={false}
+          className="max-w-[520px] border-border/70 bg-card p-6 shadow-xl"
         >
-          <Card
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="template-dialog-title"
-            className="w-full max-w-[520px] border-border/70 shadow-xl"
-          >
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start justify-between gap-3 border-b pb-3">
-                <div className="space-y-1">
-                  <h3
-                    id="template-dialog-title"
-                    className="text-base font-semibold flex items-center gap-2 text-foreground"
-                  >
-                    <FileText className="h-4 w-4 text-primary" />
-                    Manage Institutional Manuscript Template
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Configure the official manuscript template provided to students after title
-                    defense approval.
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={() => setOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+          <div className="flex items-start justify-between gap-3 border-b pb-3">
+            <div className="space-y-1">
+              <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <FileText className="h-4 w-4 text-primary" />
+                Manage Institutional Manuscript Template
+              </DialogTitle>
+              <DialogDescription className="text-xs leading-relaxed">
+                Configure the official manuscript template provided to students after title defense
+                approval.
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Close template configuration"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </div>
 
-              <form onSubmit={handleSave} className="space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">
-                    Template Version / Academic Year Label
-                  </Label>
+          <form onSubmit={handleSave} className="space-y-4 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Template Version / Academic Year Label
+              </Label>
+              <Input
+                value={versionTag}
+                onChange={(e) => setVersionTag(e.target.value)}
+                placeholder="e.g. AY 2025–2026 v2.1"
+                className="h-8 text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Distribution Method</Label>
+              <Tabs
+                defaultValue={templateType}
+                value={templateType}
+                onValueChange={(val) => setTemplateType(val)}
+              >
+                <TabsList className="grid grid-cols-2 h-8 w-full">
+                  <TabsTrigger value="google_docs" className="text-xs gap-1.5">
+                    <Link className="h-3 w-3" /> Google Docs Copy Link
+                  </TabsTrigger>
+                  <TabsTrigger value="file" className="text-xs gap-1.5">
+                    <Upload className="h-3 w-3" /> Direct File Upload (.DOCX)
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="google_docs" className="pt-2 space-y-1.5">
                   <Input
-                    value={versionTag}
-                    onChange={(e) => setVersionTag(e.target.value)}
-                    placeholder="e.g. AY 2025–2026 v2.1"
-                    className="h-8 text-xs"
-                    required
+                    value={docUrl}
+                    onChange={(e) => setDocUrl(e.target.value)}
+                    placeholder="https://docs.google.com/document/d/.../copy"
+                    className="h-9 text-xs font-mono"
                   />
-                </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pro-tip: Append <code className="text-primary font-mono">/copy</code> to the URL
+                    so students automatically generate their own editable working copy.
+                  </p>
+                </TabsContent>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold">Distribution Method</Label>
-                  <Tabs
-                    defaultValue={templateType}
-                    value={templateType}
-                    onValueChange={(val) => setTemplateType(val)}
-                  >
-                    <TabsList className="grid grid-cols-2 h-8 w-full">
-                      <TabsTrigger value="google_docs" className="text-xs gap-1.5">
-                        <Link className="h-3 w-3" /> Google Docs Copy Link
-                      </TabsTrigger>
-                      <TabsTrigger value="file" className="text-xs gap-1.5">
-                        <Upload className="h-3 w-3" /> Direct File Upload (.DOCX)
-                      </TabsTrigger>
-                    </TabsList>
+                <TabsContent value="file" className="pt-2 space-y-2">
+                  <label className="border border-dashed border-border/80 rounded-lg p-5 text-center bg-muted/10 hover:bg-muted/20 cursor-pointer transition-colors block">
+                    <input
+                      type="file"
+                      accept=".docx,.dotx"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-1.5" />
+                    <p className="text-xs font-medium text-foreground">
+                      {uploadedFileName
+                        ? `Selected: ${uploadedFileName}`
+                        : 'Click to upload new .docx or .dotx template'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Maximum file size: 25MB
+                    </p>
+                  </label>
+                </TabsContent>
+              </Tabs>
+            </div>
 
-                    <TabsContent value="google_docs" className="pt-2 space-y-1.5">
-                      <Input
-                        value={docUrl}
-                        onChange={(e) => setDocUrl(e.target.value)}
-                        placeholder="https://docs.google.com/document/d/.../copy"
-                        className="h-9 text-xs font-mono"
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Pro-tip: Append <code className="text-primary font-mono">/copy</code> to the
-                        URL so students automatically generate their own editable working copy.
-                      </p>
-                    </TabsContent>
-
-                    <TabsContent value="file" className="pt-2 space-y-2">
-                      <label className="border border-dashed border-border/80 rounded-lg p-5 text-center bg-muted/10 hover:bg-muted/20 cursor-pointer transition-colors block">
-                        <input
-                          type="file"
-                          accept=".docx,.dotx"
-                          className="hidden"
-                          onChange={handleFileChange}
-                        />
-                        <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-1.5" />
-                        <p className="text-xs font-medium text-foreground">
-                          {uploadedFileName
-                            ? `Selected: ${uploadedFileName}`
-                            : 'Click to upload new .docx or .dotx template'}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Maximum file size: 25MB
-                        </p>
-                      </label>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-
-                <div className="border-t pt-3 flex items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => setOpen(false)}
-                    disabled={updateTemplate.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="h-8 text-xs bg-primary gap-1.5"
-                    disabled={updateTemplate.isPending}
-                  >
-                    {updateTemplate.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Save className="h-3.5 w-3.5" />
-                    )}
-                    Save & Cascade to All Approved Teams
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            <div className="border-t pt-3 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setOpen(false)}
+                disabled={updateTemplate.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-auto min-h-8 text-xs"
+                loading={updateTemplate.isPending}
+                loadingText="Saving template..."
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save & Cascade to All Approved Teams
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

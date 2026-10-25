@@ -14,9 +14,17 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
@@ -26,7 +34,6 @@ import {
   ChevronRight,
   Clock,
   FileText,
-  Lock,
   MessageSquare,
   XCircle,
   ExternalLink,
@@ -45,43 +52,44 @@ const CHAPTER_LABELS = {
   4: 'Chapter 4',
   5: 'Chapter 5',
 };
+const MOBILE_TOUCH_TARGET_CLASSES = 'min-h-[44px] sm:min-h-0';
 
 const STATUS_CONFIG = {
   [SUBMISSION_STATUSES.PENDING]: {
     label: 'Pending Review',
-    variant: 'secondary',
+    variant: 'warning',
     icon: Clock,
-    iconClass: 'text-amber-500',
+    iconClass: 'text-warning-foreground',
   },
   [SUBMISSION_STATUSES.UNDER_REVIEW]: {
     label: 'Under Review',
-    variant: 'outline',
+    variant: 'info',
     icon: Clock,
-    iconClass: 'text-amber-500',
+    iconClass: 'text-info',
   },
   [SUBMISSION_STATUSES.APPROVED]: {
     label: 'Approved',
-    variant: 'default',
+    variant: 'success',
     icon: CheckCircle2,
-    iconClass: 'text-emerald-500',
+    iconClass: 'text-success-foreground',
   },
   [SUBMISSION_STATUSES.ACCEPTED]: {
-    label: 'Approved ✓',
-    variant: 'default',
+    label: 'Approved',
+    variant: 'success',
     icon: CheckCircle2,
-    iconClass: 'text-emerald-500',
+    iconClass: 'text-success-foreground',
   },
   [SUBMISSION_STATUSES.LOCKED]: {
-    label: 'Approved ✓',
-    variant: 'default',
+    label: 'Approved',
+    variant: 'success',
     icon: CheckCircle2,
-    iconClass: 'text-emerald-500',
+    iconClass: 'text-success-foreground',
   },
   [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: {
     label: 'Needs Revision',
-    variant: 'destructive',
+    variant: 'warning',
     icon: AlertTriangle,
-    iconClass: 'text-destructive',
+    iconClass: 'text-warning-foreground',
   },
   [SUBMISSION_STATUSES.REJECTED]: {
     label: 'Rejected',
@@ -126,7 +134,6 @@ function ReviewActions({ round, onSuccess }) {
   const isLocked = round.status === SUBMISSION_STATUSES.LOCKED;
   const isApproved =
     round.status === SUBMISSION_STATUSES.APPROVED || round.status === SUBMISSION_STATUSES.ACCEPTED;
-  const isReviewed = isLocked || isApproved || round.status === SUBMISSION_STATUSES.REJECTED;
   const isPending = [
     SUBMISSION_STATUSES.PENDING,
     SUBMISSION_STATUSES.UNDER_REVIEW,
@@ -176,19 +183,19 @@ function ReviewActions({ round, onSuccess }) {
 
   if (isLocked) {
     return (
-      <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-400">
-        <Lock className="h-3.5 w-3.5 shrink-0" />
-        Chapter approved &amp; locked — next chapter is now unlocked for the student.
-      </div>
+      <Alert role="status" variant="success" className="mt-2 py-2 text-sm">
+        <AlertDescription>
+          Chapter approved &amp; locked — next chapter is now unlocked for the student.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   if (isApproved) {
     return (
-      <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-400">
-        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-        Approved
-      </div>
+      <Alert role="status" variant="success" className="mt-2 py-2 text-sm">
+        <AlertDescription>Approved</AlertDescription>
+      </Alert>
     );
   }
 
@@ -201,19 +208,20 @@ function ReviewActions({ round, onSuccess }) {
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            variant="outline"
+            className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5 border-success/40 bg-success/10 text-success-foreground hover:bg-success/20`}
             onClick={() => setAction('approve')}
           >
-            <CheckCircle2 className="h-3.5 w-3.5" />
+            <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" />
             Approve &amp; Lock
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400"
+            className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5 border-warning/40 text-warning-foreground hover:bg-warning/10`}
             onClick={() => setAction('revise')}
           >
-            <MessageSquare className="h-3.5 w-3.5" />
+            <MessageSquare aria-hidden="true" className="h-3.5 w-3.5" />
             Request Revision
           </Button>
         </div>
@@ -223,25 +231,20 @@ function ReviewActions({ round, onSuccess }) {
       {action && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Badge
-              variant={action === 'approve' ? 'default' : 'outline'}
-              className={
-                action === 'approve'
-                  ? 'bg-emerald-600 text-white'
-                  : 'border-amber-400 text-amber-700'
-              }
-            >
-              {action === 'approve' ? '✓ Approve & Lock' : '↩ Request Revision'}
+            <Badge variant={action === 'approve' ? 'success' : 'warning'}>
+              {action === 'approve' ? 'Approve & Lock' : 'Request Revision'}
             </Badge>
-            <button
-              className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            <Button
+              size="sm"
+              variant="ghost"
+              className={`${MOBILE_TOUCH_TARGET_CLASSES} ml-auto text-xs text-muted-foreground hover:text-foreground`}
               onClick={() => {
                 setAction(null);
                 setNote('');
               }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-1">
@@ -258,18 +261,18 @@ function ReviewActions({ round, onSuccess }) {
                   : 'Describe what needs to be revised...'
               }
               rows={3}
-              className="resize-none text-sm"
+              className="min-h-[44px] resize-none text-sm"
             />
           </div>
 
           <Button
             size="sm"
+            variant="outline"
             className={
               action === 'approve'
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5'
-                : 'gap-1.5'
+                ? `${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5 border-success/40 bg-success/10 text-success-foreground hover:bg-success/20`
+                : `${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5 border-warning/40 text-warning-foreground hover:bg-warning/10`
             }
-            variant={action === 'revise' ? 'destructive' : undefined}
             disabled={reviewMutation.isPending}
             onClick={handleSubmit}
           >
@@ -301,16 +304,10 @@ function ProgressionGate({ items, chapters, chapterRoundsMap }) {
           const isApproved = Boolean(latest && GATE_STATUSES.includes(latest.status));
           return (
             <div key={item.id} className="flex items-center gap-1">
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                  isApproved
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {isApproved ? '✓ ' : ''}
+              <Badge variant={isApproved ? 'success' : 'secondary'} className="gap-1 rounded-full">
+                {isApproved && <CheckCircle2 aria-hidden="true" className="size-3" />}
                 {item.label}
-              </span>
+              </Badge>
               {i < items.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
             </div>
           );
@@ -337,16 +334,10 @@ function ProgressionGate({ items, chapters, chapterRoundsMap }) {
         const isApproved = approved.has(ch);
         return (
           <div key={ch} className="flex items-center gap-1">
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                isApproved
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {isApproved ? '✓ ' : ''}
+            <Badge variant={isApproved ? 'success' : 'secondary'} className="gap-1 rounded-full">
+              {isApproved && <CheckCircle2 aria-hidden="true" className="size-3" />}
               {CHAPTER_LABELS[ch]}
-            </span>
+            </Badge>
             {i < chapters.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
           </div>
         );
@@ -467,17 +458,26 @@ export default function ChapterReviewPanel({
             <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
               Session:
             </span>
-            <select
-              data-testid="session-filter-select"
-              aria-label="Filter submissions by session"
-              value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary"
-            >
-              <option value="all">All Review Sessions</option>
-              <option value="s1">Session 1 (Initial Rounds)</option>
-              <option value="s2">Session 2 (Revisions &amp; Defense)</option>
-            </select>
+            <Select value={selectedSession} onValueChange={setSelectedSession}>
+              <SelectTrigger
+                data-testid="session-filter-select"
+                aria-label="Filter submissions by session"
+                className={`${MOBILE_TOUCH_TARGET_CLASSES} h-9 min-w-48 text-xs`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem className="min-h-[44px] py-3" value="all">
+                  All Review Sessions
+                </SelectItem>
+                <SelectItem className="min-h-[44px] py-3" value="s1">
+                  Session 1 (Initial Rounds)
+                </SelectItem>
+                <SelectItem className="min-h-[44px] py-3" value="s2">
+                  Session 2 (Revisions &amp; Defense)
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
 
@@ -493,16 +493,19 @@ export default function ChapterReviewPanel({
               const Icon = cfg.icon;
 
               return (
-                <div
+                <Card
                   key={item.id}
-                  className="rounded-xl border border-border bg-card/60 transition-colors hover:bg-card"
+                  className="overflow-hidden bg-card/60 p-0 transition-colors hover:bg-card"
                 >
                   {/* Chapter/Item header */}
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                      <Badge
+                        variant="secondary"
+                        className="size-8 shrink-0 justify-center rounded-full p-0 text-sm font-bold"
+                      >
                         {item.indexNumber}
-                      </div>
+                      </Badge>
                       <div>
                         <p className="text-sm font-semibold">{item.label}</p>
                         {latest?.createdAt && (
@@ -514,12 +517,14 @@ export default function ChapterReviewPanel({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Icon className={`h-4 w-4 ${cfg.iconClass}`} />
+                      <Icon aria-hidden="true" className={`h-4 w-4 ${cfg.iconClass}`} />
                       <Badge variant={cfg.variant} className="text-xs">
                         {cfg.label}
                       </Badge>
                       {latest?.version > 0 && (
-                        <span className="text-xs text-muted-foreground">v{latest.version}</span>
+                        <Badge variant="outline" className="text-xs">
+                          v{latest.version}
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -534,15 +539,21 @@ export default function ChapterReviewPanel({
                               <TabsTrigger
                                 key={round._id}
                                 value={String(round._id)}
-                                className="h-7 gap-1 rounded-md border px-2.5 py-1 text-xs data-[state=active]:bg-muted"
+                                className={`${MOBILE_TOUCH_TARGET_CLASSES} h-9 gap-1 rounded-md border px-2.5 py-1 text-xs data-[state=active]:bg-muted`}
                               >
                                 Round {round.version || 1}
                                 {(round.status === SUBMISSION_STATUSES.LOCKED ||
                                   round.status === SUBMISSION_STATUSES.APPROVED) && (
-                                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                  <CheckCircle2
+                                    aria-hidden="true"
+                                    className="h-3 w-3 text-success-foreground"
+                                  />
                                 )}
                                 {round.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
-                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                  <AlertTriangle
+                                    aria-hidden="true"
+                                    className="h-3 w-3 text-warning-foreground"
+                                  />
                                 )}
                               </TabsTrigger>
                             );
@@ -565,7 +576,10 @@ export default function ChapterReviewPanel({
                                     const RIcon = rc.icon;
                                     return (
                                       <>
-                                        <RIcon className={`h-3.5 w-3.5 ${rc.iconClass}`} />
+                                        <RIcon
+                                          aria-hidden="true"
+                                          className={`h-3.5 w-3.5 ${rc.iconClass}`}
+                                        />
                                         <span className="font-medium">{rc.label}</span>
                                       </>
                                     );
@@ -594,7 +608,7 @@ export default function ChapterReviewPanel({
                                   <p className="text-xs font-medium text-muted-foreground">
                                     Review Comment
                                   </p>
-                                  <p className="mt-0.5 rounded-md bg-muted px-3 py-2 text-sm">
+                                  <p className="mt-0.5 rounded-md border border-border/70 bg-muted/60 px-3 py-2 text-sm">
                                     {round.reviewNote}
                                   </p>
                                 </div>
@@ -605,15 +619,16 @@ export default function ChapterReviewPanel({
                             {round._id === rounds[0]._id &&
                               rounds.length > 1 &&
                               rounds[1]?.reviewNote && (
-                                <div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-500/10 p-3 text-xs dark:border-amber-700/50">
-                                  <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300">
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                    Previous Round {rounds[1].version || 1} Feedback to Verify:
-                                  </div>
-                                  <p className="mt-1 text-muted-foreground italic">
-                                    &quot;{rounds[1].reviewNote}&quot;
-                                  </p>
-                                </div>
+                                <Alert variant="warning" className="mt-3 p-3 text-xs">
+                                  <AlertDescription>
+                                    <span className="font-semibold">
+                                      Previous Round {rounds[1].version || 1} Feedback to Verify:
+                                    </span>{' '}
+                                    <span className="italic">
+                                      &quot;{rounds[1].reviewNote}&quot;
+                                    </span>
+                                  </AlertDescription>
+                                </Alert>
                               )}
 
                             {/* Action buttons row */}
@@ -621,21 +636,26 @@ export default function ChapterReviewPanel({
                               <Button
                                 size="sm"
                                 variant="default"
-                                className="gap-1.5"
+                                className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5`}
                                 onClick={() => setActiveViewerSubmission(round)}
                               >
-                                <Eye className="h-3.5 w-3.5" />
+                                <Eye aria-hidden="true" className="h-3.5 w-3.5" />
                                 Read Document
                               </Button>
 
                               {round.syncedGoogleDocUrl && (
-                                <Button size="sm" variant="outline" className="gap-1.5" asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5`}
+                                  asChild
+                                >
                                   <a
                                     href={round.syncedGoogleDocUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
-                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
                                     Open in Google Docs
                                   </a>
                                 </Button>
@@ -644,17 +664,17 @@ export default function ChapterReviewPanel({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="gap-1.5"
+                                className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5`}
                                 onClick={() => navigate(`/project/submissions/${round._id}/review`)}
                               >
-                                <FileText className="h-3.5 w-3.5" />
+                                <FileText aria-hidden="true" className="h-3.5 w-3.5" />
                                 Review Studio
                               </Button>
 
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                className={`${MOBILE_TOUCH_TARGET_CLASSES} gap-1.5 text-xs text-muted-foreground hover:text-foreground`}
                                 onClick={() => navigate(`/project/submissions/${round._id}`)}
                               >
                                 View Details
@@ -676,7 +696,7 @@ export default function ChapterReviewPanel({
                       </p>
                     </div>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>

@@ -15,7 +15,6 @@ import {
   ExternalLink,
   X,
   Check,
-  Loader2,
   Search,
   Eye,
   ShieldAlert,
@@ -24,6 +23,8 @@ import {
   Code2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import CitationExportModal from './CitationExportModal';
 import PdfViewerWorkspace from '@/components/submissions/PdfViewerWorkspace';
@@ -35,54 +36,12 @@ import api from '@/services/api';
    Color palette for source highlighting (Turnitin-style bands)
    ────────────────────────────────────────────────────────────── */
 const SOURCE_PALETTE = [
-  {
-    badgeStyle: {
-      background: 'rgba(239, 68, 68, 0.15)',
-      color: '#ef4444',
-      border: '1px solid rgba(239, 68, 68, 0.35)',
-    },
-    dot: '#ef4444',
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(249, 115, 22, 0.15)',
-      color: '#f97316',
-      border: '1px solid rgba(249, 115, 22, 0.35)',
-    },
-    dot: '#f97316',
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(234, 179, 8, 0.15)',
-      color: '#ca8a04',
-      border: '1px solid rgba(234, 179, 8, 0.35)',
-    },
-    dot: '#ca8a04',
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(16, 185, 129, 0.15)',
-      color: '#10b981',
-      border: '1px solid rgba(16, 185, 129, 0.35)',
-    },
-    dot: '#10b981',
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(59, 130, 246, 0.15)',
-      color: '#3b82f6',
-      border: '1px solid rgba(59, 130, 246, 0.35)',
-    },
-    dot: '#3b82f6',
-  },
-  {
-    badgeStyle: {
-      background: 'rgba(168, 85, 247, 0.15)',
-      color: '#a855f7',
-      border: '1px solid rgba(168, 85, 247, 0.35)',
-    },
-    dot: '#a855f7',
-  },
+  { badgeClass: 'border-chart-7/30 bg-chart-7/10 text-chart-7', dotClass: 'bg-chart-7' },
+  { badgeClass: 'border-chart-6/30 bg-chart-6/10 text-chart-6', dotClass: 'bg-chart-6' },
+  { badgeClass: 'border-chart-3/30 bg-chart-3/10 text-chart-3', dotClass: 'bg-chart-3' },
+  { badgeClass: 'border-chart-2/30 bg-chart-2/10 text-chart-2', dotClass: 'bg-chart-2' },
+  { badgeClass: 'border-chart-1/30 bg-chart-1/10 text-chart-1', dotClass: 'bg-chart-1' },
+  { badgeClass: 'border-chart-4/30 bg-chart-4/10 text-chart-4', dotClass: 'bg-chart-4' },
 ];
 
 /* ──────────────────────────────────────────────────────────────
@@ -91,17 +50,17 @@ const SOURCE_PALETTE = [
 const SIGNAL_CONFIG = {
   verbatim: {
     label: 'EXACT MATCH',
-    className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+    className: 'bg-destructive/10 text-destructive border-destructive/30',
     description: 'Exact word-for-word text found in another paper.',
   },
   paraphrase: {
     label: 'REPHRASED',
-    className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30',
+    className: 'bg-chart-4/10 text-chart-4 border-chart-4/30',
     description: 'Similar ideas and sentences expressed with different wording.',
   },
   mixed: {
     label: 'PARTIAL MATCH',
-    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    className: 'bg-warning/10 text-warning-foreground border-warning/30',
     description: 'Contains both exact phrases and rephrased content.',
   },
 };
@@ -131,21 +90,21 @@ function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSou
     >
       <div className="flex items-start gap-2.5">
         <span
-          className="mt-0.5 inline-flex h-6 min-w-[1.5rem] shrink-0 items-center justify-center rounded-full border text-[11px] font-bold"
-          style={source.palette?.badgeStyle}
+          className={`mt-0.5 inline-flex h-6 min-w-[1.5rem] shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${source.palette?.badgeClass || 'border-border bg-muted text-foreground'}`}
         >
           {source.sourceNumber}
         </span>
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-start justify-between gap-1.5">
-            <button
+            <Button
               type="button"
-              className="text-left line-clamp-2 text-xs font-semibold leading-snug text-foreground flex-1 hover:underline cursor-pointer"
+              variant="ghost"
+              className="h-auto min-w-0 flex-1 justify-start whitespace-normal p-0 text-left text-xs font-semibold leading-snug text-foreground hover:underline"
               onClick={() => onSelect(source.sourceId)}
             >
               {source.sourceTitle}
-            </button>
+            </Button>
             <span
               className={`shrink-0 inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${signal.className}`}
             >
@@ -162,11 +121,9 @@ function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSou
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full transition-all duration-300"
+                className={`h-full rounded-full transition-all duration-300 ${percentage >= 70 ? 'bg-destructive' : percentage >= 40 ? 'bg-chart-6' : 'bg-warning'}`}
                 style={{
                   width: `${percentage}%`,
-                  backgroundColor:
-                    percentage >= 70 ? '#ef4444' : percentage >= 40 ? '#f97316' : '#eab308',
                 }}
               />
             </div>
@@ -216,7 +173,7 @@ function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSou
                   <span className="w-12 shrink-0 text-[9px] text-muted-foreground">Exact</span>
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                      className="h-full rounded-full bg-warning transition-all duration-300"
                       style={{ width: `${winnowPct}%` }}
                     />
                   </div>
@@ -230,7 +187,7 @@ function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSou
                   <span className="w-12 shrink-0 text-[9px] text-muted-foreground">Semantic</span>
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                      className="h-full rounded-full bg-chart-1 transition-all duration-300"
                       style={{ width: `${semanticPct}%` }}
                     />
                   </div>
@@ -255,30 +212,28 @@ function LegendStrip() {
       </div>
       <div className="grid grid-cols-3 gap-1.5 text-[10px]">
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-yellow-500/30 border border-yellow-500/60 shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-chart-3/30 border border-chart-3/60 shrink-0" />
           <span className="text-muted-foreground truncate">Low (&lt;50%)</span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-orange-500/30 border border-orange-500/60 shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-chart-6/30 border border-chart-6/60 shrink-0" />
           <span className="text-muted-foreground truncate">Med (50–69%)</span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-rose-500/30 border border-rose-500/60 shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-chart-7/30 border border-chart-7/60 shrink-0" />
           <span className="text-muted-foreground truncate">High (70–89%)</span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-red-700/40 border border-red-700 shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-destructive/40 border border-destructive shrink-0" />
           <span className="text-muted-foreground truncate">Critical (≥90%)</span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-violet-500/30 border-b-2 border-dashed border-violet-500 shrink-0" />
-          <span className="text-violet-600 dark:text-violet-400 font-medium truncate">
-            Rephrased
-          </span>
+          <span className="w-2.5 h-2.5 rounded bg-chart-4/30 border-b-2 border-dashed border-chart-4 shrink-0" />
+          <span className="text-chart-4 font-medium truncate">Rephrased</span>
         </div>
         <div className="flex items-center gap-1.5 p-1 rounded bg-card/60 border border-border/40">
-          <span className="w-2.5 h-2.5 rounded bg-red-600/30 border-b-2 border-double border-red-600 shrink-0" />
-          <span className="text-rose-600 dark:text-rose-400 font-medium truncate">Exact Match</span>
+          <span className="w-2.5 h-2.5 rounded bg-destructive/30 border-b-2 border-double border-destructive shrink-0" />
+          <span className="text-destructive font-medium truncate">Exact Match</span>
         </div>
       </div>
     </div>
@@ -756,7 +711,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '-')
                 .slice(0, 50);
-              const suffix = activeDocType === 'final_journal' ? 'academic-journal' : 'academic-paper';
+              const suffix =
+                activeDocType === 'final_journal' ? 'academic-journal' : 'academic-paper';
               const extension = fileType.includes('pdf')
                 ? 'pdf'
                 : fileType.includes('wordprocessingml')
@@ -865,9 +821,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       return {
         label: '0% Similarity',
         detailLabel: 'Zero Overlap Verified',
-        badgeClass:
-          'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-        iconClass: 'text-emerald-600 dark:text-emerald-400',
+        badgeClass: 'bg-success/10 text-success-foreground border-success/30',
+        iconClass: 'text-success-foreground',
         icon: ShieldCheck,
       };
     }
@@ -875,9 +830,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       return {
         label: `${Math.round(similarityScore)}% Similarity`,
         detailLabel: 'Low Similarity Verified',
-        badgeClass:
-          'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-        iconClass: 'text-emerald-600 dark:text-emerald-400',
+        badgeClass: 'bg-success/10 text-success-foreground border-success/30',
+        iconClass: 'text-success-foreground',
         icon: ShieldCheck,
       };
     }
@@ -885,16 +839,16 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       return {
         label: `${Math.round(similarityScore)}% Similarity`,
         detailLabel: 'Moderate Similarity',
-        badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-        iconClass: 'text-amber-600 dark:text-amber-400',
+        badgeClass: 'bg-warning/10 text-warning-foreground border-warning/30',
+        iconClass: 'text-warning-foreground',
         icon: ShieldAlert,
       };
     }
     return {
       label: `Similarity Alert (${Math.round(similarityScore)}%)`,
       detailLabel: 'High Similarity Flagged',
-      badgeClass: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
-      iconClass: 'text-red-600 dark:text-red-400',
+      badgeClass: 'bg-destructive/10 text-destructive border-destructive/30',
+      iconClass: 'text-destructive',
       icon: ShieldAlert,
     };
   }, [similarityScore]);
@@ -904,7 +858,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Spinner className="size-8 text-primary" />
         <p className="text-sm text-muted-foreground font-medium">
           Loading canonical manuscript from BukSU Archive...
         </p>
@@ -933,7 +887,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground select-none">
       {/* ── Sleek Consolidated Top App Bar ── */}
-      <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border shadow-xs">
+      <header className="sticky top-0 z-40 border-b border-border bg-card shadow-xs">
         <div className="w-full px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
           {/* Left: Breadcrumb Back to Search & Document Title */}
           <div className="flex items-center gap-3 min-w-0 w-full lg:w-auto lg:flex-1">
@@ -965,40 +919,34 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
           {/* Center: Document Switcher (Academic Paper vs Academic Journal) */}
           <div
-            className="flex items-center rounded-lg bg-muted/60 p-0.5 border border-border/60 shrink-0"
             role="tablist"
             aria-label="Document view mode"
+            className="shrink-0 inline-flex h-auto items-center justify-start gap-1 rounded-lg border border-border/60 bg-muted/60 p-0.5"
           >
-            <button
+            <Button
               type="button"
               role="tab"
               aria-selected={activeDocType === 'final_academic'}
+              variant={activeDocType === 'final_academic' ? 'secondary' : 'ghost'}
               onClick={() => setActiveDocType('final_academic')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                activeDocType === 'final_academic'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
               title="View Academic Paper (Full Manuscript)"
+              className="min-h-9 gap-1.5 px-2.5 py-1 text-xs font-semibold"
             >
               <FileText className="w-3.5 h-3.5 text-primary" />
               <span>Academic Paper</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               role="tab"
               aria-selected={activeDocType === 'final_journal'}
+              variant={activeDocType === 'final_journal' ? 'secondary' : 'ghost'}
               onClick={() => setActiveDocType('final_journal')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                activeDocType === 'final_journal'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
               title="View Academic Journal (Condensed Article)"
+              className="min-h-9 gap-1.5 px-2.5 py-1 text-xs font-semibold"
             >
-              <Files className="w-3.5 h-3.5 text-emerald-500" />
+              <Files className="w-3.5 h-3.5 text-success-foreground" />
               <span>Academic Journal</span>
-            </button>
+            </Button>
           </div>
 
           {/* Right: Consolidated Manuscript Actions */}
@@ -1016,15 +964,17 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </Button>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setZoom(100)}
-                className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-1 text-center font-semibold"
+                className="h-8 px-1 text-center font-mono text-[11px] font-semibold text-muted-foreground"
                 title="Reset zoom to 100%"
                 aria-label="Reset zoom"
               >
                 {zoom}%
-              </button>
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1038,20 +988,18 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               </Button>
               <div className="flex items-center gap-0.5 ml-1">
                 {[150, 200, 250, 300].map((lvl) => (
-                  <button
+                  <Button
                     key={lvl}
                     type="button"
+                    variant={zoom === lvl ? 'secondary' : 'ghost'}
                     onClick={() => setZoom(lvl)}
-                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
-                      zoom === lvl
-                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted font-medium'
-                    }`}
+                    aria-pressed={zoom === lvl}
+                    className="h-8 px-1.5 font-mono text-[10px] font-medium"
                     title={`Zoom to ${lvl}%`}
                     aria-label={`Zoom to ${lvl}%`}
                   >
                     {lvl}%
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -1065,7 +1013,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               title={`Download ${pdfBlobUrl ? 'manuscript PDF' : 'manuscript file'}`}
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{pdfBlobUrl ? 'Download PDF' : 'Download Document'}</span>
+              <span className="hidden sm:inline">
+                {pdfBlobUrl ? 'Download PDF' : 'Download Document'}
+              </span>
             </Button>
 
             {/* 3. Cite Modal Trigger */}
@@ -1116,16 +1066,17 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
             )}
 
             {/* 4. Similarity Report Trigger Badge */}
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setShowOriginalityDrawer((prev) => !prev)}
-              className={`h-8 px-2 sm:px-2.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors ${similarityConfig.badgeClass} focus:outline-hidden focus:ring-1 focus:ring-blue-500`}
+              className={`h-8 px-2 sm:px-2.5 text-xs font-medium ${similarityConfig.badgeClass}`}
               title="View similarity report and match breakdown"
               aria-label={similarityConfig.label}
             >
               <similarityConfig.icon className={`w-3.5 h-3.5 ${similarityConfig.iconClass}`} />
               <span>{similarityConfig.label}</span>
-            </button>
+            </Button>
 
             {/* 5. Copy DOI / Share Link Action */}
             <Button
@@ -1137,7 +1088,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               aria-label="Share or copy DOI"
             >
               {copiedLink ? (
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <Check className="w-3.5 h-3.5 text-success-foreground" />
               ) : (
                 <Share2 className="w-3.5 h-3.5" />
               )}
@@ -1153,7 +1104,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
         <div className="flex-1 bg-muted/20 flex flex-col items-center justify-start overflow-y-auto p-2 sm:p-6">
           {pdfLoading && (
             <div className="my-auto py-16 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <Spinner className="size-8 text-primary" />
               <p className="text-xs text-muted-foreground">Loading approved manuscript...</p>
             </div>
           )}
@@ -1161,36 +1112,38 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
           {!pdfLoading && documentBlob && (
             <div className="w-full flex flex-col items-center gap-3">
               {pdfBlobUrl && (
-                <div className="flex items-center gap-2 bg-card/90 backdrop-blur-xs border border-border/80 rounded-lg p-1 shadow-2xs">
-                  <button
+                <div
+                  role="tablist"
+                  aria-label="Manuscript display mode"
+                  className="inline-flex items-center justify-start gap-1 rounded-lg border border-border bg-card p-1 shadow-xs"
+                >
+                  <Button
                     type="button"
+                    role="tab"
+                    aria-selected={viewMode === 'clean'}
+                    variant={viewMode === 'clean' ? 'secondary' : 'ghost'}
                     onClick={() => setViewMode('clean')}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
-                      viewMode === 'clean'
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
                     title="View clean manuscript"
+                    className="min-h-11 gap-1.5 px-3 py-2 text-xs font-semibold sm:min-h-9 sm:px-2.5 sm:py-1"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Clean Manuscript</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    role="tab"
+                    aria-selected={viewMode === 'integrity'}
+                    variant={viewMode === 'integrity' ? 'destructive' : 'ghost'}
                     onClick={() => {
                       setViewMode('integrity');
                       setShowOriginalityDrawer(true);
                     }}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
-                      viewMode === 'integrity'
-                        ? 'bg-destructive text-destructive-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
                     title="View Turnitin-style score-gradient highlight overlays"
+                    className="min-h-11 gap-1.5 px-3 py-2 text-xs font-semibold sm:min-h-9 sm:px-2.5 sm:py-1"
                   >
                     <ShieldAlert className="w-3.5 h-3.5" />
                     <span>Integrity Highlights</span>
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -1252,7 +1205,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               <div className="w-full max-w-4xl bg-card border border-border/80 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
                 <div className="space-y-1">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-warning-foreground shrink-0" />
                     <span>
                       {activeDocType === 'final_journal'
                         ? 'Academic Journal Preview Unavailable'
@@ -1283,7 +1236,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                       </>
                     ) : (
                       <>
-                        <Files className="w-3.5 h-3.5 text-emerald-500" />
+                        <Files className="w-3.5 h-3.5 text-success-foreground" />
                         Switch to Academic Journal
                       </>
                     )}
@@ -1293,7 +1246,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                       href={doi.startsWith('http') ? doi : `https://doi.org/${doi}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline px-2 py-1"
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-primary hover:underline"
                     >
                       <span>View canonical DOI record</span>
                       <ExternalLink className="w-3 h-3" />
@@ -1361,7 +1314,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     project.sdgTags.map((tag) => (
                       <span
                         key={tag}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                        className="inline-flex items-center rounded-full border border-chart-1/20 bg-chart-1/10 px-2.5 py-0.5 text-[11px] font-medium text-chart-1"
                       >
                         {tag}
                       </span>
@@ -1429,7 +1382,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
                 {/* Footer Stamp */}
                 <div className="pt-6 border-t border-border/60 flex flex-wrap items-center justify-between gap-3 text-[11px] text-muted-foreground font-sans">
-                  <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <div className="flex items-center gap-1.5 font-medium text-success-foreground">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Archival Verification & Originality Compliant</span>
                   </div>
@@ -1452,7 +1405,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
             {/* Header */}
             <div className="px-4 py-3.5 border-b border-border flex items-center justify-between shrink-0 bg-muted/20">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-success-foreground" />
                 <h3 className="text-sm font-bold text-foreground">
                   Similarity &amp; Match Overview
                 </h3>
@@ -1488,11 +1441,11 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
                 <div className="w-full bg-border rounded-full h-2 overflow-hidden flex">
                   <div
-                    className="bg-emerald-500 h-full transition-all"
+                    className="h-full bg-success transition-all"
                     style={{ width: `${originalityScore}%` }}
                   />
                   <div
-                    className="bg-red-500 h-full transition-all"
+                    className="h-full bg-destructive transition-all"
                     style={{ width: `${similarityScore}%` }}
                   />
                 </div>
@@ -1506,26 +1459,26 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 <div className="pt-2 border-t border-border/40 space-y-1.5">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">Word-for-Word Match:</span>
-                    <span className="font-mono font-semibold text-amber-500">
+                    <span className="font-mono font-semibold text-warning-foreground">
                       {macroBreakdown.exact}%
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-all"
+                      className="h-full rounded-full bg-warning transition-all"
                       style={{ width: `${macroBreakdown.exact}%` }}
                     />
                   </div>
 
                   <div className="flex items-center justify-between text-[10px] pt-0.5">
                     <span className="text-muted-foreground">Similar Meaning:</span>
-                    <span className="font-mono font-semibold text-blue-500">
+                    <span className="font-mono font-semibold text-chart-1">
                       {macroBreakdown.semantic}%
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all"
+                      className="h-full rounded-full bg-chart-1 transition-all"
                       style={{ width: `${macroBreakdown.semantic}%` }}
                     />
                   </div>
@@ -1550,12 +1503,13 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 {sources.length > 2 && (
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-                    <input
+                    <Input
                       type="text"
+                      aria-label="Search sources"
                       placeholder="Search sources..."
                       value={sourceSearch}
                       onChange={(e) => setSourceSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-background border border-border/80 rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                      className="h-9 w-full pl-8 pr-3 py-1.5 text-xs"
                     />
                   </div>
                 )}
@@ -1568,8 +1522,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     <div>
                       <div className="flex items-center gap-2">
                         <span
-                          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold border"
-                          style={activeSource.palette?.badgeStyle}
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${activeSource.palette?.badgeClass || 'border-border bg-muted text-foreground'}`}
                         >
                           {activeSource.sourceNumber}
                         </span>
@@ -1610,11 +1563,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.round(activeSource.similarityPercentage)}%`,
-                          backgroundColor: '#f97316',
-                        }}
+                        className="h-full rounded-full bg-chart-6 transition-all"
+                        style={{ width: `${Math.round(activeSource.similarityPercentage)}%` }}
                       />
                     </div>
 
@@ -1622,13 +1572,13 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                       <>
                         <div className="flex items-center justify-between text-[10px] pt-0.5">
                           <span className="text-muted-foreground">Word-for-Word Match</span>
-                          <span className="font-mono text-amber-500 font-semibold">
+                          <span className="font-mono font-semibold text-warning-foreground">
                             {Math.round(activeSource.winnowScore * 100)}%
                           </span>
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-amber-500 transition-all"
+                            className="h-full rounded-full bg-warning transition-all"
                             style={{ width: `${Math.round(activeSource.winnowScore * 100)}%` }}
                           />
                         </div>
@@ -1639,13 +1589,13 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                       <>
                         <div className="flex items-center justify-between text-[10px] pt-0.5">
                           <span className="text-muted-foreground">Similar Meaning</span>
-                          <span className="font-mono text-blue-500 font-semibold">
+                          <span className="font-mono font-semibold text-chart-1">
                             {Math.round(activeSource.semanticScore * 100)}%
                           </span>
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-blue-500 transition-all"
+                            className="h-full rounded-full bg-chart-1 transition-all"
                             style={{ width: `${Math.round(activeSource.semanticScore * 100)}%` }}
                           />
                         </div>
@@ -1700,7 +1650,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                               <span>
                                 Phrase {idx + 1} (Page {sp.pageNumber})
                               </span>
-                              <span className="font-semibold text-rose-500">
+                              <span className="font-semibold text-destructive">
                                 {Math.round(sp.similarity)}%
                               </span>
                             </div>
@@ -1755,8 +1705,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               ) : (
                 <div className="space-y-2">
                   {filteredSources.length === 0 ? (
-                    <div className="p-4 text-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 space-y-1.5">
-                      <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                    <div className="space-y-1.5 rounded-lg border border-success/20 bg-success/5 p-4 text-center">
+                      <CheckCircle2 className="mx-auto h-8 w-8 text-success-foreground" />
                       <p className="font-semibold text-foreground text-xs">
                         Zero Overlap Detected (100% Unique)
                       </p>
@@ -1802,7 +1752,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                   </div>
                   <div className="flex justify-between">
                     <span>Status:</span>
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="font-medium text-success-foreground">
                       Archived &amp; Approved
                     </span>
                   </div>

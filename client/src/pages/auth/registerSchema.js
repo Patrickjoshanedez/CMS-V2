@@ -5,18 +5,26 @@ export const registerSchema = z
   .object({
     firstName: z
       .string()
+      .trim()
       .min(2, 'First name must be at least 2 characters.')
       .max(50, 'First name must not exceed 50 characters.'),
     middleName: z
       .string()
+      .trim()
       .max(50, 'Middle name must not exceed 50 characters.')
       .optional()
       .default(''),
     lastName: z
       .string()
+      .trim()
       .min(2, 'Last name must be at least 2 characters.')
       .max(50, 'Last name must not exceed 50 characters.'),
     email: studentEmailSchema,
+    studentId: z
+      .string({ required_error: 'Student ID no. is required.' })
+      .trim()
+      .min(1, 'Student ID no. is required.')
+      .max(32, 'Student ID must not exceed 32 characters.'),
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password.'),
   })

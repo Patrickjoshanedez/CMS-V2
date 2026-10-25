@@ -7,7 +7,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockMutate = vi.fn();
 vi.mock('@/hooks/useSubmissions', () => ({
-  useUploadChapter: ({ onSuccess, onError }) => ({
+  useUploadChapter: () => ({
     mutate: mockMutate,
     isPending: false,
     error: null,
@@ -65,6 +65,7 @@ describe('UploadChapterModal Component', () => {
 
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
+    expect(dialog).toHaveAccessibleName('Revise Chapter 1');
     expect(dialog.textContent).toContain('Revise Chapter 1');
     expect(dialog.textContent).toContain('Locked');
     expect(dialog.textContent).toContain('Round 2 (v2)');
@@ -73,7 +74,7 @@ describe('UploadChapterModal Component', () => {
       'Expand problem statement in Section 1.1 and provide references.',
     );
     // Chapter dropdown should NOT be present when locked
-    expect(dialog.querySelector('select#modal-chapter')).toBeNull();
+    expect(dialog.querySelector('[role="combobox"]')).toBeNull();
   });
 
   it('renders general unlocked mode with chapter selector when isLocked is false', async () => {
@@ -91,12 +92,14 @@ describe('UploadChapterModal Component', () => {
 
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
+    expect(dialog).toHaveAccessibleName('Upload Chapter Manuscript');
     expect(dialog.textContent).toContain('Upload Chapter Manuscript');
     expect(dialog.textContent).not.toContain('Locked');
-    // Dropdown is present and enabled
-    const select = dialog.querySelector('select#modal-chapter');
+    // Shared chapter selector is present and enabled
+    const select = dialog.querySelector('[role="combobox"]');
     expect(select).toBeTruthy();
-    expect(select.disabled).toBe(false);
+    expect(select).toHaveAttribute('aria-label', 'Target Chapter');
+    expect(select).not.toBeDisabled();
   });
 
   it('renders mandatory late justification note and letter document when deadline has passed', async () => {

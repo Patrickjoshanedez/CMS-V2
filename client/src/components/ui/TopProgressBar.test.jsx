@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TopProgressBar from './TopProgressBar';
 import { topProgress } from '@/lib/topProgress';
 
@@ -11,9 +11,7 @@ describe('TopProgressBar', () => {
   let root = null;
 
   beforeEach(() => {
-    topProgress.done();
-    topProgress.status = 'idle';
-    topProgress.progress = 0;
+    topProgress.clear();
   });
 
   afterEach(() => {
@@ -27,9 +25,7 @@ describe('TopProgressBar', () => {
     }
     container = null;
     root = null;
-    topProgress.done();
-    topProgress.status = 'idle';
-    topProgress.progress = 0;
+    topProgress.clear();
   });
 
   it('renders nothing when status is idle and progress is 0', () => {
@@ -45,7 +41,30 @@ describe('TopProgressBar', () => {
     expect(progressBar).toBeNull();
   });
 
-  it('renders fixed progressbar with BukSU gradient and glowing head when active', () => {
+  it('restores navigation listeners and clears timers when the bar unmounts', () => {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root.render(<TopProgressBar />);
+    });
+    topProgress.start('/pending-route');
+
+    act(() => {
+      root.unmount();
+    });
+    root = null;
+
+    expect(topProgress.status).toBe('idle');
+    expect(topProgress.safetyTimer).toBeNull();
+    expect(window.history.pushState).toBe(originalPushState);
+    expect(window.history.replaceState).toBe(originalReplaceState);
+  });
+
+  it('renders an accessible indeterminate progressbar while a route is pending', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -61,16 +80,19 @@ describe('TopProgressBar', () => {
     const progressBar = container.querySelector('[role="progressbar"]');
     expect(progressBar).not.toBeNull();
     expect(progressBar.getAttribute('aria-label')).toBe('Loading page');
-    expect(progressBar.className).toContain('fixed top-0');
+    expect(progressBar.className).toContain('fixed inset-x-0 top-0');
     expect(progressBar.className).toContain('z-[999999]');
 
     const innerBar = progressBar.firstElementChild;
     expect(innerBar).not.toBeNull();
-    expect(innerBar.className).toContain('bg-gradient-to-r');
-    expect(innerBar.style.width).toBe('24%');
+    expect(progressBar.hasAttribute('aria-valuenow')).toBe(false);
+    expect(progressBar.hasAttribute('aria-valuemin')).toBe(false);
+    expect(progressBar.hasAttribute('aria-valuemax')).toBe(false);
+    expect(innerBar.style.width).toBe('');
+    expect(innerBar.className).toContain('cms-route-progress-indicator');
   });
 
-  it('trickles progress forward incrementally while loading', () => {
+  it('does not expose the controller trickle as a measured percentage', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -87,7 +109,42 @@ describe('TopProgressBar', () => {
     const progressBar = container.querySelector('[role="progressbar"]');
     expect(progressBar).not.toBeNull();
     const innerBar = progressBar.firstElementChild;
-    expect(parseFloat(innerBar.style.width)).toBeGreaterThan(24);
+    expect(topProgress.progress).toBeGreaterThan(24);
+    expect(progressBar.hasAttribute('aria-valuenow')).toBe(false);
+    expect(innerBar.style.width).toBe('');
+  });
+
+  it('ignores stale completion and Suspense cleanup from an older route generation', () => {
+    const firstGeneration = topProgress.start('/first-route');
+    const suspenseGeneration = topProgress.setSuspended(true, firstGeneration);
+    const secondGeneration = topProgress.start('/second-route');
+
+    expect(secondGeneration).toBeGreaterThan(firstGeneration);
+    expect(topProgress.setSuspended(false, suspenseGeneration)).toBe(false);
+    expect(topProgress.done(firstGeneration)).toBe(false);
+    expect(topProgress.status).toBe('loading');
+    expect(topProgress.done(secondGeneration)).toBe(true);
+    expect(topProgress.status).toBe('completing');
+  });
+
+  it('clears a stalled route without announcing successful completion', () => {
+    vi.useFakeTimers();
+    const observedStates = [];
+    const unsubscribe = topProgress.subscribe((state) => observedStates.push(state));
+
+    try {
+      topProgress.start('/stalled-route');
+      topProgress.setSuspended(true);
+      vi.advanceTimersByTime(6000);
+
+      expect(topProgress.status).toBe('idle');
+      expect(topProgress.progress).toBe(0);
+      expect(topProgress.isSuspended).toBe(false);
+      expect(observedStates.some((state) => state.status === 'completing')).toBe(false);
+    } finally {
+      unsubscribe();
+      vi.useRealTimers();
+    }
   });
 
   it('surges to 100% on done and resets', async () => {
@@ -108,6 +165,7 @@ describe('TopProgressBar', () => {
     expect(progressBar).not.toBeNull();
     const innerBar = progressBar.firstElementChild;
     expect(innerBar.style.width).toBe('100%');
+    expect(progressBar.getAttribute('aria-valuenow')).toBe('100');
   });
 
   it('keeps progress active and does not prematurely complete while Suspense is active', () => {

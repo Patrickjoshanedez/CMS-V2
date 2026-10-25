@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
   X,
@@ -15,7 +14,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Loader2,
   ShieldCheck,
   GitCommit,
   Sliders,
@@ -23,7 +21,19 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Dialog, DialogContent } from '@/components/ui/Dialog';
+import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
+import { Progress } from '@/components/ui/Progress';
+import { Slider } from '@/components/ui/Slider';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/Sheet';
 import { format } from 'date-fns';
 
 // docx-preview: browser-side OOXML renderer — preserves all Word formatting
@@ -56,11 +66,14 @@ const CHAPTER_LABELS = {
 };
 
 const STATUS_CONFIG = {
-  pending: { icon: Clock, label: 'Pending Review', className: 'text-yellow-500' },
-  approved: { icon: CheckCircle2, label: 'Approved', className: 'text-green-500' },
-  rejected: { icon: AlertCircle, label: 'Revision Required', className: 'text-red-500' },
-  reviewed: { icon: CheckCircle2, label: 'Reviewed', className: 'text-blue-500' },
+  pending: { icon: Clock, label: 'Pending Review', variant: 'warning' },
+  approved: { icon: CheckCircle2, label: 'Approved', variant: 'success' },
+  rejected: { icon: AlertCircle, label: 'Revision Required', variant: 'destructive' },
+  reviewed: { icon: CheckCircle2, label: 'Reviewed', variant: 'info' },
 };
+
+const DEFAULT_PLAGIARISM_COLOR = 'hsl(var(--destructive))';
+const DEFAULT_PLAGIARISM_HIGHLIGHT = 'hsl(var(--destructive) / 0.25)';
 
 /**
  * SophisticatedDocumentViewer — Institutional In-App OOXML + PDF Viewer
@@ -191,39 +204,18 @@ export default function SophisticatedDocumentViewer({
   const docxContainerRef = useRef(null);
   const renderAbortRef = useRef(null);
 
-  // Lock body & main layout scroll while modal is open or when embedded viewer is fullscreen
+  // Lock the main layout scroll while the shared modal dialog is open or fullscreen
   useEffect(() => {
     const shouldLock = (!embedded && open) || (embedded && isFullscreen);
     if (!shouldLock || typeof document === 'undefined') return;
-    const originalBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     const mainEl = document.querySelector('main');
     const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
     if (mainEl) mainEl.style.overflow = 'hidden';
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
       if (mainEl) mainEl.style.overflow = originalMainOverflow;
     };
   }, [open, embedded, isFullscreen]);
-
-  // Handle ESC key press
-  useEffect(() => {
-    const shouldHandleEsc = (!embedded && open) || (embedded && isFullscreen);
-    if (!shouldHandleEsc) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        if (isFullscreen) {
-          setIsFullscreen(false);
-        } else if (onOpenChange) {
-          onOpenChange(false);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, embedded, isFullscreen, onOpenChange]);
 
   // Reset state when closed
   useEffect(() => {
@@ -526,572 +518,598 @@ export default function SophisticatedDocumentViewer({
   };
 
   const viewerContent = (
-    <div
-      ref={modalRef}
-      className={`flex min-w-0 flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
-        isFullscreen
-          ? 'fixed inset-0 z-50 w-full h-full rounded-none border-0'
-          : embedded
-            ? `relative w-full h-[780px] rounded-xl border border-border/60 shadow-sm ${className}`
-            : 'relative w-full max-w-6xl h-[95dvh] sm:h-[92dvh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
-      }`}
-    >
-      {/* ── Top Control Bar ── */}
-      <header className="shrink-0 flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 min-h-[48px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
-        {/* Left: Document Identity (Shown only for submission tracking; hidden on archive/plagiarism checker) */}
-        {shouldShowIdentity ? (
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
-              {isPdf ? (
-                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
-              ) : (
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-              )}
-            </div>
-            <div className="min-w-0 max-w-[160px] xs:max-w-[200px] sm:max-w-xs lg:max-w-sm shrink">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h3
-                  id="document-viewer-title"
-                  className="text-xs sm:text-base font-bold text-foreground truncate"
-                >
-                  {chapterTitle}
-                </h3>
-                <Badge
-                  variant="outline"
-                  className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 font-mono shrink-0"
-                >
-                  {versionBadge}
-                </Badge>
-                {(!embedded || isFullscreen || showArchiveIdentity) && isDocx && (
-                  <Badge
-                    variant="secondary"
-                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
-                  >
-                    Word Document
-                  </Badge>
-                )}
-                {(!embedded || isFullscreen || showArchiveIdentity) && isPdf && (
-                  <Badge
-                    variant="secondary"
-                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
-                  >
-                    PDF Manuscript
-                  </Badge>
-                )}
-                {(!embedded || isFullscreen || showArchiveIdentity) && isText && (
-                  <Badge
-                    variant="secondary"
-                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
-                  >
-                    Text Document
-                  </Badge>
-                )}
-                {(!embedded || isFullscreen || showArchiveIdentity) && originalityScore !== null && (
-                  <Badge
-                    variant="outline"
-                    className={`${showArchiveIdentity ? 'inline-flex' : 'hidden 2xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
-                      originalityScore >= 75
-                        ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                        : 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
-                    }`}
-                  >
-                    <ShieldCheck className="h-3 w-3" />
-                    <span>{originalityScore}% Original</span>
-                  </Badge>
+    <Sheet open={showMetadata} onOpenChange={setShowMetadata}>
+      <div
+        ref={modalRef}
+        className={`flex min-w-0 flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
+          isFullscreen
+            ? 'h-full w-full rounded-none border-0'
+            : embedded
+              ? `relative w-full h-[780px] rounded-xl border border-border/60 shadow-sm ${className}`
+              : 'relative w-full max-w-6xl h-[95dvh] sm:h-[92dvh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
+        }`}
+      >
+        {/* ── Top Control Bar ── */}
+        <header className="shrink-0 flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 min-h-[48px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
+          {/* Left: Document Identity (Shown only for submission tracking; hidden on archive/plagiarism checker) */}
+          {shouldShowIdentity ? (
+            <div className="flex basis-full items-center gap-2.5 sm:basis-auto sm:gap-3 min-w-0 shrink">
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+                {isPdf ? (
+                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
+                ) : (
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-muted-foreground truncate flex items-center gap-1">
-                <span className="truncate max-w-[140px] sm:max-w-none">{fileName}</span>
-                <span>·</span>
-                <span className="shrink-0">{fileSizeLabel}</span>
-              </p>
+              <div className="min-w-0 max-w-full sm:max-w-xs lg:max-w-sm shrink">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h3
+                    id="document-viewer-title"
+                    className="basis-full text-xs sm:basis-auto sm:text-base font-bold text-foreground truncate"
+                  >
+                    {chapterTitle}
+                  </h3>
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 font-mono shrink-0"
+                  >
+                    {versionBadge}
+                  </Badge>
+                  {(!embedded || isFullscreen || showArchiveIdentity) && isDocx && (
+                    <Badge
+                      variant="secondary"
+                      className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
+                    >
+                      Word Document
+                    </Badge>
+                  )}
+                  {(!embedded || isFullscreen || showArchiveIdentity) && isPdf && (
+                    <Badge
+                      variant="secondary"
+                      className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
+                    >
+                      PDF Manuscript
+                    </Badge>
+                  )}
+                  {(!embedded || isFullscreen || showArchiveIdentity) && isText && (
+                    <Badge
+                      variant="secondary"
+                      className={`${showArchiveIdentity ? 'inline-flex' : 'hidden xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-sans shrink-0`}
+                    >
+                      Text Document
+                    </Badge>
+                  )}
+                  {(!embedded || isFullscreen || showArchiveIdentity) &&
+                    originalityScore !== null && (
+                      <Badge
+                        variant="outline"
+                        className={`${showArchiveIdentity ? 'inline-flex' : 'hidden 2xl:inline-flex'} text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
+                          originalityScore >= 75
+                            ? 'border-success/50 text-success-foreground bg-success/10'
+                            : 'border-warning/50 text-warning-foreground bg-warning/10'
+                        }`}
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        <span>{originalityScore}% Original</span>
+                      </Badge>
+                    )}
+                </div>
+                <p className="text-[11px] sm:text-xs text-muted-foreground truncate flex items-center gap-1">
+                  <span className="truncate max-w-[140px] sm:max-w-none">{fileName}</span>
+                  <span>·</span>
+                  <span className="shrink-0">{fileSizeLabel}</span>
+                </p>
+              </div>
             </div>
-          </div>
-        ) : (
-          /* Subtle clean filename breadcrumb when identity is hidden */
-          <div className="flex items-center gap-2 min-w-0 max-w-[200px] xs:max-w-xs sm:max-w-sm truncate shrink-0">
-            <span className="text-xs font-semibold text-foreground truncate" title={fileName}>
-              {fileName}
-            </span>
-            {fileSizeLabel && (
-              <span className="text-[11px] text-muted-foreground shrink-0 hidden sm:inline">
-                · {fileSizeLabel}
+          ) : (
+            /* Subtle clean filename breadcrumb when identity is hidden */
+            <div className="flex items-center gap-2 min-w-0 max-w-[200px] xs:max-w-xs sm:max-w-sm truncate shrink-0">
+              <span className="text-xs font-semibold text-foreground truncate" title={fileName}>
+                {fileName}
               </span>
+              {fileSizeLabel && (
+                <span className="text-[11px] text-muted-foreground shrink-0 hidden sm:inline">
+                  · {fileSizeLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Center: View Mode Toggle & Zoom / Annotation Controls */}
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
+            {/* Revision Diff (+/-) Switch — rendered only when submission tracking requires revision comparison */}
+            {shouldShowRevisionDiff && (
+              <div className="flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs shrink-0">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setViewMode('manuscript')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                    viewMode === 'manuscript'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  aria-label="View Formatted Manuscript"
+                >
+                  {isPdf ? (
+                    <BookOpen className="h-3.5 w-3.5" />
+                  ) : (
+                    <FileText className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">Manuscript</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setViewMode('diff')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                    viewMode === 'diff'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Compare changes with previous version (Git-style diff)"
+                  aria-label="View Revision Diff"
+                >
+                  <GitCommit className="h-3.5 w-3.5" />
+                  <span>Revision Diff (+/-)</span>
+                  {submission?.version > 1 && (
+                    <span className="hidden sm:inline-block px-1 py-0.2 rounded text-[9px] bg-success/10 text-success-foreground font-mono font-semibold">
+                      v{submission.version - 1}→v{submission.version}
+                    </span>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Zoom Controls (DOCX only & in manuscript mode) */}
+            {isDocx && viewMode === 'manuscript' && (
+              <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs shrink-0">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 50}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                  title="Zoom out (-15%)"
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={handleResetZoom}
+                  className="px-2 py-0.5 font-mono text-[11px] font-semibold hover:bg-muted rounded text-foreground transition-colors"
+                  title="Reset zoom to 100%"
+                  aria-label="Reset zoom"
+                >
+                  {zoom}%
+                </Button>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 300}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                  title="Zoom in (+15%)"
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+                <div
+                  className="hidden 2xl:flex items-center gap-0.5"
+                  role="group"
+                  aria-label="Zoom presets"
+                >
+                  {[150, 200, 250, 300].map((level) => (
+                    <Button
+                      variant="ghost"
+                      key={level}
+                      type="button"
+                      onClick={() => setZoom(level)}
+                      className={`px-1.5 py-0.5 font-mono text-[10px] rounded transition-colors ${
+                        zoom === level
+                          ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted font-medium'
+                      }`}
+                      title={`Set zoom to ${level}%`}
+                      aria-label={`Zoom ${level}%`}
+                    >
+                      {level}%
+                    </Button>
+                  ))}
+                </div>
+                <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={handleResetZoom}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Reset view"
+                  aria-label="Reset view"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+
+            {/* Multi-Layer Annotation & Plagiarism Indicator Controls */}
+            {viewMode === 'manuscript' && (
+              <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
+                {shouldShowLayers ? (
+                  /* Layer Filter Buttons for Multi-layer Submission Review */
+                  <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setLayerFilter('all')}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        layerFilter === 'all'
+                          ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Show both Comments and Plagiarism overlays"
+                    >
+                      All Layers
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setLayerFilter('comments')}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                        layerFilter === 'comments'
+                          ? 'bg-info text-info-foreground font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Show faculty comment annotations only"
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Comments
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setLayerFilter('plagiarism')}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                        layerFilter === 'plagiarism'
+                          ? 'bg-destructive text-destructive-foreground font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title={
+                        isArchiveDoc
+                          ? 'Show similarity matches only'
+                          : 'Show plagiarism matches only'
+                      }
+                    >
+                      <ShieldAlert className="h-3 w-3" />
+                      {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
+                    </Button>
+                  </div>
+                ) : shouldShowComments ? (
+                  <Badge variant="info" className="inline-flex items-center gap-1.5 text-xs">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Comments Active</span>
+                  </Badge>
+                ) : plagiarismMatches && plagiarismMatches.length > 0 ? (
+                  <Badge variant="destructive" className="inline-flex items-center gap-1.5 text-xs">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <span>
+                      {isArchiveDoc ? 'Similarity Matches' : 'Plagiarism Matches'} (
+                      {plagiarismMatches.length})
+                    </span>
+                  </Badge>
+                ) : null}
+
+                {/* Opacity Controls Popover */}
+                {(shouldShowComments || (plagiarismMatches && plagiarismMatches.length > 0)) && (
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowOpacityControls((prev) => !prev)}
+                      className={`h-7 px-2 text-[11px] gap-1 border-border/60 ${
+                        showOpacityControls
+                          ? 'bg-muted text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Adjust overlay layer opacities"
+                    >
+                      <Sliders className="h-3 w-3 text-primary" />
+                      <span>Opacity</span>
+                    </Button>
+
+                    {showOpacityControls && (
+                      <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-border pb-1.5">
+                          <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Sliders className="h-3.5 w-3.5 text-primary" />
+                            Layer Opacity
+                          </span>
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={() => {
+                              setCommentsOpacity(80);
+                              setPlagiarismOpacity(80);
+                            }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                          >
+                            Reset
+                          </Button>
+                        </div>
+
+                        {shouldShowComments && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-info-foreground font-medium">Comments</span>
+                              <span className="font-mono text-muted-foreground">
+                                {commentsOpacity}%
+                              </span>
+                            </div>
+                            <Slider
+                              min={15}
+                              max={100}
+                              value={commentsOpacity}
+                              onChange={(e) => setCommentsOpacity(Number(e.target.value))}
+                              aria-label="Comments overlay opacity"
+                            />
+                          </div>
+                        )}
+
+                        {Boolean(plagiarismMatches && plagiarismMatches.length > 0) && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-destructive-text font-medium">
+                                {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
+                              </span>
+                              <span className="font-mono text-muted-foreground">
+                                {plagiarismOpacity}%
+                              </span>
+                            </div>
+                            <Slider
+                              min={15}
+                              max={100}
+                              value={plagiarismOpacity}
+                              onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
+                              aria-label="Plagiarism overlay opacity"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        )}
 
-        {/* Center: View Mode Toggle & Zoom / Annotation Controls */}
-        <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
-          {/* Revision Diff (+/-) Switch — rendered only when submission tracking requires revision comparison */}
-          {shouldShowRevisionDiff && (
-            <div className="flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs shrink-0">
-              <button
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <SheetTrigger asChild>
+              <Button
                 type="button"
-                onClick={() => setViewMode('manuscript')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
-                  viewMode === 'manuscript'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                variant="outline"
+                size="sm"
+                className={`h-8 px-2.5 text-xs gap-1.5 border-border/60 ${
+                  showMetadata ? 'bg-muted text-foreground' : 'text-muted-foreground'
                 }`}
-                aria-label="View Formatted Manuscript"
+                title="Toggle document information"
+                aria-label="Toggle document details"
+                aria-controls="document-metadata-sheet"
+                aria-expanded={showMetadata}
               >
-                {isPdf ? (
-                  <BookOpen className="h-3.5 w-3.5" />
-                ) : (
-                  <FileText className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">Manuscript</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('diff')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
-                  viewMode === 'diff'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Compare changes with previous version (Git-style diff)"
-                aria-label="View Revision Diff"
-              >
-                <GitCommit className="h-3.5 w-3.5" />
-                <span>Revision Diff (+/-)</span>
-                {submission?.version > 1 && (
-                  <span className="hidden sm:inline-block px-1 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono font-semibold">
-                    v{submission.version - 1}→v{submission.version}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
+                <Info className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Details</span>
+              </Button>
+            </SheetTrigger>
 
-          {/* Zoom Controls (DOCX only & in manuscript mode) */}
-          {isDocx && viewMode === 'manuscript' && (
-            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs shrink-0">
-              <button
-                type="button"
-                onClick={handleZoomOut}
-                disabled={zoom <= 50}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                title="Zoom out (-15%)"
-                aria-label="Zoom out"
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={handleResetZoom}
-                className="px-2 py-0.5 font-mono text-[11px] font-semibold hover:bg-muted rounded text-foreground transition-colors"
-                title="Reset zoom to 100%"
-                aria-label="Reset zoom"
-              >
-                {zoom}%
-              </button>
-              <button
-                type="button"
-                onClick={handleZoomIn}
-                disabled={zoom >= 300}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
-                title="Zoom in (+15%)"
-                aria-label="Zoom in"
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </button>
-              <div className="h-3.5 w-px bg-border/60 mx-0.5" />
-              <div
-                className="hidden 2xl:flex items-center gap-0.5"
-                role="group"
-                aria-label="Zoom presets"
-              >
-                {[150, 200, 250, 300].map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setZoom(level)}
-                    className={`px-1.5 py-0.5 font-mono text-[10px] rounded transition-colors ${
-                      zoom === level
-                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted font-medium'
-                    }`}
-                    title={`Set zoom to ${level}%`}
-                    aria-label={`Zoom ${level}%`}
-                  >
-                    {level}%
-                  </button>
-                ))}
-              </div>
-              <div className="h-3.5 w-px bg-border/60 mx-0.5" />
-              <button
-                type="button"
-                onClick={handleResetZoom}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Reset view"
-                aria-label="Reset view"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              className="h-8 px-2.5 text-xs gap-1.5 border-border/60 hover:bg-muted text-foreground"
+              title="Download original manuscript"
+              aria-label="Download original manuscript"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Download</span>
+            </Button>
 
-          {/* Multi-Layer Annotation & Plagiarism Indicator Controls */}
-          {viewMode === 'manuscript' && (
-            <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
-              {shouldShowLayers ? (
-                /* Layer Filter Buttons for Multi-layer Submission Review */
-                <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setLayerFilter('all')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                      layerFilter === 'all'
-                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                    title="Show both Comments and Plagiarism overlays"
-                  >
-                    All Layers
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLayerFilter('comments')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                      layerFilter === 'comments'
-                        ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                    title="Show faculty comment annotations only"
-                  >
-                    <MessageSquare className="h-3 w-3" />
-                    Comments
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLayerFilter('plagiarism')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                      layerFilter === 'plagiarism'
-                        ? 'bg-rose-600 text-white font-semibold shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                    title={
-                      isArchiveDoc ? 'Show similarity matches only' : 'Show plagiarism matches only'
-                    }
-                  >
-                    <ShieldAlert className="h-3 w-3" />
-                    {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
-                  </button>
-                </div>
-              ) : shouldShowComments ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-semibold">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  <span>Comments Active</span>
-                </div>
-              ) : plagiarismMatches && plagiarismMatches.length > 0 ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold">
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  <span>
-                    {isArchiveDoc ? 'Similarity Matches' : 'Plagiarism Matches'} (
-                    {plagiarismMatches.length})
-                  </span>
-                </div>
-              ) : null}
-
-              {/* Opacity Controls Popover */}
-              {(shouldShowComments || (plagiarismMatches && plagiarismMatches.length > 0)) && (
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowOpacityControls((prev) => !prev)}
-                    className={`h-7 px-2 text-[11px] gap-1 border-border/60 ${
-                      showOpacityControls
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                    title="Adjust overlay layer opacities"
-                  >
-                    <Sliders className="h-3 w-3 text-primary" />
-                    <span>Opacity</span>
-                  </Button>
-
-                  {showOpacityControls && (
-                    <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center justify-between border-b border-border pb-1.5">
-                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                          <Sliders className="h-3.5 w-3.5 text-primary" />
-                          Layer Opacity
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCommentsOpacity(80);
-                            setPlagiarismOpacity(80);
-                          }}
-                          className="text-[10px] text-muted-foreground hover:text-foreground underline"
-                        >
-                          Reset
-                        </button>
-                      </div>
-
-                      {shouldShowComments && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                              Comments
-                            </span>
-                            <span className="font-mono text-muted-foreground">
-                              {commentsOpacity}%
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="15"
-                            max="100"
-                            value={commentsOpacity}
-                            onChange={(e) => setCommentsOpacity(Number(e.target.value))}
-                            className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                          />
-                        </div>
-                      )}
-
-                      {Boolean(plagiarismMatches && plagiarismMatches.length > 0) && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px]">
-                            <span className="text-rose-600 dark:text-rose-400 font-medium">
-                              {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
-                            </span>
-                            <span className="font-mono text-muted-foreground">
-                              {plagiarismOpacity}%
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="15"
-                            max="100"
-                            value={plagiarismOpacity}
-                            onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
-                            className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-600"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowMetadata((prev) => !prev)}
-            className={`h-8 px-2.5 text-xs gap-1.5 border-border/60 ${
-              showMetadata ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            }`}
-            title="Toggle document information"
-            aria-label="Toggle document details"
-          >
-            <Info className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Details</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDownload}
-            className="h-8 px-2.5 text-xs gap-1.5 border-border/60 hover:bg-muted text-foreground"
-            title="Download original manuscript"
-            aria-label="Download original manuscript"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Download</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsFullscreen((prev) => !prev)}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-
-          {(!embedded || Boolean(onOpenChange)) && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => onOpenChange?.(false)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
-              title="Close viewer"
-              aria-label="Close document viewer"
+              onClick={() => setIsFullscreen((prev) => !prev)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             >
-              <X className="h-4 w-4" />
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-          )}
-        </div>
-      </header>
 
-      {/* ── Main Canvas Area ── */}
-      <div className="relative flex-1 flex overflow-hidden bg-muted/20">
-        {/* Document Content Canvas */}
-        <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
-          {viewMode === 'diff' ? (
-            <RevisionDiffViewer
-              diffData={diffData}
-              isLoading={isDiffLoading}
-              error={diffError}
-              onSelectCompareVersion={setCompareWithId}
-              onRefresh={refetchDiff}
-            />
-          ) : pdfBlobUrl || isPdf ? (
-            /* ── PDF: Unified PdfViewerWorkspace (react-pdf-highlighter-plus) or legacy iframe fallback ── */
-            <div
-              className="relative flex-1 flex flex-col overflow-hidden overscroll-contain"
-              onWheel={(e) => e.stopPropagation()}
-            >
-              {pdfError ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/95 z-10 gap-4 p-6">
-                  <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-destructive/10 border border-destructive/20">
-                    <AlertCircle className="h-6 w-6 text-destructive" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-foreground">PDF Stream Failed</p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">{pdfError}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPdfReloadTrigger((c) => c + 1)}
-                      className="text-xs gap-1.5"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Retry
-                    </Button>
-                    <Button size="sm" onClick={handleDownload} className="text-xs gap-1.5">
-                      <Download className="h-3.5 w-3.5" />
-                      Download Instead
-                    </Button>
-                  </div>
-                </div>
-              ) : useLegacyIframe ? (
-                <>
-                  {iframeLoading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-10 gap-3 text-muted-foreground">
-                      <Loader2 className="h-7 w-7 animate-spin text-primary" />
-                      <p className="text-sm font-medium text-foreground">
-                        Loading manuscript stream...
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Retrieving PDF from institutional archive.
-                      </p>
-                    </div>
-                  )}
-                  <iframe
-                    src={`${pdfBlobUrl || streamFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                    title="Manuscript PDF Viewer"
-                    className="flex-1 w-full border-0 min-h-0"
-                    onLoad={() => setIframeLoading(false)}
-                  />
-                </>
-              ) : (
-                <PdfViewerWorkspace
-                  pdfData={pdfData}
-                  pdfUrl={pdfData || pdfBlobUrl || streamFileUrl}
-                  highlights={highlights}
-                  plagiarismMatches={plagiarismMatches}
-                  activeHighlightId={activeHighlightId}
-                  onSelectionFinished={onSelectionFinished}
-                  onHighlightClick={onHighlightClick}
-                  onAddReply={onAddReply}
-                  onResolveComment={onResolveComment}
-                  onAddToAdm={onAddToAdm}
-                  layerFilter={layerFilter}
-                  commentsOpacity={commentsOpacity}
-                  plagiarismOpacity={plagiarismOpacity}
-                  userRole={userRole}
-                  canComment={canComment}
-                  className="flex-1 w-full min-h-0"
-                  utilsRef={pdfUtilsRef}
-                />
-              )}
-            </div>
-          ) : isDocx ? (
-            /* ── DOCX: docx-preview OOXML renderer fallback when unconverted ── */
-            <DocxPreviewRenderer
-              submissionId={effectiveSubmissionId}
-              streamFileUrl={streamFileUrl}
-              file={effectiveFile}
-              zoom={zoom}
-              chapterTitle={chapterTitle}
-              versionBadge={versionBadge}
-              fileName={fileName}
-              onDownload={handleDownload}
-              plagiarismMatches={plagiarismMatches}
-              activeHighlightId={activeHighlightId}
-              onHighlightClick={onHighlightClick}
-              layerFilter={layerFilter}
-              plagiarismOpacity={plagiarismOpacity}
-            />
-          ) : isText ? (
-            <div
-              className="flex-1 min-h-0 overflow-auto rounded-lg border border-border/60 bg-background p-4 sm:p-6"
-              data-testid="text-document-preview"
-              aria-busy={textLoading}
-            >
-              {textLoading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading text manuscript...
-                </div>
-              ) : textError ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {textError}
-                </p>
-              ) : (
-                <pre
-                  className="whitespace-pre-wrap break-words font-serif text-foreground"
-                  style={{ fontSize: `${zoom}%` }}
-                >
-                  {textContent}
-                </pre>
-              )}
-            </div>
-          ) : (
-            /* ── Fallback: Download prompt ── */
-            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto p-6 rounded-2xl border border-dashed border-border/80 bg-card/60 m-8">
-              <FileText className="h-12 w-12 text-muted-foreground/60 mb-3" />
-              <h4 className="text-base font-semibold text-foreground">Document Ready</h4>
-              <p className="text-xs text-muted-foreground mt-1 mb-4 leading-relaxed">
-                This file ({fileName}) is stored securely in the BukSU institutional capstone
-                archive.
-              </p>
-              <Button onClick={handleDownload} className="gap-2 text-xs">
-                <Download className="h-4 w-4" />
-                Download &amp; Open Document ({fileSizeLabel})
+            {(!embedded || Boolean(onOpenChange)) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange?.(false)}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
+                title="Close viewer"
+                aria-label="Close document viewer"
+              >
+                <X className="h-4 w-4" />
               </Button>
-            </div>
-          )}
-        </main>
+            )}
+          </div>
+        </header>
 
-        {/* ── Collapsible Metadata Drawer (Right Side) ── */}
-        {showMetadata && (
-          <aside className="absolute inset-y-0 right-0 z-20 w-72 max-w-full lg:static sm:w-80 shrink-0 border-l border-border/60 bg-card p-4 sm:p-5 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200">
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Info className="h-3.5 w-3.5 text-primary" />
-                Manuscript Record
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">Archival submission metadata</p>
+        {/* ── Main Canvas Area ── */}
+        <div className="relative flex-1 flex overflow-hidden bg-muted/20">
+          {/* Document Content Canvas */}
+          <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
+            {viewMode === 'diff' ? (
+              <RevisionDiffViewer
+                diffData={diffData}
+                isLoading={isDiffLoading}
+                error={diffError}
+                onSelectCompareVersion={setCompareWithId}
+                onRefresh={refetchDiff}
+              />
+            ) : pdfBlobUrl || isPdf ? (
+              /* ── PDF: Unified PdfViewerWorkspace (react-pdf-highlighter-plus) or legacy iframe fallback ── */
+              <div
+                className="relative flex-1 flex flex-col overflow-hidden overscroll-contain"
+                onWheel={(e) => e.stopPropagation()}
+              >
+                {pdfError ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/95 z-10 gap-4 p-6">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-destructive/10 border border-destructive/20">
+                      <AlertCircle className="h-6 w-6 text-destructive" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-foreground">PDF Stream Failed</p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm">{pdfError}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPdfReloadTrigger((c) => c + 1)}
+                        className="text-xs gap-1.5"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Retry
+                      </Button>
+                      <Button size="sm" onClick={handleDownload} className="text-xs gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Download Instead
+                      </Button>
+                    </div>
+                  </div>
+                ) : useLegacyIframe ? (
+                  <>
+                    {iframeLoading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-10 gap-3 text-muted-foreground">
+                        <Spinner className="size-7 text-primary" />
+                        <p className="text-sm font-medium text-foreground">
+                          Loading manuscript stream...
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Retrieving PDF from institutional archive.
+                        </p>
+                      </div>
+                    )}
+                    <iframe
+                      src={`${pdfBlobUrl || streamFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                      title="Manuscript PDF Viewer"
+                      className="flex-1 w-full border-0 min-h-0"
+                      onLoad={() => setIframeLoading(false)}
+                    />
+                  </>
+                ) : (
+                  <PdfViewerWorkspace
+                    pdfData={pdfData}
+                    pdfUrl={pdfData || pdfBlobUrl || streamFileUrl}
+                    highlights={highlights}
+                    plagiarismMatches={plagiarismMatches}
+                    activeHighlightId={activeHighlightId}
+                    onSelectionFinished={onSelectionFinished}
+                    onHighlightClick={onHighlightClick}
+                    onAddReply={onAddReply}
+                    onResolveComment={onResolveComment}
+                    onAddToAdm={onAddToAdm}
+                    layerFilter={layerFilter}
+                    commentsOpacity={commentsOpacity}
+                    plagiarismOpacity={plagiarismOpacity}
+                    userRole={userRole}
+                    canComment={canComment}
+                    className="flex-1 w-full min-h-0"
+                    utilsRef={pdfUtilsRef}
+                  />
+                )}
+              </div>
+            ) : isDocx ? (
+              /* ── DOCX: docx-preview OOXML renderer fallback when unconverted ── */
+              <DocxPreviewRenderer
+                submissionId={effectiveSubmissionId}
+                streamFileUrl={streamFileUrl}
+                file={effectiveFile}
+                zoom={zoom}
+                chapterTitle={chapterTitle}
+                versionBadge={versionBadge}
+                fileName={fileName}
+                onDownload={handleDownload}
+                plagiarismMatches={plagiarismMatches}
+                activeHighlightId={activeHighlightId}
+                onHighlightClick={onHighlightClick}
+                layerFilter={layerFilter}
+                plagiarismOpacity={plagiarismOpacity}
+              />
+            ) : isText ? (
+              <div
+                className="flex-1 min-h-0 overflow-auto rounded-lg border border-border/60 bg-background p-4 sm:p-6"
+                data-testid="text-document-preview"
+                aria-busy={textLoading}
+              >
+                {textLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                    <Spinner />
+                    Loading text manuscript...
+                  </div>
+                ) : textError ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {textError}
+                  </p>
+                ) : (
+                  <pre
+                    className="whitespace-pre-wrap break-words font-serif text-foreground"
+                    style={{ fontSize: `${zoom}%` }}
+                  >
+                    {textContent}
+                  </pre>
+                )}
+              </div>
+            ) : (
+              /* ── Fallback: Download prompt ── */
+              <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto p-6 rounded-2xl border border-dashed border-border/80 bg-card/60 m-8">
+                <FileText className="h-12 w-12 text-muted-foreground/60 mb-3" />
+                <h4 className="text-base font-semibold text-foreground">Document Ready</h4>
+                <p className="text-xs text-muted-foreground mt-1 mb-4 leading-relaxed">
+                  This file ({fileName}) is stored securely in the BukSU institutional capstone
+                  archive.
+                </p>
+                <Button onClick={handleDownload} className="gap-2 text-xs">
+                  <Download className="h-4 w-4" />
+                  Download &amp; Open Document ({fileSizeLabel})
+                </Button>
+              </div>
+            )}
+          </main>
+
+          {/* ── Collapsible Metadata Drawer (Right Side) ── */}
+          <SheetContent
+            id="document-metadata-sheet"
+            side="right"
+            className="z-[60] w-[min(22rem,92vw)] max-w-full border-l border-border/60 bg-card p-4 sm:p-5 gap-5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <SheetTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                  Manuscript Record
+                </SheetTitle>
+                <SheetDescription className="text-xs">
+                  Archival submission metadata
+                </SheetDescription>
+              </div>
+              <SheetClose asChild>
+                <Button variant="ghost" size="icon" aria-label="Close document details">
+                  <X className="h-4 w-4" />
+                </Button>
+              </SheetClose>
             </div>
 
             <div className="space-y-3 divide-y divide-border/40 text-xs">
@@ -1110,8 +1128,10 @@ export default function SophisticatedDocumentViewer({
                   Review Status
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <StatusIcon className={`h-3.5 w-3.5 ${statusInfo.className}`} />
-                  <span className={`font-medium ${statusInfo.className}`}>{statusInfo.label}</span>
+                  <Badge variant={statusInfo.variant} className="gap-1.5">
+                    <StatusIcon className="h-3.5 w-3.5" />
+                    {statusInfo.label}
+                  </Badge>
                 </div>
               </div>
 
@@ -1131,18 +1151,18 @@ export default function SophisticatedDocumentViewer({
                   Submission Timestamp
                 </span>
                 <p className="text-foreground">
-                  {submission.createdAt
+                  {submission?.createdAt
                     ? format(new Date(submission.createdAt), 'MMM dd, yyyy · hh:mm a')
                     : 'Recently submitted'}
                 </p>
-                {submission.isLate && (
+                {submission?.isLate && (
                   <Badge variant="warning" className="text-[9px] py-0 px-1.5 h-4">
                     Late Submission
                   </Badge>
                 )}
               </div>
 
-              {submission.remarks && (
+              {submission?.remarks && (
                 <div className="pt-3 space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Proponent Remarks
@@ -1153,7 +1173,7 @@ export default function SophisticatedDocumentViewer({
                 </div>
               )}
 
-              {submission.reviewNote && (
+              {submission?.reviewNote && (
                 <div className="pt-3 space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Adviser Feedback
@@ -1164,8 +1184,8 @@ export default function SophisticatedDocumentViewer({
                 </div>
               )}
 
-              {submission.originalityScore !== null &&
-                submission.originalityScore !== undefined && (
+              {submission?.originalityScore !== null &&
+                submission?.originalityScore !== undefined && (
                   <div className="pt-3 space-y-1.5">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       Plagiarism Engine Score
@@ -1179,18 +1199,18 @@ export default function SophisticatedDocumentViewer({
                       </Badge>
                     </div>
                     {/* Originality bar */}
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          submission.originalityScore >= 75
-                            ? 'bg-green-500'
-                            : submission.originalityScore >= 50
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                        }`}
-                        style={{ width: `${submission.originalityScore}%` }}
-                      />
-                    </div>
+                    <Progress
+                      value={submission.originalityScore}
+                      className="h-1.5"
+                      indicatorClassName={
+                        submission.originalityScore >= 75
+                          ? 'bg-success'
+                          : submission.originalityScore >= 50
+                            ? 'bg-warning'
+                            : 'bg-destructive'
+                      }
+                      aria-label="Originality score"
+                    />
                   </div>
                 )}
             </div>
@@ -1206,10 +1226,10 @@ export default function SophisticatedDocumentViewer({
                 Download Original File
               </Button>
             </div>
-          </aside>
-        )}
+          </SheetContent>
+        </div>
       </div>
-    </div>
+    </Sheet>
   );
 
   // If embedded in the page flow and not fullscreen, return inline element directly
@@ -1217,34 +1237,36 @@ export default function SophisticatedDocumentViewer({
     return viewerContent;
   }
 
-  // Otherwise, wrap in modal backdrop dialog and portal to target
-  const dialogElement = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="document-viewer-title"
-      className={`fixed inset-0 z-50 overscroll-contain animate-in fade-in-0 duration-200 ${
-        isFullscreen
-          ? 'p-0 bg-background'
-          : 'flex items-center justify-center p-2 sm:p-4 md:p-6 bg-background/80 backdrop-blur-md'
-      }`}
-      onWheel={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isFullscreen) {
-          if (onOpenChange) onOpenChange(false);
-        }
+  return (
+    <Dialog
+      open={!embedded ? open : isFullscreen}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) return;
+        if (embedded) setIsFullscreen(false);
+        else onOpenChange?.(false);
       }}
     >
-      {viewerContent}
-    </div>
+      <DialogContent
+        showClose={false}
+        fullscreen={isFullscreen}
+        aria-labelledby="document-viewer-title"
+        aria-describedby={undefined}
+        onWheel={(event) => event.stopPropagation()}
+        onInteractOutside={(event) => {
+          if (isFullscreen) event.preventDefault();
+        }}
+        portal={portalTarget !== false}
+        portalContainer={portalTarget === false ? undefined : portalTarget}
+        className={
+          isFullscreen
+            ? 'gap-0 overflow-hidden'
+            : 'h-[95dvh] w-[calc(100vw_-_1rem)] max-h-[95dvh] max-w-6xl gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:h-[92dvh] sm:max-h-[92dvh] sm:w-[calc(100vw_-_2rem)] md:w-[calc(100vw_-_3rem)]'
+        }
+      >
+        {viewerContent}
+      </DialogContent>
+    </Dialog>
   );
-
-  if (portalTarget === false || typeof document === 'undefined') {
-    return dialogElement;
-  }
-
-  const target = portalTarget || document.body;
-  return createPortal(dialogElement, target);
 }
 
 /**
@@ -1377,8 +1399,8 @@ function applyDocxPlagiarismHighlights(
               );
               mark.title = `[Plagiarism Match (${score}%)]: ${match.sourceTitle || 'Archived source'}`;
 
-              const baseColor = match.palette?.color || '#f43f5e';
-              const bgTint = match.palette?.highlightBg || 'rgba(244, 63, 94, 0.25)';
+              const baseColor = match.palette?.color || DEFAULT_PLAGIARISM_COLOR;
+              const bgTint = match.palette?.highlightBg || DEFAULT_PLAGIARISM_HIGHLIGHT;
               mark.style.backgroundColor = bgTint;
               mark.style.borderBottom = `2px solid ${baseColor}`;
               mark.style.borderRadius = '2px';
@@ -1449,8 +1471,8 @@ function applyDocxPlagiarismHighlights(
                     );
                     mark.title = `[Plagiarism Match (${score}%)]: ${match.sourceTitle || 'Archived source'}`;
 
-                    const baseColor = match.palette?.color || '#f43f5e';
-                    const bgTint = match.palette?.highlightBg || 'rgba(244, 63, 94, 0.25)';
+                    const baseColor = match.palette?.color || DEFAULT_PLAGIARISM_COLOR;
+                    const bgTint = match.palette?.highlightBg || DEFAULT_PLAGIARISM_HIGHLIGHT;
                     mark.style.backgroundColor = bgTint;
                     mark.style.borderBottom = `2px solid ${baseColor}`;
                     mark.style.borderRadius = '2px';
@@ -1669,7 +1691,7 @@ export function DocxPreviewRenderer({
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/95 z-10 gap-3">
           <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Spinner className="size-6 text-primary" />
           </div>
           <p className="text-sm font-semibold text-foreground">Rendering Manuscript...</p>
           <p className="text-xs text-muted-foreground text-center max-w-xs">
@@ -1702,7 +1724,7 @@ export function DocxPreviewRenderer({
       )}
 
       {/* docx-preview render target — scrollable canvas with zoom */}
-      <div className="flex-1 overflow-auto bg-[#f0f0f0] dark:bg-neutral-800">
+      <div className="flex-1 overflow-auto bg-muted">
         <div
           className="docx-zoom-wrapper w-max min-w-full origin-top-left"
           style={{
@@ -1713,7 +1735,7 @@ export function DocxPreviewRenderer({
           }}
         >
           {/* docx-preview injects .docx-wrapper > .docx > pages here */}
-          <div ref={containerRef} className="docx-outer-container text-slate-900" />
+          <div ref={containerRef} className="docx-outer-container" />
         </div>
       </div>
     </div>

@@ -68,26 +68,32 @@ export default function ForgotPasswordPage() {
         variant="success"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Email */}
-        <div className="auth-item mb-6">
-          <Controller
-            name="email"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Email"
-                type="email"
-                autoComplete="email"
-                disabled={sent}
-                error={errors.email?.message}
-              />
-            )}
-          />
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <fieldset className="mb-6 space-y-2">
+          <legend className="sr-only">Password recovery email</legend>
+          <p className="text-right text-xs text-muted-foreground">* Indicates a required field</p>
 
-        {/* Submit — gradient button */}
+          {/* Email */}
+          <div className="auth-item">
+            <Controller
+              name="email"
+              control={control}
+              render={({ field }) => (
+                <FloatingInput
+                  {...field}
+                  label="Institutional Email *"
+                  type="email"
+                  autoComplete="email"
+                  aria-required="true"
+                  disabled={sent}
+                  error={errors.email?.message}
+                />
+              )}
+            />
+          </div>
+        </fieldset>
+
+        {/* Submit — primary action */}
         <div className="auth-item">
           <AuthSubmitButton
             loading={loading}
@@ -98,13 +104,13 @@ export default function ForgotPasswordPage() {
         </div>
       </form>
 
-      {/* Back to login — ghost button with gradient border */}
-      <div className="auth-item mt-8 text-center">
+      {/* Back to login — low-weight ghost link */}
+      <div className="auth-item mt-6 text-center">
         <Link
           to="/login"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-transparent px-4 py-2.5 text-sm font-medium text-primary transition-all hover:bg-primary/5 hover:border-primary/50"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to sign in
         </Link>
       </div>

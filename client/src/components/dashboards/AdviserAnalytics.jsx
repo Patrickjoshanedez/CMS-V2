@@ -1,13 +1,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Progress } from '@/components/ui/Progress';
 
 const MetricCard = ({ label, value, hint, tone = 'slate' }) => {
   const toneMap = {
-    slate: 'border-slate-200 bg-white text-slate-900',
-    green: 'border-green-200 bg-green-50 text-green-900',
-    blue: 'border-blue-200 bg-blue-50 text-blue-900',
-    amber: 'border-amber-200 bg-amber-50 text-amber-900',
-    red: 'border-red-200 bg-red-50 text-red-900',
+    slate: 'border-border bg-card text-card-foreground',
+    green: 'border-success/30 bg-success/5 text-foreground',
+    blue: 'border-primary/30 bg-primary/5 text-foreground',
+    amber: 'border-warning/30 bg-warning/5 text-foreground',
+    red: 'border-destructive/30 bg-destructive/5 text-foreground',
   };
 
   return (
@@ -28,9 +30,9 @@ MetricCard.propTypes = {
 
 const ProgressBar = ({ label, value, tone }) => {
   const colorMap = {
-    green: 'bg-green-500',
-    amber: 'bg-amber-500',
-    red: 'bg-red-500',
+    green: 'bg-success',
+    amber: 'bg-warning',
+    red: 'bg-destructive',
   };
 
   const safeValue = Math.max(0, Math.min(100, Number(value) || 0));
@@ -38,12 +40,15 @@ const ProgressBar = ({ label, value, tone }) => {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-        <span className="text-slate-700">{label}</span>
-        <span className="font-semibold text-slate-900">{safeValue.toFixed(2)}%</span>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{safeValue.toFixed(2)}%</span>
       </div>
-      <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
-        <div className={`h-full ${colorMap[tone]}`} style={{ width: `${safeValue}%` }} />
-      </div>
+      <Progress
+        value={safeValue}
+        aria-label={`${label}: ${safeValue.toFixed(2)} percent`}
+        className="h-3"
+        indicatorClassName={colorMap[tone]}
+      />
     </div>
   );
 };
@@ -87,8 +92,11 @@ const AdviserAnalytics = ({ analytics }) => {
         />
       </div>
 
-      <section className="bg-white rounded-2xl p-6 border border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Review Outcomes</h3>
+      <Card className="p-0">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg">Review Outcomes</CardTitle>
+        </CardHeader>
+        <CardContent>
         <div className="space-y-4">
           <ProgressBar label="Approved" value={breakdown.approved?.percentage || 0} tone="green" />
           <ProgressBar
@@ -98,17 +106,22 @@ const AdviserAnalytics = ({ analytics }) => {
           />
           <ProgressBar label="Rejected" value={breakdown.rejected?.percentage || 0} tone="red" />
         </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-900 mb-3">Interpretation</h3>
-        <p className="text-sm text-slate-700 leading-relaxed">
+      <Card className="bg-muted/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Interpretation</CardTitle>
+        </CardHeader>
+        <CardContent>
+        <p className="text-sm leading-relaxed text-muted-foreground">
           This panel summarizes your recent review behavior. A high approval rate with low average
           review time usually indicates smooth student submissions. If revision and rejection bars
           rise, inspect recurring issues in chapter quality or compliance before the next advising
           cycle.
         </p>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 };

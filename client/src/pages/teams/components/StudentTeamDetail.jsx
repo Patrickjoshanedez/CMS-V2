@@ -5,7 +5,16 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import {
-  Crown,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
+import {
   LogOut,
   Copy,
   Clock,
@@ -21,11 +30,19 @@ import {
   ChevronDown,
   CheckCircle2,
   ExternalLink,
-  Loader2,
   Sparkles,
   UserPlus,
+  Calendar,
+  GraduationCap,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { CAPSTONE_CURRICULUM_MAP } from '@cms/shared';
+import {
+  formatCanonicalSectionName,
+  extractSectionCode,
+  resolveSectionCapstoneMeta,
+} from '@/utils/sectionUtils';
 import { useTeamManager } from '../hooks/useTeamManager';
 import {
   useTeamManuscriptTemplate,
@@ -50,6 +67,7 @@ export default function StudentTeamDetail({ team, userId }) {
   const teamManager = useTeamManager({ user: { _id: userId } });
   const [now] = useState(() => Date.now());
   const [showRolesGuide, setShowRolesGuide] = useState(false);
+  const [pendingTeamAction, setPendingTeamAction] = useState(null);
   const showBulkInviteModal = teamManager.isBulkInviteOpen;
   const setShowBulkInviteModal = teamManager.setIsBulkInviteOpen;
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
@@ -120,6 +138,34 @@ export default function StudentTeamDetail({ team, userId }) {
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
 
+  const teamActionDialog = {
+    leave: {
+      title: 'Leave this team?',
+      description: 'Are you sure you want to leave this team?',
+      confirmLabel: 'Leave team',
+      variant: 'destructive',
+      isPending: leaveTeam.isPending,
+      onConfirm: () => leaveTeam.mutate({ teamId: team._id }),
+    },
+    lock: {
+      title: 'Finalize and lock the team roster?',
+      description: 'This prepares your team for proposal submission.',
+      confirmLabel: 'Finalize and lock',
+      variant: 'default',
+      isPending: lockTeam.isPending,
+      onConfirm: () => lockTeam.mutate({ teamId: team._id }),
+    },
+    unlock: {
+      title: 'Unlock team roster?',
+      description:
+        'This will allow you to modify members and project roles in case of misinput. You can finalize and lock the roster again once updated.',
+      confirmLabel: 'Unlock roster',
+      variant: 'default',
+      isPending: unlockTeam.isPending,
+      onConfirm: () => unlockTeam.mutate({ teamId: team._id }),
+    },
+  }[pendingTeamAction];
+
   const members = team.members || [];
   const memberCount = members.length;
   const isMinMembersMet = memberCount >= 1;
@@ -132,6 +178,18 @@ export default function StudentTeamDetail({ team, userId }) {
   const firstInviteCode = team.pendingInvites?.[0]?.inviteCode;
   const groupCode = firstInviteCode || (team._id ? team._id.slice(-6).toUpperCase() : '');
 
+  const sectionObj = team.sectionId || team.section;
+  const courseCode = sectionObj?.courseId?.code || 'BSIT';
+  const canonicalSection = formatCanonicalSectionName(
+    sectionObj || { name: team.sectionName },
+    courseCode,
+  );
+  const sectionTCode = extractSectionCode(sectionObj) || team.sectionCode || null;
+  const capstoneMeta = resolveSectionCapstoneMeta(sectionObj, team.academicTerm);
+  const teamEnrollments = Array.isArray(team.capstoneEnrollments)
+    ? team.capstoneEnrollments
+    : [];
+
   return (
     <div className="space-y-6">
       {/* Top Header & Global Actions */}
@@ -142,33 +200,49 @@ export default function StudentTeamDetail({ team, userId }) {
               {team.name || 'Team Workspace'}
             </h1>
             {team.isLocked ? (
-              <Badge
-                variant="outline"
-                className="border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 gap-1.5"
-              >
+              <Badge variant="secondary" className="gap-1.5">
                 <Lock className="h-3 w-3 inline-block" />
                 Team Finalized
               </Badge>
             ) : (
-              <Badge
-                variant="outline"
-                className="border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 gap-1.5"
-              >
-                <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              <Badge variant="success" className="gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-success inline-block" />
                 Formation Open
               </Badge>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Academic Year {team.academicYear || '2025–2026'}
-            {groupCode && (
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
+            <span>Academic Year {team.academicYear || '2025–2026'}</span>
+            <span>&bull;</span>
+            <span>{team.academicTerm || sectionObj?.academicTerm || '1st Semester'}</span>
+            {canonicalSection && (
               <>
-                {' · '}
-                <span>Group code: </span>
-                <span className="font-mono font-medium text-foreground">#{groupCode}</span>
+                <span>&bull;</span>
+                <span className="font-semibold text-foreground">{canonicalSection}</span>
               </>
             )}
-          </p>
+            {sectionTCode && (
+              <Badge
+                variant="outline"
+                className="font-mono text-xs border-primary/40 bg-primary/10 text-primary py-0 px-1.5"
+              >
+                Section Code: {sectionTCode}
+              </Badge>
+            )}
+            {capstoneMeta?.courseTitle && (
+              <Badge variant="secondary" className="text-xs py-0 px-2 font-medium">
+                {capstoneMeta.courseTitle} ({capstoneMeta.curriculumLabel})
+              </Badge>
+            )}
+            {groupCode && (
+              <>
+                <span>&bull;</span>
+                <span>
+                  Group code: <span className="font-mono font-medium text-foreground">#{groupCode}</span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -188,16 +262,12 @@ export default function StudentTeamDetail({ team, userId }) {
               <Button
                 variant="outline"
                 className="text-destructive hover:bg-destructive/10 border-destructive/30 text-xs sm:text-sm"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to leave this team?')) {
-                    leaveTeam.mutate({ teamId: team._id });
-                  }
-                }}
+                onClick={() => setPendingTeamAction('leave')}
                 disabled={leaveTeam.isPending || lockTeam.isPending}
+                loading={leaveTeam.isPending}
+                loadingText="Leaving team"
               >
-                {leaveTeam.isPending ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
+                {!leaveTeam.isPending && (
                   <LogOut className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 Leave Team
@@ -210,19 +280,13 @@ export default function StudentTeamDetail({ team, userId }) {
                       toast.error('Teams must have at least 1 member before finalization.');
                       return;
                     }
-                    if (
-                      window.confirm(
-                        'Finalize and lock team roster? This prepares your team for proposal submission.',
-                      )
-                    ) {
-                      lockTeam.mutate({ teamId: team._id });
-                    }
+                    setPendingTeamAction('lock');
                   }}
                   disabled={!isMinMembersMet || !allRolesAssigned || lockTeam.isPending || leaveTeam.isPending}
+                  loading={lockTeam.isPending}
+                  loadingText="Finalizing team"
                 >
-                  {lockTeam.isPending ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : (
+                  {!lockTeam.isPending && (
                     <Lock className="mr-1.5 h-3.5 w-3.5" />
                   )}
                   Finalize & Lock Team
@@ -235,21 +299,13 @@ export default function StudentTeamDetail({ team, userId }) {
             <Button
               variant="outline"
               size="sm"
-              className="text-xs sm:text-sm border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1.5 shadow-xs"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    'Unlock team roster? This will allow you to modify members and project roles in case of misinput. You can finalize and lock the roster again once updated.',
-                  )
-                ) {
-                  unlockTeam.mutate({ teamId: team._id });
-                }
-              }}
+              className="text-xs sm:text-sm border-warning/40 text-warning-foreground hover:bg-warning/10 gap-1.5 shadow-xs"
+              onClick={() => setPendingTeamAction('unlock')}
               disabled={unlockTeam.isPending}
+              loading={unlockTeam.isPending}
+              loadingText="Unlocking roster"
             >
-              {unlockTeam.isPending ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
+              {!unlockTeam.isPending && (
                 <Unlock className="mr-1.5 h-3.5 w-3.5" />
               )}
               Unlock Roster
@@ -265,7 +321,7 @@ export default function StudentTeamDetail({ team, userId }) {
           {team.isLocked &&
             (!project?.defenseSchedule?.status || project.defenseSchedule.status === 'none') && (
               <Badge variant="secondary" className="px-3 py-1.5 text-xs font-medium gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                 Ready for Proposal Submission
               </Badge>
             )}
@@ -310,7 +366,7 @@ export default function StudentTeamDetail({ team, userId }) {
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3.5 animate-in fade-in duration-200">
                   <div>
                     <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      <Sparkles className="h-4 w-4 text-warning" />
                       The 5 Standard Capstone Roles
                     </h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -451,7 +507,7 @@ export default function StudentTeamDetail({ team, userId }) {
                       {team.githubUrl ? (
                         <Badge
                           variant="secondary"
-                          className="border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px]"
+                          className="border-success/30 bg-success/10 text-success-foreground text-[10px]"
                         >
                           Connected
                         </Badge>
@@ -479,7 +535,7 @@ export default function StudentTeamDetail({ team, userId }) {
                     {!isDevelopmentStage && !team.githubUrl && (
                       <div className="mt-3 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
                         <p className="font-medium text-foreground text-[11px] flex items-center gap-1.5">
-                          <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                          <Lock className="h-3 w-3 text-warning shrink-0" />
                           Locked in Proposal Stage
                         </p>
                         <p className="mt-0.5 text-[11px] leading-relaxed">
@@ -510,10 +566,9 @@ export default function StudentTeamDetail({ team, userId }) {
                               });
                             }}
                             disabled={updateGithubLink.isPending}
+                            loading={updateGithubLink.isPending}
+                            loadingText="Saving"
                           >
-                            {updateGithubLink.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : null}
                             Save
                           </Button>
                           <Button
@@ -606,7 +661,7 @@ export default function StudentTeamDetail({ team, userId }) {
                         variant={team.googleDocUrl ? 'secondary' : 'outline'}
                         className={
                           team.googleDocUrl
-                            ? 'border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px]'
+                            ? 'border-success/30 bg-success/10 text-success-foreground text-[10px]'
                             : !isTemplateUnlocked
                               ? 'text-[10px] gap-1 text-muted-foreground border-border/80'
                               : 'text-[10px]'
@@ -634,7 +689,7 @@ export default function StudentTeamDetail({ team, userId }) {
                     {!isTemplateUnlocked && !team.googleDocUrl && (
                       <div className="mt-3 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
                         <p className="font-medium text-foreground text-[11px] flex items-center gap-1.5">
-                          <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                          <Lock className="h-3 w-3 text-warning shrink-0" />
                           Locked in Proposal Stage
                         </p>
                         <p className="mt-0.5 text-[11px] leading-relaxed">
@@ -665,10 +720,9 @@ export default function StudentTeamDetail({ team, userId }) {
                               });
                             }}
                             disabled={updateGoogleDocLink.isPending}
+                            loading={updateGoogleDocLink.isPending}
+                            loadingText="Saving"
                           >
-                            {updateGoogleDocLink.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : null}
                             Save
                           </Button>
                           <Button
@@ -747,6 +801,103 @@ export default function StudentTeamDetail({ team, userId }) {
 
         {/* Right Column (Span 1): Committee & Verification Status */}
         <div className="space-y-6">
+          {/* Academic Cohort & Multi-Semester Track Card */}
+          <Card className="border-border/60 shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                Academic Cohort &amp; Track
+              </CardTitle>
+              <CardDescription>Section enrollment and multi-semester progression</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">Section Block</span>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    {canonicalSection || 'Unassigned'}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">Section Code</span>
+                  <p className="mt-0.5 font-mono text-sm font-bold text-primary">
+                    {sectionTCode || '—'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Academic Term</span>
+                <p className="mt-0.5 font-medium text-foreground">
+                  {team.academicYear || '2025–2026'} • {team.academicTerm || sectionObj?.academicTerm || '1st Semester'}
+                </p>
+              </div>
+
+              {/* Multi-Semester Capstone Progression Track */}
+              <div className="pt-2 border-t border-border/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                    Multi-Semester Track
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                    Phase {capstonePhase}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[1, 2, 3].map((courseNum) => {
+                    const trackMeta = CAPSTONE_CURRICULUM_MAP[courseNum];
+                    const enrollment = teamEnrollments.find(
+                      (enr) => Number(enr.capstoneCourse) === courseNum,
+                    );
+                    const isCurrentCourse =
+                      Number(capstoneMeta?.capstoneCourse) === courseNum ||
+                      capstonePhase === courseNum;
+
+                    return (
+                      <div
+                        key={courseNum}
+                        className={cn(
+                          'flex items-center justify-between rounded-md border p-2 text-xs transition-colors',
+                          isCurrentCourse
+                            ? 'border-primary/50 bg-primary/5 shadow-2xs'
+                            : 'border-border/60 bg-background/50',
+                        )}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground">
+                              {trackMeta?.courseTitle || `Capstone ${courseNum}`}
+                            </span>
+                            {isCurrentCourse && (
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/40 bg-primary/10 text-primary">
+                                Current
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {trackMeta?.curriculumLabel} ({trackMeta?.academicTerm})
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono text-xs font-semibold text-foreground">
+                            {enrollment?.sectionCode || (isCurrentCourse ? sectionTCode || '—' : '—')}
+                          </span>
+                          {enrollment?.sectionName && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {enrollment.sectionName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Capstone Committee Card */}
           <Card className="border-border/60 shadow-xs">
             <CardHeader className="pb-3">
@@ -787,7 +938,7 @@ export default function StudentTeamDetail({ team, userId }) {
                   </div>
                 ) : (
                   <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0" />
                     <span>Pending assignment</span>
                   </div>
                 )}
@@ -807,7 +958,7 @@ export default function StudentTeamDetail({ team, userId }) {
                   </div>
                 ) : (
                   <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0" />
                     <span>Pending assignment</span>
                   </div>
                 )}
@@ -831,7 +982,7 @@ export default function StudentTeamDetail({ team, userId }) {
                   </div>
                 ) : (
                   <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0" />
                     <span>No panelists assigned yet</span>
                   </div>
                 )}
@@ -933,9 +1084,9 @@ export default function StudentTeamDetail({ team, userId }) {
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   {isMinMembersMet ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   ) : (
-                    <span className="h-2 w-2 rounded-full bg-amber-500 inline-block shrink-0 ml-1 mr-1" />
+                    <span className="h-2 w-2 rounded-full bg-warning inline-block shrink-0 ml-1 mr-1" />
                   )}
                   <span className={isMinMembersMet ? 'text-foreground' : ''}>
                     1 to 4 active members ({memberCount}/4)
@@ -943,9 +1094,9 @@ export default function StudentTeamDetail({ team, userId }) {
                 </li>
                 <li className="flex items-center gap-2">
                   {allRolesAssigned ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                   ) : (
-                    <span className="h-2 w-2 rounded-full bg-amber-500 inline-block shrink-0 ml-1 mr-1" />
+                    <span className="h-2 w-2 rounded-full bg-warning inline-block shrink-0 ml-1 mr-1" />
                   )}
                   <span className={allRolesAssigned ? 'text-foreground' : ''}>
                     All members select a project role
@@ -966,6 +1117,37 @@ export default function StudentTeamDetail({ team, userId }) {
         currentMembersCount={memberCount}
         pendingInvites={team.pendingInvites || []}
       />
+      <AlertDialog
+        open={Boolean(teamActionDialog)}
+        onOpenChange={(open) => {
+          if (!open) setPendingTeamAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          {teamActionDialog && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{teamActionDialog.title}</AlertDialogTitle>
+                <AlertDialogDescription>{teamActionDialog.description}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={teamActionDialog.isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant={teamActionDialog.variant}
+                  disabled={teamActionDialog.isPending}
+                  loading={teamActionDialog.isPending}
+                  loadingText="Saving"
+                  onClick={teamActionDialog.onConfirm}
+                >
+                  {teamActionDialog.confirmLabel}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

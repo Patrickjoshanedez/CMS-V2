@@ -9,8 +9,7 @@ import { Button } from './Button';
  *   iconVariant  — 'circle' (default) | 'square' — controls icon container shape
  *   title        — heading text
  *   description  — supporting text
- *   gradient     — if true, adds a subtle gradient background (default: true)
- *   actions      — array of { label, onClick, variant? } for multi-CTA support
+ *   actions      — array of { label, onClick, variant?, size?, icon? } for multi-CTA support
  *   actionLabel  — legacy single-action label (compat)
  *   onAction     — legacy single-action handler (compat)
  *   compact      — reduces spacing for empty sections within a page
@@ -21,7 +20,6 @@ export function EmptyState({
   iconVariant = 'circle',
   title = 'No records found',
   description = 'There are currently no items to display.',
-  gradient = true,
   actions,
   actionLabel,
   onAction,
@@ -34,11 +32,9 @@ export function EmptyState({
 
   const iconShape = iconVariant === 'square' ? 'rounded-2xl' : 'rounded-full';
 
-  const bgClass = gradient ? 'bg-gradient-to-b from-muted/30 to-muted/60' : 'bg-card/40';
-
   return (
     <div
-      className={`flex flex-col items-center justify-center ${compact ? 'py-8 px-5' : 'py-16 px-8'} text-center rounded-xl border border-dashed border-border ${bgClass} ${className}`}
+      className={`flex flex-col items-center justify-center ${compact ? 'py-8 px-5' : 'py-16 px-8'} text-center rounded-xl border border-dashed border-border bg-card/40 ${className}`}
     >
       <div
         className={`flex ${compact ? 'h-12 w-12 mb-3' : 'h-16 w-16 mb-5'} items-center justify-center ${iconShape} bg-primary/10 text-primary shadow-inner`}
@@ -53,11 +49,14 @@ export function EmptyState({
       </p>
       {resolvedActions.length > 0 && (
         <div className="flex flex-wrap justify-center gap-2">
-          {resolvedActions.map(({ label, onClick, variant = 'default' }, i) => (
-            <Button key={i} onClick={onClick} size="sm" variant={variant}>
-              {label}
-            </Button>
-          ))}
+          {resolvedActions.map(
+            ({ label, onClick, variant = 'default', size = 'sm', icon: ActionIcon }, i) => (
+              <Button key={i} onClick={onClick} size={size} variant={variant}>
+                {ActionIcon && <ActionIcon className="h-4 w-4" />}
+                {label}
+              </Button>
+            ),
+          )}
         </div>
       )}
     </div>

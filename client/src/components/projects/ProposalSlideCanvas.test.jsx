@@ -91,6 +91,8 @@ describe('ProposalSlideCanvas & exportPptx A4 Standard', () => {
     const h1 = container.querySelector('h1');
     expect(h1).toBeTruthy();
     expect(h1.textContent).toContain('AgroSense');
+    expect(h1.className).toContain('line-clamp-3');
+    expect(h1.className).toContain('[overflow-wrap:anywhere]');
 
     await act(async () => {
       root.unmount();
@@ -134,6 +136,52 @@ describe('ProposalSlideCanvas & exportPptx A4 Standard', () => {
     const pTags = Array.from(container.querySelectorAll('p'));
     const leakedP = pTags.find((p) => p.textContent.includes('ESP32-based IoT sensor nodes'));
     expect(leakedP).toBeUndefined();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('uses shared edit-state badges while preserving the institutional 16:9 slide canvas', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <ProposalSlideCanvas
+          slide={{ id: 1, type: 'cover', title: 'Proposal title' }}
+          isEditMode
+        />,
+      );
+    });
+
+    const cover = container.querySelector('[data-slide-canvas="cover"]');
+    const coverEditBadge = Array.from(container.querySelectorAll('span')).find((element) =>
+      element.textContent.includes('Click text to edit'),
+    );
+    expect(cover.className).toContain('aspect-video');
+    expect(cover.className).toContain('bg-slide-brand-navy');
+    expect(coverEditBadge?.className).toContain('bg-slide-brand-gold/10');
+
+    await act(async () => {
+      root.render(
+        <ProposalSlideCanvas
+          slide={{ id: 2, type: 'statement', title: 'Problem Statement', content: 'Test content.' }}
+          isEditMode
+        />,
+      );
+    });
+
+    const content = container.querySelector('[data-slide-canvas="content"]');
+    const contentEditBadge = Array.from(container.querySelectorAll('span')).find((element) =>
+      element.textContent.includes('Interactive Editor Active'),
+    );
+    expect(content.className).toContain('aspect-video');
+    expect(content.className).toContain('bg-white');
+    expect(contentEditBadge?.className).toContain('bg-success/10');
+    expect(contentEditBadge?.className).not.toContain('absolute');
 
     await act(async () => {
       root.unmount();

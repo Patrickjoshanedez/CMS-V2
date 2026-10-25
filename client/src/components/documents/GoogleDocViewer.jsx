@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Loader2, ExternalLink, Maximize2, Minimize2, AlertCircle } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { cn } from '@/lib/utils';
 
 /**
  * GoogleDocViewer — Embeds a Google Document inside an iframe.
@@ -42,78 +45,98 @@ export default function GoogleDocViewer({ embedUrl, title, canEdit = false, clas
 
   return (
     <div
-      className={`flex flex-col ${
-        fullscreen ? 'fixed inset-0 z-50 bg-background' : 'relative'
-      } ${className}`}
+      className={cn(
+        'flex min-h-0 flex-col',
+        fullscreen ? 'fixed inset-0 z-50 bg-background' : 'relative',
+        className,
+      )}
     >
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {title && <span className="font-medium text-foreground">{title}</span>}
-          {canEdit ? (
-            <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              Edit Mode
-            </span>
-          ) : (
-            <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-              View Only
-            </span>
-          )}
+      <div
+        role="toolbar"
+        aria-label="Document controls"
+        className="flex min-w-0 items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2"
+      >
+        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          {title && <span className="truncate font-medium text-foreground">{title}</span>}
+          <Badge variant={canEdit ? 'success' : 'secondary'} className="shrink-0">
+            {canEdit ? 'Edit mode' : 'View only'}
+          </Badge>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => window.open(embedUrl, '_blank')}
+            size="icon"
+            onClick={() => window.open(embedUrl, '_blank', 'noopener,noreferrer')}
+            aria-label="Open document in new tab"
             title="Open in new tab"
+            className="min-h-11 min-w-11"
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink aria-hidden="true" className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
             onClick={() => setFullscreen((f) => !f)}
+            aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-pressed={fullscreen}
             title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            size="icon"
+            className="min-h-11 min-w-11"
           >
-            {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {fullscreen ? (
+              <Minimize2 aria-hidden="true" className="h-4 w-4" />
+            ) : (
+              <Maximize2 aria-hidden="true" className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
 
-      {/* Loading overlay */}
-      {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading document…</p>
+      <div
+        className="relative flex-1 overflow-hidden"
+        style={{ minHeight: fullscreen ? '100vh' : '70vh' }}
+      >
+        {loading && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 p-4"
+          >
+            <span className="sr-only">Loading document</span>
+            <div aria-hidden="true" className="w-full max-w-3xl space-y-4">
+              <Skeleton className="h-6 w-2/5" />
+              <Skeleton className="h-4 w-3/5" />
+              <Skeleton className="h-[50vh] w-full rounded-md" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Error state */}
-      {error && (
-        <div className="flex flex-1 items-center justify-center p-8">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Failed to load the document. Please try opening it in a new tab.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background p-4 sm:p-8">
+            <Alert variant="destructive" role="alert">
+              <AlertCircle aria-hidden="true" className="h-4 w-4" />
+              <AlertDescription>
+                Failed to load the document. Please try opening it in a new tab.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
 
-      {/* Iframe */}
-      <iframe
-        src={embedUrl}
-        title={title || 'Google Document'}
-        className={`flex-1 border-0 ${error ? 'hidden' : ''}`}
-        style={{ minHeight: fullscreen ? '100%' : '70vh', width: '100%' }}
-        onLoad={handleLoad}
-        onError={handleError}
-        allow="clipboard-write"
-        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
-      />
+        <iframe
+          src={embedUrl}
+          title={title || 'Google Document'}
+          className={cn(
+            'block h-[70vh] w-full border-0',
+            fullscreen && 'h-full',
+            error && 'hidden',
+          )}
+          onLoad={handleLoad}
+          onErrorCapture={handleError}
+          allow="clipboard-write"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
+        />
+      </div>
     </div>
   );
 }

@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown, Info } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DropZone from '@/components/plagiarism/DropZone';
 import PlagiarismReportPage from '@/pages/submissions/PlagiarismReportPage';
 import ScanButton from '@/components/plagiarism/ScanButton';
 import ScanHero from '@/components/plagiarism/ScanHero';
-import { plagiarismService } from '@/services/plagiarismService';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/Collapsible';
 import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const MAX_FILE_SIZE_MB = 25;
-const DEFAULT_SEMANTIC_MODEL = import.meta.env.VITE_ARCHIVE_SEMANTIC_MODEL || 'BAAI/bge-m3';
 
 function buildValidationError(message) {
   return { type: 'validation', message };
@@ -29,32 +32,6 @@ function isAcceptedDocument(file) {
     type === 'application/x-zip-compressed' ||
     type === 'application/zip';
   return hasExt && (hasMime || !type);
-}
-
-function getInlineErrorMessage(error) {
-  const status = Number(error?.response?.status);
-  const message = String(error?.message || '').toLowerCase();
-  const isClientTimeout = error?.code === 'ECONNABORTED' || message.includes('timeout');
-
-  if (isClientTimeout) {
-    return {
-      type: 'server',
-      message: 'Scan timed out. Please try again or verify network connectivity.',
-    };
-  }
-  if (status === 429) {
-    return { type: 'server', message: 'Too many scans. Please wait before trying again.' };
-  }
-  if (status >= 500) {
-    return { type: 'server', message: 'Scan service unavailable. Try again shortly.' };
-  }
-  return {
-    type: 'server',
-    message:
-      error?.response?.data?.message ||
-      error?.message ||
-      'Scan failed. Please check your document and try again.',
-  };
 }
 
 export default function ArchivePlagiarismCheckerPage() {
@@ -147,16 +124,16 @@ export default function ArchivePlagiarismCheckerPage() {
   return (
     <DashboardLayout>
       {/* Responsive layout: hero + upload form */}
-      <div className="mx-auto max-w-5xl">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-8 items-start">
+      <div className="mx-auto w-full max-w-5xl min-w-0">
+        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-8">
           {/* Top Left on Desktop / Step 1 on Mobile: Scan Hero */}
-          <div className="order-1 xl:col-start-1 xl:row-start-1">
+          <div className="order-1 min-w-0 xl:col-start-1 xl:row-start-1">
             <ScanHero />
           </div>
 
           {/* Top Right on Desktop / Step 2 on Mobile (Prioritized above fold): Upload Card */}
-          <div className="order-2 xl:col-start-2 xl:row-start-1">
-            <div className="rounded-xl border border-border/70 bg-card p-6 shadow-xs">
+          <div className="order-2 min-w-0 xl:col-start-2 xl:row-start-1">
+            <Card className="min-w-0 rounded-xl p-6 shadow-xs">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
               <p className="mb-4 text-xs text-muted-foreground">
                 PDF or Word (.docx, .doc) · Maximum {MAX_FILE_SIZE_MB} MB
@@ -171,16 +148,15 @@ export default function ArchivePlagiarismCheckerPage() {
                 />
 
                 {scanError && scanError.type !== 'validation' && (
-                  <div
-                    role="alert"
+                  <Alert
+                    variant="destructive"
                     aria-live="assertive"
-                    className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                    className="p-3 text-xs [&>svg~*]:pl-6 [&>svg]:left-3 [&>svg]:top-3"
                   >
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                    <p className="text-xs font-medium text-destructive leading-relaxed">
+                    <AlertDescription className="font-medium leading-relaxed">
                       {scanError.message}
-                    </p>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 <ScanButton
@@ -190,82 +166,89 @@ export default function ArchivePlagiarismCheckerPage() {
                   onClick={handleScan}
                 />
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Bottom Left on Desktop / Step 3 on Mobile: Collapsible How It Works */}
-          <div className="order-3 xl:col-start-1 xl:row-start-2">
-            <div className="rounded-xl border border-border/70 bg-card shadow-xs overflow-hidden transition-all">
-              <button
-                type="button"
-                onClick={() => setHowItWorksOpen((prev) => !prev)}
-                aria-expanded={howItWorksOpen}
-                className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-muted/30 transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    How It Works
-                  </p>
-                  <span className="text-[10px] text-muted-foreground font-medium rounded-full bg-muted px-2 py-0.5">
-                    3 Steps
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <span>{howItWorksOpen ? 'Hide guide' : 'Show guide'}</span>
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${
-                      howItWorksOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </div>
-              </button>
+          <div className="order-3 min-w-0 xl:col-start-1 xl:row-start-2">
+            <Card className="overflow-hidden rounded-xl shadow-xs">
+              <Collapsible open={howItWorksOpen} onOpenChange={setHowItWorksOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full justify-between p-4 text-left sm:p-5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        How It Works
+                      </p>
+                      <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
+                        3 Steps
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <span>{howItWorksOpen ? 'Hide guide' : 'Show guide'}</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform duration-200 ${
+                          howItWorksOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
+                  </Button>
+                </CollapsibleTrigger>
 
-              {howItWorksOpen && (
-                <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
-                  <ol className="space-y-3 pt-2 border-t border-border/40">
-                    {[
-                      {
-                        step: '01',
-                        title: 'Upload Manuscript',
-                        desc: 'Drop or select your PDF or Word (.docx) manuscript up to 25 MB.',
-                      },
-                      {
-                        step: '02',
-                        title: 'Compare with the Archive',
-                        desc: 'The checker looks for matching text and similar passages in archived research.',
-                      },
-                      {
-                        step: '03',
-                        title: 'Review Matches and Sources',
-                        desc: 'Read highlighted passages, check their sources, and review the similarity score.',
-                      },
-                    ].map(({ step, title, desc }) => (
-                      <li key={step} className="flex items-start gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                          {step}
-                        </span>
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-foreground">{title}</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
+                <CollapsibleContent>
+                  <div className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+                    <ol className="space-y-3 pt-2 border-t border-border/40">
+                      {[
+                        {
+                          step: '01',
+                          title: 'Upload Manuscript',
+                          desc: 'Drop or select your PDF or Word (.docx) manuscript up to 25 MB.',
+                        },
+                        {
+                          step: '02',
+                          title: 'Compare with the Archive',
+                          desc: 'The checker looks for matching text and similar passages in archived research.',
+                        },
+                        {
+                          step: '03',
+                          title: 'Review Matches and Sources',
+                          desc: 'Read highlighted passages, check their sources, and review the similarity score.',
+                        },
+                      ].map(({ step, title, desc }) => (
+                        <li key={step} className="flex items-start gap-3">
+                          <Badge
+                            variant="info"
+                            className="h-6 w-6 shrink-0 justify-center rounded-full p-0 text-[11px] font-bold"
+                          >
+                            {step}
+                          </Badge>
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-semibold text-foreground">{title}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
           </div>
 
           {/* Bottom Right on Desktop / Step 4 on Mobile: Disclaimer */}
-          <div className="order-4 xl:col-start-2 xl:row-start-2">
-            <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <div className="order-4 min-w-0 xl:col-start-2 xl:row-start-2">
+            <Alert
+              variant="info"
+              className="p-3 text-[11px] [&>svg~*]:pl-5 [&>svg]:left-3 [&>svg]:top-3"
+            >
+              <AlertDescription className="leading-relaxed">
                 Manuscript scans are verified against all approved institutional capstones. Uploads
                 are processed in-memory and are not permanently archived until final defense
                 sign-off.
-              </p>
-            </div>
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 /**
- * AuthSubmitButton — shared gradient button used across auth forms.
+ * AuthSubmitButton — accessible primary action button for auth forms with zero AI-slop.
  */
 export default function AuthSubmitButton({
   loading,
@@ -12,19 +13,21 @@ export default function AuthSubmitButton({
   className = '',
 }) {
   return (
-    <button
+    <Button
       type={type}
+      aria-busy={Boolean(loading)}
       disabled={Boolean(loading) || Boolean(disabled)}
-      className={`auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background ${className}`}
+      size="lg"
+      className={`w-full ${className}`}
     >
       {loading ? (
         <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {loadingLabel}
+          <Spinner className="size-4" />
+          <span>{loadingLabel}</span>
         </>
       ) : (
         idleLabel
       )}
-    </button>
+    </Button>
   );
 }

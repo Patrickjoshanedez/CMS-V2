@@ -1,27 +1,39 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { getMilestoneDeadlineState } from '@/utils/milestoneDeadlines';
 import {
   Upload,
   FileText,
-  AlertTriangle,
-  Loader2,
   CheckCircle2,
   X,
   Lock,
   MessageSquareQuote,
   Clock,
-  Info,
   Paperclip,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { useUploadChapter } from '@/hooks/useSubmissions';
-import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 const MAX_FILE_SIZE_MB = 25;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -101,9 +113,6 @@ export default function UploadChapterModal({
       setUploadProgress(0);
     }
   }, [isOpen, initialChapter, isCap2ADMApproved]);
-
-  // Handle escape key to close
-  const modalRef = useModalAccessibility({ open: isOpen, onClose });
 
   const uploadMutation = useUploadChapter({
     onSuccess: () => {
@@ -195,7 +204,9 @@ export default function UploadChapterModal({
       ? Date.now() > new Date(selectedDeadline).getTime()
       : false;
     if (isLateAtSubmit && !allowLateSubmission) {
-      setClientError('The submission deadline has passed and late uploads are closed for this milestone.');
+      setClientError(
+        'The submission deadline has passed and late uploads are closed for this milestone.',
+      );
       return;
     }
     const requiresJustificationAtSubmit = isLateAtSubmit && allowLateSubmission;
@@ -237,86 +248,81 @@ export default function UploadChapterModal({
     });
   };
 
-  if (!isOpen) return null;
-  if (typeof document === 'undefined') return null;
-
   const isSubmitting = uploadMutation.isPending;
   const nextRound = latestSubmission ? (latestSubmission.revisionRound || 0) + 1 : 1;
   const nextVersion = latestSubmission ? (latestSubmission.version || 1) + 1 : 1;
   const adviserFeedback = latestSubmission?.reviewNotes || latestSubmission?.remarks || '';
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-      ref={modalRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="upload-chapter-modal-title"
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSubmitting) onClose();
+      }}
     >
-      <div className="relative flex flex-col w-full max-w-xl max-h-[calc(100dvh-2rem)] rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-2xl overflow-hidden">
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-xl flex-col gap-0 overflow-hidden p-0"
+        showClose={false}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         {/* Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-border/60 shrink-0">
+        <DialogHeader className="flex shrink-0 flex-row items-start justify-between border-b border-border/60 p-5 pb-4 text-left sm:p-6 sm:pb-4">
           <div className="flex items-center gap-3">
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${
-                isLocked
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                  : 'bg-primary/10 text-primary'
+                isLocked ? 'bg-warning/10 text-warning-foreground' : 'bg-primary/10 text-primary'
               }`}
             >
               {isLocked ? <Lock className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 id="upload-chapter-modal-title" className="text-base font-bold text-foreground">
+                <DialogTitle className="text-base font-bold">
                   {isLocked
                     ? `Revise Chapter ${selectedChapterNumber}`
                     : 'Upload Chapter Manuscript'}
-                </h3>
+                </DialogTitle>
                 {isLocked && (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-mono uppercase"
-                  >
+                  <Badge variant="warning" className="text-[10px] font-mono uppercase">
                     Locked
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <DialogDescription className="mt-0.5 text-xs">
                 {isLocked
                   ? `Upload updated revision for Chapter ${selectedChapterNumber}: ${CHAPTER_TITLES[selectedChapterNumber] || ''}`
                   : 'Submit a new chapter manuscript for adviser evaluation and plagiarism check.'}
-              </p>
+              </DialogDescription>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="size-9 min-h-9 min-w-9 text-muted-foreground hover:text-foreground"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close modal"
+            aria-label="Close upload dialog"
           >
             <X className="h-4 w-4" />
           </Button>
-        </div>
+        </DialogHeader>
 
         {/* Scrollable Form Body */}
         <form
           onSubmit={handleSubmit}
-          className="flex-1 min-h-0 overflow-y-auto space-y-4 pt-4 pr-1"
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6"
         >
           {/* Adviser Remarks Callout (if revising and feedback is present) */}
           {isLocked && adviserFeedback && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+            <Alert variant="warning" className="space-y-1.5 p-3.5 pl-10">
+              <AlertTitle className="flex items-center gap-2 text-xs font-semibold">
                 <MessageSquareQuote className="h-4 w-4 shrink-0" />
                 <span>Adviser Review Remarks (Required Revisions)</span>
-              </div>
+              </AlertTitle>
               <p className="text-xs text-muted-foreground leading-relaxed pl-6">
                 &ldquo;{adviserFeedback}&rdquo;
               </p>
-            </div>
+            </Alert>
           )}
 
           {/* Chapter Selector or Locked State */}
@@ -338,30 +344,33 @@ export default function UploadChapterModal({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Lock className="h-3.5 w-3.5 text-amber-500" />
+                  <Lock className="h-3.5 w-3.5 text-warning-foreground" />
                   <span className="font-mono text-[11px]">
                     Round {nextRound} (v{nextVersion})
                   </span>
                 </div>
               </div>
             ) : (
-              <select
-                id="modal-chapter"
-                value={chapter}
-                onChange={(e) => setChapter(Number(e.target.value))}
+              <Select
+                value={String(chapter)}
+                onValueChange={(value) => setChapter(Number(value))}
                 disabled={isSubmitting}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {[1, 2, 3, 4, 5].map((ch) => {
-                  const isLockedCh = ch >= 4 && !isCap2ADMApproved;
-                  return (
-                    <option key={ch} value={ch} disabled={isLockedCh}>
-                      Chapter {ch}: {CHAPTER_TITLES[ch]}
-                      {isLockedCh ? ' (Locked — Requires Capstone 2 ADM Approval)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
+                <SelectTrigger id="modal-chapter" aria-label="Target Chapter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map((ch) => {
+                    const isLockedCh = ch >= 4 && !isCap2ADMApproved;
+                    return (
+                      <SelectItem key={ch} value={String(ch)} disabled={isLockedCh}>
+                        Chapter {ch}: {CHAPTER_TITLES[ch]}
+                        {isLockedCh ? ' (Locked — Requires Capstone 2 ADM Approval)' : ''}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
@@ -375,10 +384,7 @@ export default function UploadChapterModal({
               </span>
             </div>
             {requiresLateJustification && (
-              <Badge
-                variant="destructive"
-                className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 text-[10px]"
-              >
+              <Badge variant="destructive" className="text-[10px]">
                 Late Submission
               </Badge>
             )}
@@ -446,27 +452,27 @@ export default function UploadChapterModal({
           </div>
 
           {isLateSubmissionClosed && (
-            <div
-              className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive"
-              role="alert"
-              data-testid="late-submission-closed"
-            >
-              The scheduled deadline ({formatDeadline(selectedDeadline)}) has passed. Late uploads
-              are closed for this milestone.
-            </div>
+            <Alert variant="destructive" className="p-4" data-testid="late-submission-closed">
+              <AlertDescription>
+                The scheduled deadline ({formatDeadline(selectedDeadline)}) has passed. Late uploads
+                are closed for this milestone.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* ──────────────────────────────────────────────────────── */}
           {/* LATE SUBMISSION JUSTIFICATION (Visible ONLY when late)   */}
           {/* ──────────────────────────────────────────────────────── */}
           {requiresLateJustification ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3.5 animate-in fade-in duration-200">
+            <Alert
+              variant="destructive"
+              className="space-y-3.5 p-4 pl-10 animate-in fade-in duration-200"
+            >
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-destructive">
+                  <AlertTitle className="text-xs font-bold">
                     Late Submission Compliance Gate
-                  </h4>
+                  </AlertTitle>
                   <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
                     The deadline for Chapter {selectedChapterNumber} (
                     {formatDeadline(selectedDeadline)}) has elapsed. Institutional policy requires
@@ -479,7 +485,7 @@ export default function UploadChapterModal({
               {/* Required Written Justification Note */}
               <div className="space-y-1.5">
                 <Label htmlFor="modal-remarks" className="text-xs font-semibold text-foreground">
-                  Justification Statement <span className="text-destructive">*</span>
+                  Justification Statement <span className="text-destructive-text">*</span>
                 </Label>
                 <Textarea
                   id="modal-remarks"
@@ -493,7 +499,7 @@ export default function UploadChapterModal({
                   className="text-xs resize-none"
                 />
                 <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span className="text-destructive font-medium">
+                  <span className="text-destructive-text font-medium">
                     Justification statement is mandatory.
                   </span>
                   <span>{remarks.length}/1000 characters</span>
@@ -506,7 +512,8 @@ export default function UploadChapterModal({
                   htmlFor="modal-justification-letter"
                   className="text-xs font-semibold text-foreground"
                 >
-                  Official Justification Letter Document <span className="text-destructive">*</span>
+                  Official Justification Letter Document{' '}
+                  <span className="text-destructive-text">*</span>
                 </Label>
                 {!justificationLetter ? (
                   <div
@@ -518,7 +525,7 @@ export default function UploadChapterModal({
                     onKeyDown={(e) => e.key === 'Enter' && letterInputRef.current?.click()}
                     className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-destructive/40 bg-background/50 p-3.5 text-center transition hover:bg-background/80"
                   >
-                    <Paperclip className="h-4 w-4 text-destructive mb-1" />
+                    <Paperclip className="h-4 w-4 text-destructive-text mb-1" />
                     <span className="text-xs font-semibold text-foreground">
                       Click to attach signed justification letter
                     </span>
@@ -538,7 +545,7 @@ export default function UploadChapterModal({
                 ) : (
                   <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-background p-2.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <Paperclip className="h-4 w-4 text-destructive shrink-0" />
+                      <Paperclip className="h-4 w-4 text-destructive-text shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-foreground truncate max-w-[240px]">
                           {justificationLetter.name}
@@ -562,7 +569,7 @@ export default function UploadChapterModal({
                   </div>
                 )}
               </div>
-            </div>
+            </Alert>
           ) : (
             /* Standard Remarks (Optional when not late) */
             <div className="space-y-1.5">
@@ -594,21 +601,19 @@ export default function UploadChapterModal({
 
           {/* Client / Server Error */}
           {clientError && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>{clientError}</span>
-            </div>
+            <Alert variant="destructive" className="p-3 pl-10 text-xs">
+              <AlertDescription>{clientError}</AlertDescription>
+            </Alert>
           )}
 
           {/* Upload Progress */}
           {isSubmitting && uploadProgress > 0 && (
             <div className="space-y-1">
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+              <Progress
+                value={uploadProgress}
+                aria-label="Chapter upload progress"
+                aria-valuetext={`${uploadProgress}% uploaded`}
+              />
               <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
             </div>
           )}
@@ -638,7 +643,7 @@ export default function UploadChapterModal({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Spinner />
                   <span>Uploading &amp; Scanning…</span>
                 </>
               ) : (
@@ -650,9 +655,8 @@ export default function UploadChapterModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 

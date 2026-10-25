@@ -299,6 +299,9 @@ describe('CapstoneWorkflowStepper Component', () => {
     });
 
     // Modal dialog is open in DOM via portal
+    const dialog = document.querySelector('[data-testid="faculty-committee-dialog"]');
+    expect(dialog?.getAttribute('role')).toBe('dialog');
+    expect(dialog?.getAttribute('aria-modal')).toBe('true');
     const modalContent = document.querySelector('[data-testid="mock-faculty-committee-card"]');
     expect(modalContent).toBeTruthy();
     expect(modalContent.textContent).toContain('canManage: true');
@@ -308,6 +311,14 @@ describe('CapstoneWorkflowStepper Component', () => {
     expect(closeBtn).toBeTruthy();
     await act(async () => {
       closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="mock-faculty-committee-card"]')).toBeNull();
+
+    await act(async () => {
+      committeeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(document.querySelector('[data-testid="mock-faculty-committee-card"]')).toBeNull();
   });
@@ -336,6 +347,9 @@ describe('CapstoneWorkflowStepper Component', () => {
     });
 
     // Modal dialog is open in DOM via portal
+    const dialog = document.querySelector('[data-testid="academic-reports-dialog"]');
+    expect(dialog?.getAttribute('role')).toBe('dialog');
+    expect(dialog?.getAttribute('aria-modal')).toBe('true');
     expect(document.querySelector('[data-testid="mock-academic-reports-widget"]')).toBeTruthy();
 
     // Close button dismisses modal
@@ -409,6 +423,8 @@ describe('CapstoneWorkflowStepper Component', () => {
     // Modal dialog is open in DOM via portal
     const dialog = document.querySelector('[data-testid="external-links-dialog"]');
     expect(dialog).toBeTruthy();
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(dialog.textContent).toContain('Project Collaboration Links');
 
     // Form inputs pre-filled
@@ -419,6 +435,14 @@ describe('CapstoneWorkflowStepper Component', () => {
     const closeBtn = dialog.querySelector('button[aria-label="Close dialog"]');
     await act(async () => {
       closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="external-links-dialog"]')).toBeNull();
+
+    await act(async () => {
+      editBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(document.querySelector('[data-testid="external-links-dialog"]')).toBeNull();
   });

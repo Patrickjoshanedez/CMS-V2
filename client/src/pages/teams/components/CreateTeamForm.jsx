@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Spinner } from '@/components/ui/Spinner';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/Popover';
 import { toast } from 'sonner';
 import {
   useCreateTeamInviteCandidates,
@@ -23,6 +25,7 @@ export default function CreateTeamForm({ onCancel }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [stagedCandidates, setStagedCandidates] = useState([]);
+  const [activeSection, setActiveSection] = useState('identity');
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -119,16 +122,31 @@ export default function CreateTeamForm({ onCancel }) {
       </CardHeader>
       <CardContent>
         {createTeam.error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {createTeam.error?.response?.data?.error?.message || 'Failed to create team.'}
-            </AlertDescription>
-          </Alert>
+          <div role="alert" aria-live="polite" aria-atomic="true">
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {createTeam.error?.response?.data?.error?.message || 'Failed to create team.'}
+              </AlertDescription>
+            </Alert>
+          </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name</Label>
+          <fieldset
+            onFocusCapture={() => setActiveSection('identity')}
+            className={cn(
+              'space-y-2 rounded-lg border p-4 transition-colors',
+              activeSection === 'identity'
+                ? 'border-foreground/30 bg-background opacity-100'
+                : 'border-border bg-muted/10 opacity-80',
+            )}
+          >
+            <legend className="mb-2 w-full rounded-md bg-muted/50 px-3 py-1.5 text-base font-semibold text-foreground border-b border-border">
+              1. Team Identity
+            </legend>
+            <Label htmlFor="teamName" className="text-sm font-medium">
+              Team Name (optional)
+            </Label>
             <Input
               id="teamName"
               placeholder="Leave blank to use your last name"
@@ -136,100 +154,123 @@ export default function CreateTeamForm({ onCancel }) {
               onChange={(e) => setName(e.target.value)}
               maxLength={100}
               disabled={createTeam.isPending}
+              aria-describedby="teamName-helper"
             />
-            <p className="text-xs text-muted-foreground">
+            <p id="teamName-helper" className="text-xs text-muted-foreground">
               If left blank, your team name will default to your last name.
             </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="createTeamInvite">
+          </fieldset>
+
+          <fieldset
+            onFocusCapture={() => setActiveSection('roster')}
+            className={cn(
+              'space-y-2 rounded-lg border p-4 transition-colors',
+              activeSection === 'roster'
+                ? 'border-foreground/30 bg-background opacity-100'
+                : 'border-border bg-muted/10 opacity-80',
+            )}
+          >
+            <legend className="mb-2 w-full rounded-md bg-muted/50 px-3 py-1.5 text-base font-semibold text-foreground border-b border-border">
+              2. Initial Roster Invitations
+            </legend>
+            <div className="flex items-center justify-between" aria-live="polite">
+              <Label htmlFor="createTeamInvite" className="text-sm font-medium">
                 Invite Teammates {stagedCandidates.length > 0 && `(${stagedCandidates.length}/3)`}
               </Label>
-              <span className="text-[11px] text-muted-foreground">Max 3 teammates</span>
+              <span className="text-xs text-muted-foreground">Max 3 teammates</span>
             </div>
 
             {/* Staged candidates pill tray */}
             {stagedCandidates.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pb-1">
+              <div className="flex flex-wrap gap-1.5 pb-1" aria-live="polite">
                 {stagedCandidates.map((c) => (
                   <span
                     key={c.email}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs text-foreground font-medium shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs text-foreground font-medium"
                   >
                     <span className="truncate max-w-[150px]">{c.fullName || c.email}</span>
-                    <button
+                    <Button
                       type="button"
+                      size="icon"
+                      variant="ghost"
                       onClick={() =>
                         setStagedCandidates((prev) =>
                           prev.filter((item) => item.email.toLowerCase() !== c.email.toLowerCase()),
                         )
                       }
-                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
                       aria-label={`Remove ${c.fullName || c.email}`}
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </Button>
                   </span>
                 ))}
               </div>
             )}
 
-            <div className="relative">
-              <Input
-                id="createTeamInvite"
-                placeholder={
-                  stagedCandidates.length >= 3
-                    ? 'Maximum of 3 teammates staged'
-                    : 'Search student by name or email...'
-                }
-                type="text"
-                value={inviteQuery}
-                disabled={createTeam.isPending || stagedCandidates.length >= 3}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setInviteQuery(value);
-                  setShowSuggestions(true);
-                  if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
-                    setSelectedCandidate(null);
-                  }
-                }}
-                onFocus={() => {
-                  if ((debouncedInviteQuery || inviteQuery).length >= 2) {
-                    setShowSuggestions(true);
-                  }
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => setShowSuggestions(false), 120);
-                }}
-                autoComplete="off"
-              />
+            <Popover open={showSuggestions} onOpenChange={setShowSuggestions}>
+              <PopoverAnchor asChild>
+                <div>
+                  <Input
+                    id="createTeamInvite"
+                    placeholder={
+                      stagedCandidates.length >= 3
+                        ? 'Maximum of 3 teammates staged'
+                        : 'Search student by name or email...'
+                    }
+                    type="text"
+                    value={inviteQuery}
+                    disabled={createTeam.isPending || stagedCandidates.length >= 3}
+                    aria-describedby="createTeamInvite-helper"
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setInviteQuery(value);
+                      setShowSuggestions(true);
+                      if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
+                        setSelectedCandidate(null);
+                      }
+                    }}
+                    onFocus={() => {
+                      if ((debouncedInviteQuery || inviteQuery).length >= 2) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+              </PopoverAnchor>
 
-              {showSuggestions &&
-                (debouncedInviteQuery.length >= 2 || inviteQuery.trim().length >= 2) && (
-                  <div className="absolute left-0 right-0 top-11 z-20 rounded-md border bg-popover shadow-md">
+              {(debouncedInviteQuery.length >= 2 || inviteQuery.trim().length >= 2) && (
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                  className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+                  aria-live="polite"
+                >
                     {isFetchingCandidates ? (
                       <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Spinner className="h-3.5 w-3.5" />
                         Searching students...
                       </div>
                     ) : candidates.length > 0 ? (
-                      <ul className="max-h-56 overflow-auto py-1">
+                      <ul className="max-h-56 overflow-auto py-1" role="listbox">
                         {candidates.map((candidate) => {
                           const isAlreadyStaged = stagedCandidates.some(
                             (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
                           );
 
                           return (
-                            <li key={candidate._id}>
-                              <button
+                            <li key={candidate._id} role="option" aria-selected={isAlreadyStaged}>
+                              <Button
                                 type="button"
+                                variant="ghost"
                                 className={cn(
-                                  'flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent',
-                                  isAlreadyStaged && 'bg-primary/5',
+                                  'h-auto w-full items-start justify-start gap-2 px-3 py-2 text-left font-normal hover:bg-accent',
+                                  isAlreadyStaged && 'bg-muted/60',
                                 )}
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
+                                onClick={() => {
                                   setInviteQuery(candidate.email);
                                   setDebouncedInviteQuery(candidate.email);
                                   setShowSuggestions(false);
@@ -251,7 +292,7 @@ export default function CreateTeamForm({ onCancel }) {
                                     {candidate.email}
                                   </span>
                                   {candidate.canInvite === false && (
-                                    <span className="mt-0.5 block text-[11px] font-medium text-destructive">
+                                    <span className="mt-0.5 block text-xs font-medium text-destructive">
                                       Cannot invite yet
                                     </span>
                                   )}
@@ -261,7 +302,7 @@ export default function CreateTeamForm({ onCancel }) {
                                     Staged
                                   </Badge>
                                 )}
-                              </button>
+                              </Button>
                             </li>
                           );
                         })}
@@ -271,31 +312,33 @@ export default function CreateTeamForm({ onCancel }) {
                         No matching students found.
                       </div>
                     )}
-                  </div>
-                )}
-            </div>
-            <p className="text-xs text-muted-foreground">
+                </PopoverContent>
+              )}
+            </Popover>
+            <p id="createTeamInvite-helper" className="text-xs text-muted-foreground">
               Select up to 3 classmates from your section. Invitations will be sent automatically
               once your team is created.
             </p>
             {selectedCandidate?.canInvite === false && (
-              <p className="text-xs text-destructive">
+              <p className="text-xs text-destructive" role="alert">
                 Selected student cannot be invited yet. Team creation will continue without an
                 invite.
               </p>
             )}
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
+          </fieldset>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={onCancel}
               disabled={createTeam.isPending}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTeam.isPending}>
-              {createTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={createTeam.isPending} className="w-full sm:w-auto">
+              {createTeam.isPending && <Spinner className="mr-2 h-4 w-4" />}
               Create Team
             </Button>
           </div>

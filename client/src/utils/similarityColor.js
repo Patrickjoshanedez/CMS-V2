@@ -3,42 +3,36 @@ const BANDS = [
     min: 71,
     max: 100,
     label: 'Critical',
-    cssVar: '--color-accent',
-    fallbackColor: '#E63946',
+    cssVar: '--destructive',
+    fallbackColor: 'hsl(var(--destructive))',
   },
   {
     min: 41,
     max: 70,
     label: 'High',
-    cssVar: '--color-high',
-    fallbackColor: '#E07B39',
+    cssVar: '--warning',
+    fallbackColor: 'hsl(var(--warning))',
   },
   {
     min: 16,
     max: 40,
     label: 'Moderate',
-    cssVar: '--color-warn',
-    fallbackColor: '#F4A261',
+    cssVar: '--warning',
+    fallbackColor: 'hsl(var(--warning))',
   },
   {
     min: 0,
     max: 15,
     label: 'Low',
-    cssVar: '--color-ok',
-    fallbackColor: '#2A9D8F',
+    cssVar: '--success',
+    fallbackColor: 'hsl(var(--success))',
   },
 ];
 
-const SOURCE_COLOR_CYCLE = [
-  '#2D6A9F',
-  '#1B8A78',
-  '#C2703D',
-  '#A83E3E',
-  '#3A8F6D',
-  '#476C9B',
-  '#8C6A2F',
-  '#5A7F95',
-];
+const SOURCE_COLOR_CYCLE = Array.from(
+  { length: 8 },
+  (_, index) => `hsl(var(--chart-${index + 1}))`,
+);
 
 function normalizePercent(value) {
   const numeric = Number(value);
@@ -56,7 +50,7 @@ export function getSimilarityBand(value) {
     similarity,
     label: band.label,
     cssVar: band.cssVar,
-    color: `var(${band.cssVar}, ${band.fallbackColor})`,
+    color: `hsl(var(${band.cssVar}))`,
     fallbackColor: band.fallbackColor,
   };
 }

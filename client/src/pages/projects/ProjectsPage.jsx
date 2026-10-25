@@ -4,18 +4,24 @@ import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import Spinner from '@/components/ui/Spinner';
 import ProjectCohortCard from '@/components/projects/ProjectCohortCard';
 import { useProjects } from '@/hooks/useProjects';
 import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   FileText,
-  AlertTriangle,
   ClipboardCheck,
-  Sparkles,
   BookOpen,
   Layers,
   GraduationCap,
@@ -44,6 +50,7 @@ const TASK_CATEGORIES = [
     label: 'Needs Action',
     icon: Zap,
     badgeVariant: 'warning',
+    iconClass: 'text-warning-foreground',
     description: 'Awaiting instructor deliberation, review, or revision',
   },
   {
@@ -57,6 +64,7 @@ const TASK_CATEGORIES = [
     label: 'Capstone 1: Proposal Manuscript',
     phase: 1,
     icon: BookOpen,
+    iconClass: 'text-warning-foreground',
     description: 'Chapters 1–3, proposal defense, grades & ADM v1',
   },
   {
@@ -64,6 +72,7 @@ const TASK_CATEGORIES = [
     label: 'Capstone 2: System Development',
     phase: 2,
     icon: Layers,
+    iconClass: 'text-info-foreground',
     description: 'Adviser-approved Gantt, weekly progress & prototype defense',
   },
   {
@@ -71,12 +80,13 @@ const TASK_CATEGORIES = [
     label: 'Capstone 3: Final Manuscript',
     phase: 3,
     icon: GraduationCap,
+    iconClass: 'text-success-foreground',
     description: 'Chapters 4–5, final defense, approval sheet & archival',
   },
 ];
 
 const STATUS_FILTERS = [
-  { label: 'All Statuses', value: '' },
+  { label: 'All Statuses', value: 'all' },
   { label: 'Pending Review', value: 'submitted' },
   { label: 'Approved', value: 'approved' },
   { label: 'Revision Required', value: 'revision_required' },
@@ -241,7 +251,7 @@ export default function ProjectsPage() {
     return (
       <DashboardLayout>
         <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <Spinner className="h-8 w-8 text-primary" />
         </div>
       </DashboardLayout>
     );
@@ -296,7 +306,7 @@ export default function ProjectsPage() {
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="min-h-11 text-sm gap-1.5"
+              className="min-h-[44px] text-sm gap-1.5 sm:min-h-0"
               title="Refresh project listings"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -311,40 +321,41 @@ export default function ProjectsPage() {
         {/* ========================================================= */}
         {/* 3. PRIMARY TASK CATEGORY QUEUE FILTER TABS                */}
         {/* ========================================================= */}
-        <div role="group" aria-label="Review queue" className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 p-1.5 bg-muted/50 rounded-xl border border-border/60">
+        <div
+          role="group"
+          aria-label="Review queue"
+          className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 p-1.5 bg-muted/50 rounded-xl border border-border/60"
+        >
           {TASK_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
             return (
-              <button
+              <Button
                 key={cat.id}
                 type="button"
+                variant={isActive ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => handleSelectCategory(cat.id)}
                 aria-pressed={isActive}
                 className={cn(
-                  'flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer select-none',
+                  'min-h-[44px] sm:min-h-9 min-w-0 justify-start whitespace-normal text-left items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium cursor-pointer select-none',
                   isActive
                     ? 'bg-background text-foreground shadow-xs border border-border/80'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
                 )}
                 title={cat.description}
               >
-                <Icon
-                  className={cn(
-                    'h-3.5 w-3.5 shrink-0',
-                    cat.id === 'action_needed' && 'text-amber-500',
-                    cat.id === 'capstone_1' && 'text-amber-500',
-                    cat.id === 'capstone_2' && 'text-blue-500',
-                    cat.id === 'capstone_3' && 'text-indigo-500',
-                  )}
-                />
+                <Icon className={cn('h-3.5 w-3.5 shrink-0', cat.iconClass)} />
                 <span>{cat.label}</span>
                 {cat.id === 'action_needed' && metricCounts.actionNeeded > 0 && (
-                  <span className="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <Badge
+                    variant={cat.badgeVariant}
+                    className="rounded-full px-1.5 py-0 text-[10px] font-bold"
+                  >
                     {metricCounts.actionNeeded}
-                  </span>
+                  </Badge>
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -364,63 +375,74 @@ export default function ProjectsPage() {
                 setPage(1);
               }}
               aria-label="Search projects"
-              className="pl-9 pr-11 min-h-11 text-base sm:text-sm bg-card border-border/70"
+              className="pl-9 pr-11 min-h-[44px] text-base sm:min-h-0 sm:text-sm bg-card border-border/70"
             />
             {search && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => {
                   setSearch('');
                   setPage(1);
                 }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+                className="absolute right-1 top-1/2 min-h-[44px] min-w-[44px] -translate-y-1/2 text-muted-foreground hover:text-foreground sm:min-h-9 sm:min-w-9"
                 title="Clear search"
+                aria-label="Clear project search"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
 
           {/* Status Quick Filter */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <select
+            <Select
+              value={titleStatus || 'all'}
+              onValueChange={(value) => {
+                setTitleStatus(value === 'all' ? '' : value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
                 aria-label="Title status"
-                value={titleStatus}
-                onChange={(e) => {
-                  setTitleStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="min-h-11 max-w-full px-3 pr-8 text-sm rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                className="min-h-[44px] w-full sm:w-auto sm:min-h-9"
               >
-                {STATUS_FILTERS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((filter) => (
+                  <SelectItem key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
 
             {/* Academic Year Cohort Filter (if multiple available) */}
             {availableAcademicYears.length > 1 && (
-              <div className="relative">
-                <select
+              <Select
+                value={academicYear || 'all'}
+                onValueChange={(value) => {
+                  setAcademicYear(value === 'all' ? '' : value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger
                   aria-label="Academic year"
-                  value={academicYear}
-                  onChange={(e) => {
-                    setAcademicYear(e.target.value);
-                    setPage(1);
-                  }}
-                  className="min-h-11 max-w-full px-3 pr-8 text-sm rounded-md bg-card border border-border/70 text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer font-mono"
+                  className="min-h-[44px] w-full font-mono sm:w-auto sm:min-h-9"
                 >
-                  <option value="">All Cohorts</option>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Cohorts</SelectItem>
                   {availableAcademicYears.map((ay) => (
-                    <option key={ay} value={ay}>
+                    <SelectItem key={ay} value={ay}>
                       {ay}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
+                </SelectContent>
+              </Select>
             )}
 
             {/* Reset Filter Button */}
@@ -429,7 +451,7 @@ export default function ProjectsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="min-h-11 px-3 text-sm text-muted-foreground hover:text-foreground gap-1"
+                className="min-h-[44px] px-3 text-sm text-muted-foreground hover:text-foreground gap-1 sm:min-h-0"
                 title="Reset all search and category filters"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -452,24 +474,30 @@ export default function ProjectsPage() {
             )}
           </span>
           {hasActiveFilters && (
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={handleResetFilters}
-              className="min-h-11 text-sm text-primary hover:underline cursor-pointer"
+              className="min-h-[44px] px-2 text-sm sm:min-h-0"
             >
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               {error.response?.data?.error?.message || 'Failed to load projects'}
             </AlertDescription>
-            <Button variant="outline" size="sm" className="ml-auto" onClick={() => refetch()}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto min-h-[44px] sm:min-h-0"
+              onClick={() => refetch()}
+            >
               Retry
             </Button>
           </Alert>
@@ -477,8 +505,12 @@ export default function ProjectsPage() {
 
         {/* Loading Spinner */}
         {isLoading && projects.length === 0 && (
-          <div className="flex h-48 flex-col items-center justify-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex h-48 flex-col items-center justify-center gap-3"
+          >
+            <Spinner className="h-8 w-8 text-primary" />
             <span className="text-xs text-muted-foreground">Loading evaluation records…</span>
           </div>
         )}
@@ -487,7 +519,6 @@ export default function ProjectsPage() {
         {!isLoading && !error && projects.length === 0 && (
           <EmptyState
             compact
-            gradient={false}
             icon={FileText}
             title="No projects found"
             description={
@@ -532,7 +563,7 @@ export default function ProjectsPage() {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
-              className="min-h-11 text-sm gap-1"
+              className="min-h-[44px] text-sm gap-1 sm:min-h-0"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Previous
@@ -545,7 +576,7 @@ export default function ProjectsPage() {
               size="sm"
               disabled={page >= pagination.totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="min-h-11 text-sm gap-1"
+              className="min-h-[44px] text-sm gap-1 sm:min-h-0"
             >
               Next
               <ChevronRight className="h-3.5 w-3.5" />

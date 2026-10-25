@@ -3,6 +3,16 @@ import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
+import { cn } from '@/lib/utils';
 import {
   BarChart3,
   LineChart as LineIcon,
@@ -35,15 +45,14 @@ import {
 } from 'recharts';
 
 export const CHART_PALETTE = [
-  'hsl(var(--primary))',
-  '#0284c7', // Sky 600
-  '#10b981', // Emerald 500
-  '#f59e0b', // Amber 500
-  '#8b5cf6', // Violet 500
-  '#ec4899', // Pink 500
-  '#06b6d4', // Cyan 500
-  '#f97316', // Orange 500
-  '#64748b', // Slate 500
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
 ];
 
 /**
@@ -58,11 +67,10 @@ export default function DynamicChartWidget({
   data = [],
   xKey = 'name',
   xTickFormatter,
-  dataKeys = [{ key: 'value', label: 'Value', color: 'hsl(var(--primary))' }],
+  dataKeys = [{ key: 'value', label: 'Value', color: 'hsl(var(--chart-1))' }],
   availableViews = ['bar', 'line', 'pie', 'table'],
   defaultView = 'bar',
   height = 300,
-  radarCategories = [],
   onExportCsv,
 }) {
   const [currentView, setCurrentView] = useState(defaultView);
@@ -101,30 +109,31 @@ export default function DynamicChartWidget({
     URL.revokeObjectURL(url);
   };
 
-  return (
+  const chartCard = (
     <Card
       data-testid={`chart-widget-${title.toLowerCase().replace(/\s+/g, '-')}`}
-      className={`chart-card dynamic-chart-widget-card break-inside-avoid border border-border/80 bg-card shadow-xs transition-all flex flex-col print:bg-white print:border-slate-300 print:shadow-none ${
-        isFullscreen ? 'fixed inset-4 z-50 shadow-2xl bg-card' : ''
-      }`}
+      className={cn(
+        'chart-card dynamic-chart-widget-card flex flex-col break-inside-avoid border-border/80 shadow-xs transition-colors print:border-border print:shadow-none',
+        isFullscreen && 'h-full overflow-hidden',
+      )}
     >
-      <CardHeader className="p-4 pb-3 border-b border-border/60 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:bg-white print:border-slate-200 print:p-2.5">
+      <CardHeader className="flex flex-col gap-3 border-b border-border/60 bg-muted/15 p-4 pb-3 print:border-border print:p-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <CardTitle className="text-sm font-bold text-foreground tracking-tight print:text-[#111827]">
+            <CardTitle className="text-sm font-bold tracking-tight text-foreground print:text-foreground">
               {title}
             </CardTitle>
             {safeData.length > 0 && (
               <Badge
                 variant="outline"
-                className="text-[10px] font-mono py-0 px-1.5 bg-background print:bg-slate-100 print:text-[#111827] print:border-slate-300"
+                className="px-1.5 py-0 font-mono text-[10px] print:border-border print:bg-muted print:text-foreground"
               >
                 {safeData.length} {safeData.length === 1 ? 'record' : 'records'}
               </Badge>
             )}
           </div>
           {subtitle && (
-            <CardDescription className="text-xs text-muted-foreground mt-0.5 print:text-slate-600">
+            <CardDescription className="mt-0.5 text-xs text-muted-foreground print:text-muted-foreground">
               {subtitle}
             </CardDescription>
           )}
@@ -141,21 +150,19 @@ export default function DynamicChartWidget({
               const Icon = viewIcons[view] || BarChart3;
               const isActive = currentView === view;
               return (
-                <button
+                <Button
                   key={view}
                   type="button"
                   onClick={() => setCurrentView(view)}
+                  variant={isActive ? 'default' : 'ghost'}
+                  size="icon"
                   aria-pressed={isActive}
                   aria-label={`Switch to ${view} view`}
                   title={`Switch to ${view} view`}
-                  className={`min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center justify-center ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                  }`}
+                  className="min-h-11 min-w-11 rounded-md p-2.5 text-xs font-medium sm:min-h-0 sm:min-w-0 sm:p-1.5"
                 >
                   <Icon className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -434,41 +441,66 @@ export default function DynamicChartWidget({
             {/* 5. Tabular Matrix View */}
             {currentView === 'table' && (
               <div className="h-full overflow-auto rounded-lg border border-border/70 bg-background/50">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground sticky top-0">
-                      <th className="py-2.5 px-3 uppercase tracking-wider">{xKey}</th>
+                <Table className="text-left text-xs">
+                  <TableHeader className="sticky top-0 bg-muted/40">
+                    <TableRow className="border-b border-border font-semibold text-muted-foreground hover:bg-transparent">
+                      <TableHead className="h-auto px-3 py-2.5 uppercase tracking-wider">
+                        {xKey}
+                      </TableHead>
                       {dataKeys.map((dk) => (
-                        <th
+                        <TableHead
                           key={dk.key}
-                          className="py-2.5 px-3 text-right uppercase tracking-wider"
+                          className="h-auto px-3 py-2.5 text-right uppercase tracking-wider"
                         >
                           {dk.label || dk.key}
-                        </th>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40 font-mono">
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="font-mono">
                     {safeData.map((row, rIdx) => (
-                      <tr key={rIdx} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2 px-3 font-sans font-medium text-foreground">
+                      <TableRow key={rIdx} className="transition-colors hover:bg-muted/30">
+                        <TableCell className="px-3 py-2 font-sans font-medium text-foreground">
                           {row[xKey]}
-                        </td>
+                        </TableCell>
                         {dataKeys.map((dk) => (
-                          <td key={dk.key} className="py-2 px-3 text-right text-foreground/90">
+                          <TableCell
+                            key={dk.key}
+                            className="px-3 py-2 text-right text-foreground/90"
+                          >
                             {row[dk.key]}
-                          </td>
+                          </TableCell>
                         ))}
-                      </tr>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+
+  return (
+    <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+      {isFullscreen ? (
+        <DialogContent
+          aria-label={`${title} fullscreen chart`}
+          showClose={false}
+          className="h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-h-none max-w-none gap-0 overflow-hidden rounded-xl border-border bg-background p-0 shadow-lg"
+        >
+          <DialogTitle className="sr-only">{title} fullscreen chart</DialogTitle>
+          <DialogDescription className="sr-only">
+            {subtitle || `Fullscreen visualization for ${title}.`}
+          </DialogDescription>
+          {chartCard}
+        </DialogContent>
+      ) : (
+        chartCard
+      )}
+    </Dialog>
   );
 }
 
@@ -488,6 +520,5 @@ DynamicChartWidget.propTypes = {
   availableViews: PropTypes.arrayOf(PropTypes.string),
   defaultView: PropTypes.string,
   height: PropTypes.number,
-  radarCategories: PropTypes.array,
   onExportCsv: PropTypes.func,
 };

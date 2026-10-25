@@ -136,9 +136,9 @@ describe('NotificationsPage behavior', () => {
       clearAllButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(view.container.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
 
-    const confirmButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+    const confirmButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Confirm'),
     );
     expect(confirmButton).toBeTruthy();
@@ -149,17 +149,17 @@ describe('NotificationsPage behavior', () => {
     });
 
     expect(clearAllMutate).toHaveBeenCalledTimes(1);
-    expect(view.container.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
 
     const firstOptions = clearAllMutate.mock.calls[0][1];
     act(() => {
       firstOptions.onError();
     });
 
-    expect(view.container.textContent).toContain(
+    expect(document.body.textContent).toContain(
       'Failed to clear notifications. Please try again.',
     );
-    expect(view.container.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
 
     act(() => {
       confirmButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -170,7 +170,7 @@ describe('NotificationsPage behavior', () => {
       secondOptions.onSuccess();
     });
 
-    expect(view.container.querySelector('[role="dialog"]')).toBeFalsy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeFalsy();
 
     view.unmount();
   });
@@ -257,6 +257,49 @@ describe('NotificationsPage behavior', () => {
     expect(view.container.textContent).toContain('Urgent: Chapter 1 Submission Due Today');
     expect(view.container.textContent).not.toContain('Welcome message');
 
+    act(() => {
+      setter?.call(searchInput, 'no matching notification');
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(view.container.textContent).toContain('No matching notifications');
+    const clearSearchButton = Array.from(view.container.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Clear search'),
+    );
+    expect(clearSearchButton).toBeTruthy();
+
+    act(() => {
+      clearSearchButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(view.container.textContent).toContain('Welcome message');
+
+    view.unmount();
+  });
+
+  it('shows a shared alert and retries notification loading after an error', () => {
+    const refetch = vi.fn();
+    mockUseNotifications.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+
+    const view = renderPage();
+    const alert = view.container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Notifications could not load');
+    expect(alert?.textContent).toContain('Failed to load notifications. Please try again.');
+
+    const retryButton = Array.from(alert.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Try again'),
+    );
+    expect(retryButton).toBeTruthy();
+
+    act(() => {
+      retryButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(refetch).toHaveBeenCalledTimes(1);
     view.unmount();
   });
 });

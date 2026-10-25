@@ -1,11 +1,19 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Avatar, AvatarFallback } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import TitleStatusBadge from './TitleStatusBadge';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import { TITLE_STATUSES, CAPSTONE_PHASES, resolveWorkflowPhase } from '@cms/shared';
@@ -13,14 +21,11 @@ import {
   X,
   BookOpen,
   Users,
-  User,
   GraduationCap,
   Calendar,
-  Layers,
   Sparkles,
   ExternalLink,
   FileText,
-  AlertTriangle,
   Globe,
   Tag,
   ShieldCheck,
@@ -31,7 +36,7 @@ import {
 function cleanTeamName(name) {
   if (!name) return 'Team';
   const stripped = String(name)
-    .replace(/^Team\s+/i, '')
+    .replace(/^(?:Team\s+)+/i, '')
     .trim();
   return stripped ? `Team ${stripped}` : 'Team';
 }
@@ -52,28 +57,6 @@ function getPhaseLabel(project) {
  */
 export default function ProjectDetailsModal({ open, onOpenChange, project }) {
   const navigate = useNavigate();
-
-  // Lock body scroll while modal is open
-  useEffect(() => {
-    if (!open || typeof document === 'undefined') return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [open]);
-
-  // Handle ESC key press to close modal
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onOpenChange(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange]);
 
   if (!open || !project) return null;
 
@@ -150,35 +133,22 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
     });
   }
 
-  const modalContent = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="project-details-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onOpenChange(false);
-        }
-      }}
-    >
-      <Card
-        className="w-full max-w-3xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showClose={false}
+        className="flex max-w-3xl flex-col gap-0 overflow-hidden rounded-xl border-border/80 bg-card p-0 text-card-foreground shadow-lg"
       >
         {/* Modal Header */}
         <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
-          <div className="space-y-1.5 min-w-0 pr-4">
+          <DialogHeader className="min-w-0 space-y-1.5 pr-4">
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                 <BookOpen className="h-4 w-4" />
               </div>
-              <h3
-                id="project-details-modal-title"
-                className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
-              >
+              <DialogTitle className="text-lg font-bold tracking-tight sm:text-xl">
                 Project Details &amp; Approval
-              </h3>
+              </DialogTitle>
               <Badge
                 variant="outline"
                 className="bg-primary/5 text-primary border-primary/20 text-xs font-semibold gap-1 py-0.5 px-2"
@@ -187,233 +157,242 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
                 {phaseLabel}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs">
               BukSU Information Technology Institutional Capstone Repository Record
-            </p>
-          </div>
+            </DialogDescription>
+          </DialogHeader>
 
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-            aria-label="Close dialog"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" aria-label="Close dialog" className="shrink-0">
+              <X aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          </DialogClose>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-6 sm:p-6">
           {/* Executive Title & Context */}
-          <div className="rounded-xl border border-border/60 bg-muted/15 p-4 sm:p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {project.titleStatus && <TitleStatusBadge status={project.titleStatus} />}
-                {project.projectStatus && <ProjectStatusBadge status={project.projectStatus} />}
+          <Card className="rounded-xl border-border/60 bg-muted/15 shadow-none">
+            <CardContent className="space-y-3 p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {project.titleStatus && <TitleStatusBadge status={project.titleStatus} />}
+                  {project.projectStatus && <ProjectStatusBadge status={project.projectStatus} />}
+                </div>
+                {project.academicYear && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Academic Year: {project.academicYear}</span>
+                  </div>
+                )}
               </div>
-              {project.academicYear && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>Academic Year: {project.academicYear}</span>
+
+              <h2 className="text-base sm:text-lg font-bold text-foreground leading-snug">
+                {displayTitle}
+              </h2>
+
+              {(project.abstract || project.approvedProposal?.abstract) && (
+                <div className="space-y-1 pt-2 border-t border-border/40">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Abstract Summary
+                  </span>
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-4">
+                    {project.abstract || project.approvedProposal?.abstract}
+                  </p>
                 </div>
               )}
-            </div>
-
-            <h2 className="text-base sm:text-lg font-bold text-foreground leading-snug">
-              {displayTitle}
-            </h2>
-
-            {(project.abstract || project.approvedProposal?.abstract) && (
-              <div className="space-y-1 pt-2 border-t border-border/40">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Abstract Summary
-                </span>
-                <p className="text-xs text-foreground/80 leading-relaxed line-clamp-4">
-                  {project.abstract || project.approvedProposal?.abstract}
-                </p>
-              </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Defense & Approval Status Card */}
-          <div className="rounded-xl border border-border/60 p-4 bg-muted/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                Title Defense &amp; Approval Status
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  navigate('/project/approval');
-                }}
-                className="h-7 text-xs text-primary hover:text-primary/90 gap-1 px-2"
-              >
-                <span>View Full Defense Portal</span>
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            </div>
+          <Card className="rounded-xl border-border/60 bg-muted/10 shadow-none">
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  Title Defense &amp; Approval Status
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/project/approval');
+                  }}
+                  className="h-7 text-xs text-primary hover:text-primary/90 gap-1 px-2"
+                >
+                  <span>View Full Defense Portal</span>
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              </div>
 
-            <div className="text-xs text-muted-foreground">
-              {isApproved ? (
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>
-                    Your capstone proposal was defended and approved by the panel committee.
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium">
-                  <Clock className="h-4 w-4 shrink-0" />
-                  <span>
-                    Title proposals submitted. Defense committee review and deliberation active.
-                  </span>
-                </div>
+              <div className="text-xs text-muted-foreground">
+                {isApproved ? (
+                  <div className="flex items-center gap-2 font-medium text-success-foreground">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>
+                      Your capstone proposal was defended and approved by the panel committee.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 font-medium text-warning-foreground">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    <span>
+                      Title proposals submitted. Defense committee review and deliberation active.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {project.rejectionReason && (
+                <Alert variant="destructive" className="py-2.5">
+                  <AlertDescription className="text-xs">
+                    <strong className="block mb-0.5">Instructor Revision Notes:</strong>
+                    {project.rejectionReason}
+                  </AlertDescription>
+                </Alert>
               )}
-            </div>
-
-            {project.rejectionReason && (
-              <Alert className="bg-rose-50/50 border-rose-200 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-300 py-2.5">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <AlertDescription className="text-xs">
-                  <strong className="block mb-0.5">Instructor Revision Notes:</strong>
-                  {project.rejectionReason}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Defense Committee Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Card className="rounded-xl border-border/60 shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-3">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                 Assigned Defense Committee
-              </h4>
+              </CardTitle>
               <Badge variant="outline" className="text-[10px] gap-1 py-0 px-2 font-normal">
                 {panelistCount > 0 ? `${panelistCount} Faculty Panelists` : 'Pending Appointment'}
               </Badge>
-            </div>
-
-            {/* Instruction, Adviser & Secretary Tiers */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Course Instructor */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Instructor
-                  </span>
-                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
-                    Course Lead
-                  </Badge>
-                </div>
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {instructorName || 'Instructor Pending'}
-                </p>
-                {instructor?.email && (
-                  <p className="text-xs text-muted-foreground truncate">{instructor.email}</p>
-                )}
-              </div>
-
-              {/* Capstone Adviser */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Adviser
-                  </span>
-                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
-                    Mentor
-                  </Badge>
-                </div>
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {adviserName || 'Adviser Pending Appointment'}
-                </p>
-                {adviser?.email && (
-                  <p className="text-xs text-muted-foreground truncate">{adviser.email}</p>
-                )}
-              </div>
-
-              {/* Committee Secretary */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Committee Secretary
-                  </span>
-                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
-                    Endorsement
-                  </Badge>
-                </div>
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {secretaryName || 'Secretary Pending'}
-                </p>
-                {secretary?.email && (
-                  <p className="text-xs text-muted-foreground truncate">{secretary.email}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Defense Panelists Tier */}
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Defense Panelists
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {panelistCount >= 3
-                    ? 'REC / Chair, Panel Member 1, Panel Member 2'
-                    : 'Awaiting institutional committee appointment'}
-                </span>
-              </div>
-
-              {panelistsList.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {panelistsList.map((p, idx) => (
-                    <div
-                      key={p.user?._id || idx}
-                      className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary truncate">
-                          {p.roleLabel}
-                        </span>
-                        <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4">
-                          {p.roleTag}
-                        </Badge>
-                      </div>
-                      <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
-                      {p.user?.email && (
-                        <p className="text-xs text-muted-foreground truncate">{p.user.email}</p>
-                      )}
+            </CardHeader>
+            <CardContent className="space-y-3 p-4 pt-0">
+              {/* Instruction, Adviser & Secretary Tiers */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Course Instructor */}
+                <Card className="rounded-xl border-border/60 bg-muted/20 shadow-none">
+                  <CardContent className="space-y-1 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Instructor
+                      </span>
+                      <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                        Course Lead
+                      </Badge>
                     </div>
-                  ))}
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {instructorName || 'Instructor Pending'}
+                    </p>
+                    {instructor?.email && (
+                      <p className="text-xs text-muted-foreground truncate">{instructor.email}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Capstone Adviser */}
+                <Card className="rounded-xl border-border/60 bg-muted/20 shadow-none">
+                  <CardContent className="space-y-1 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Adviser
+                      </span>
+                      <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                        Mentor
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {adviserName || 'Adviser Pending Appointment'}
+                    </p>
+                    {adviser?.email && (
+                      <p className="text-xs text-muted-foreground truncate">{adviser.email}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Committee Secretary */}
+                <Card className="rounded-xl border-border/60 bg-muted/20 shadow-none">
+                  <CardContent className="space-y-1 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Committee Secretary
+                      </span>
+                      <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                        Endorsement
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {secretaryName || 'Secretary Pending'}
+                    </p>
+                    {secretary?.email && (
+                      <p className="text-xs text-muted-foreground truncate">{secretary.email}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Defense Panelists Tier */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Defense Panelists
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {panelistCount >= 3
+                      ? 'REC / Chair, Panel Member 1, Panel Member 2'
+                      : 'Awaiting institutional committee appointment'}
+                  </span>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  Awaiting institutional committee appointment
-                </p>
-              )}
-            </div>
-          </div>
+
+                {panelistsList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {panelistsList.map((p, idx) => (
+                      <Card
+                        key={p.user?._id || idx}
+                        className="rounded-xl border-border/60 bg-muted/20 shadow-none"
+                      >
+                        <CardContent className="space-y-1 p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary truncate">
+                              {p.roleLabel}
+                            </span>
+                            <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4">
+                              {p.roleTag}
+                            </Badge>
+                          </div>
+                          <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
+                          {p.user?.email && (
+                            <p className="text-xs text-muted-foreground truncate">{p.user.email}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Awaiting institutional committee appointment
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Team Roster Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Card className="rounded-xl border-border/60 shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-3">
+              <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Users className="h-3.5 w-3.5 text-primary" />
                 Team Roster ({teamDisplayName})
-              </h4>
+              </CardTitle>
               {project.teamId?.section && (
                 <Badge variant="outline" className="text-[10px] gap-1 py-0 px-2">
                   <GraduationCap className="h-3 w-3" />
                   Section {project.teamId.section}
                 </Badge>
               )}
-            </div>
+            </CardHeader>
 
             {members.length > 0 ? (
-              <div className="space-y-2">
+              <CardContent className="space-y-2 p-4 pt-0">
                 {members.map((member, idx) => {
                   const memberUser = member.userId || member;
                   const memberId = String(memberUser._id || memberUser);
@@ -431,93 +410,104 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
                     (isLeader ? 'Project Lead & Systems Analyst' : 'Proponent Member');
 
                   return (
-                    <div
+                    <Card
                       key={memberUser._id || member._id || idx}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/25 border border-border/50 px-3.5 py-2.5 text-xs"
+                      className="rounded-xl border-border/50 bg-muted/25 shadow-none"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                          {memberName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground truncate">{memberName}</p>
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
-                            <span className="text-primary font-medium">{proponentRole}</span>
-                            {memberEmail && (
-                              <>
-                                <span>·</span>
-                                <span className="truncate">{memberEmail}</span>
-                              </>
-                            )}
+                      <CardContent className="flex flex-wrap items-center justify-between gap-2 p-3.5 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Avatar aria-hidden="true" className="h-7 w-7">
+                            <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                              {memberName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground truncate">{memberName}</p>
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
+                              <span className="text-primary font-medium">{proponentRole}</span>
+                              {memberEmail && (
+                                <>
+                                  <span>·</span>
+                                  <span className="truncate">{memberEmail}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {isLeader && (
-                          <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
-                            Leader
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isLeader && (
+                            <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
+                              Leader
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1.5 text-[9px] text-muted-foreground"
+                          >
+                            Member
                           </Badge>
-                        )}
-                        <Badge
-                          variant="outline"
-                          className="h-4 px-1.5 text-[9px] text-muted-foreground"
-                        >
-                          Member
-                        </Badge>
-                      </div>
-                    </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
-              </div>
+              </CardContent>
             ) : (
-              <p className="text-xs text-muted-foreground italic">No team roster data recorded.</p>
+              <CardContent className="p-4 pt-0">
+                <p className="text-xs italic text-muted-foreground">
+                  No team roster data recorded.
+                </p>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           {/* Research Alignments (SDGs & Keywords) */}
           {((project.sdgTags && project.sdgTags.length > 0) ||
             (project.keywords && project.keywords.length > 0)) && (
-            <div className="space-y-3 pt-2 border-t border-border/50">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Globe className="h-3.5 w-3.5 text-primary" />
-                Institutional Research Alignments
-              </h4>
-
-              {project.sdgTags?.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="text-[11px] text-muted-foreground font-medium">
-                    UN Sustainable Development Goals (SDGs):
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {project.sdgTags.map((tag, idx) => (
-                      <Badge
-                        key={`${tag}-${idx}`}
-                        variant="outline"
-                        className="bg-muted/40 text-xs py-0.5"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
+            <Card className="rounded-xl border-border/60 shadow-none">
+              <CardHeader className="p-4 pb-3">
+                <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Globe className="h-3.5 w-3.5 text-primary" />
+                  Institutional Research Alignments
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 p-4 pt-0">
+                {project.sdgTags?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      UN Sustainable Development Goals (SDGs):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.sdgTags.map((tag, idx) => (
+                        <Badge
+                          key={`${tag}-${idx}`}
+                          variant="outline"
+                          className="bg-muted/40 text-xs py-0.5"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {project.keywords?.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                    <Tag className="h-3 w-3" /> IT Disciplines &amp; Keywords:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {project.keywords.map((kw) => (
-                      <Badge key={kw} variant="secondary" className="text-xs py-0.5">
-                        {kw}
-                      </Badge>
-                    ))}
+                {project.keywords?.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                      <Tag className="h-3 w-3" /> IT Disciplines &amp; Keywords:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.keywords.map((kw) => (
+                        <Badge key={kw} variant="secondary" className="text-xs py-0.5">
+                          {kw}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* External Assets & Collaboration Links */}
@@ -525,14 +515,16 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
             project.teamId?.githubUrl ||
             project.developmentAssets?.githubRepoUrl ||
             project.githubRepo) && (
-            <div className="space-y-2 pt-2 border-t border-border/50">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                External Assets &amp; Collaboration
-              </h4>
-              <div className="flex flex-wrap gap-2">
+            <Card className="rounded-xl border-border/60 shadow-none">
+              <CardHeader className="p-4 pb-3">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  External Assets &amp; Collaboration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2 p-4 pt-0">
                 {project.teamId?.googleDocUrl && (
                   <Button type="button" variant="secondary" size="sm" asChild className="text-xs">
-                    <a href={project.teamId.googleDocUrl} target="_blank" rel="noreferrer">
+                    <a href={project.teamId.googleDocUrl} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                       Team Google Doc
                     </a>
@@ -555,20 +547,20 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
                         project.githubRepo
                       }
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                     >
                       <ExternalLink className="mr-1.5 h-3.5 w-3.5 text-primary" />
                       GitHub Repository
                     </a>
                   </Button>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Modal Footer */}
-        <div className="shrink-0 flex items-center justify-between border-t border-border/60 p-4 sm:p-5 bg-muted/20">
+        <DialogFooter className="shrink-0 flex-col-reverse justify-between gap-2 border-t border-border/60 bg-muted/20 p-4 sm:flex-row sm:p-5">
           <Button
             variant="outline"
             size="sm"
@@ -576,26 +568,21 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
               onOpenChange(false);
               navigate('/project/approval');
             }}
-            className="text-xs gap-1.5"
+            className="w-full whitespace-normal text-xs sm:w-auto"
           >
             <FileText className="h-3.5 w-3.5 text-primary" />
             <span>Title Proposals &amp; Approval Portal</span>
           </Button>
 
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-xs px-4"
-          >
-            Close
-          </Button>
-        </div>
-      </Card>
-    </div>
+          <DialogClose asChild>
+            <Button variant="default" size="sm" className="w-full px-4 text-xs sm:w-auto">
+              Close
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
 
 ProjectDetailsModal.propTypes = {

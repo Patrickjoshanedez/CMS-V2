@@ -1,13 +1,21 @@
 import { useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Progress } from '@/components/ui/Progress';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
 import UploadChapterModal from '@/components/submissions/UploadChapterModal';
@@ -22,46 +30,16 @@ import { useProjectMilestoneDeadlines } from '@/hooks/useProjectMilestoneDeadlin
 import { resolveProjectSubmissionDeadlines } from '@/utils/milestoneDeadlines';
 import { useAuthStore } from '@/stores/authStore';
 import { DOCUMENT_TYPES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
-import { cn } from '@/lib/utils';
 import {
   FileText,
   Upload,
   BookOpen,
   AlertTriangle,
-  Loader2,
-  Clock,
-  ChevronRight,
-  Code,
-  TestTube,
-  Paintbrush,
   LineChart,
   FileSpreadsheet,
-  Layers,
-  Sparkles,
   Lock,
   X,
 } from 'lucide-react';
-
-const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return '—';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
 
 /* ────────── Progress Bar ────────── */
 
@@ -84,12 +62,7 @@ function ChapterProgress({ latestChapterSubmissions }) {
           {completed}/{total} approved
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <Progress value={pct} aria-label="Approved chapter progress" />
     </div>
   );
 }
@@ -167,7 +140,6 @@ function EmptySubmissionsState({ canUpload, canCompileProposal }) {
       icon={FileText}
       title="No submissions yet"
       compact
-      gradient={false}
       description={
         canCompileProposal
           ? 'Your chapter requirements are complete. Compile and submit your proposal.'
@@ -327,11 +299,7 @@ export default function ProjectSubmissionsPage() {
   });
 
   const canUploadFinalManuscripts = Boolean(
-    isStudent &&
-    !isArchivedReadOnly &&
-    titleApproved &&
-    all5ChaptersApproved &&
-    isCap2ADMApproved,
+    isStudent && !isArchivedReadOnly && titleApproved && all5ChaptersApproved && isCap2ADMApproved,
   );
 
   const finalPaperLockMessage = !isCap2ADMApproved
@@ -363,7 +331,6 @@ export default function ProjectSubmissionsPage() {
           description="As a faculty member, you can view submissions by selecting a project from the Projects page."
           actionLabel="Go to Projects"
           onAction={() => navigate('/projects')}
-          gradient={false}
         />
       </DashboardLayout>
     );
@@ -479,14 +446,16 @@ export default function ProjectSubmissionsPage() {
   /* ────── Main Render ────── */
   return (
     <DashboardLayout>
-      <div className="min-w-0 space-y-6 lg:space-y-8">
+      <div className="min-w-0 space-y-6 lg:space-y-8 [&_button]:min-h-[45px]">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Document submissions for&nbsp;
-              <span className="font-medium">{activeProject.title}</span>
+              <span className="break-words font-medium [overflow-wrap:anywhere]">
+                {activeProject.title}
+              </span>
             </p>
             {isReadOnlyMode && (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -572,7 +541,7 @@ export default function ProjectSubmissionsPage() {
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="shrink-0 whitespace-nowrap border-blue-500/40 bg-blue-500/10 text-blue-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 2
                 </Badge>
@@ -651,7 +620,7 @@ export default function ProjectSubmissionsPage() {
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="shrink-0 whitespace-nowrap border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-success/40 bg-success/10 text-success font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 3
                 </Badge>
@@ -704,10 +673,10 @@ export default function ProjectSubmissionsPage() {
 
             {!isCap2ADMApproved && isStudent && !isArchivedReadOnly && (
               <Alert
-                className="mb-3 border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                className="mb-3 border-warning/30 bg-warning/10 text-warning-foreground"
                 data-testid="capstone3-prerequisite-alert"
               >
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
                 <AlertDescription>
                   Capstone 3 chapter uploads (Chapters 4 &amp; 5) unlock after your Capstone 2
                   Action Done Matrix (ADM v2) is approved and the grades are released.
@@ -722,7 +691,9 @@ export default function ProjectSubmissionsPage() {
                   chapterNumber={ch}
                   submission={latestChapterSubmissions.get(ch)}
                   deadline={chapterDeadlineMap[ch]}
-                allowLateSubmission={deadlinePolicies[`chapter${ch}`]?.allowLateSubmission ?? true}
+                  allowLateSubmission={
+                    deadlinePolicies[`chapter${ch}`]?.allowLateSubmission ?? true
+                  }
                   isLocked={
                     latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED ||
                     (ch >= 4 && !isCap2ADMApproved)
@@ -761,7 +732,7 @@ export default function ProjectSubmissionsPage() {
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge
                   variant="outline"
-                  className="shrink-0 whitespace-nowrap border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
+                  className="shrink-0 whitespace-nowrap border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase font-semibold"
                 >
                   Phase 4
                 </Badge>
@@ -812,55 +783,49 @@ export default function ProjectSubmissionsPage() {
         </div>
 
         {/* Full Interactive Academic Gantt Chart Dialog */}
-        {showGanttModal &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="academic-gantt-dialog-title"
-            >
-              <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <LineChart className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h3
-                        id="academic-gantt-dialog-title"
-                        className="text-base font-bold text-foreground"
-                      >
-                        Capstone 2: Interactive Academic Gantt Chart
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and
-                        Instant Excel (.xls) Export.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowGanttModal(false)}
-                    aria-label="Close Gantt Dialog"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+        <Dialog open={showGanttModal} onOpenChange={setShowGanttModal}>
+          <DialogContent
+            showClose={false}
+            className="flex max-h-[92dvh] w-[calc(100vw_-_1.5rem)] max-w-7xl flex-col overflow-hidden p-4 sm:p-6"
+          >
+            <DialogHeader className="flex shrink-0 flex-row items-start justify-between border-b border-border/60 pb-3 text-left sm:space-y-0">
+              <div className="flex min-w-0 items-center gap-2.5 pr-10">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <LineChart className="size-4" />
                 </div>
-
-                <div className="flex-1 overflow-y-auto pt-4 min-h-0">
-                  <InteractiveGanttChart
-                    project={activeProject}
-                    isReadOnly={isProjectArchived || (!isFaculty && !canEditDevelopmentAssets)}
-                  />
+                <div className="min-w-0">
+                  <DialogTitle
+                    id="academic-gantt-dialog-title"
+                    className="text-base font-bold leading-snug"
+                  >
+                    Capstone 2: Interactive Academic Gantt Chart
+                  </DialogTitle>
+                  <DialogDescription className="mt-1 text-xs">
+                    Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and Instant
+                    Excel (.xls) Export.
+                  </DialogDescription>
                 </div>
               </div>
-            </div>,
-            document.body,
-          )}
+              <DialogClose asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-4 size-9 text-muted-foreground hover:text-foreground sm:size-8"
+                  aria-label="Close Gantt Dialog"
+                >
+                  <X className="size-4" />
+                </Button>
+              </DialogClose>
+            </DialogHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+              <InteractiveGanttChart
+                project={activeProject}
+                isReadOnly={isProjectArchived || (!isFaculty && !canEditDevelopmentAssets)}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Upload & Revision Modal */}
         <UploadChapterModal

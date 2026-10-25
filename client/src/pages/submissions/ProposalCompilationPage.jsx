@@ -8,13 +8,19 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions, useCompileProposal } from '@/hooks/useSubmissions';
 import { useProjectMilestoneDeadlines } from '@/hooks/useProjectMilestoneDeadlines';
-import { getMilestoneDeadlineState, resolveProjectSubmissionDeadlines } from '@/utils/milestoneDeadlines';
+import {
+  getMilestoneDeadlineState,
+  resolveProjectSubmissionDeadlines,
+} from '@/utils/milestoneDeadlines';
 import { PROJECT_STATUSES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
@@ -22,7 +28,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   FileUp,
-  Loader2,
   BookOpen,
   Upload,
   FileText,
@@ -31,7 +36,6 @@ import {
   ShieldCheck,
   Target,
   Layers,
-  Sparkles,
 } from 'lucide-react';
 
 const READY_SUBMISSION_STATUSES = new Set([
@@ -234,8 +238,18 @@ export default function ProposalCompilationPage() {
   if (!user) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div
+          className="mx-auto w-full max-w-5xl space-y-6"
+          aria-busy="true"
+          aria-label="Loading proposal compilation"
+        >
+          <Skeleton className="h-9 w-72" />
+          <Skeleton className="h-5 w-full max-w-xl" />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="h-40 lg:col-span-2" />
+            <Skeleton className="h-40" />
+          </div>
+          <Skeleton className="h-64 w-full" />
         </div>
       </DashboardLayout>
     );
@@ -347,8 +361,18 @@ export default function ProposalCompilationPage() {
   if (projectLoading || submissionsLoading) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div
+          className="mx-auto w-full max-w-5xl space-y-6"
+          aria-busy="true"
+          aria-label="Loading proposal compilation"
+        >
+          <Skeleton className="h-9 w-72" />
+          <Skeleton className="h-5 w-full max-w-xl" />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Skeleton className="h-40 lg:col-span-2" />
+            <Skeleton className="h-40" />
+          </div>
+          <Skeleton className="h-64 w-full" />
         </div>
       </DashboardLayout>
     );
@@ -454,7 +478,7 @@ export default function ProposalCompilationPage() {
               </Badge>
             </div>
             <div className="space-y-1">
-              <CardTitle className="text-xl sm:text-2xl font-bold leading-snug text-foreground">
+              <CardTitle className="break-words text-xl sm:text-2xl font-bold leading-snug text-foreground [overflow-wrap:anywhere]">
                 {project.title}
               </CardTitle>
               <CardDescription className="text-sm">
@@ -523,8 +547,8 @@ export default function ProposalCompilationPage() {
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                       project?.teamId || project?.team
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        ? 'bg-success/10 text-success-foreground'
+                        : 'bg-warning/10 text-warning-foreground'
                     }`}
                   >
                     {project?.teamId || project?.team ? (
@@ -545,8 +569,8 @@ export default function ProposalCompilationPage() {
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                       titleApproved
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        ? 'bg-success/10 text-success-foreground'
+                        : 'bg-warning/10 text-warning-foreground'
                     }`}
                   >
                     {titleApproved ? (
@@ -567,8 +591,8 @@ export default function ProposalCompilationPage() {
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                       chapterReady
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        ? 'bg-success/10 text-success-foreground'
+                        : 'bg-warning/10 text-warning-foreground'
                     }`}
                   >
                     {chapterReady ? (
@@ -589,7 +613,7 @@ export default function ProposalCompilationPage() {
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                       !projectUnavailable
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-success/10 text-success-foreground'
                         : 'bg-destructive/10 text-destructive'
                     }`}
                   >
@@ -623,9 +647,7 @@ export default function ProposalCompilationPage() {
                     <div
                       key={info.chapter}
                       className={`rounded-xl border p-3.5 transition-all ${
-                        ready
-                          ? 'border-emerald-500/30 bg-emerald-500/[0.04]'
-                          : 'border-border/60 bg-muted/20'
+                        ready ? 'border-success/30 bg-success/5' : 'border-border/60 bg-muted/20'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -633,11 +655,11 @@ export default function ProposalCompilationPage() {
                           Chapter {info.chapter}
                         </span>
                         {ready ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-success-foreground">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Approved
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-warning-foreground">
                             <Clock className="h-3.5 w-3.5" /> Pending
                           </span>
                         )}
@@ -729,8 +751,8 @@ export default function ProposalCompilationPage() {
                       proposalLateSubmissionClosed
                         ? 'cursor-not-allowed border-border/60 bg-muted/30 opacity-60'
                         : isDragging
-                        ? 'border-primary bg-primary/10'
-                        : 'border-muted-foreground/25 bg-muted/20 hover:border-primary/50 hover:bg-muted/40'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-muted-foreground/25 bg-muted/20 hover:border-primary/50 hover:bg-muted/40'
                     }`}
                   >
                     <div className="mb-3 rounded-full bg-primary/10 p-3 text-primary transition-transform group-hover:scale-105">
@@ -747,7 +769,9 @@ export default function ProposalCompilationPage() {
                       type="file"
                       accept={ACCEPT_STRING}
                       onChange={handleFileChange}
-                      disabled={!canCompile || proposalLateSubmissionClosed || compileProposal.isPending}
+                      disabled={
+                        !canCompile || proposalLateSubmissionClosed || compileProposal.isPending
+                      }
                       className="sr-only"
                     />
                   </label>
@@ -775,7 +799,7 @@ export default function ProposalCompilationPage() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="outline"
-                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs"
+                        className="border-success/30 bg-success/10 text-success text-xs"
                       >
                         <CheckCircle2 className="mr-1 h-3 w-3" /> Ready to Compile
                       </Badge>
@@ -785,7 +809,7 @@ export default function ProposalCompilationPage() {
                         size="sm"
                         onClick={handleRemoveFile}
                         disabled={compileProposal.isPending}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="min-h-[45px] text-muted-foreground hover:text-destructive"
                       >
                         <X className="mr-1 h-4 w-4" /> Remove
                       </Button>
@@ -810,7 +834,9 @@ export default function ProposalCompilationPage() {
                     {requiresLateJustification && <span className="text-destructive"> *</span>}
                   </Label>
                   <span className="text-xs text-muted-foreground">
-                    {requiresLateJustification ? 'Required for late submission' : 'Visible to reviewers'}
+                    {requiresLateJustification
+                      ? 'Required for late submission'
+                      : 'Visible to reviewers'}
                   </span>
                 </div>
                 <Textarea
@@ -833,24 +859,19 @@ export default function ProposalCompilationPage() {
                 <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-2">
                   <div className="flex items-center justify-between text-sm font-medium">
                     <span className="flex items-center gap-2 text-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <Spinner className="size-4 text-primary" />
                       {feedbackMessage || 'Uploading proposal...'}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">{progress}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
+                  <Progress value={progress} aria-label="Proposal upload progress" />
                 </div>
               )}
 
               {/* Success Alert */}
               {workflowState === 'success' && (
-                <Alert className="border-emerald-500/30 bg-emerald-500/10">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <Alert className="border-success/30 bg-success/10">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                   <AlertDescription>{feedbackMessage}</AlertDescription>
                 </Alert>
               )}
@@ -879,7 +900,7 @@ export default function ProposalCompilationPage() {
                 >
                   {compileProposal.isPending || workflowState === 'uploading' ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner className="h-4 w-4" />
                       Compiling Proposal...
                     </>
                   ) : (

@@ -129,9 +129,7 @@ describe('TitleApprovalPage', () => {
     expect(container.textContent).toContain('Under Committee Review');
 
     // Assert Defense Committee Roster is positioned ABOVE Candidate Proposals
-    const committeeIdx = container.textContent.indexOf(
-      'Defense committee',
-    );
+    const committeeIdx = container.textContent.indexOf('Defense committee');
     const candidateIdx = container.textContent.indexOf('Title proposals (2)');
     expect(committeeIdx).toBeGreaterThan(-1);
     expect(candidateIdx).toBeGreaterThan(-1);
@@ -154,7 +152,8 @@ describe('TitleApprovalPage', () => {
 
   it('renders structured expectedValue in the proposal impact section', async () => {
     mockProjectData.titleProposalMetadata[0].pitchDeck = {
-      expectedValue: 'Synthetic evaluation target: clearer reservation status and traceable handoffs.',
+      expectedValue:
+        'Synthetic evaluation target: clearer reservation status and traceable handoffs.',
     };
 
     await act(async () => {
@@ -219,17 +218,17 @@ describe('TitleApprovalPage', () => {
       fullscreenBtn.click();
     });
 
-    expect(container.textContent).toContain('Proposal Defense Rehearsal');
-    expect(container.textContent).toContain('Smart Campus Emergency Dispatch System');
+    expect(document.body.textContent).toContain('Proposal Defense Rehearsal');
+    expect(document.body.textContent).toContain('Smart Campus Emergency Dispatch System');
 
-    const closeBtn = container.querySelector('button[title="Close Rehearsal (Esc)"]');
+    const closeBtn = document.body.querySelector('button[title="Close Rehearsal (Esc)"]');
     expect(closeBtn).toBeTruthy();
 
     await act(async () => {
       closeBtn.click();
     });
 
-    expect(container.querySelector('[data-testid="fullscreen-rehearsal-modal"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="fullscreen-rehearsal-modal"]')).toBeNull();
   });
 
   it('navigates to capstone overview when Back to My Capstone is clicked', async () => {

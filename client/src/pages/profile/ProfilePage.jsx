@@ -6,13 +6,26 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { User, Mail, Shield, Camera, Loader2, CheckCircle, GraduationCap } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Spinner } from '@/components/ui/Spinner';
+import { User, Mail, Shield, Camera, GraduationCap } from 'lucide-react';
 import { userService } from '@/services/authService';
 import { useSections } from '@/hooks/useAcademics';
-import { formatSectionWithCode } from '@/utils/sectionUtils';
+import {
+  formatCanonicalSectionName,
+  formatSectionWithCode,
+  extractSectionCode,
+  resolveSectionCapstoneMeta,
+} from '@/utils/sectionUtils';
 import { useInstructors } from '@/hooks/useUsers';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
-import { ROLES, ACADEMIC_TERMS } from '@cms/shared';
+import { ROLES, ACADEMIC_TERMS, CAPSTONE_CURRICULUM_MAP } from '@cms/shared';
 import { toast } from 'sonner';
 
 const shouldRetryAcademicLookup = (failureCount, error) => {
@@ -152,7 +165,7 @@ export default function ProfilePage() {
     return (
       <DashboardLayout>
         <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <Spinner className="size-8 text-primary" />
         </div>
       </DashboardLayout>
     );
@@ -254,7 +267,15 @@ export default function ProfilePage() {
   };
 
   // Derive the course code from the selected section
-  const selectedSection = sections.find((s) => s._id === sectionId);
+  const selectedSection = sections.find((s) => s._id === sectionId) || user?.sectionId || null;
+  const selectedSectionBlock = selectedSection ? formatCanonicalSectionName(selectedSection) : '';
+  const selectedSectionTCode = selectedSection ? extractSectionCode(selectedSection) : '';
+  const selectedCapstoneMeta = selectedSection
+    ? resolveSectionCapstoneMeta(selectedSection, academicTerm)
+    : null;
+  const teamEnrollments = Array.isArray(user?.teamId?.capstoneEnrollments)
+    ? user.teamId.capstoneEnrollments
+    : [];
 
   return (
     <DashboardLayout>
@@ -282,19 +303,21 @@ export default function ProfilePage() {
                     {initials || '?'}
                   </div>
                 )}
-                <button
+                <Button
                   type="button"
-                  className="absolute bottom-0 right-0 rounded-full border-2 border-background bg-muted p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-50"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute bottom-0 right-0 size-9 min-h-9 min-w-9 rounded-full border-2 border-background p-0"
                   aria-label="Change profile picture"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingAvatar}
                 >
                   {isUploadingAvatar ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="size-3.5" />
                   ) : (
                     <Camera className="h-3.5 w-3.5" />
                   )}
-                </button>
+                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -406,9 +429,8 @@ export default function ProfilePage() {
             </CardContent>
             <CardFooter className="flex-col items-start gap-3">
               {saveSuccess && (
-                <Alert variant="default" className="border-green-500/50 bg-green-500/10">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700 dark:text-green-400">
+                <Alert variant="success">
+                  <AlertDescription>
                     Profile updated successfully.
                   </AlertDescription>
                 </Alert>
@@ -420,8 +442,7 @@ export default function ProfilePage() {
               )}
               {isEditing ? (
                 <div className="flex gap-2">
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button onClick={handleSave} loading={isSaving} loadingText="Saving...">
                     Save Changes
                   </Button>
                   <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
@@ -466,8 +487,11 @@ export default function ProfilePage() {
               </p>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleSavePlagiarismThreshold} disabled={updateSettings.isPending}>
-                {updateSettings.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                onClick={handleSavePlagiarismThreshold}
+                loading={updateSettings.isPending}
+                loadingText="Saving..."
+              >
                 Save Threshold
               </Button>
             </CardFooter>
@@ -507,24 +531,43 @@ export default function ProfilePage() {
               {/* Section */}
               <div className="space-y-2">
                 <Label htmlFor="profile-section">Year and Section *</Label>
-                <select
-                  id="profile-section"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                <Select
                   value={sectionId}
-                  onChange={(e) => setSectionId(e.target.value)}
+                  onValueChange={(nextId) => {
+                    setSectionId(nextId);
+                    const matchedSec = sections.find((s) => s._id === nextId);
+                    if (matchedSec?.academicTerm) {
+                      setAcademicTerm(matchedSec.academicTerm);
+                    }
+                  }}
                   disabled={sectionsLoading || isSavingAcademic}
                 >
-                  <option value="">
-                    {sectionsLoading || sectionsFetching
-                      ? 'Loading...'
-                      : 'Select your year and section'}
-                  </option>
-                  {sections.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {formatSectionWithCode(s)} {s.academicYear ? `(${s.academicYear})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="profile-section" aria-invalid={Boolean(sectionsError)}>
+                    <SelectValue
+                      placeholder={
+                        sectionsLoading || sectionsFetching
+                          ? 'Loading...'
+                          : 'Select your year and section'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                  {sections.map((s) => {
+                    const secMeta = resolveSectionCapstoneMeta(s);
+                    const termTag = secMeta?.courseTitle
+                      ? ` — ${secMeta.courseTitle} (${secMeta.curriculumLabel})`
+                      : s.academicTerm
+                        ? ` — ${s.academicTerm}`
+                        : '';
+                    return (
+                      <SelectItem key={s._id} value={s._id}>
+                        {formatSectionWithCode(s)}
+                        {termTag} {s.academicYear ? `(${s.academicYear})` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                  </SelectContent>
+                </Select>
                 {sectionsError && (
                   <Alert variant="destructive" className="mt-2">
                     <AlertDescription className="flex items-center justify-between gap-3">
@@ -541,7 +584,7 @@ export default function ProfilePage() {
                         onClick={() => refetchSections()}
                         disabled={sectionsFetching || isSavingAcademic}
                       >
-                        {sectionsFetching && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        {sectionsFetching && <Spinner className="size-3.5" />}
                         Retry
                       </Button>
                     </AlertDescription>
@@ -558,12 +601,20 @@ export default function ProfilePage() {
                   )}
               </div>
 
-              {/* Section Code (read-only, from section's own code) */}
-              <div className="space-y-2">
-                <Label>Section Code</Label>
-                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                  {selectedSection?.code || '—'}
-                </p>
+              {/* Section Block vs Section Code (T-Code) */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Section Block</Label>
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                    {selectedSectionBlock || '—'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Code (T-Code)</Label>
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-sm font-semibold text-primary">
+                    {selectedSectionTCode || '—'}
+                  </p>
+                </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -575,50 +626,115 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profile-academic-term">Academic Term *</Label>
-                  <select
-                    id="profile-academic-term"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                  <Select
                     value={academicTerm}
-                    onChange={(event) => setAcademicTerm(event.target.value)}
+                    onValueChange={setAcademicTerm}
                     disabled={isSavingAcademic}
                   >
-                    <option value="">Select your academic term</option>
+                    <SelectTrigger id="profile-academic-term">
+                      <SelectValue placeholder="Select your academic term" />
+                    </SelectTrigger>
+                    <SelectContent>
                     {Object.values(ACADEMIC_TERMS).map((term) => (
-                      <option key={term} value={term}>
+                      <SelectItem key={term} value={term}>
                         {term}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2">
                   <Label>Academic Year</Label>
                   <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                     {selectedSection?.academicYear || '—'}
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Active Capstone Track</Label>
+                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                    {selectedCapstoneMeta?.courseTitle
+                      ? `${selectedCapstoneMeta.courseTitle} (${selectedCapstoneMeta.curriculumLabel})`
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Multi-Semester Capstone 1–3 Progression Overview */}
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">
+                    BukSU Multi-Semester Capstone Progression
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    Each Capstone course has its own Semester &amp; Section Code (e.g. T65)
+                  </span>
+                </div>
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  {[1, 2, 3].map((courseNum) => {
+                    const track = CAPSTONE_CURRICULUM_MAP[courseNum];
+                    const enrolled = teamEnrollments.find(
+                      (enr) => Number(enr.capstoneCourse) === courseNum,
+                    );
+                    const isActiveCourse =
+                      Number(selectedCapstoneMeta?.capstoneCourse) === courseNum;
+                    return (
+                      <div
+                        key={courseNum}
+                        className={`rounded-md border p-2.5 text-xs ${
+                          isActiveCourse
+                            ? 'border-primary/50 bg-primary/5'
+                            : 'border-border/60 bg-background'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-semibold text-foreground">{track.courseTitle}</span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                            {enrolled?.sectionCode ||
+                              (isActiveCourse ? selectedSectionTCode || 'Active' : 'Upcoming')}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {track.curriculumLabel}
+                        </p>
+                        {(enrolled?.sectionName || (isActiveCourse && selectedSectionBlock)) && (
+                          <p className="mt-0.5 text-[11px] font-medium text-foreground/80">
+                            Block:{' '}
+                            {enrolled?.sectionName
+                              ? formatCanonicalSectionName(enrolled.sectionName)
+                              : selectedSectionBlock}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Instructor */}
               <div className="space-y-2">
                 <Label htmlFor="profile-instructor">Instructor *</Label>
-                <select
-                  id="profile-instructor"
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                <Select
                   value={instructorId}
-                  onChange={(e) => setInstructorId(e.target.value)}
+                  onValueChange={setInstructorId}
                   disabled={instructorsLoading || isSavingAcademic}
                 >
-                  <option value="">
-                    {instructorsLoading || instructorsFetching
-                      ? 'Loading...'
-                      : 'Select your instructor'}
-                  </option>
+                  <SelectTrigger id="profile-instructor" aria-invalid={Boolean(instructorsError)}>
+                    <SelectValue
+                      placeholder={
+                        instructorsLoading || instructorsFetching
+                          ? 'Loading...'
+                          : 'Select your instructor'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
                   {instructors.map((ins) => (
-                    <option key={ins._id} value={ins._id}>
+                    <SelectItem key={ins._id} value={ins._id}>
                       {[ins.firstName, ins.middleName, ins.lastName].filter(Boolean).join(' ')}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                  </SelectContent>
+                </Select>
                 {instructorsError && (
                   <Alert variant="destructive" className="mt-2">
                     <AlertDescription className="flex items-center justify-between gap-3">
@@ -636,7 +752,7 @@ export default function ProfilePage() {
                         disabled={instructorsFetching || isSavingAcademic}
                       >
                         {instructorsFetching && (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="size-3.5" />
                         )}
                         Retry
                       </Button>
@@ -656,9 +772,8 @@ export default function ProfilePage() {
             </CardContent>
             <CardFooter className="flex-col items-start gap-3">
               {academicSaveSuccess && (
-                <Alert variant="default" className="border-green-500/50 bg-green-500/10">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700 dark:text-green-400">
+                <Alert variant="success">
+                  <AlertDescription>
                     Academic info saved successfully.
                   </AlertDescription>
                 </Alert>
@@ -670,6 +785,8 @@ export default function ProfilePage() {
               )}
               <Button
                 onClick={handleSaveAcademic}
+                loading={isSavingAcademic}
+                loadingText="Saving..."
                 disabled={
                   isSavingAcademic ||
                   !studentId.trim() ||
@@ -678,7 +795,6 @@ export default function ProfilePage() {
                   !instructorId
                 }
               >
-                {isSavingAcademic && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Academic Info
               </Button>
             </CardFooter>

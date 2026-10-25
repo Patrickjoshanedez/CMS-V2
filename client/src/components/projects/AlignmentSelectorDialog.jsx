@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Search, Check, Layers, Globe, CheckCircle2, Sparkles } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { X, Search, Layers, Globe, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { cn } from '@/lib/utils';
 import { IT_DISCIPLINES, SDG_GOALS } from '@cms/shared';
 
@@ -19,7 +28,6 @@ export function AlignmentSelectorDialog({
   selectedItems = [],
   proposalIndex = 0,
   onSave,
-  portal = true,
 }) {
   const [activeType, setActiveType] = useState(type);
   const [tempSelection, setTempSelection] = useState([]);
@@ -93,55 +101,53 @@ export function AlignmentSelectorDialog({
 
   if (!open) return null;
 
-  const modalContent = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="alignment-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
-    >
-      <div className="fixed inset-0" onClick={() => onOpenChange(false)} aria-hidden="true" />
-
-      <Card className="relative z-10 w-full max-w-2xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-xl animate-in zoom-in-95 duration-200">
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-h-[90vh] max-w-2xl flex flex-col gap-0 overflow-hidden p-0 sm:rounded-xl"
+        showClose={false}
+      >
         {/* Modal Header */}
-        <div className="shrink-0 flex items-center justify-between border-b border-border/60 p-4 bg-muted/20">
+        <DialogHeader className="shrink-0 flex-row items-center justify-between border-b border-border/60 bg-muted/20 p-4">
           <div className="flex items-center gap-2.5">
             <div className="rounded-lg bg-primary/10 p-2 text-primary border border-primary/20">
               {isDisciplineMode ? <Layers className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="alignment-modal-title" className="text-base font-semibold text-foreground">
+                <DialogTitle className="text-base font-semibold text-foreground">
                   {isDisciplineMode ? 'Select IT Fields of Discipline' : 'Select Target UN SDGs'}
-                </h2>
-                <Badge variant="secondary" className="text-[10px]">
+                </DialogTitle>
+                <Badge variant="secondary" className="shrink-0 whitespace-nowrap text-[10px]">
                   Proposal {proposalIndex + 1}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <DialogDescription className="mt-0.5 text-xs">
                 {isDisciplineMode
                   ? 'Select one or more specializations aligned with your capstone title proposal (1–10 max).'
                   : 'Select one or more UN 2030 Sustainable Development Goals aligned with your project (1–10 max).'}
-              </p>
+              </DialogDescription>
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => onOpenChange(false)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             aria-label="Close dialog"
           >
             <X className="h-4 w-4" />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         {/* Search & Domain Filter Toolbar */}
         <div className="shrink-0 p-3.5 border-b border-border/50 bg-muted/10 space-y-2.5">
           <div className="relative flex items-center">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
+            <Input
               type="text"
+              aria-label={isDisciplineMode ? 'Search IT disciplines' : 'Search UN SDGs'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={
@@ -149,38 +155,43 @@ export function AlignmentSelectorDialog({
                   ? 'Search 18+ disciplines by keyword, domain, or description...'
                   : 'Search 17 UN SDGs by number, title, or keywords...'
               }
-              className="h-9 w-full rounded-lg bg-background pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground border border-input focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs"
+              className="h-9 rounded-lg pl-9 pr-8 text-xs"
             />
             {searchTerm && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
 
           {isDisciplineMode && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            <div
+              role="group"
+              aria-label="Filter disciplines by domain"
+              className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]"
+            >
               <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider shrink-0 mr-1">
                 Domain:
               </span>
               {uniqueDomains.map((domain) => (
-                <button
+                <Button
                   key={domain}
                   type="button"
+                  variant={selectedDomain === domain ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setSelectedDomain(domain)}
-                  className={cn(
-                    'px-2 py-0.5 rounded-md font-medium text-[10.5px] whitespace-nowrap transition-colors border',
-                    selectedDomain === domain
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-muted-foreground border-border/70 hover:text-foreground hover:bg-muted/60',
-                  )}
+                  aria-pressed={selectedDomain === domain}
+                  className="h-7 shrink-0 whitespace-nowrap px-2 text-[10.5px] font-medium"
                 >
                   {domain}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -196,31 +207,26 @@ export function AlignmentSelectorDialog({
             ) : (
               filteredDisciplines.map((item) => {
                 const isChecked = tempSelection.includes(item.name);
+                const checkboxId = `discipline-${item.id}`;
 
                 return (
                   <div
                     key={item.id}
-                    onClick={() => toggleItem(item.name)}
                     className={cn(
-                      'group relative flex items-start gap-3 rounded-lg border p-3 cursor-pointer select-none transition-all',
+                      'group relative flex items-start gap-3 rounded-lg border p-3 transition-all',
                       isChecked
                         ? 'border-primary/50 bg-primary/5 shadow-2xs'
                         : 'border-border/70 bg-card hover:border-border hover:bg-muted/30',
                     )}
                   >
-                    {/* Custom Checkbox */}
-                    <div
-                      className={cn(
-                        'h-4 w-4 rounded-sm border shrink-0 mt-0.5 flex items-center justify-center transition-colors',
-                        isChecked
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-muted-foreground/40 bg-background group-hover:border-primary/60',
-                      )}
-                    >
-                      {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
-                    </div>
+                    <Checkbox
+                      id={checkboxId}
+                      checked={isChecked}
+                      onCheckedChange={() => toggleItem(item.name)}
+                      className="mt-0.5"
+                    />
 
-                    <div className="min-w-0 flex-1 space-y-1">
+                    <Label htmlFor={checkboxId} className="min-w-0 flex-1 cursor-pointer space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={cn(
@@ -237,10 +243,10 @@ export function AlignmentSelectorDialog({
                           {item.domain}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="text-[11px] font-normal leading-relaxed text-muted-foreground">
                         {item.description}
                       </p>
-                    </div>
+                    </Label>
                   </div>
                 );
               })
@@ -253,49 +259,42 @@ export function AlignmentSelectorDialog({
             filteredSdgs.map((goal) => {
               const formattedTag = `SDG ${goal.id}: ${goal.name}`;
               const isChecked = tempSelection.includes(formattedTag);
+              const checkboxId = `sdg-${goal.id}`;
 
               return (
                 <div
                   key={goal.id}
-                  onClick={() => toggleItem(formattedTag)}
                   className={cn(
-                    'group relative flex items-center gap-3 rounded-lg border p-2.5 cursor-pointer select-none transition-all',
+                    'group relative flex items-center gap-3 rounded-lg border p-2.5 transition-all',
                     isChecked
                       ? 'border-primary/50 bg-primary/5 shadow-2xs'
                       : 'border-border/70 bg-card hover:border-border hover:bg-muted/30',
                   )}
                 >
-                  {/* Custom Checkbox */}
-                  <div
-                    className={cn(
-                      'h-4 w-4 rounded-sm border shrink-0 flex items-center justify-center transition-colors',
-                      isChecked
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-muted-foreground/40 bg-background group-hover:border-primary/60',
-                    )}
+                  <Checkbox
+                    id={checkboxId}
+                    checked={isChecked}
+                    onCheckedChange={() => toggleItem(formattedTag)}
+                  />
+                  <Label
+                    htmlFor={checkboxId}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
                   >
-                    {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
-                  </div>
-
-                  <span
-                    className={cn(
-                      'shrink-0 rounded font-mono font-bold px-1.5 py-0.5 text-[10px] border',
-                      isChecked
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-muted/80 text-foreground border-border/80 group-hover:border-primary/40',
-                    )}
-                  >
-                    SDG {goal.id}
-                  </span>
-
-                  <span
-                    className={cn(
-                      'text-xs flex-1 truncate font-medium',
-                      isChecked ? 'text-foreground font-semibold' : 'text-foreground/90',
-                    )}
-                  >
-                    {goal.name}
-                  </span>
+                    <Badge
+                      variant={isChecked ? 'default' : 'secondary'}
+                      className="shrink-0 rounded font-mono px-1.5 py-0.5 text-[10px]"
+                    >
+                      SDG {goal.id}
+                    </Badge>
+                    <span
+                      className={cn(
+                        'truncate text-xs',
+                        isChecked ? 'font-semibold' : 'font-medium',
+                      )}
+                    >
+                      {goal.name}
+                    </span>
+                  </Label>
                 </div>
               );
             })
@@ -303,18 +302,27 @@ export function AlignmentSelectorDialog({
         </div>
 
         {/* Modal Footer */}
-        <div className="shrink-0 flex items-center justify-between border-t border-border/60 p-3.5 bg-muted/20">
+        <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between border-t border-border/60 bg-muted/20 p-3.5 sm:space-x-0">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-medium text-foreground">Selected: {tempSelection.length}</span>
+            <span
+              className="font-medium text-foreground"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              Selected: {tempSelection.length}
+            </span>
             <span className="text-muted-foreground">(Max 10 per proposal)</span>
             {tempSelection.length > 0 && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={handleClear}
-                className="text-[11px] text-destructive hover:underline ml-1"
+                className="ml-1 h-7 px-2 text-[11px] text-destructive"
               >
                 Clear
-              </button>
+              </Button>
             )}
           </div>
 
@@ -332,22 +340,16 @@ export function AlignmentSelectorDialog({
               type="button"
               size="sm"
               onClick={handleSave}
-              className="text-xs h-8 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 shadow-xs"
+              className="h-8 gap-1.5 px-3.5 text-xs shadow-xs"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Apply Selection ({tempSelection.length})
             </Button>
           </div>
-        </div>
-      </Card>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  if (!portal || typeof document === 'undefined') {
-    return modalContent;
-  }
-
-  return createPortal(modalContent, document.body);
 }
 
 AlignmentSelectorDialog.propTypes = {
@@ -357,7 +359,6 @@ AlignmentSelectorDialog.propTypes = {
   selectedItems: PropTypes.arrayOf(PropTypes.string),
   proposalIndex: PropTypes.number,
   onSave: PropTypes.func,
-  portal: PropTypes.bool,
 };
 
 export default AlignmentSelectorDialog;

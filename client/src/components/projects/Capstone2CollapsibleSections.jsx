@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import InteractiveGanttChart from './InteractiveGanttChart';
 import PrototypeShowcaseAndDemo from './PrototypeShowcaseAndDemo';
@@ -61,15 +62,16 @@ export default function Capstone2CollapsibleSections({
           openSections.gantt && 'ring-1 ring-primary/20',
         )}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => toggleSection('gantt')}
-          className="w-full text-left p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors focus-visible:outline-none"
+          className="h-auto min-h-11 w-full min-w-0 justify-between whitespace-normal rounded-none p-4 text-left hover:bg-muted/30 sm:p-4.5"
           aria-expanded={openSections.gantt}
           data-testid="toggle-gantt-section"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold shrink-0">
               <LineChart className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
@@ -104,7 +106,7 @@ export default function Capstone2CollapsibleSections({
               <ChevronDown className="h-4 w-4" />
             </div>
           </div>
-        </button>
+        </Button>
 
         {openSections.gantt && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-6 animate-in fade-in duration-200">
@@ -139,10 +141,11 @@ export default function Capstone2CollapsibleSections({
           openSections.adm && 'ring-1 ring-primary/20',
         )}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => toggleSection('adm')}
-          className="w-full text-left p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors focus-visible:outline-none no-print"
+          className="h-auto min-h-11 w-full min-w-0 justify-between whitespace-normal rounded-none p-4 text-left hover:bg-muted/30 no-print sm:p-4.5"
           aria-expanded={openSections.adm}
           data-testid="toggle-adm-section"
         >
@@ -162,12 +165,12 @@ export default function Capstone2CollapsibleSections({
                   {admStatus.total} Items
                 </Badge>
                 {isAdmApproved ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold gap-1">
+                  <Badge variant="success" className="text-[10px] font-semibold gap-1">
                     <CheckCircle2 className="h-3 w-3" />
                     Ratified
                   </Badge>
                 ) : isSecretaryEndorsed ? (
-                  <Badge className="bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30 text-[10px] font-semibold gap-1">
+                  <Badge variant="info" className="text-[10px] font-semibold gap-1">
                     <ShieldCheck className="h-3 w-3" />
                     Secretary Endorsed
                   </Badge>
@@ -200,7 +203,7 @@ export default function Capstone2CollapsibleSections({
               <ChevronDown className="h-4 w-4" />
             </div>
           </div>
-        </button>
+        </Button>
 
         {openSections.adm && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 animate-in fade-in duration-200">
@@ -227,15 +230,16 @@ export default function Capstone2CollapsibleSections({
           openSections.evaluation && 'ring-1 ring-primary/20',
         )}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => toggleSection('evaluation')}
-          className="w-full text-left p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors focus-visible:outline-none"
+          className="h-auto min-h-11 w-full min-w-0 justify-between whitespace-normal rounded-none p-4 text-left hover:bg-muted/30 sm:p-4.5"
           aria-expanded={openSections.evaluation}
           data-testid="toggle-evaluation-section"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning/10 text-warning font-bold shrink-0">
               <Award className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
@@ -269,7 +273,7 @@ export default function Capstone2CollapsibleSections({
               <ChevronDown className="h-4 w-4" />
             </div>
           </div>
-        </button>
+        </Button>
 
         {openSections.evaluation && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 animate-in fade-in duration-200">

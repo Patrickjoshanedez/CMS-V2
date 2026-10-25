@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -154,6 +155,18 @@ describe('ReportsPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    if (!HTMLElement.prototype.hasPointerCapture) {
+      HTMLElement.prototype.hasPointerCapture = () => false;
+    }
+    if (!HTMLElement.prototype.setPointerCapture) {
+      HTMLElement.prototype.setPointerCapture = () => {};
+    }
+    if (!HTMLElement.prototype.releasePointerCapture) {
+      HTMLElement.prototype.releasePointerCapture = () => {};
+    }
+    if (!HTMLElement.prototype.scrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = () => {};
+    }
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -379,9 +392,9 @@ describe('ReportsPage', () => {
       filterBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(container.textContent).toContain('Advanced Query Studio');
-    expect(container.textContent).toContain('Project Title Query');
-    expect(container.textContent).toContain('Degree Program');
+    expect(document.body.textContent).toContain('Advanced Query Studio');
+    expect(document.body.textContent).toContain('Project Title Query');
+    expect(document.body.textContent).toContain('Degree Program');
   });
 
   it('renders skeleton placeholders in CohortKPIRibbon when loading is active', async () => {
@@ -398,7 +411,9 @@ describe('ReportsPage', () => {
 
     const kpiRibbon = container.querySelector('[data-testid="cohort-kpi-ribbon"]');
     expect(kpiRibbon).toBeTruthy();
-    const skeletons = kpiRibbon.querySelectorAll('.cms-skeleton-shimmer');
+    const skeletons = Array.from(kpiRibbon.querySelectorAll('[aria-hidden="true"]')).filter(
+      (element) => element.getAttribute('class')?.includes('animate-pulse'),
+    );
     expect(skeletons.length).toBeGreaterThanOrEqual(4);
     expect(kpiRibbon.textContent).not.toContain('...');
   });
@@ -468,5 +483,70 @@ describe('ReportsPage', () => {
     // Asserts singular "1 record" is used instead of "1 records"
     expect(container.textContent).toContain('Showing 1 to 1 of 1 record');
     expect(container.textContent).not.toContain('1 records');
+  });
+
+  it('provides an accessible shared rows-per-page selector and resets pagination on selection', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const selector = screen.getByRole('combobox', { name: 'Rows per page:' });
+    expect(selector).toBeTruthy();
+    await act(async () => {
+      fireEvent.pointerDown(selector, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    });
+    const option = await screen.findByRole('option', { name: '20' });
+    await act(async () => {
+      fireEvent.click(option);
+    });
+
+    expect(mockUseProjectReports.mock.calls.some(([filters]) => filters.limit === 20)).toBe(true);
+  });
+
+  it('renders report audit warnings as semantic warning alerts', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: {
+        ...mockReportData,
+        auditWarnings: [
+          {
+            id: 'audit-check',
+            badge: 'Roster check',
+            message: 'Review the archived roster count.',
+          },
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Roster check');
+    expect(alert.textContent).toContain('Review the archived roster count.');
+    expect(alert.className).toContain('bg-warning/10');
+  });
+
+  it('offers a retry action when report loading fails', async () => {
+    const refetch = vi.fn();
+    mockUseProjectReports.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('Reports could not be loaded.'),
+      refetch,
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(screen.getByRole('alert').textContent).toContain('Reports could not be loaded.');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    });
+    expect(refetch).toHaveBeenCalledOnce();
   });
 });

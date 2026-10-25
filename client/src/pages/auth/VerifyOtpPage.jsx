@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import { useAuthStore } from '@/stores/authStore';
+import { Input } from '@/components/ui/Input';
+import { Spinner } from '@/components/ui/Spinner';
+import { Button } from '@/components/ui/Button';
 
 const OTP_LENGTH = 6;
 
@@ -139,29 +141,40 @@ export default function VerifyOtpPage() {
       <AuthStatusAlert message={successMessage} variant="success" />
 
       {/* OTP input grid */}
-      <div className="auth-item flex justify-center gap-3">
-        {otp.map((digit, index) => (
-          <input
-            key={index}
-            ref={(el) => (inputRefs.current[index] = el)}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleChange(index, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(index, e)}
-            onPaste={index === 0 ? handlePaste : undefined}
-            className="h-14 w-14 rounded-lg border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            disabled={loading}
-            autoComplete="one-time-code"
-          />
-        ))}
-      </div>
+      <fieldset className="auth-item">
+        <legend className="mb-3 w-full text-center text-xs font-medium text-muted-foreground">
+          Enter the 6-digit verification code *
+        </legend>
+        <div className="flex justify-center gap-2 sm:gap-3">
+          {otp.map((digit, index) => (
+            <Input
+              key={index}
+              ref={(el) => (inputRefs.current[index] = el)}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              aria-label={`Verification code digit ${index + 1} of ${OTP_LENGTH}`}
+              aria-required="true"
+              onChange={(e) => handleChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              onPaste={index === 0 ? handlePaste : undefined}
+              className="h-12 w-11 rounded-md text-center text-lg font-semibold sm:h-14 sm:w-14"
+              disabled={loading}
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
+            />
+          ))}
+        </div>
+      </fieldset>
 
       {/* Loading indicator */}
       {loading && (
-        <div className="auth-item mt-4 flex items-center justify-center text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <div
+          className="auth-item mt-4 flex items-center justify-center text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <Spinner className="mr-2 size-4" />
           Verifying…
         </div>
       )}
@@ -170,14 +183,15 @@ export default function VerifyOtpPage() {
       <div className="auth-item mt-6 text-center">
         <p className="text-sm text-muted-foreground">
           Didn&apos;t receive the code?{' '}
-          <button
+          <Button
             type="button"
             onClick={handleResend}
             disabled={resendCooldown > 0 || loading}
-            className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            variant="link"
+            className="h-auto min-h-0 min-w-0 px-0 py-0 align-baseline font-medium"
           >
             {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend'}
-          </button>
+          </Button>
         </p>
       </div>
     </AuthLayout>

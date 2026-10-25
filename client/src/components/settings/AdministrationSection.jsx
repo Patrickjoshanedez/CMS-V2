@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
   Settings2,
-  Loader2,
   AlertTriangle,
   Calendar,
   FileSpreadsheet,
@@ -14,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
 import { useUpdateManuscriptTemplate } from '@/hooks/useTeams';
 import { SettingSection } from './SettingsShared';
@@ -279,7 +279,7 @@ export default function AdministrationSection() {
         badge="Instructor"
       >
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Spinner className="size-6 text-muted-foreground" />
         </div>
       </SettingSection>
     );
@@ -510,14 +510,11 @@ export default function AdministrationSection() {
                 type="button"
                 size="sm"
                 onClick={handleSaveTemplates}
-                disabled={isSavingTemplates}
-                className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                loading={isSavingTemplates}
+                loadingText="Saving document templates..."
+                className="h-8 text-xs gap-1.5"
               >
-                {isSavingTemplates ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
+                <Save className="h-3.5 w-3.5" />
                 Save Document Templates
               </Button>
             </div>
@@ -529,8 +526,11 @@ export default function AdministrationSection() {
             <Button type="button" variant="outline" onClick={handleReset}>
               Discard Changes
             </Button>
-            <Button type="submit" disabled={updateSettings.isPending}>
-              {updateSettings.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button
+              type="submit"
+              loading={updateSettings.isPending}
+              loadingText="Saving settings..."
+            >
               Save System Settings
             </Button>
           </div>

@@ -21,14 +21,17 @@ import { ROLES } from '@cms/shared';
 import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { cn } from '@/lib/utils';
 import {
   Search,
   ChevronDown,
   ChevronRight,
   Play,
-  Sparkles,
-  Loader2,
   FileText,
   Brain,
   ExternalLink,
@@ -36,7 +39,6 @@ import {
   CheckCircle2,
   RotateCcw,
   Zap,
-  ShieldCheck,
   Database,
 } from 'lucide-react';
 import { buildTopSourceColorMap } from '../../hooks/useSubmissions';
@@ -136,10 +138,10 @@ const toSourceKey = (source = {}, fallbackIndex = 0) => {
  * @returns {string}
  */
 const getSimilarityColor = (percentage) => {
-  if (percentage < 15) return 'text-emerald-600 dark:text-emerald-400'; // Low similarity
-  if (percentage < 30) return 'text-amber-600 dark:text-amber-400'; // Medium
-  if (percentage < 50) return 'text-orange-600 dark:text-orange-400'; // High
-  return 'text-destructive'; // Very high
+  if (percentage < 15) return 'text-success-foreground'; // Low similarity
+  if (percentage < 30) return 'text-warning-foreground'; // Medium
+  if (percentage < 50) return 'text-chart-6'; // High
+  return 'text-destructive-text'; // Very high
 };
 
 /**
@@ -148,12 +150,9 @@ const getSimilarityColor = (percentage) => {
  * @returns {string}
  */
 const getSimilarityBg = (percentage) => {
-  if (percentage < 15)
-    return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-950 dark:text-emerald-200';
-  if (percentage < 30)
-    return 'bg-amber-500/10 border-amber-500/20 text-amber-950 dark:text-amber-200';
-  if (percentage < 50)
-    return 'bg-orange-500/10 border-orange-500/20 text-orange-950 dark:text-orange-200';
+  if (percentage < 15) return 'bg-success/10 border-success/25 text-success-foreground';
+  if (percentage < 30) return 'bg-warning/10 border-warning/30 text-warning-foreground';
+  if (percentage < 50) return 'bg-chart-6/10 border-chart-6/25 text-foreground';
   return 'bg-destructive/10 border-destructive/20 text-destructive-foreground';
 };
 
@@ -325,7 +324,15 @@ const PlagiarismChecker = ({
       }
       onCheckComplete?.(plagiarismResult);
     }
-  }, [status, plagiarismResult, onCheckComplete, startPolling, stopPolling]);
+  }, [
+    status,
+    plagiarismResult,
+    onCheckComplete,
+    startPolling,
+    stopPolling,
+    submissionId,
+    submissionTitle,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -449,7 +456,7 @@ const PlagiarismChecker = ({
   }, [removeFromCorpus]);
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-5 mb-6 shadow-xs text-card-foreground">
+    <Card className="rounded-xl p-5 mb-6 shadow-xs text-card-foreground">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -495,7 +502,12 @@ const PlagiarismChecker = ({
 
       {/* Collapsed Summary */}
       {!isExpanded && hasResult && (
-        <div className={cn('p-3 rounded-lg border text-sm', getSimilarityBg(similarityPercentage))}>
+        <Card
+          className={cn(
+            'rounded-lg p-3 text-sm shadow-none',
+            getSimilarityBg(similarityPercentage),
+          )}
+        >
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm font-medium">
               Originality: <strong>{originalityScore?.toFixed(1) ?? '—'}%</strong>
@@ -504,21 +516,21 @@ const PlagiarismChecker = ({
               </span>
             </p>
             {warningFlag && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-destructive">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-destructive-text">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Warning: High Similarity
               </span>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {!isExpanded && hasFailed && (
-        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive-foreground">
-          <p className="text-sm">
+        <Alert variant="destructive" className="p-3 pl-10">
+          <AlertDescription className="text-sm">
             Plagiarism check failed: <strong>{failureMessage}</strong>
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Expanded View */}
@@ -535,7 +547,7 @@ const PlagiarismChecker = ({
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner className="h-4 w-4" aria-hidden="true" />
                     <span>Checking Manuscript...</span>
                   </>
                 ) : hasFailed ? (
@@ -556,14 +568,14 @@ const PlagiarismChecker = ({
                 variant="outline"
                 onClick={handleSettleWithMock}
                 disabled={disabled || isChecking || !canSettleWithMock}
-                className="w-full gap-2 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                className="w-full gap-2 border-warning/30 text-warning-foreground hover:bg-warning/10"
                 title={
                   canSettleWithMock
                     ? 'Settle now using a temporary mock originality score'
                     : 'Only advisers/instructors can settle with mock score'
                 }
               >
-                <Zap className="h-4 w-4 text-amber-500" />
+                <Zap className="h-4 w-4 text-warning" />
                 <span>Settle With Mock Score</span>
               </Button>
             </div>
@@ -571,218 +583,218 @@ const PlagiarismChecker = ({
 
           {/* Processing State (Quiet Micro-Indicator) */}
           {isProcessing && (
-            <div className="flex items-center gap-3 p-3.5 rounded-lg bg-primary/5 border border-primary/20 text-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-              <p className="text-xs sm:text-sm text-muted-foreground">
+            <Alert variant="info" className="flex items-center gap-3 p-3.5 pl-10 text-foreground">
+              <Spinner className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <AlertDescription className="text-xs sm:text-sm text-muted-foreground">
                 {status === 'queued'
                   ? 'Plagiarism check queued. Waiting for worker assignment...'
                   : 'Analyzing submission with Winnowing n-grams and dense vector embeddings...'}
-              </p>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Failed State */}
           {hasFailed && (
-            <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground">
-              <p className="text-sm font-semibold">Plagiarism check failed</p>
-              <p className="text-xs text-muted-foreground mt-1">{failureMessage}</p>
-            </div>
+            <Alert variant="destructive" className="p-3.5 pl-10">
+              <AlertTitle className="text-sm font-semibold">Plagiarism check failed</AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground">
+                {failureMessage}
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Template Resources Banner */}
           {(proposalTemplateUrl || admTemplateUrl) && (
-            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+            <Card className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 p-2.5 shadow-none">
               <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <FileText className="h-3.5 w-3.5 text-primary" />
                 <span>Department Document Templates:</span>
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {proposalTemplateUrl && (
-                  <a
-                    href={proposalTemplateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline bg-background px-2 py-1 rounded border border-border/70"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="min-h-[44px] gap-1 text-xs"
                   >
-                    <span>Proposal Manuscript Template</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                    <a href={proposalTemplateUrl} target="_blank" rel="noopener noreferrer">
+                      <span>Proposal Manuscript Template</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </Button>
                 )}
                 {admTemplateUrl && (
-                  <a
-                    href={admTemplateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline bg-background px-2 py-1 rounded border border-border/70"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="min-h-[44px] gap-1 text-xs"
                   >
-                    <span>Action Done Matrix (ADM)</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                    <a href={admTemplateUrl} target="_blank" rel="noopener noreferrer">
+                      <span>Action Done Matrix (ADM)</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </Button>
                 )}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Dual-Pipeline Tabs: Exact Similarity (Winnowing) vs Semantic Plagiarism (PyTorch) */}
           {hasResult && (
-            <div className="flex border-b border-border/70 mb-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab('similarity')}
-                className={cn(
-                  'flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition-colors',
-                  activeTab === 'similarity'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <FileText className="h-3.5 w-3.5" />
-                <span>Exact Text Similarity (Winnowing)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('plagiarism')}
-                className={cn(
-                  'flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition-colors',
-                  activeTab === 'plagiarism'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Brain className="h-3.5 w-3.5" />
-                <span>Semantic Plagiarism (Vector Embeddings)</span>
-              </button>
-            </div>
-          )}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+              <TabsList className="h-auto w-full flex-wrap justify-start overflow-visible rounded-none border-b border-border/70 bg-transparent p-0">
+                <TabsTrigger
+                  value="similarity"
+                  className="min-h-[44px] min-w-0 flex-1 whitespace-normal rounded-none px-2 text-center text-xs"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Exact Text Similarity (Winnowing)</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="plagiarism"
+                  className="min-h-[44px] min-w-0 flex-1 whitespace-normal rounded-none px-2 text-center text-xs"
+                >
+                  <Brain className="h-3.5 w-3.5" />
+                  <span>Semantic Plagiarism (Vector Embeddings)</span>
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Result Display */}
-          {hasResult && (
-            <div className={cn('p-4 rounded-xl border', getSimilarityBg(similarityPercentage))}>
-              {/* Similarity Percentage */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    {activeTab === 'similarity'
-                      ? 'Exact Text Overlap Index'
-                      : 'Semantic Neural Originality Score'}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-2xl font-bold tracking-tight',
-                      getSimilarityColor(similarityPercentage),
-                    )}
-                  >
-                    {originalityScore?.toFixed(1) ?? '—'}%
-                  </span>
-                </div>
-
-                <p className="text-xs text-muted-foreground font-medium mb-2">
-                  {activeTab === 'similarity'
-                    ? `Syntactic exact text overlap: ${similarityPercentage.toFixed(1)}% (Threshold: ${plagiarismWarningThreshold}%)`
-                    : `Dense vector cosine similarity: ${similarityPercentage.toFixed(1)}% (Reject cutoff: ${plagiarismRejectThreshold}%)`}
-                </p>
-
-                {/* Progress Bar (Subtle & Slim) */}
-                <div className="w-full bg-muted/60 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={cn(
-                      'h-full transition-all duration-300',
-                      similarityPercentage < 15
-                        ? 'bg-emerald-500'
-                        : similarityPercentage < 30
-                          ? 'bg-amber-500'
-                          : similarityPercentage < 50
-                            ? 'bg-orange-500'
-                            : 'bg-destructive',
-                    )}
-                    style={{ width: `${Math.min(similarityPercentage, 100)}%` }}
-                  />
-                </div>
-
-                {/* Guideline Text */}
-                <div className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1.5">
-                  {similarityPercentage < 15 && (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Low similarity — conforms to institutional originality standards</span>
-                    </>
+              {/* Result Display */}
+              <TabsContent value={activeTab} className="!mt-0 !space-y-0">
+                <Card
+                  className={cn(
+                    'rounded-xl p-4 shadow-none',
+                    getSimilarityBg(similarityPercentage),
                   )}
-                  {similarityPercentage >= 15 && similarityPercentage < 30 && (
-                    <>
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Moderate similarity — adviser / panel review suggested</span>
-                    </>
-                  )}
-                  {similarityPercentage >= 30 && similarityPercentage < 50 && (
-                    <>
-                      <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
-                      <span>High similarity — careful manuscript inspection needed</span>
-                    </>
-                  )}
-                  {similarityPercentage >= 50 && (
-                    <>
-                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                      <span>Very high similarity — potential plagiarism detected</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Warning Flag */}
-              {warningFlag && (
-                <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg mb-4 flex items-start gap-2.5">
-                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-destructive">
-                      High Plagiarism Risk Detected
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      This submission exceeds the acceptable similarity threshold and may require
-                      rejection or revision request.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {colorizedMatches.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {colorizedMatches.slice(0, 5).map((match) => (
-                    <span
-                      key={`chip-${match.sourceKey}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-0.5 text-xs text-card-foreground shadow-2xs"
-                    >
+                >
+                  {/* Similarity Percentage */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        {activeTab === 'similarity'
+                          ? 'Exact Text Overlap Index'
+                          : 'Semantic Neural Originality Score'}
+                      </span>
                       <span
                         className={cn(
-                          'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold',
-                          match.badgeClass,
+                          'text-2xl font-bold tracking-tight',
+                          getSimilarityColor(similarityPercentage),
                         )}
                       >
-                        {match.sourceNumber}
+                        {originalityScore?.toFixed(1) ?? '—'}%
                       </span>
-                      <span className="max-w-[10rem] truncate">{match.title}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
+                    </div>
 
-              {/* Checked At */}
-              {checkedAt && (
-                <p className="text-xs text-muted-foreground">
-                  Checked on {new Date(checkedAt).toLocaleString()}
-                </p>
-              )}
+                    <p className="text-xs text-muted-foreground font-medium mb-2">
+                      {activeTab === 'similarity'
+                        ? `Syntactic exact text overlap: ${similarityPercentage.toFixed(1)}% (Threshold: ${plagiarismWarningThreshold}%)`
+                        : `Dense vector cosine similarity: ${similarityPercentage.toFixed(1)}% (Reject cutoff: ${plagiarismRejectThreshold}%)`}
+                    </p>
 
-              {isMockResult && (
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-2">
-                  This result was generated in mock mode for temporary review unblock.
-                </p>
-              )}
-            </div>
+                    {/* Progress Bar (Subtle & Slim) */}
+                    <Progress
+                      value={similarityPercentage}
+                      max={100}
+                      aria-label="Similarity percentage"
+                      className="h-1.5 bg-muted/60"
+                      indicatorClassName={cn(
+                        similarityPercentage < 15
+                          ? 'bg-success'
+                          : similarityPercentage < 30
+                            ? 'bg-warning'
+                            : similarityPercentage < 50
+                              ? 'bg-chart-6'
+                              : 'bg-destructive',
+                      )}
+                    />
+
+                    {/* Guideline Text */}
+                    <div className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1.5">
+                      {similarityPercentage < 15 && (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          <span>
+                            Low similarity — conforms to institutional originality standards
+                          </span>
+                        </>
+                      )}
+                      {similarityPercentage >= 15 && similarityPercentage < 30 && (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                          <span>Moderate similarity — adviser / panel review suggested</span>
+                        </>
+                      )}
+                      {similarityPercentage >= 30 && similarityPercentage < 50 && (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 text-chart-6" />
+                          <span>High similarity — careful manuscript inspection needed</span>
+                        </>
+                      )}
+                      {similarityPercentage >= 50 && (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                          <span>Very high similarity — potential plagiarism detected</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Warning Flag */}
+                  {warningFlag && (
+                    <Alert variant="destructive" className="mb-4 p-3 pl-10">
+                      <AlertTitle className="text-sm font-semibold text-destructive-text">
+                        High Plagiarism Risk Detected
+                      </AlertTitle>
+                      <AlertDescription className="text-xs text-muted-foreground">
+                        This submission exceeds the acceptable similarity threshold and may require
+                        rejection or revision request.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {colorizedMatches.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {colorizedMatches.slice(0, 5).map((match) => (
+                        <span
+                          key={`chip-${match.sourceKey}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-0.5 text-xs text-card-foreground shadow-2xs"
+                        >
+                          <span
+                            className={cn(
+                              'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold',
+                              match.badgeClass,
+                            )}
+                          >
+                            {match.sourceNumber}
+                          </span>
+                          <span className="max-w-[10rem] truncate">{match.title}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Checked At */}
+                  {checkedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Checked on {new Date(checkedAt).toLocaleString()}
+                    </p>
+                  )}
+
+                  {isMockResult && (
+                    <p className="text-xs font-medium text-warning-foreground mt-2">
+                      This result was generated in mock mode for temporary review unblock.
+                    </p>
+                  )}
+                </Card>
+              </TabsContent>
+            </Tabs>
           )}
 
           {/* Faculty Corpus Controls */}
           {canManageCorpus && (
-            <div className="space-y-2.5 p-3.5 rounded-xl border border-border/70 bg-muted/20">
+            <Card className="space-y-2.5 rounded-xl bg-muted/20 p-3.5 shadow-none">
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Corpus Management</p>
@@ -805,7 +817,7 @@ const PlagiarismChecker = ({
                     disabled={corpusActionPending}
                     className="border-destructive/30 text-destructive hover:bg-destructive/10 text-xs"
                   >
-                    {corpusActionPending && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+                    {corpusActionPending && <Spinner className="mr-1.5 h-3 w-3" />}
                     <span>Remove from Corpus</span>
                   </Button>
                 ) : (
@@ -817,7 +829,7 @@ const PlagiarismChecker = ({
                     disabled={corpusActionPending}
                     className="border-primary/30 text-primary hover:bg-primary/10 text-xs"
                   >
-                    {corpusActionPending && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+                    {corpusActionPending && <Spinner className="mr-1.5 h-3 w-3" />}
                     <span>Add to Corpus</span>
                   </Button>
                 )}
@@ -837,7 +849,7 @@ const PlagiarismChecker = ({
               {corpusActionError && (
                 <p className="text-xs font-medium text-destructive">{corpusActionError}</p>
               )}
-            </div>
+            </Card>
           )}
 
           {/* Matched Sources */}
@@ -851,9 +863,9 @@ const PlagiarismChecker = ({
                   const matchSimilarity = Number(match?.similarity ?? 0);
 
                   return (
-                    <div
+                    <Card
                       key={match.id}
-                      className="p-2.5 bg-muted/40 rounded-lg border border-border/60 hover:border-border transition-colors"
+                      className="rounded-lg bg-muted/40 p-2.5 shadow-none hover:border-border"
                     >
                       <div className="flex items-center justify-between mb-1 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -883,7 +895,7 @@ const PlagiarismChecker = ({
                           &quot;{match.excerpt}&quot;
                         </p>
                       )}
-                    </div>
+                    </Card>
                   );
                 })}
               </div>
@@ -895,16 +907,15 @@ const PlagiarismChecker = ({
 
           {/* No Matches Message */}
           {hasResult && matchCount === 0 && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-emerald-950 dark:text-emerald-200">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              <p className="text-xs sm:text-sm font-medium">
+            <Alert variant="success" className="p-3 pl-10">
+              <AlertDescription className="text-xs font-medium sm:text-sm">
                 No plagiarism detected. Submission appears to be original.
-              </p>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 

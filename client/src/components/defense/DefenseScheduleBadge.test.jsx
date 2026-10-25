@@ -41,7 +41,7 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Pending: Sep 18, 2026');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-amber-600');
+    expect(badge?.className).toContain('text-warning-foreground');
     expect(badge?.title).toBe('Defense schedule is pending instructor confirmation.');
     expect(badge?.title).not.toContain('Ready for Defense');
   });
@@ -53,7 +53,7 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Pending Schedule');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-amber-600');
+    expect(badge?.className).toContain('text-warning-foreground');
   });
 
   it('renders green badge with date when scheduled', () => {
@@ -69,7 +69,19 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Scheduled:');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-emerald-600');
+    expect(badge?.className).toContain('text-success-foreground');
+  });
+
+  it('renders a semantic success badge when the defense is completed', () => {
+    act(() => {
+      root.render(
+        <DefenseScheduleBadge
+          defenseSchedule={{ status: 'completed', date: '2026-09-18T09:00:00.000Z' }}
+        />,
+      );
+    });
+    expect(container.textContent).toContain('Defense Concluded: Sep 18, 2026');
+    expect(container.querySelector('span')?.className).toContain('text-success-foreground');
   });
 
   it('renders red badge with date when scheduled date has passed (overdue)', () => {
@@ -82,7 +94,7 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Overdue: Apr 10, 2020');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-rose-600');
+    expect(badge?.className).toContain('text-destructive-foreground');
   });
 
   it('renders red badge when status is redefense', () => {
@@ -95,7 +107,7 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Redefense: Sep 25, 2026');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-rose-600');
+    expect(badge?.className).toContain('text-destructive-foreground');
   });
 
   it('renders red badge when verdict is rejected (redefense required)', () => {
@@ -109,7 +121,7 @@ describe('DefenseScheduleBadge', () => {
     });
     expect(container.textContent).toContain('Redefense: Sep 20, 2026');
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-rose-600');
+    expect(badge?.className).toContain('text-destructive-foreground');
   });
 
   it('returns null when schedule is empty or status is none', () => {

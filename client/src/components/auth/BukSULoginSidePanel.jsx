@@ -1,27 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import {
   Compass,
   ShieldCheck,
   Cpu,
-  Lock,
   GitBranch,
   Layers,
-  FileCheck2,
   Database,
-  ArrowRight,
 } from 'lucide-react';
 import buksuLogo from '@/assets/buksu-logo.png';
-import { useParallax } from '@/hooks/useParallax';
 
 /**
  * BukSULoginSidePanel — Institutional side panel for authentication layouts.
- * Showcases authentic BukSU CMS-V2 System Architecture and Capstone Progression
- * with CodePen-inspired multi-depth 3D parallax tilt, eliminating arbitrary numbers/metrics.
+ * Shows the CMS-V2 academic lifecycle using the shared theme and institutional identity.
  */
 export function BukSULoginSidePanel() {
-  const { ref, coords, getTransform, getStyle } = useParallax({ ease: 0.08 });
-
   const CAPSTONE_STAGES = [
     {
       phase: 'Phase 0-1',
@@ -54,20 +50,11 @@ export function BukSULoginSidePanel() {
   ];
 
   return (
-    <div
-      ref={ref}
-      data-dark-surface="true"
-      className="relative hidden lg:flex flex-col justify-between w-full h-screen max-h-screen sticky top-0 px-8 pt-8 pb-10 xl:px-12 xl:pt-10 xl:pb-12 select-none overflow-hidden"
-      style={{
-        perspective: '1200px',
-      }}
-    >
-      {/* 1. Subtle Parallax Angular Canopy Facet Vectors */}
+    <div className="relative sticky top-0 hidden h-dvh max-h-dvh w-full select-none flex-col justify-between overflow-hidden bg-primary px-8 pb-10 pt-8 text-primary-foreground lg:flex xl:px-12 xl:pb-12 xl:pt-10">
+      {/* Institutional canopy line art */}
       <svg
-        className="absolute right-0 top-1/4 w-[420px] h-[420px] opacity-15 text-[#E5A823] pointer-events-none z-1 transition-transform duration-300 ease-out"
-        style={{
-          transform: `translate3d(${coords.x * -25}px, ${coords.y * -25}px, 0) rotate(${coords.x * 4}deg)`,
-        }}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-0 top-1/4 z-0 h-[420px] w-[420px] text-primary-foreground opacity-10"
         viewBox="0 0 100 100"
         fill="none"
         stroke="currentColor"
@@ -80,130 +67,131 @@ export function BukSULoginSidePanel() {
 
       {/* 2. Top Header & Official BukSU Institutional Seal (Clickable to Landing Page) */}
       <div className="relative z-10 flex-shrink-0">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-3.5 group cursor-pointer hover:opacity-95 transition-all focus:outline-hidden focus:ring-2 focus:ring-[#E5A823]/50 rounded-xl"
-          title="Return to BukSU Capstone Portal Home"
+        <Button
+          asChild
+          variant="ghost"
+          className="group h-auto min-h-11 gap-3.5 rounded-lg p-0 text-left text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-warning"
         >
-          <div className="w-11 h-11 rounded-xl bg-white border border-[#E5A823] p-1 flex items-center justify-center shadow-lg shadow-black/30 group-hover:scale-105 group-hover:border-[#F5C253] transition-all">
-            <img
-              src={buksuLogo}
-              alt="Bukidnon State University Seal"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div>
-            <h2 className="text-xs font-bold tracking-widest text-[#E5A823] group-hover:text-[#F5C253] uppercase transition-colors">
-              Bukidnon State University
-            </h2>
-            <p className="text-[11px] font-sans font-medium tracking-tight text-slate-200 group-hover:text-white transition-colors">
-              College of Technologies · BSIT Capstone Studio
-            </p>
-          </div>
-        </Link>
+          <Link to="/" title="Return to BukSU Capstone Portal Home">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-buksu-gold-500 bg-white p-1 shadow-lg shadow-black/30 transition-transform group-hover:scale-105">
+              <img
+                src={buksuLogo}
+                alt="Bukidnon State University Seal"
+                className="h-full w-full object-contain"
+              />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-bold uppercase tracking-widest text-buksu-gold-400 transition-colors group-hover:text-buksu-gold-300">
+                Bukidnon State University
+              </span>
+              <span className="block text-[11px] font-medium tracking-tight text-primary-foreground/80 transition-colors group-hover:text-primary-foreground">
+                College of Technologies · BSIT Capstone Studio
+              </span>
+            </span>
+          </Link>
+        </Button>
       </div>
 
       {/* 3. Center Narrative & Real System Architecture Stack */}
       <div className="relative z-10 max-w-lg space-y-4 xl:space-y-5 my-auto py-3 xl:py-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#E5A823]/40 bg-[#0B1B3D]/80 backdrop-blur-md text-[#E5A823] text-xs font-medium shadow-sm">
+        <Badge
+          variant="outline"
+          className="gap-2 rounded-full border-primary-foreground/30 px-3 py-1 text-xs font-medium text-primary-foreground"
+        >
           <Compass className="w-3.5 h-3.5" />
           <span>System Architecture & Lifecycle Engine</span>
-        </div>
+        </Badge>
 
-        <h1 className="text-2xl xl:text-3xl font-extrabold text-white tracking-tight leading-snug font-serif">
+        <h1 className="text-2xl font-bold leading-snug tracking-tight text-primary-foreground xl:text-3xl">
           Academic capstone governance from <br />
-          <span className="text-[#F5C253]">title proposal</span> to university archival.
+          <span className="text-buksu-gold-300">title proposal</span> to university archival.
         </h1>
 
-        <p className="text-xs xl:text-sm leading-relaxed font-sans max-w-md text-slate-200">
+        <p className="max-w-md text-xs leading-relaxed text-primary-foreground/80 xl:text-sm">
           Standardized submission lifecycle, dual plagiarism screening, Action Done Matrix (ADM)
           endorsement, and permanent archival under BukSU institutional standards.
         </p>
 
-        {/* 3D Interactive Parallax Architecture Showcase Card */}
-        <div
-          data-dark-surface="true"
-          className="relative rounded-2xl bg-[#071329]/92 border border-slate-700/60 dark:border-white/15 backdrop-blur-xl p-4.5 shadow-2xl transition-transform duration-100 ease-out overflow-hidden group"
-          style={getStyle(18, 9)}
+        {/* Capstone lifecycle overview */}
+        <Card
+          className="relative overflow-hidden rounded-xl border border-primary-foreground/20 bg-primary/80 p-4 text-primary-foreground shadow-lg"
         >
-          {/* Specular light highlight following mouse */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-40 group-hover:opacity-70 transition-opacity duration-300"
-            style={{
-              background: `radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(229, 168, 35, 0.22) 0%, transparent 60%)`,
-            }}
-          />
-
-          <div className="relative z-10 flex items-center justify-between pb-3 mb-3.5 border-b border-slate-700/60 dark:border-white/10">
+          <div className="mb-3.5 flex items-center justify-between border-b border-primary-foreground/20 pb-3">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-xs shadow-emerald-400/50" />
-              <span className="text-xs font-sans font-bold tracking-wider text-slate-200 uppercase">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-success shadow-xs shadow-success/50" />
+              <span className="text-xs font-bold uppercase tracking-wider text-primary-foreground/85">
                 4-Phase Capstone Lifecycle
               </span>
             </div>
-            <span className="text-[11px] font-sans font-semibold px-2.5 py-0.5 rounded-full bg-[#E5A823]/20 border border-[#E5A823]/50 text-[#F5C253] tracking-tight shadow-xs">
+            <Badge
+              variant="outline"
+              className="rounded-full border-primary-foreground/30 px-2.5 py-0.5 text-[11px] font-semibold tracking-tight text-primary-foreground"
+            >
               Deterministic Gating
-            </span>
+            </Badge>
           </div>
 
-          <div className="relative z-10 space-y-2.5">
+          <div className="space-y-2.5">
             {CAPSTONE_STAGES.map((stage, idx) => {
               const Icon = stage.icon;
               return (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-900/60 dark:bg-white/5 border border-slate-700/40 dark:border-white/10 hover:border-[#E5A823]/40 hover:bg-slate-800/60 transition-all group/stage"
+                <Card
+                  key={stage.phase}
+                  className="flex items-start gap-3 rounded-lg border border-primary-foreground/20 bg-primary-foreground/5 p-2.5 text-primary-foreground transition-colors hover:bg-primary-foreground/10"
                 >
-                  <div className="flex flex-col items-center shrink-0 mt-0.5">
-                    <div className="w-6 h-6 rounded-lg bg-[#E5A823]/15 border border-[#E5A823]/40 flex items-center justify-center text-[#F5C253]">
+                  <div className="mt-0.5 flex shrink-0 flex-col items-center">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground">
                       <Icon className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-[#F5C253] font-bold uppercase tracking-wider">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-primary-foreground/80">
                           {stage.phase}
                         </span>
-                        <span className="text-slate-500 text-[10px]">·</span>
-                        <h3 className="text-xs font-semibold text-white leading-tight font-sans truncate">
+                        <span className="text-[10px] text-primary-foreground/50">·</span>
+                        <h3 className="truncate text-xs font-semibold leading-tight text-primary-foreground">
                           {stage.title}
                         </h3>
                       </div>
-                      <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/60 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 border-primary-foreground/25 bg-primary-foreground/5 px-1.5 py-0.5 text-[9.5px] font-mono text-primary-foreground/80"
+                      >
                         {stage.badge}
-                      </span>
+                      </Badge>
                     </div>
-                    <p className="text-[11px] leading-snug font-sans text-slate-300 mt-1">
+                    <p className="mt-1 text-[11px] leading-snug text-primary-foreground/75">
                       {stage.desc}
                     </p>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
 
           {/* System Security & Compliance Footer */}
-          <div className="relative z-10 mt-3.5 pt-3 border-t border-slate-700/60 dark:border-white/10 flex items-center justify-between text-[10.5px] font-sans px-1">
-            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secretary Compliance Gate
+          <div className="mt-3.5 flex items-center justify-between border-t border-primary-foreground/20 px-1 pt-3 text-[10.5px]">
+            <span className="flex items-center gap-1.5 font-medium text-primary-foreground/85">
+              <ShieldCheck className="h-3.5 w-3.5 text-success" /> Secretary Compliance Gate
             </span>
-            <span className="flex items-center gap-1.5 text-[#F5C253] font-medium">
-              <Database className="w-3.5 h-3.5" /> MinIO Vault
+            <span className="flex items-center gap-1.5 font-medium text-primary-foreground/80">
+              <Database className="h-3.5 w-3.5" /> MinIO Vault
             </span>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* 4. Bottom System Architectural Badge */}
-      <div className="relative z-10 flex-shrink-0 flex items-center justify-between text-xs text-slate-300 font-sans pt-3 border-t border-white/15 dark:border-[#1E3356]">
+      <div className="relative z-10 flex flex-shrink-0 items-center justify-between border-t border-primary-foreground/20 pt-3 text-xs text-primary-foreground/75">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-slate-200 font-medium">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+          <span className="font-medium text-primary-foreground/85">
             BukSU CMS V2 · Full-Stack Capstone System
           </span>
         </div>
-        <span className="text-[11px] text-[#F5C253] font-medium">College of Technologies</span>
+        <span className="text-[11px] font-medium text-buksu-gold-300">College of Technologies</span>
       </div>
     </div>
   );

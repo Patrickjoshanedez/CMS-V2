@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -28,6 +28,9 @@ import { ROLES } from '@cms/shared';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const ICON_MAP = {
   team_created: Users,
@@ -91,8 +94,6 @@ function resolveNotificationTarget(notification, role) {
 export default function NotificationBellPopover() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unread'
-  const popoverRef = useRef(null);
-  const buttonRef = useRef(null);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
 
@@ -104,37 +105,6 @@ export default function NotificationBellPopover() {
   const notifications = notifData?.notifications || [];
   const filteredNotifications =
     activeTab === 'unread' ? notifications.filter((n) => !n.isRead) : notifications;
-
-  // Click outside listener
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target)
-      ) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event) {
-      if (event.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-        buttonRef.current?.focus();
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
 
   const handleOpenNotification = (notification) => {
     if (!notification.isRead) {
@@ -151,191 +121,186 @@ export default function NotificationBellPopover() {
   };
 
   return (
-    <div className="relative inline-block text-left">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-label="Notifications"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        data-testid="header-notification-bell"
-        className={cn(
-          'relative p-2 border rounded-lg transition-all inline-flex items-center justify-center h-9 w-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-          isOpen
-            ? 'border-primary bg-primary/10 text-primary shadow-xs'
-            : 'border-slate-700 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424]',
-        )}
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground animate-pulse">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div
-          ref={popoverRef}
-          role="dialog"
-          aria-label="Notifications Popover"
-          className="fixed inset-x-2 top-16 mt-2 flex max-h-[calc(100dvh-5rem)] flex-col sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:w-96 rounded-xl border border-border/70 bg-card/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Notifications"
+          aria-expanded={isOpen}
+          data-testid="header-notification-bell"
+          className={cn(
+            'relative size-11 text-muted-foreground',
+            isOpen && 'border-primary text-primary',
+          )}
         >
-          {/* Header */}
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3 bg-muted/40">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-foreground">Notifications</span>
-              {unreadCount > 0 && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.2 font-mono">
-                  {unreadCount} new
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => markAllAsRead.mutate()}
-                  disabled={markAllAsRead.isPending}
-                  className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  Mark read
-                </button>
-              )}
-            </div>
+          <Bell className="size-5" aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+              <span className="sr-only">{unreadCount} unread notifications</span>
+              <span aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        aria-label="Notifications"
+        className="z-50 flex max-h-[min(32rem,calc(100dvh-5rem))] w-[calc(100vw-1rem)] max-w-96 flex-col overflow-hidden rounded-lg p-0 shadow-lg"
+      >
+        {/* Header */}
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm text-foreground">Notifications</span>
+            {unreadCount > 0 && (
+              <Badge variant="secondary" className="px-1.5 py-0.5 font-mono text-[10px]">
+                {unreadCount} new
+              </Badge>
+            )}
           </div>
 
-          {/* Segmented Filter Pills */}
-          <div className="flex shrink-0 items-center gap-1 border-b border-border/50 px-3 py-1.5 bg-muted/20">
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                activeTab === 'all'
-                  ? 'bg-primary/10 text-primary shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-              )}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('unread')}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                activeTab === 'unread'
-                  ? 'bg-primary/10 text-primary shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-              )}
-            >
-              Unread {unreadCount > 0 && `(${unreadCount})`}
-            </button>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => markAllAsRead.mutate()}
+                disabled={markAllAsRead.isPending}
+                className="h-8 gap-1 px-2 text-xs text-primary hover:text-primary/80"
+              >
+                <CheckCheck className="size-3.5" aria-hidden="true" />
+                Mark read
+              </Button>
+            )}
           </div>
+        </div>
 
-          {/* Notification List */}
-          <div className="min-h-0 max-h-80 overflow-y-auto divide-y divide-border/40 scrollbar-thin">
-            {isLoading ? (
-              <div className="p-6 text-center text-xs text-muted-foreground space-y-2">
-                <div className="h-4 w-3/4 mx-auto bg-muted animate-pulse rounded" />
-                <div className="h-3 w-1/2 mx-auto bg-muted animate-pulse rounded" />
-              </div>
-            ) : filteredNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                <Inbox className="h-8 w-8 mb-2 stroke-1 opacity-50" />
-                <p className="text-xs font-medium text-foreground">
-                  {activeTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  You are completely caught up!
-                </p>
-              </div>
-            ) : (
-              filteredNotifications.slice(0, 5).map((notif) => {
-                const Icon = ICON_MAP[notif.type] || ICON_MAP.default;
-                const isUrgent =
-                  notif.type === 'deadline_due' || notif.type === 'submission_rejected';
+        <div
+          role="group"
+          aria-label="Filter notifications"
+          className="flex shrink-0 items-center gap-1 border-b border-border/60 bg-muted/20 px-3 py-1.5"
+        >
+          <Button
+            variant={activeTab === 'all' ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={activeTab === 'all'}
+            onClick={() => setActiveTab('all')}
+            className="h-8 px-3 text-xs"
+          >
+            All
+          </Button>
+          <Button
+            variant={activeTab === 'unread' ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={activeTab === 'unread'}
+            onClick={() => setActiveTab('unread')}
+            className="h-8 px-3 text-xs"
+          >
+            Unread {unreadCount > 0 && `(${unreadCount})`}
+          </Button>
+        </div>
 
-                return (
-                  <div
-                    key={notif._id}
+        {/* Notification List */}
+        <div className="min-h-0 max-h-80 overflow-y-auto divide-y divide-border/40 scrollbar-thin">
+          {isLoading ? (
+            <div role="status" aria-label="Loading notifications" className="space-y-3 p-4">
+              <Skeleton className="mx-auto h-4 w-3/4" />
+              <Skeleton className="mx-auto h-3 w-1/2" />
+              <span className="sr-only">Loading notifications…</span>
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title={activeTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+              description="You are completely caught up!"
+              compact
+              className="m-3 rounded-md border-0"
+            />
+          ) : (
+            filteredNotifications.slice(0, 5).map((notif) => {
+              const Icon = ICON_MAP[notif.type] || ICON_MAP.default;
+              const isUrgent =
+                notif.type === 'deadline_due' || notif.type === 'submission_rejected';
+
+              return (
+                <div key={notif._id} className="group relative flex items-stretch">
+                  <Button
+                    variant="ghost"
                     onClick={() => handleOpenNotification(notif)}
                     className={cn(
-                      'group relative flex items-start gap-3 p-3.5 transition-colors cursor-pointer hover:bg-muted/60 text-left',
-                      !notif.isRead && 'bg-primary/5 dark:bg-primary/[0.03]',
-                      isUrgent && !notif.isRead && 'border-l-2 border-rose-500 bg-rose-500/5',
+                      'h-auto min-h-0 min-w-0 flex-1 justify-start gap-3 rounded-none px-3.5 py-3.5 pr-12 text-left font-normal whitespace-normal',
+                      !notif.isRead && 'bg-primary/5 hover:bg-primary/10',
+                      isUrgent && !notif.isRead && 'border-l-2 border-destructive bg-destructive/5',
                     )}
                   >
                     <div
                       className={cn(
-                        'shrink-0 mt-0.5 rounded-lg p-2 flex items-center justify-center',
+                        'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg',
                         isUrgent
-                          ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                          ? 'bg-destructive/10 text-destructive'
                           : notif.isRead
                             ? 'bg-muted text-muted-foreground'
                             : 'bg-primary/10 text-primary',
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="size-4" aria-hidden="true" />
                     </div>
 
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <div className="flex items-center justify-between gap-1">
-                        <p
+                        <span
                           className={cn(
-                            'text-xs truncate text-foreground',
+                            'truncate text-xs text-foreground',
                             !notif.isRead ? 'font-semibold' : 'font-medium',
                           )}
                         >
                           {notif.title}
-                        </p>
+                        </span>
                         <span className="shrink-0 text-[10px] text-muted-foreground">
                           {formatTimeAgo(notif.createdAt)}
                         </span>
                       </div>
 
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                         {notif.message}
-                      </p>
+                      </span>
                     </div>
-
-                    {!notif.isRead && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markAsRead.mutate(notif._id);
-                        }}
-                        title="Mark as read"
-                        aria-label="Mark as read"
-                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground rounded transition-opacity"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="shrink-0 border-t border-border/60 p-2 bg-muted/30">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleViewAll}
-              className="w-full justify-center text-xs font-medium text-foreground hover:text-primary gap-1.5 h-8"
-            >
-              <span>View all notifications</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+                  </Button>
+                  {!notif.isRead && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead.mutate(notif._id);
+                      }}
+                      title="Mark as read"
+                      aria-label="Mark as read"
+                      className="absolute right-2 top-2 z-10 size-8 min-h-8 min-w-8 bg-background/90 p-0 text-muted-foreground opacity-100 shadow-sm md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                    >
+                      <Check className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
-    </div>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-border/60 bg-muted/30 p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleViewAll}
+            className="h-9 w-full justify-center gap-1.5 text-xs font-medium text-foreground hover:text-primary"
+          >
+            <span>View all notifications</span>
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

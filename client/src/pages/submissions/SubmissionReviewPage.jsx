@@ -9,7 +9,6 @@ import {
   Eye,
   FileText,
   GanttChartSquare,
-  Loader2,
   Lock,
   MessageSquare,
   RotateCw,
@@ -28,11 +27,21 @@ import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/Popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import {
   useAddAnnotation,
@@ -122,19 +131,19 @@ const ROLE_STYLE = {
     accent: 'border-l-primary',
   },
   Panelist: {
-    chip: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30',
+    chip: 'bg-info/10 text-info-foreground border-info/30',
     icon: ClipboardCheck,
-    accent: 'border-l-violet-500',
+    accent: 'border-l-info',
   },
   Secretary: {
-    chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    chip: 'bg-warning/10 text-warning border-warning/30',
     icon: GanttChartSquare,
-    accent: 'border-l-amber-500',
+    accent: 'border-l-warning',
   },
   Instructor: {
-    chip: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30',
+    chip: 'bg-primary/10 text-primary border-primary/30',
     icon: ShieldCheck,
-    accent: 'border-l-blue-500',
+    accent: 'border-l-primary',
   },
 };
 
@@ -184,12 +193,8 @@ function OriginalityBar({ score }) {
   const isCompliant = originality >= 75;
   const isModerate = originality >= 50 && originality < 75;
 
-  const barClass = isCompliant ? 'bg-emerald-500' : isModerate ? 'bg-amber-500' : 'bg-rose-500';
-  const textClass = isCompliant
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : isModerate
-      ? 'text-amber-600 dark:text-amber-400'
-      : 'text-rose-600 dark:text-rose-400';
+  const barClass = isCompliant ? 'bg-success' : isModerate ? 'bg-warning' : 'bg-destructive';
+  const textClass = isCompliant ? 'text-success' : isModerate ? 'text-warning' : 'text-destructive';
 
   return (
     <div className="space-y-2">
@@ -339,7 +344,7 @@ function GoogleDocCommentsPanel({ query, data }) {
   if (query.isLoading) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-dashed p-6 text-xs text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+        <Spinner className="size-4 shrink-0" />
         Loading document comments...
       </div>
     );
@@ -610,12 +615,7 @@ export default function SubmissionReviewPage() {
   if (workspaceQuery.isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex h-[70vh] flex-col items-center justify-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">Loading review workspace…</p>
-        </div>
+        <PageSkeleton />
       </DashboardLayout>
     );
   }
@@ -777,7 +777,7 @@ export default function SubmissionReviewPage() {
 
         {/* ── Archived Warning ── */}
         {isArchived && (
-          <Alert className="border-amber-500/50 bg-amber-500/5 text-amber-700 dark:text-amber-400">
+          <Alert className="border-warning/50 bg-warning/5 text-warning">
             <Lock className="h-4 w-4" />
             <AlertDescription className="font-medium">
               This project is archived. The review workspace is in read-only mode.
@@ -806,7 +806,7 @@ export default function SubmissionReviewPage() {
                     className="gap-1.5 text-xs"
                   >
                     {round.roundNumber === 1 ? 'Original' : `Revision ${round.roundNumber - 1}`}
-                    {round.reviewClosed && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                    {round.reviewClosed && <CheckCircle2 className="h-3 w-3 text-success" />}
                     {round.isPlaceholder && (
                       <span className="text-[10px] text-muted-foreground">(pending)</span>
                     )}
@@ -824,7 +824,7 @@ export default function SubmissionReviewPage() {
           <div className="order-2 min-w-0 space-y-3 xl:order-1">
             <Card className="border border-border/60 bg-card shadow-xs rounded-xl overflow-hidden">
               <CardHeader className="px-4 py-3 border-b border-border/50 bg-muted/20">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground flex items-center justify-between">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                   <span>Review Inspector</span>
                   <Badge variant="outline" className="text-[10px] font-mono font-normal">
                     v{activeRound?.roundNumber || workspace?.submission?.version || 1}
@@ -842,7 +842,7 @@ export default function SubmissionReviewPage() {
                   <div className="flex items-start justify-between gap-2 text-xs">
                     <span className="shrink-0 text-muted-foreground font-medium">Document</span>
                     <span
-                      className="max-w-[170px] truncate text-right font-semibold text-slate-900 dark:text-foreground"
+                      className="max-w-[170px] truncate text-right font-semibold text-foreground"
                       title={activeRound?.fileName || ''}
                     >
                       {activeRound?.fileName || 'Awaiting upload'}
@@ -850,7 +850,7 @@ export default function SubmissionReviewPage() {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">File Size</span>
-                    <span className="font-mono text-slate-800 dark:text-foreground">
+                    <span className="font-mono text-foreground">
                       {formatBytes(activeRound?.fileSize)}
                     </span>
                   </div>
@@ -858,7 +858,7 @@ export default function SubmissionReviewPage() {
                   {/* Team Working Document Link */}
                   <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/40">
                     <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                      <FileText className="h-3.5 w-3.5 text-blue-500" />
+                      <FileText className="h-3.5 w-3.5 text-primary" />
                       Team Google Doc
                     </span>
                     {teamGoogleDocUrl ? (
@@ -866,7 +866,7 @@ export default function SubmissionReviewPage() {
                         href={teamGoogleDocUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:text-primary hover:underline"
                         title="Open Team Working Google Doc"
                       >
                         <span>Open Doc</span>
@@ -878,7 +878,7 @@ export default function SubmissionReviewPage() {
                   </div>
 
                   {activeRound?.reviewNote && (
-                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-700 dark:text-amber-400">
+                    <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 text-xs text-warning">
                       <p className="font-semibold mb-1">Faculty Feedback</p>
                       <p className="leading-relaxed">{activeRound.reviewNote}</p>
                     </div>
@@ -888,7 +888,7 @@ export default function SubmissionReviewPage() {
                 {/* SECTION 2: Plagiarism & Originality */}
                 <div className="pt-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                       Plagiarism &amp; Originality
                     </span>
                   </div>
@@ -914,7 +914,7 @@ export default function SubmissionReviewPage() {
                         onClick={() => scanArchive.mutate(activeSubmissionId)}
                       >
                         {scanArchive.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <RefreshCcw className="h-3.5 w-3.5" />
                         )}
@@ -928,7 +928,7 @@ export default function SubmissionReviewPage() {
                 {!isRoundPendingUpload && (
                   <div className="pt-3.5 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                         File Actions
                       </span>
                     </div>
@@ -945,7 +945,7 @@ export default function SubmissionReviewPage() {
                     {teamGoogleDocUrl && (
                       <Button asChild variant="outline" className="w-full gap-2 text-xs h-8">
                         <a href={teamGoogleDocUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                          <ExternalLink className="h-3.5 w-3.5 text-primary" />
                           Open Team Google Doc
                         </a>
                       </Button>
@@ -977,23 +977,29 @@ export default function SubmissionReviewPage() {
           {/* ── Right Content Area ── */}
           <div className="order-1 min-w-0 space-y-4 xl:order-2">
             {/* Custom Pill Tab Bar */}
-            <div role="group" aria-label="Review workspace" className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-1 rounded-xl bg-muted/30 p-1 border">
+            <div
+              role="group"
+              aria-label="Review workspace"
+              className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-1 rounded-xl bg-muted/30 p-1 border"
+            >
               {tabs.map(({ id, label, icon: Icon }) => (
-                <button
+                <Button
                   key={id}
                   type="button"
+                  variant={
+                    activeTab === id || (id === 'reader' && activeTab === 'text')
+                      ? 'secondary'
+                      : 'ghost'
+                  }
                   onClick={() => setActiveTab(id)}
                   aria-pressed={activeTab === id || (id === 'reader' && activeTab === 'text')}
-                  className={[
-                    'flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    activeTab === id || (id === 'reader' && activeTab === 'text')
-                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-background/60',
-                  ].join(' ')}
+                  className={['min-h-[44px] min-w-0 w-full whitespace-normal px-2 text-sm'].join(
+                    ' ',
+                  )}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -1106,7 +1112,7 @@ export default function SubmissionReviewPage() {
             {/* Doc Comments Tab */}
             {activeTab === 'doc-comments' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2 rounded-lg border bg-blue-500/5 border-blue-500/20 px-3 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2 rounded-lg border bg-primary/5 border-primary/20 px-3 py-2 text-xs">
                   <p className="text-muted-foreground">
                     Live comments synced from the team&apos;s working document.
                   </p>
@@ -1115,7 +1121,7 @@ export default function SubmissionReviewPage() {
                       href={teamGoogleDocUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
                     >
                       <span>Open in Google Docs</span>
                       <ExternalLink className="h-3 w-3" />
@@ -1151,7 +1157,7 @@ export default function SubmissionReviewPage() {
               <div className="flex-1 space-y-1.5">
                 <Label
                   htmlFor="overallNotes"
-                  className="text-xs font-bold text-slate-900 dark:text-foreground uppercase tracking-wide"
+                  className="text-xs font-bold text-foreground uppercase tracking-wide"
                 >
                   Overall Feedback / Decision Notes
                 </Label>
@@ -1182,7 +1188,7 @@ export default function SubmissionReviewPage() {
                   className="gap-1.5 text-xs h-9"
                 >
                   {approveAndClose.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="h-3.5 w-3.5" />
                   ) : (
                     <CheckCircle2 className="h-3.5 w-3.5" />
                   )}
@@ -1200,7 +1206,7 @@ export default function SubmissionReviewPage() {
                   className="gap-1.5 text-xs h-9"
                 >
                   {requestRevisionRound.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner className="h-3.5 w-3.5" />
                   ) : (
                     <RotateCw className="h-3.5 w-3.5" />
                   )}
@@ -1223,7 +1229,7 @@ export default function SubmissionReviewPage() {
               </p>
             )}
             {canModerate && activeRound?.reviewClosed && (
-              <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+              <p className="mt-2 text-xs font-semibold text-success">
                 ✓ This round has been closed. Open a new revision round to continue.
               </p>
             )}
@@ -1231,107 +1237,126 @@ export default function SubmissionReviewPage() {
         </Card>
 
         {/* ── Text Selection Popover ── */}
-        {selectionDraft && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Add manuscript annotation"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation();
-                setSelectionDraft(null);
-              }
-            }}
-            className="fixed z-50 w-80 rounded-xl border bg-card p-4 shadow-2xl"
-            style={{
-              left: Math.max(16, selectionDraft.x - 140),
-              top: Math.max(16, selectionDraft.y + 12),
-            }}
-          >
-            <p className="text-xs font-semibold text-muted-foreground">Selected Passage</p>
-            <p className="mt-1 max-h-20 overflow-auto rounded border-l-2 border-primary/40 bg-primary/5 pl-2 py-1 text-xs italic text-muted-foreground">
-              {selectionDraft.selectedText}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <label
-                htmlFor="comment-category-select"
-                className="text-[11px] font-medium text-muted-foreground"
+        <Popover
+          open={Boolean(selectionDraft)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setSelectionDraft(null);
+          }}
+        >
+          {selectionDraft && (
+            <>
+              <PopoverAnchor asChild>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none fixed size-px"
+                  style={{
+                    left: Math.max(16, selectionDraft.x - 140),
+                    top: Math.max(16, selectionDraft.y + 12),
+                  }}
+                />
+              </PopoverAnchor>
+              <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                collisionPadding={16}
+                aria-label="Add manuscript annotation"
+                className="max-h-[min(70dvh,32rem)] w-80 overflow-y-auto rounded-xl border-border bg-card p-4 shadow-lg"
               >
-                Category:
-              </label>
-              <select
-                id="comment-category-select"
-                aria-label="Comment Category"
-                value={selectionDraft.category || 'Correction'}
-                onChange={(e) =>
-                  setSelectionDraft((prev) => ({ ...prev, category: e.target.value }))
-                }
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="Correction">Correction</option>
-                <option value="Literature">Literature</option>
-                <option value="Methodology">Methodology</option>
-                <option value="General">General</option>
-              </select>
-            </div>
-            <Textarea
-              className="mt-2 text-sm"
-              rows={3}
-              placeholder="Type your annotation comment…"
-              value={selectionDraft.content}
-              onChange={(e) => setSelectionDraft((prev) => ({ ...prev, content: e.target.value }))}
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelectionDraft(null)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="gap-1.5"
-                disabled={
-                  addAnnotation.isPending ||
-                  createSubmissionComment.isPending ||
-                  !selectionDraft.content.trim() ||
-                  !activeSubmissionId ||
-                  !canModerate
-                }
-                onClick={() => {
-                  if (selectionDraft.position) {
-                    createSubmissionComment.mutate(
-                      {
-                        submissionId: activeSubmissionId,
-                        content: selectionDraft.content.trim(),
-                        selectedText: selectionDraft.selectedText,
-                        category: selectionDraft.category || 'Correction',
-                        pageNumber: selectionDraft.pageNumber || 1,
-                        position: selectionDraft.position,
-                        authorRole: reviewerRole
-                          ? reviewerRole.toLowerCase()
-                          : user?.role === ROLES.INSTRUCTOR
-                            ? 'instructor'
-                            : 'adviser',
-                      },
-                      { onSuccess: () => setSelectionDraft(null) },
-                    );
-                  } else {
-                    addAnnotation.mutate(
-                      {
-                        submissionId: activeSubmissionId,
-                        content: selectionDraft.content.trim(),
-                        selectedText: selectionDraft.selectedText,
-                        highlightCoords: { mode: 'text-selection' },
-                      },
-                      { onSuccess: () => setSelectionDraft(null) },
-                    );
+                <p className="text-xs font-semibold text-muted-foreground">Selected Passage</p>
+                <p className="mt-1 max-h-20 overflow-auto rounded border-l-2 border-primary/40 bg-primary/5 pl-2 py-1 text-xs italic text-muted-foreground">
+                  {selectionDraft.selectedText}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <label
+                    htmlFor="comment-category-select"
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
+                    Category:
+                  </label>
+                  <Select
+                    value={selectionDraft.category || 'Correction'}
+                    onValueChange={(value) =>
+                      setSelectionDraft((prev) => ({ ...prev, category: value }))
+                    }
+                  >
+                    <SelectTrigger
+                      id="comment-category-select"
+                      aria-label="Comment Category"
+                      className="min-h-[44px] min-w-0 w-auto text-xs"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Correction">Correction</SelectItem>
+                      <SelectItem value="Literature">Literature</SelectItem>
+                      <SelectItem value="Methodology">Methodology</SelectItem>
+                      <SelectItem value="General">General</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Textarea
+                  className="mt-2 text-sm"
+                  rows={3}
+                  placeholder="Type your annotation comment…"
+                  value={selectionDraft.content}
+                  onChange={(e) =>
+                    setSelectionDraft((prev) => ({ ...prev, content: e.target.value }))
                   }
-                }}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Save Comment
-              </Button>
-            </div>
-          </div>
-        )}
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setSelectionDraft(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={
+                      addAnnotation.isPending ||
+                      createSubmissionComment.isPending ||
+                      !selectionDraft.content.trim() ||
+                      !activeSubmissionId ||
+                      !canModerate
+                    }
+                    onClick={() => {
+                      if (selectionDraft.position) {
+                        createSubmissionComment.mutate(
+                          {
+                            submissionId: activeSubmissionId,
+                            content: selectionDraft.content.trim(),
+                            selectedText: selectionDraft.selectedText,
+                            category: selectionDraft.category || 'Correction',
+                            pageNumber: selectionDraft.pageNumber || 1,
+                            position: selectionDraft.position,
+                            authorRole: reviewerRole
+                              ? reviewerRole.toLowerCase()
+                              : user?.role === ROLES.INSTRUCTOR
+                                ? 'instructor'
+                                : 'adviser',
+                          },
+                          { onSuccess: () => setSelectionDraft(null) },
+                        );
+                      } else {
+                        addAnnotation.mutate(
+                          {
+                            submissionId: activeSubmissionId,
+                            content: selectionDraft.content.trim(),
+                            selectedText: selectionDraft.selectedText,
+                            highlightCoords: { mode: 'text-selection' },
+                          },
+                          { onSuccess: () => setSelectionDraft(null) },
+                        );
+                      }
+                    }}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Save Comment
+                  </Button>
+                </div>
+              </PopoverContent>
+            </>
+          )}
+        </Popover>
       </div>
 
       {/* Document Viewer Modal */}

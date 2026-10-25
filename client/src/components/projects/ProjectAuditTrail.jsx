@@ -3,8 +3,9 @@ import { useProjectAuditTrail } from '@/hooks/useAuditLogs';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import Spinner from '@/components/ui/Spinner';
 import {
-  Loader2,
   Search,
   FileText,
   CheckCircle2,
@@ -12,7 +13,6 @@ import {
   Upload,
   UserPlus,
   UserMinus,
-  Lock,
   Unlock,
   RotateCcw,
   Settings,
@@ -24,194 +24,163 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-/* ─── Action config: icon + colour + label ─── */
+/* ─── Action config: icon + semantic badge variant + label ─── */
 const ACTION_CONFIG = {
   'project.created': {
     icon: FileText,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Project Created',
   },
   'project.title_submitted': {
     icon: FileText,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Title Submitted',
   },
   'project.title_updated': {
     icon: FileText,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Title Updated',
   },
   'project.title_revised': {
     icon: RotateCcw,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Title Revised',
   },
   'project.title_approved': {
     icon: CheckCircle2,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    variant: 'success',
     label: 'Title Approved',
   },
   'project.title_rejected': {
     icon: XCircle,
-    color: 'text-red-600 dark:text-red-400',
-    bg: 'bg-red-500/10',
+    variant: 'destructive',
     label: 'Title Rejected',
   },
   'project.title_modification_requested': {
     icon: AlertCircle,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Modification Requested',
   },
   'project.title_modification_resolved': {
     icon: CheckCircle2,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    variant: 'success',
     label: 'Modification Resolved',
   },
   'project.title_proposal_commented': {
     icon: ClipboardList,
-    color: 'text-sky-600 dark:text-sky-400',
-    bg: 'bg-sky-500/10',
+    variant: 'info',
     label: 'Title Comment Added',
   },
   'project.adviser_assigned': {
     icon: UserPlus,
-    color: 'text-violet-600 dark:text-violet-400',
-    bg: 'bg-violet-500/10',
+    variant: 'info',
     label: 'Adviser Assigned',
   },
   'project.panelist_assigned': {
     icon: UserPlus,
-    color: 'text-violet-600 dark:text-violet-400',
-    bg: 'bg-violet-500/10',
+    variant: 'info',
     label: 'Panelist Assigned',
   },
   'project.panelist_removed': {
     icon: UserMinus,
-    color: 'text-rose-600 dark:text-rose-400',
-    bg: 'bg-rose-500/10',
+    variant: 'destructive',
     label: 'Panelist Removed',
   },
   'project.panelist_self_selected': {
     icon: UserPlus,
-    color: 'text-violet-600 dark:text-violet-400',
-    bg: 'bg-violet-500/10',
+    variant: 'info',
     label: 'Panelist Self-Selected',
   },
   'project.deadlines_updated': {
     icon: Settings,
-    color: 'text-slate-600 dark:text-slate-400',
-    bg: 'bg-slate-500/10',
+    variant: 'secondary',
     label: 'Deadlines Updated',
   },
   'project.rejected': {
     icon: XCircle,
-    color: 'text-red-600 dark:text-red-400',
-    bg: 'bg-red-500/10',
+    variant: 'destructive',
     label: 'Project Rejected',
   },
   'project.phase_advanced': {
     icon: ShieldCheck,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    variant: 'success',
     label: 'Phase Advanced',
   },
   'project.archived': {
     icon: Archive,
-    color: 'text-slate-600 dark:text-slate-400',
-    bg: 'bg-slate-500/10',
+    variant: 'secondary',
     label: 'Project Archived',
   },
   'project.certificate_uploaded': {
     icon: Award,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Certificate Uploaded',
   },
   'project.bulk_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Bulk Uploaded',
   },
   'submission.chapter_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Chapter Uploaded',
   },
   'submission.proposal_compiled': {
     icon: FileText,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Proposal Compiled',
   },
   'submission.system_design_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'System Design Uploaded',
   },
   'submission.test_results_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Test Results Uploaded',
   },
   'submission.final_academic_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Final Academic Uploaded',
   },
   'submission.final_journal_uploaded': {
     icon: Upload,
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-500/10',
+    variant: 'info',
     label: 'Final Journal Uploaded',
   },
   'submission.reviewed': {
     icon: ClipboardList,
-    color: 'text-sky-600 dark:text-sky-400',
-    bg: 'bg-sky-500/10',
+    variant: 'info',
     label: 'Submission Reviewed',
   },
   'submission.unlocked': {
     icon: Unlock,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Submission Unlocked',
   },
   'evaluation.submitted': {
     icon: Award,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Evaluation Submitted',
   },
   'evaluation.unlocked': {
     icon: Unlock,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10',
+    variant: 'warning',
     label: 'Evaluation Unlocked',
   },
   'evaluation.released': {
     icon: CheckCircle2,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    variant: 'success',
     label: 'Evaluation Released',
   },
 };
 
 const FALLBACK_CONFIG = {
   icon: History,
-  color: 'text-secondary font-medium',
-  bg: 'bg-muted/30',
+  variant: 'secondary',
   label: null,
 };
 
@@ -306,13 +275,14 @@ export default function ProjectAuditTrail({ projectId }) {
   }, [category, search]);
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-4" aria-label="Project audit trail">
       {/* ── Header + controls ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search events, actors…"
+            aria-label="Search audit events"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9 bg-background"
@@ -321,23 +291,23 @@ export default function ProjectAuditTrail({ projectId }) {
 
         <div className="flex gap-2 flex-wrap">
           {CATEGORY_OPTIONS.map((opt) => (
-            <button
+            <Button
               key={opt.value}
+              type="button"
+              variant={category === opt.value ? 'default' : 'outline'}
+              size="sm"
               onClick={() => setCategory(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
-                category === opt.value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card text-secondary border-border hover:text-foreground hover:border-foreground/30'
-              }`}
+              aria-pressed={category === opt.value}
+              className="text-xs"
             >
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
       {/* ── Count ── */}
-      <p className="text-xs font-medium text-secondary">
+      <p className="text-xs font-medium text-muted-foreground" aria-live="polite">
         {isLoading ? 'Loading…' : `${filtered.length} event${filtered.length !== 1 ? 's' : ''}`}
         {!isLoading && logs.length > 0 && filtered.length !== logs.length
           ? ` (filtered from ${logs.length})`
@@ -346,29 +316,29 @@ export default function ProjectAuditTrail({ projectId }) {
 
       {/* ── States ── */}
       {isLoading && (
-        <div className="flex items-center justify-center py-16 text-secondary gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
+        <div role="status" className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+          <Spinner className="size-5 text-primary" />
           <span className="text-sm font-medium">Loading audit trail…</span>
         </div>
       )}
 
       {isError && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          <p className="text-sm font-medium text-secondary">Failed to load audit trail.</p>
-          <button
-            onClick={refetch}
-            className="text-xs text-primary underline-offset-2 hover:underline"
-          >
+        <div
+          role="alert"
+          className="flex flex-col items-center justify-center py-16 gap-3 text-center"
+        >
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-sm font-medium text-muted-foreground">Failed to load audit trail.</p>
+          <Button type="button" variant="outline" size="sm" onClick={refetch}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
       {!isLoading && !isError && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
-          <History className="h-8 w-8 text-secondary" />
-          <p className="text-sm font-medium text-secondary">
+          <History className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm font-medium text-muted-foreground">
             {logs.length === 0
               ? 'No audit events recorded for this project yet.'
               : 'No events match your filter.'}
@@ -394,55 +364,61 @@ export default function ProjectAuditTrail({ projectId }) {
               return (
                 <li key={log._id} className="relative flex gap-4 group">
                   {/* Icon bubble */}
-                  <div
-                    className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border ${cfg.bg}`}
+                  <Badge
+                    variant={cfg.variant}
+                    className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-0"
                   >
-                    <Icon className={`h-4 w-4 ${cfg.color}`} />
-                  </div>
+                    <Icon aria-hidden="true" className="h-4 w-4" />
+                  </Badge>
 
                   {/* Content card */}
                   <div className="flex-1 min-w-0 py-1 pb-4">
-                    <div className="rounded-xl border border-border bg-card/60 px-4 py-3 shadow-sm transition-colors group-hover:border-border/80 group-hover:bg-card">
-                      {/* Top row */}
-                      <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
-                        <span className="text-sm font-semibold text-foreground leading-tight">
-                          {label}
-                        </span>
-                        <time
-                          dateTime={log.createdAt}
-                          title={formatDate(log.createdAt)}
-                          className="text-[11px] font-medium text-secondary whitespace-nowrap shrink-0"
-                        >
-                          {formatRelative(log.createdAt)}
-                        </time>
-                      </div>
-
-                      {/* Description */}
-                      <p className="text-xs text-secondary leading-relaxed mb-2">
-                        {log.description}
-                      </p>
-
-                      {/* Actor row */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-medium text-secondary">By</span>
-                        <span className="text-[11px] font-semibold text-foreground">
-                          {actorName}
-                        </span>
-                        {actorRole && (
-                          <Badge
-                            variant={getRoleBadgeVariant(actorRole)}
-                            className="text-[10px] px-1.5 py-0 h-4 capitalize"
+                    <Card className="min-w-0 flex-1 rounded-xl border-border bg-card/60 p-0 shadow-sm transition-colors group-hover:border-border/80 group-hover:bg-card">
+                      <CardContent className="p-3 sm:p-4">
+                        {/* Top row */}
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
+                          <span className="text-sm font-semibold text-foreground leading-tight">
+                            {label}
+                          </span>
+                          <time
+                            dateTime={log.createdAt}
+                            title={formatDate(log.createdAt)}
+                            className="text-[11px] font-medium text-muted-foreground whitespace-nowrap shrink-0"
                           >
-                            {actorRole}
-                          </Badge>
-                        )}
+                            {formatRelative(log.createdAt)}
+                          </time>
+                        </div>
 
-                        {/* Action code chip */}
-                        <span className="ml-auto text-[10px] font-mono text-muted-foreground/60 bg-muted/40 rounded px-1.5 py-0.5">
-                          {log.action}
-                        </span>
-                      </div>
-                    </div>
+                        {/* Description */}
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                          {log.description}
+                        </p>
+
+                        {/* Actor row */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-medium text-muted-foreground">By</span>
+                          <span className="text-[11px] font-semibold text-foreground">
+                            {actorName}
+                          </span>
+                          {actorRole && (
+                            <Badge
+                              variant={getRoleBadgeVariant(actorRole)}
+                              className="text-[10px] px-1.5 py-0 h-4 capitalize"
+                            >
+                              {actorRole}
+                            </Badge>
+                          )}
+
+                          {/* Action code chip */}
+                          <Badge
+                            variant="outline"
+                            className="ml-auto max-w-full truncate font-mono text-[10px]"
+                          >
+                            {log.action}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </li>
               );
@@ -463,6 +439,6 @@ export default function ProjectAuditTrail({ projectId }) {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

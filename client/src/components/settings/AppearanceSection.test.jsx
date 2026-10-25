@@ -30,7 +30,7 @@ describe('AppearanceSection Component', () => {
     });
 
     return {
-      zoomSelect: container.querySelector('#font-size-select'),
+      fontScaleTrigger: container.querySelector('#font-size-select'),
       highContrastToggle: container.querySelector('#high-contrast-toggle'),
       unmount: () => {
         act(() => {
@@ -42,15 +42,24 @@ describe('AppearanceSection Component', () => {
   };
 
   it('renders all 7 synchronized zoom options in the font scaling dropdown', () => {
-    const { zoomSelect, unmount } = renderComponent();
-    expect(zoomSelect).not.toBeNull();
-    expect(zoomSelect.value).toBe('100');
+    Element.prototype.scrollIntoView ||= vi.fn();
+    const { fontScaleTrigger, unmount } = renderComponent();
+    expect(fontScaleTrigger).not.toBeNull();
+    expect(fontScaleTrigger.textContent).toContain('Standard');
+    expect(fontScaleTrigger.textContent).toContain('100%');
 
-    const options = zoomSelect.querySelectorAll('option');
+    act(() => fontScaleTrigger.click());
+    const options = document.body.querySelectorAll('[role="option"]');
     expect(options.length).toBe(7);
-
-    const values = Array.from(options).map((opt) => opt.value);
-    expect(values).toEqual(['75', '90', '100', '110', '125', '140', '150']);
+    expect(Array.from(options).map((option) => option.textContent.trim())).toEqual([
+      'Compact — 75%',
+      'Small — 90%',
+      'Standard — 100%',
+      'Medium — 110%',
+      'Large — 125%',
+      'Extra Large — 140%',
+      'Maximum — 150%',
+    ]);
 
     // Check descriptive text next to select
     expect(container.textContent).toContain('100% (16px base)');
@@ -58,14 +67,18 @@ describe('AppearanceSection Component', () => {
   });
 
   it('updates root document font size and store when selecting Extra Large 140%', () => {
-    const { zoomSelect, unmount } = renderComponent();
+    Element.prototype.scrollIntoView ||= vi.fn();
+    const { fontScaleTrigger, unmount } = renderComponent();
 
-    act(() => {
-      zoomSelect.value = '140';
-      zoomSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    act(() => fontScaleTrigger.click());
+    const option = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (item) => item.textContent.trim() === 'Extra Large — 140%',
+    );
+    expect(option).toBeTruthy();
+    act(() => option.click());
 
-    expect(zoomSelect.value).toBe('140');
+    expect(fontScaleTrigger.textContent).toContain('Extra Large');
+    expect(fontScaleTrigger.textContent).toContain('140%');
     expect(document.documentElement.style.fontSize).toBe('22.4px');
     expect(document.documentElement.getAttribute('data-font-size')).toBe('xl');
     expect(localStorage.getItem('app_text_scale')).toBe('140');
@@ -79,13 +92,14 @@ describe('AppearanceSection Component', () => {
   });
 
   it('synchronizes reactively when store zoomLevel is updated externally', () => {
-    const { zoomSelect, unmount } = renderComponent();
+    const { fontScaleTrigger, unmount } = renderComponent();
 
     act(() => {
       useSettingsStore.getState().setZoomLevel('75');
     });
 
-    expect(zoomSelect.value).toBe('75');
+    expect(fontScaleTrigger.textContent).toContain('Compact');
+    expect(fontScaleTrigger.textContent).toContain('75%');
     expect(document.documentElement.style.fontSize).toBe('12px');
     expect(document.documentElement.getAttribute('data-font-size')).toBe('compact');
     expect(container.textContent).toContain('75% (12px base)');
@@ -94,7 +108,8 @@ describe('AppearanceSection Component', () => {
       useSettingsStore.getState().setZoomLevel('150');
     });
 
-    expect(zoomSelect.value).toBe('150');
+    expect(fontScaleTrigger.textContent).toContain('Maximum');
+    expect(fontScaleTrigger.textContent).toContain('150%');
     expect(document.documentElement.style.fontSize).toBe('24px');
     expect(document.documentElement.getAttribute('data-font-size')).toBe('max');
     expect(container.textContent).toContain('150% (24px base)');
@@ -105,12 +120,13 @@ describe('AppearanceSection Component', () => {
   it('toggles high-contrast accessibility interface mode', () => {
     const { highContrastToggle, unmount } = renderComponent();
     expect(highContrastToggle).not.toBeNull();
-    expect(highContrastToggle.checked).toBe(false);
+    expect(highContrastToggle.getAttribute('aria-checked')).toBe('false');
 
     act(() => {
       highContrastToggle.click();
     });
 
+    expect(highContrastToggle.getAttribute('aria-checked')).toBe('true');
     expect(useSettingsStore.getState().highContrast).toBe(true);
     expect(document.documentElement.getAttribute('data-high-contrast')).toBe('true');
     expect(localStorage.getItem('cms-high-contrast')).toBe('true');

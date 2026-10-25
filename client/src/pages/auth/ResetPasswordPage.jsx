@@ -9,6 +9,7 @@ import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
+import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 
 const resetPasswordSchema = z
@@ -90,15 +91,16 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 error={errors.password?.message}
                 trailing={
-                  <button
+                  <Button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 min-h-8 min-w-8"
                     onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  </Button>
                 }
               />
             )}
@@ -118,15 +120,16 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 error={errors.confirmPassword?.message}
                 trailing={
-                  <button
+                  <Button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 min-h-8 min-w-8"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    tabIndex={-1}
                     aria-label={showConfirm ? 'Hide password' : 'Show password'}
                   >
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  </Button>
                 }
               />
             )}

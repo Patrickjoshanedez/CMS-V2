@@ -19,6 +19,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -98,7 +99,6 @@ export default function ArchiveSearchPage() {
     setIncludeCitations,
     includeFilings,
     setIncludeFilings,
-    page,
     setPage,
     clearQuery,
     resetFilters,
@@ -178,7 +178,7 @@ export default function ArchiveSearchPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-6xl space-y-6">
+      <div data-testid="archive-search-page" className="mx-auto w-full max-w-6xl space-y-6">
         {/* Top Minimalist Academic Header & Centered Search Bar */}
         <div className="pt-2 pb-4 space-y-4">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
@@ -198,7 +198,7 @@ export default function ArchiveSearchPage() {
                   onClick={() =>
                     navigate('/archive/upload/capstone', { state: { fromArchive: true } })
                   }
-                  className="gap-2 shadow-xs"
+                  className="min-h-[44px] gap-2 shadow-xs"
                 >
                   <Upload className="w-4 h-4" />
                   Archive Documents (OCR)
@@ -248,7 +248,7 @@ export default function ArchiveSearchPage() {
           />
 
           {/* Central Dedicated Feed */}
-          <main className="flex-1 min-w-0 w-full">
+          <main className="flex-1 min-w-0 w-full" aria-busy={isLoading}>
             {/* Results Metadata Bar & Mobile Filter Trigger */}
             <div className="flex items-center justify-between pb-3 border-b border-border text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function ArchiveSearchPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsMobileSidebarOpen(true)}
-                  className="md:hidden h-8 px-2.5 text-xs flex items-center gap-1.5"
+                  className="min-h-[44px] px-2.5 text-xs md:hidden"
                   aria-label="Open filter sidebar"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -288,21 +288,27 @@ export default function ArchiveSearchPage() {
 
             {/* Empty State */}
             {!isLoading && !error && projects.length === 0 && (
-              <div className="py-16 text-center space-y-3">
-                <Archive className="w-12 h-12 text-muted-foreground/40 mx-auto" />
-                <h3 className="text-base font-semibold text-foreground">
-                  Your search did not match any archived capstone manuscripts.
-                </h3>
-                <div className="text-xs text-muted-foreground space-y-1 max-w-md mx-auto text-left pl-6 list-disc">
-                  <p>Suggestions:</p>
-                  <li>Make sure that all words are spelled correctly.</li>
-                  <li>Try different keywords or broader academic terms.</li>
-                  <li>Try more general keywords or adjust the publication date range.</li>
-                  <li>
-                    Check if the active scope filter ({scope}) or program filter ({program}) is
-                    overly restrictive.
-                  </li>
-                </div>
+              <div className="space-y-4 py-10">
+                <EmptyState
+                  icon={Archive}
+                  title="No archived manuscripts match this search."
+                  description="Try another search or broaden your scope, program, or publication date filters."
+                  compact
+                />
+                <section
+                  aria-label="Search suggestions"
+                  className="mx-auto max-w-xl rounded-lg border border-border/60 bg-card p-4 text-sm"
+                >
+                  <h4 className="font-medium text-foreground">Suggestions</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                    <li>Check that all words are spelled correctly.</li>
+                    <li>Try different keywords or broader academic terms.</li>
+                    <li>Broaden the publication date range.</li>
+                    <li>
+                      Review the current scope ({scope}) and program ({program}) filters.
+                    </li>
+                  </ul>
+                </section>
 
                 {isInstructor && (
                   <div className="pt-2 flex justify-center">
@@ -312,7 +318,7 @@ export default function ArchiveSearchPage() {
                       onClick={() =>
                         navigate('/archive/upload/capstone', { state: { fromArchive: true } })
                       }
-                      className="gap-2 text-xs"
+                      className="min-h-[44px] gap-2 text-xs"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       Archive New Capstone Documents (Paper & Journal)
@@ -351,14 +357,15 @@ export default function ArchiveSearchPage() {
                         <div className="w-full min-w-0 flex-1 space-y-2">
                           {/* Academic Hyperlinked Title */}
                           <h2 className="text-[17px] sm:text-[18px] font-medium leading-snug tracking-normal">
-                            <button
+                            <Button
                               type="button"
+                              variant="link"
                               onClick={() => handleOpenDocument(project._id)}
-                              className="text-left text-primary hover:underline focus:outline-hidden focus:ring-1 focus:ring-primary rounded-xs"
+                              className="h-auto min-h-[44px] w-full justify-start whitespace-normal px-0 text-left text-base leading-snug text-primary sm:text-lg"
                               title={`Read manuscript: ${project.title}`}
                             >
                               {project.title}
-                            </button>
+                            </Button>
                           </h2>
 
                           {/* Subdued Green Snippet Metadata Line */}
@@ -377,7 +384,7 @@ export default function ArchiveSearchPage() {
                                   href={doi.startsWith('http') ? doi : `https://doi.org/${doi}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="max-w-full break-all hover:underline text-[12px] opacity-90 inline-flex items-center gap-0.5"
+                                  className="max-w-full break-all hover:underline text-[12px] opacity-90 inline-flex min-h-[44px] items-center gap-0.5 sm:min-h-0"
                                   title="Open Digital Object Identifier (DOI)"
                                 >
                                   doi:{doi.replace(/^https?:\/\/doi\.org\//, '')}
@@ -393,39 +400,49 @@ export default function ArchiveSearchPage() {
                           </p>
 
                           {/* Standardized 4-Action Snippet Toolbar */}
-                          <div className="pt-1 flex items-center flex-wrap gap-x-4 gap-y-2 text-[13px] text-muted-foreground select-none [&>button]:min-h-11 sm:[&>button]:min-h-8">
+                          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1 text-[13px] text-muted-foreground select-none">
                             {/* 1. Save to Library */}
-                            <button
+                            <Button
                               type="button"
+                              variant={isSaved ? 'secondary' : 'ghost'}
+                              size="sm"
                               onClick={() => handleToggleSave(project._id)}
-                              className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${
-                                isSaved ? 'text-amber-500 dark:text-amber-400 font-medium' : ''
+                              className={`min-h-[44px] px-2 text-xs text-muted-foreground hover:text-foreground ${
+                                isSaved ? 'font-medium text-warning-foreground' : ''
                               }`}
                               aria-label={isSaved ? 'Remove from library' : 'Save to library'}
+                              aria-pressed={isSaved}
                             >
-                              <Star className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                              <Star
+                                className={`size-3.5 ${isSaved ? 'fill-current' : ''}`}
+                                aria-hidden="true"
+                              />
                               <span>{isSaved ? 'Saved' : 'Save'}</span>
-                            </button>
+                            </Button>
 
                             {/* 2. Cite Modal Trigger */}
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setCitationModalProject(project)}
-                              className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
+                              className="min-h-[44px] px-2 text-xs text-muted-foreground hover:text-foreground"
                             >
-                              <Quote className="w-3.5 h-3.5" />
+                              <Quote className="size-3.5" aria-hidden="true" />
                               <span>Cite</span>
-                            </button>
+                            </Button>
 
                             {/* 3. Related Articles */}
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setSimilarModalProject(project)}
-                              className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
+                              className="min-h-[44px] px-2 text-xs text-muted-foreground hover:text-foreground"
                             >
-                              <Layers className="w-3.5 h-3.5" />
+                              <Layers className="size-3.5" aria-hidden="true" />
                               <span>Related articles</span>
-                            </button>
+                            </Button>
 
                             {/* 4. Color-Coded Originality Shield Badge */}
                             <OriginalityShieldBadge
@@ -439,7 +456,7 @@ export default function ArchiveSearchPage() {
                                 href={project.githubRepoUrl || project.teamId?.githubLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors text-primary font-medium"
+                                className="inline-flex min-h-[44px] items-center gap-1 px-2 font-medium text-primary transition-colors hover:text-foreground hover:underline sm:min-h-0"
                                 title="Open Verified GitHub Repository"
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -451,30 +468,34 @@ export default function ArchiveSearchPage() {
 
                             {/* 6. Prototypes & Architecture Gallery */}
                             {Array.isArray(project.prototypes) && project.prototypes.length > 0 && (
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setPrototypeModalProject(project)}
-                                className="inline-flex items-center gap-1 text-primary font-medium hover:underline transition-colors"
+                                className="min-h-[44px] px-2 text-xs font-medium text-primary"
                                 title="View system architecture & prototype media showcase"
                               >
-                                <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                                <ImageIcon className="size-3.5 text-primary" aria-hidden="true" />
                                 <span>Prototypes ({project.prototypes.length})</span>
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
 
                         {/* Right: Direct [PDF] Link */}
                         <div className="shrink-0 pt-0.5">
-                          <button
+                          <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => handleOpenDocument(project._id)}
-                            className="min-h-11 sm:min-h-8 text-xs font-semibold text-primary hover:underline flex items-center gap-1 px-3 py-2 rounded-sm bg-muted/40 hover:bg-muted"
+                            className="min-h-[44px] gap-2 text-xs font-semibold"
                             title="Read full manuscript PDF"
                           >
-                            <FileText className="w-3.5 h-3.5 text-red-500" />
+                            <FileText className="size-3.5 text-destructive" aria-hidden="true" />
                             <span>[PDF] buksu.edu.ph</span>
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </article>
@@ -501,7 +522,7 @@ export default function ArchiveSearchPage() {
                     size="sm"
                     disabled={pagination.page <= 1}
                     onClick={() => setPage(Math.max(1, pagination.page - 1))}
-                    className="h-11 sm:h-8 px-2 text-xs"
+                    className="min-h-[44px] px-2 text-xs sm:h-8 sm:min-h-0"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
@@ -521,6 +542,8 @@ export default function ArchiveSearchPage() {
                         size="sm"
                         onClick={() => setPage(pageNum)}
                         className="hidden h-8 w-8 p-0 text-xs sm:inline-flex"
+                        aria-label={`Go to page ${pageNum}`}
+                        aria-current={pagination.page === pageNum ? 'page' : undefined}
                       >
                         {pageNum}
                       </Button>
@@ -529,12 +552,16 @@ export default function ArchiveSearchPage() {
 
                   {pagination.pages > 5 && (
                     <>
-                      <span className="hidden px-1 text-muted-foreground text-xs sm:inline">...</span>
+                      <span className="hidden px-1 text-muted-foreground text-xs sm:inline">
+                        ...
+                      </span>
                       <Button
                         variant={pagination.page === pagination.pages ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setPage(pagination.pages)}
                         className="hidden h-8 w-8 p-0 text-xs sm:inline-flex"
+                        aria-label={`Go to page ${pagination.pages}`}
+                        aria-current={pagination.page === pagination.pages ? 'page' : undefined}
                       >
                         {pagination.pages}
                       </Button>
@@ -546,7 +573,7 @@ export default function ArchiveSearchPage() {
                     size="sm"
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => setPage(Math.min(pagination.pages, pagination.page + 1))}
-                    className="h-11 sm:h-8 px-2 text-xs"
+                    className="min-h-[44px] px-2 text-xs sm:h-8 sm:min-h-0"
                     aria-label="Next page"
                   >
                     Next

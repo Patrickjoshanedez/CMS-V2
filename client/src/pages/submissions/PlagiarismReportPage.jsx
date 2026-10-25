@@ -4,32 +4,27 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
-  Download,
   FileText,
   Layers,
-  Loader2,
   RefreshCcw,
   X,
-  Eye,
-  ClipboardCheck,
   BookOpen,
   Printer,
   Search,
   Sparkles,
-  Info,
-  ExternalLink,
-  ShieldAlert,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageSkeleton from '@/components/ui/PageSkeleton';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
@@ -60,7 +55,9 @@ import {
   getSimilarityStatus,
   SIGNAL_CONFIG,
 } from './utils/plagiarismReportHelpers';
-import PlagiarismSourceRow, { PlagiarismSourceRow as SourceRow } from './components/PlagiarismSourceRow';
+import PlagiarismSourceRow, {
+  PlagiarismSourceRow as SourceRow,
+} from './components/PlagiarismSourceRow';
 
 export {
   SOURCE_PALETTE,
@@ -134,11 +131,6 @@ function PlagiarismReportPage({
     submissionFileName.toLowerCase().endsWith('.doc') ||
     Boolean(effectiveFile?.type?.includes('wordprocessingml')) ||
     Boolean(submission?.fileType?.includes('wordprocessingml'));
-  const isPdf =
-    submissionFileName.toLowerCase().endsWith('.pdf') ||
-    Boolean(effectiveFile?.type?.includes('pdf')) ||
-    Boolean(submission?.fileType?.includes('pdf'));
-
   const viewerSubmission = useMemo(() => {
     if (submission) return submission;
     if (effectiveFile || payload) {
@@ -201,11 +193,6 @@ function PlagiarismReportPage({
         ? allHighlights.filter((highlight) => highlight.sourceId === resolvedActiveSourceId)
         : allHighlights,
     [allHighlights, resolvedActiveSourceId],
-  );
-
-  const textSegments = useMemo(
-    () => buildTextSegments(text, visibleHighlights),
-    [text, visibleHighlights],
   );
 
   const structuredLines = useMemo(() => {
@@ -375,28 +362,22 @@ function PlagiarismReportPage({
     submission?.plagiarismResult?.scanCoverage ||
     'full';
 
-  const semanticStatus =
-    payload?.semanticStatus ||
-    payload?.fullReport?.semanticStatus ||
-    submission?.plagiarismResult?.semanticStatus ||
-    'completed';
-
   const coverageConfig = useMemo(() => {
     if (scanCoverage === 'degraded') {
       return {
         label: 'Degraded (Syntactic Fallback)',
-        badgeClass: 'border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10',
+        badgeVariant: 'destructive',
       };
     }
     if (scanCoverage === 'lexical_only') {
       return {
         label: 'Lexical Only (<5% Overlap · Semantic Skipped)',
-        badgeClass: 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10',
+        badgeVariant: 'warning',
       };
     }
     return {
       label: 'Full Dual-Engine',
-      badgeClass: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+      badgeVariant: 'success',
     };
   }, [scanCoverage]);
 
@@ -503,8 +484,8 @@ function PlagiarismReportPage({
                   {status.statusText}
                 </Badge>
                 <Badge
-                  variant="outline"
-                  className={cn('text-xs font-medium', coverageConfig.badgeClass)}
+                  variant={coverageConfig.badgeVariant}
+                  className="text-xs"
                   data-testid="scan-coverage-badge"
                 >
                   {coverageConfig.label}
@@ -525,7 +506,11 @@ function PlagiarismReportPage({
               disabled={scanMutation.isPending}
               className="gap-1.5"
             >
-              <RefreshCcw className={cn('h-4 w-4', scanMutation.isPending && 'animate-spin')} />
+              {scanMutation.isPending ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
               {scanMutation.isPending ? 'Scanning...' : 'Re-scan Archive'}
             </Button>
 
@@ -554,31 +539,31 @@ function PlagiarismReportPage({
 
         {/* Coverage Alert Banners */}
         {scanCoverage === 'degraded' && (
-          <div
+          <Alert
+            variant="destructive"
             data-testid="scan-coverage-degraded-banner"
-            className="flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-900 dark:text-rose-200"
+            className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
-            <div>
+            <AlertDescription className="text-xs text-destructive-text">
               <span className="font-semibold">Degraded Scan Coverage:</span> Neural vector analysis
               was unavailable or encountered an error. This report is based on syntactic lexical
               matching only and <strong>cannot be used for final defense clearance</strong>.
-            </div>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {scanCoverage === 'lexical_only' && (
-          <div
+          <Alert
+            variant="warning"
             data-testid="scan-coverage-lexical-banner"
-            className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200"
+            className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs"
           >
-            <Info className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div>
+            <AlertDescription className="text-xs text-warning-foreground">
               <span className="font-semibold">Fast-Path Lexical Clearance:</span> Document exhibited
               low lexical overlap (&lt;5%). Deep neural analysis was omitted for this draft. Final
               submissions require full neural coverage.
-            </div>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* ── Executive KPI Cards ── */}
@@ -635,14 +620,18 @@ function PlagiarismReportPage({
                   Estimated Non-Matching Text
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-3xl font-extrabold text-success-foreground">
                     {Math.round(originalityScore)}%
                   </span>
-                  <span className="text-xs text-muted-foreground">estimated from detected similarity</span>
+                  <span className="text-xs text-muted-foreground">
+                    estimated from detected similarity
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">A similarity score does not verify authorship.</p>
+                <p className="text-xs text-muted-foreground">
+                  A similarity score does not verify authorship.
+                </p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10 text-success-foreground">
                 <FileText className="h-6 w-6" />
               </div>
             </CardContent>
@@ -681,170 +670,180 @@ function PlagiarismReportPage({
           {/* Document canvas (Turnitin "paper" look) */}
           <div className="flex flex-col overflow-hidden bg-muted/20">
             {/* Canvas Sub-Header Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs">
+            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs sm:items-center">
               {/* Left: Document Mode Switcher & Highlights Toggle */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
-                  <button
+              <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Document view mode"
+                  className="flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs"
+                >
+                  <Button
                     type="button"
+                    variant={canvasMode === 'document' ? 'secondary' : 'ghost'}
+                    size="sm"
                     data-testid="canvasmode-document-btn"
                     onClick={() => setCanvasMode('document')}
-                    className={cn(
-                      'rounded px-2.5 py-1 text-xs font-medium transition-all flex items-center gap-1.5',
-                      canvasMode === 'document'
-                        ? 'bg-card font-semibold text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
+                    aria-pressed={canvasMode === 'document'}
+                    className="gap-1.5"
                     title="Render authentic PDF/Word document with complete styling, fonts, and margins"
                   >
                     <FileText className="h-3.5 w-3.5 text-primary" />
                     <span>Original Document</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant={canvasMode === 'extracted' ? 'secondary' : 'ghost'}
+                    size="sm"
                     data-testid="canvasmode-extracted-btn"
                     onClick={() => setCanvasMode('extracted')}
-                    className={cn(
-                      'rounded px-2.5 py-1 text-xs font-medium transition-all flex items-center gap-1.5',
-                      canvasMode === 'extracted'
-                        ? 'bg-card font-semibold text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
+                    aria-pressed={canvasMode === 'extracted'}
+                    className="gap-1.5"
                     title="View extracted text line-by-line"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
                     <span>Extracted Text</span>
-                  </button>
+                  </Button>
                 </div>
 
                 {canvasMode === 'extracted' && (
                   <>
                     <div className="h-4 w-px bg-border/60" />
 
-                    <button
+                    <Button
                       type="button"
+                      variant={showHighlights ? 'secondary' : 'outline'}
+                      size="sm"
                       data-testid="toggle-highlights-btn"
                       onClick={() => setShowHighlights((prev) => !prev)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-medium transition-all text-xs border',
-                        showHighlights
-                          ? 'bg-primary/10 border-primary/30 text-primary font-semibold shadow-2xs'
-                          : 'bg-background/80 border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
+                      aria-pressed={showHighlights}
+                      className="gap-1.5"
                       title="Toggle originality highlights overlay"
                     >
                       <Sparkles className={cn('h-3.5 w-3.5', showHighlights && 'text-primary')} />
                       <span>Highlights: {showHighlights ? 'ON' : 'OFF'}</span>
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
 
               {/* Right: Page Navigator, Paper Mode & Zoom (Extracted mode only) */}
               {canvasMode === 'extracted' && (
-                <div className="flex items-center gap-2.5">
+                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
                   {/* Page Navigator */}
                   {pages.length > 1 && (
                     <div className="flex items-center gap-1 bg-background/80 px-2 py-0.5 rounded-lg border border-border/60 text-xs font-mono">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         disabled={currentPage <= 1}
                         onClick={() => scrollToPage(Math.max(1, currentPage - 1))}
-                        className="h-5 w-5 rounded hover:bg-muted disabled:opacity-30 flex items-center justify-center text-foreground transition-colors"
                         title="Previous Page"
                         aria-label="Previous Page"
                       >
                         <ChevronLeft className="h-3 w-3" />
-                      </button>
+                      </Button>
                       <span className="font-semibold text-foreground text-[11px] px-1">
                         Page {currentPage} of {pages.length}
                       </span>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         disabled={currentPage >= pages.length}
                         onClick={() => scrollToPage(Math.min(pages.length, currentPage + 1))}
-                        className="h-5 w-5 rounded hover:bg-muted disabled:opacity-30 flex items-center justify-center text-foreground transition-colors"
                         title="Next Page"
                         aria-label="Next Page"
                       >
                         <ChevronRight className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
-                    <button
+                  <div
+                    role="group"
+                    aria-label="Manuscript appearance"
+                    className="flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs"
+                  >
+                    <Button
                       type="button"
+                      variant={paperMode === 'paper' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      data-testid="paper-mode-paper-btn"
                       onClick={() => setPaperMode('paper')}
-                      className={cn(
-                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
-                        paperMode === 'paper'
-                          ? 'bg-card font-semibold text-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
+                      aria-pressed={paperMode === 'paper'}
                       title="Authentic Paper Sheet View"
                     >
                       Paper Sheet
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant={paperMode === 'theme' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      data-testid="paper-mode-theme-btn"
                       onClick={() => setPaperMode('theme')}
-                      className={cn(
-                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
-                        paperMode === 'theme'
-                          ? 'bg-card font-semibold text-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
+                      aria-pressed={paperMode === 'theme'}
                       title="Theme Card View"
                     >
                       Theme
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Zoom controls */}
-                  <div className="flex items-center gap-1 text-[11px] font-mono">
-                    <button
+                  <div
+                    role="group"
+                    aria-label="Manuscript zoom"
+                    className="flex max-w-full flex-wrap items-center gap-1 text-[11px] font-mono"
+                  >
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="icon"
                       onClick={() => setZoomLevel((z) => Math.max(z - 10, 50))}
                       disabled={zoomLevel <= 50}
-                      className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       title="Zoom out"
+                      aria-label="Zoom out"
                     >
                       <ZoomOut className="h-3 w-3" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setZoomLevel(100)}
-                      className="min-w-[2.75rem] px-1 text-center font-semibold text-foreground hover:underline"
+                      aria-pressed={zoomLevel === 100}
+                      className="min-w-[2.75rem] font-mono"
                       title="Reset zoom"
                     >
                       {zoomLevel}%
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="icon"
                       onClick={() => setZoomLevel((z) => Math.min(z + 10, 300))}
                       disabled={zoomLevel >= 300}
-                      className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       title="Zoom in"
+                      aria-label="Zoom in"
                     >
                       <ZoomIn className="h-3 w-3" />
-                    </button>
-                    <div className="flex items-center gap-0.5 ml-1">
+                    </Button>
+                    <div className="flex flex-wrap items-center gap-0.5 ml-1">
                       {[150, 200, 250, 300].map((lvl) => (
-                        <button
+                        <Button
                           key={lvl}
                           type="button"
+                          variant={zoomLevel === lvl ? 'secondary' : 'ghost'}
+                          size="sm"
                           onClick={() => setZoomLevel(lvl)}
-                          className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors ${
-                            zoomLevel === lvl
-                              ? 'bg-primary text-primary-foreground font-bold border-primary'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted border-border/50'
-                          }`}
+                          aria-pressed={zoomLevel === lvl}
+                          className="font-mono text-[10px]"
                           title={`Zoom to ${lvl}%`}
                           aria-label={`Zoom ${lvl}%`}
                         >
                           {lvl}%
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -857,64 +856,28 @@ function PlagiarismReportPage({
               <div className="flex flex-wrap items-center gap-3 border-b border-border/40 bg-muted/20 px-4 py-1.5 text-[10px] text-muted-foreground">
                 <span className="font-semibold text-foreground">Highlight intensity:</span>
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(234,179,8,0.25)',
-                      border: '1px solid rgba(234,179,8,0.5)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border border-warning/50 bg-warning/25" />
                   Low (≤50%)
                 </span>
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(249,115,22,0.35)',
-                      border: '1px solid rgba(249,115,22,0.7)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border border-chart-6/70 bg-chart-6/35" />
                   Medium (50–70%)
                 </span>
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(244,63,94,0.42)',
-                      border: '2px solid rgba(244,63,94,0.8)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border-2 border-destructive/80 bg-destructive/42" />
                   High (70–90%)
                 </span>
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(185,28,28,0.50)',
-                      border: '3px solid rgba(185,28,28,0.9)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border-[3px] border-destructive/90 bg-destructive/50" />
                   Critical (≥90%)
                 </span>
                 <span className="mx-1 h-3 w-px bg-border/60" />
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(124,58,237,0.20)',
-                      borderBottom: '2px dashed rgba(124,58,237,0.8)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border-b-2 border-dashed border-chart-4/80 bg-chart-4/20" />
                   Paraphrase
                 </span>
                 <span className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2.5 w-5 rounded-sm"
-                    style={{
-                      background: 'rgba(220,38,38,0.28)',
-                      borderBottom: '3px double rgba(220,38,38,0.8)',
-                    }}
-                  />
+                  <span className="inline-block h-2.5 w-5 rounded-sm border-b-[3px] border-double border-destructive/80 bg-destructive/28" />
                   Verbatim
                 </span>
               </div>
@@ -1262,12 +1225,13 @@ function PlagiarismReportPage({
               {sources.length > 2 && (
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    type="text"
+                  <Input
+                    type="search"
+                    aria-label="Filter sources by title"
                     placeholder="Filter sources by title..."
                     value={sourceSearch}
                     onChange={(e) => setSourceSearch(e.target.value)}
-                    className="w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="h-9 bg-background pl-8 text-xs"
                   />
                 </div>
               )}
@@ -1306,27 +1270,26 @@ function PlagiarismReportPage({
                           </p>
                         </div>
                         <div className="mt-1 flex items-center gap-2">
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
-                              signal.className,
-                            )}
+                          <Badge
+                            variant={signal.badgeVariant}
+                            className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
                           >
                             {signal.label}
-                          </span>
+                          </Badge>
                           <span className={cn('text-[11px] font-semibold', detailStatus.textClass)}>
                             {blendedPct}% blended
                           </span>
                         </div>
                       </div>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setActiveHighlightKey(null)}
-                        className="h-6 w-6 shrink-0 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
                         aria-label="Close detail"
                       >
                         <X className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
 
                     {/* Score breakdown bars */}
@@ -1355,7 +1318,7 @@ function PlagiarismReportPage({
                           <span className="w-16 shrink-0 text-muted-foreground">Exact</span>
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-amber-500 transition-all"
+                              className="h-full rounded-full bg-warning transition-all"
                               style={{ width: `${winnowPct}%` }}
                             />
                           </div>
@@ -1370,7 +1333,7 @@ function PlagiarismReportPage({
                           <span className="w-16 shrink-0 text-muted-foreground">Semantic</span>
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-blue-500 transition-all"
+                              className="h-full rounded-full bg-info transition-all"
                               style={{ width: `${semanticPct}%` }}
                             />
                           </div>
@@ -1382,13 +1345,13 @@ function PlagiarismReportPage({
 
                       {/* Contextual explanation */}
                       {activeSource.contextSignal === 'paraphrase' && (
-                        <p className="text-[9px] leading-snug text-violet-600 dark:text-violet-400 italic mt-0.5">
+                        <p className="text-[9px] leading-snug text-info-foreground italic mt-0.5">
                           High semantic overlap detected with low verbatim copying — possible
                           paraphrase.
                         </p>
                       )}
                       {activeSource.contextSignal === 'verbatim' && (
-                        <p className="text-[9px] leading-snug text-rose-600 dark:text-rose-400 italic mt-0.5">
+                        <p className="text-[9px] leading-snug text-destructive-text italic mt-0.5">
                           Exact literal copying detected via n-gram fingerprinting.
                         </p>
                       )}
@@ -1411,7 +1374,7 @@ function PlagiarismReportPage({
                         <p className="text-xs leading-relaxed text-foreground font-serif">
                           {activeHighlight.sourceText || (
                             <span className="flex items-center gap-1.5 italic text-muted-foreground">
-                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                               Source excerpt not available for this match.
                             </span>
                           )}
@@ -1426,7 +1389,7 @@ function PlagiarismReportPage({
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
               {filteredSources.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-500/60" />
+                  <CheckCircle2 className="mb-3 h-10 w-10 text-success/60" />
                   <p className="text-sm font-semibold text-foreground">
                     {sourceSearch ? 'No matching sources' : 'No matches found'}
                   </p>

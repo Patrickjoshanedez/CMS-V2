@@ -1,17 +1,23 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { UserCheck, X, Loader2, Search, ChevronDown, Check } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { UserCheck, X } from 'lucide-react';
+import { CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Label } from '@/components/ui/Label';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { useUsers } from '@/hooks/useUsers';
 import { useAssignCommittee, useTeamById } from '@/hooks/useTeams';
 import { ROLES } from '@cms/shared';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 /**
  * Maps system roles to institutional display nomenclature:
@@ -60,6 +66,7 @@ export function AssignCommitteeDialog({
   initialAdviserId = '',
   initialSecretaryId = '',
   initialPanelistIds = DEFAULT_PANELIST_IDS,
+  disciplines = [],
   onSuccess,
 }) {
   const [adviserId, setAdviserId] = useState(getId(initialAdviserId));
@@ -72,7 +79,11 @@ export function AssignCommitteeDialog({
     enabled: Boolean(open && teamId),
   });
 
-  const serializedPanelists = initialPanelistIds.join(',');
+  const serializedPanelists = initialPanelistIds.map(getId).join(',');
+  const initialPanelistIdsBySlot = useMemo(
+    () => serializedPanelists.split(','),
+    [serializedPanelists],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -90,17 +101,17 @@ export function AssignCommitteeDialog({
 
       setAdviserId(existingAdviser);
       setSecretaryId(existingSecretary);
-      setPanelist1Id(existingPanelists[0] || getId(initialPanelistIds[0]));
-      setPanelist2Id(existingPanelists[1] || getId(initialPanelistIds[1]));
-      setPanelist3Id(existingPanelists[2] || getId(initialPanelistIds[2]));
+       setPanelist1Id(existingPanelists[0] || initialPanelistIdsBySlot[0] || '');
+       setPanelist2Id(existingPanelists[1] || initialPanelistIdsBySlot[1] || '');
+       setPanelist3Id(existingPanelists[2] || initialPanelistIdsBySlot[2] || '');
     } else {
       setAdviserId(getId(initialAdviserId));
       setSecretaryId(getId(initialSecretaryId));
-      setPanelist1Id(getId(initialPanelistIds[0]));
-      setPanelist2Id(getId(initialPanelistIds[1]));
-      setPanelist3Id(getId(initialPanelistIds[2]));
+       setPanelist1Id(initialPanelistIdsBySlot[0] || '');
+       setPanelist2Id(initialPanelistIdsBySlot[1] || '');
+       setPanelist3Id(initialPanelistIdsBySlot[2] || '');
     }
-  }, [open, teamData, initialAdviserId, initialSecretaryId, serializedPanelists]);
+  }, [open, teamData, initialAdviserId, initialSecretaryId, initialPanelistIdsBySlot]);
 
   // Conflict maps: prevent selecting the same faculty member across roles on the same team
   const adviserConflictMap = useMemo(() => {
@@ -265,14 +276,6 @@ export function AssignCommitteeDialog({
     },
   });
 
-  // Handle ESC key press to close modal (only if no combobox dropdown is open)
-  // Lock body scroll while modal is open
-  const modalRef = useModalAccessibility({
-    open,
-    onClose: () => onOpenChange(false),
-    busy: assignCommitteeMutation.isPending,
-  });
-
   const filledSlotsCount = [
     Boolean(adviserId),
     Boolean(secretaryId),
@@ -323,22 +326,22 @@ export function AssignCommitteeDialog({
     });
   };
 
-  const modalContent = (
-    <div
-      ref={modalRef}
-      className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="committee-dialog-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !assignCommitteeMutation.isPending) {
-          onOpenChange(false);
-        }
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen || !assignCommitteeMutation.isPending) onOpenChange(nextOpen);
       }}
     >
-      <Card
-        className="w-full max-w-lg border-border/80 bg-card shadow-2xl overflow-hidden my-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showClose={false}
+        className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-3.5rem)]"
+        onEscapeKeyDown={(event) => {
+          if (assignCommitteeMutation.isPending) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (assignCommitteeMutation.isPending) event.preventDefault();
+        }}
       >
         <form
           onSubmit={handleSubmit}
@@ -346,11 +349,11 @@ export function AssignCommitteeDialog({
         >
           {/* Header - Fixed and permanently visible at top */}
           <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 pb-4 bg-card">
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 id="committee-dialog-title" className="text-base font-semibold text-foreground">
+                <DialogTitle className="text-base font-semibold text-foreground">
                   Assign Faculty Committee
-                </h3>
+                </DialogTitle>
                 {teamName && (
                   <Badge
                     variant="secondary"
@@ -360,20 +363,23 @@ export function AssignCommitteeDialog({
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <DialogDescription className="text-xs leading-relaxed">
                 Appoint verified department faculty to oversee defense milestones and evaluate
                 grading rubrics.
-              </p>
+              </DialogDescription>
             </div>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={assignCommitteeMutation.isPending}
-              className="min-h-[44px] min-w-[44px] shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={assignCommitteeMutation.isPending}
+                className="ml-2 shrink-0"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
           </div>
 
           {/* Body Content - Scrollable when vertical viewport is constrained */}
@@ -383,8 +389,8 @@ export function AssignCommitteeDialog({
               className={cn(
                 'rounded-lg border p-3 text-xs transition-colors',
                 isComplete
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                  ? 'border-success/30 bg-success/10 text-success-foreground'
+                  : 'border-warning/30 bg-warning/10 text-warning-foreground',
               )}
             >
               <div className="flex items-center justify-between font-medium">
@@ -401,7 +407,7 @@ export function AssignCommitteeDialog({
                   className={cn(
                     'flex items-center gap-1 rounded px-1.5 py-0.5',
                     adviserId
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      ? 'bg-success/15 text-success-foreground font-medium'
                       : 'bg-muted/50 text-muted-foreground',
                   )}
                 >
@@ -411,7 +417,7 @@ export function AssignCommitteeDialog({
                   className={cn(
                     'flex items-center gap-1 rounded px-1.5 py-0.5',
                     secretaryId
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      ? 'bg-success/15 text-success-foreground font-medium'
                       : 'bg-muted/50 text-muted-foreground',
                   )}
                 >
@@ -421,7 +427,7 @@ export function AssignCommitteeDialog({
                   className={cn(
                     'flex items-center gap-1 rounded px-1.5 py-0.5',
                     [panelist1Id, panelist2Id, panelist3Id].filter(Boolean).length === 3
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      ? 'bg-success/15 text-success-foreground font-medium'
                       : 'bg-muted/50 text-muted-foreground',
                   )}
                 >
@@ -441,9 +447,19 @@ export function AssignCommitteeDialog({
             {/* Adviser Assignment */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="adviser-select" className="text-xs font-semibold">
-                  Capstone Adviser
-                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="adviser-select" className="text-xs font-semibold">
+                    Capstone Adviser
+                  </Label>
+                  {disciplines?.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-normal border-primary/30 text-primary bg-primary/5"
+                    >
+                      Field: {disciplines.join(', ')}
+                    </Badge>
+                  )}
+                </div>
                 <span className="text-[10px] text-muted-foreground">Technical mentor</span>
               </div>
               <FacultySearchCombobox
@@ -457,7 +473,9 @@ export function AssignCommitteeDialog({
                 disabled={isFacultyLoading || assignCommitteeMutation.isPending}
               />
               <p className="text-[11px] text-muted-foreground">
-                Will guide technical development and approve manuscript drafts.
+                {disciplines?.length > 0
+                  ? `Choose a suitable faculty member with expertise in ${disciplines.join(', ')}.`
+                  : 'Can remain vacant during Proposal Review; assigned after title approval based on specialization.'}
               </p>
             </div>
 
@@ -545,7 +563,7 @@ export function AssignCommitteeDialog({
           </CardContent>
 
           {/* Footer - Fixed and permanently visible at bottom */}
-          <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3.5">
+          <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-5 py-3.5">
             <Button
               type="button"
               variant="ghost"
@@ -560,27 +578,18 @@ export function AssignCommitteeDialog({
               type="submit"
               size="sm"
               disabled={assignCommitteeMutation.isPending}
-              className="text-xs h-8 bg-primary hover:bg-primary/90 gap-1.5 font-medium"
+              loading={assignCommitteeMutation.isPending}
+              loadingText="Saving Appointments..."
+              className="text-xs h-8 gap-1.5 font-medium"
             >
-              {assignCommitteeMutation.isPending ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Saving Appointments...
-                </>
-              ) : (
-                <>
-                  <UserCheck className="h-3.5 w-3.5" />
-                  Confirm & Notify Team
-                </>
-              )}
+              <UserCheck className="h-3.5 w-3.5" />
+              Confirm & Notify Team
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
 
 AssignCommitteeDialog.propTypes = {
@@ -591,6 +600,7 @@ AssignCommitteeDialog.propTypes = {
   initialAdviserId: PropTypes.string,
   initialSecretaryId: PropTypes.string,
   initialPanelistIds: PropTypes.arrayOf(PropTypes.string),
+  disciplines: PropTypes.arrayOf(PropTypes.string),
   onSuccess: PropTypes.func,
 };
 

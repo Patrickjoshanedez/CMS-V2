@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent, screen } from '@testing-library/react';
 import { ROLES } from '@cms/shared';
 import ProfilePage from './ProfilePage';
 
@@ -153,7 +154,7 @@ describe('ProfilePage academic info dropdowns', () => {
     view.unmount();
   });
 
-  it('formats section option cleanly without redundant course prefixes', () => {
+  it('formats section options cleanly without redundant course prefixes', async () => {
     mockUseSections.mockReturnValue(
       makeQueryState({
         data: [
@@ -176,17 +177,30 @@ describe('ProfilePage academic info dropdowns', () => {
     );
 
     const view = renderProfilePage();
-    const select = view.container.querySelector('#profile-section');
-    expect(select).not.toBeNull();
-    const options = Array.from(select.querySelectorAll('option'));
-    expect(options[1].textContent.trim()).toBe('BSIT-4A (2025-2026)');
-    expect(options[2].textContent.trim()).toBe('BSIT-4B (2025-2026)');
-    expect(options[1].textContent).not.toContain('[BSIT]');
+    const sectionSelect = view.container.querySelector('#profile-section');
+    expect(sectionSelect).not.toBeNull();
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    try {
+      await fireEvent.keyDown(sectionSelect, { key: 'ArrowDown' });
+      const options = await screen.findAllByRole('option');
+      expect(options.map((option) => option.textContent.trim())).toEqual([
+        'BSIT-4A (2025-2026)',
+        'BSIT-4B (2025-2026)',
+      ]);
+      expect(options[0].textContent).not.toContain('[BSIT]');
+    } finally {
+      if (originalScrollIntoView) {
+        HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+      } else {
+        delete HTMLElement.prototype.scrollIntoView;
+      }
+    }
 
     view.unmount();
   });
 
-  it('renders Year and Section label, placeholder option, and academic info description', () => {
+  it('renders Year and Section label, placeholder, and academic info description', () => {
     const view = renderProfilePage();
 
     expect(view.container.textContent).toContain(
@@ -199,10 +213,9 @@ describe('ProfilePage academic info dropdowns', () => {
     expect(sectionLabel).not.toBeNull();
     expect(sectionLabel?.textContent?.trim()).toBe('Year and Section *');
 
-    const select = view.container.querySelector('#profile-section');
-    expect(select).not.toBeNull();
-    const defaultOption = select?.querySelector('option[value=""]');
-    expect(defaultOption?.textContent?.trim()).toBe('Select your year and section');
+    const sectionSelect = view.container.querySelector('#profile-section');
+    expect(sectionSelect).not.toBeNull();
+    expect(sectionSelect.textContent.trim()).toBe('Select your year and section');
 
     expect(view.container.textContent).toContain(
       'No active year and sections are available. Ask an instructor to create or activate a section.',

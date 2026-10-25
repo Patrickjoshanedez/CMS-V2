@@ -160,4 +160,21 @@ describe('PlagiarismProgressModal', () => {
 
     expect(usePlagiarismScanStore.getState().isDismissed).toBe(true);
   });
+
+  it('renders socket scan progress with the shared accessible Progress primitive', () => {
+    act(() => {
+      root.render(<PlagiarismProgressModal />);
+    });
+
+    act(() => {
+      mockSocketHandler({ percent: 37, stage: 'Comparing manuscript passages' });
+    });
+
+    const modal = container.querySelector('[data-testid="socket-plagiarism-floating-modal"]');
+    expect(modal).not.toBeNull();
+    expect(modal.textContent).toContain('Comparing manuscript passages');
+    const progress = modal.querySelector('[role="progressbar"]');
+    expect(progress.getAttribute('aria-label')).toBe('Plagiarism scan progress');
+    expect(progress.getAttribute('aria-valuenow')).toBe('37');
+  });
 });

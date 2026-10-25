@@ -71,12 +71,31 @@ describe('ProjectCohortCard', () => {
       root.render(<ProjectCohortCard project={mockProject} onNavigate={handleNavigate} />);
     });
 
-    const actionBtn = container.querySelector('button');
+    const actionBtn = container.querySelector('[data-slot="project-card-cta"]');
     expect(actionBtn).not.toBeNull();
     act(() => {
       actionBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(handleNavigate).toHaveBeenCalledWith('proj-123');
+  });
+
+  it('supports keyboard activation from the project card', () => {
+    const handleNavigate = vi.fn();
+    act(() => {
+      root.render(<ProjectCohortCard project={mockProject} onNavigate={handleNavigate} />);
+    });
+
+    const card = container.querySelector('[role="link"]');
+    expect(card.getAttribute('aria-label')).toBe('Open project: Smart AgroSense IoT');
+    act(() => {
+      card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    act(() => {
+      card.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+
+    expect(handleNavigate).toHaveBeenCalledTimes(2);
     expect(handleNavigate).toHaveBeenCalledWith('proj-123');
   });
 
@@ -96,5 +115,19 @@ describe('ProjectCohortCard', () => {
 
     expect(container.textContent).toContain('Team Alpha Title Proposal');
     expect(container.textContent).toContain('candidate proposal');
+  });
+
+  it('normalizes repeated team prefixes in seeded team names', () => {
+    const prefixedProject = {
+      ...mockProject,
+      teamId: { ...mockProject.teamId, name: 'Team Team Alpha' },
+    };
+
+    act(() => {
+      root.render(<ProjectCohortCard project={prefixedProject} onNavigate={vi.fn()} />);
+    });
+
+    expect(container.textContent).toContain('Team Alpha');
+    expect(container.textContent).not.toContain('Team Team Alpha');
   });
 });

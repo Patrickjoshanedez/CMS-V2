@@ -10,6 +10,8 @@
  * - Combined Display Label: "BSIT-4A (T87)"
  */
 
+import { inferCapstoneCourseFromSection, resolveCapstoneCurriculumMeta } from '@cms/shared';
+
 /**
  * Format a section name to canonical BukSU convention.
  * Converts "BSIT 4-A", "BSIT 4A", "4-A" -> "BSIT-4A"
@@ -46,6 +48,26 @@ export function formatCanonicalSectionName(section, courseCode = '') {
 }
 
 /**
+ * Extract the Section Code (e.g. "T65", "T76", "T89") distinctly from the Section Block ("BSIT-4B").
+ * Prevents legacy records where `code` was saved as "BSIT-4B" from displaying the block name as a T-code.
+ */
+export function extractSectionCode(section) {
+  if (!section || typeof section !== 'object') return '';
+  const rawCode = String(section.code || '').trim().toUpperCase();
+  if (!rawCode) return '';
+
+  const courseCode = section.courseId?.code || section.courseCode || 'BSIT';
+  const canonicalBlock = formatCanonicalSectionName(section, courseCode).toUpperCase();
+  const normalizedName = String(section.name || '').trim().toUpperCase();
+
+  // If the stored code is identical to the section block (e.g. "BSIT-4B" or "4B"), it is not a T-code
+  if (rawCode === canonicalBlock || rawCode === normalizedName) {
+    return '';
+  }
+  return rawCode;
+}
+
+/**
  * Format section with Section Code for comboboxes & selectors.
  * e.g. "BSIT-4A (T87)"
  */
@@ -54,10 +76,35 @@ export function formatSectionWithCode(section) {
   const courseCode =
     (typeof section === 'object' && (section.courseId?.code || section.courseCode)) || '';
   const canonicalName = formatCanonicalSectionName(section, courseCode);
-  const code = (typeof section === 'object' ? section.code : '')?.trim() || '';
+  const code = extractSectionCode(section);
 
   if (code && code !== canonicalName) {
     return `${canonicalName} (${code})`;
   }
   return canonicalName;
+}
+
+/**
+ * Resolve the Capstone course & semester metadata for a section object.
+ * Returns { capstoneCourse, courseTitle, yearLabel, academicTerm, curriculumLabel } or null.
+ */
+export function resolveSectionCapstoneMeta(section, fallbackTerm = '') {
+  if (!section || typeof section !== 'object') return null;
+  const term = section.academicTerm || fallbackTerm || '1st Semester';
+  const courseNum =
+    section.capstoneCourse ?? inferCapstoneCourseFromSection(section.name || '', term);
+  const meta = resolveCapstoneCurriculumMeta(courseNum);
+  if (!meta) {
+    return {
+      capstoneCourse: null,
+      courseTitle: null,
+      yearLabel: null,
+      academicTerm: term,
+      curriculumLabel: term,
+    };
+  }
+  return {
+    ...meta,
+    academicTerm: section.academicTerm || meta.academicTerm,
+  };
 }

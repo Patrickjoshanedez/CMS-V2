@@ -12,6 +12,10 @@ const statusConfig = {
   [TITLE_STATUSES.DRAFT]: { label: 'Draft', variant: 'secondary' },
   [TITLE_STATUSES.SUBMITTED]: { label: 'Pending Proposal', variant: 'info' },
   [TITLE_STATUSES.APPROVED]: { label: 'Approved', variant: 'success' },
+  [TITLE_STATUSES.APPROVED_WITH_REVISION]: {
+    label: 'Approved with Revision',
+    variant: 'warning',
+  },
   [TITLE_STATUSES.REVISION_REQUIRED]: { label: 'Revisions Required', variant: 'warning' },
   [TITLE_STATUSES.PENDING_MODIFICATION]: { label: 'Pending Modification', variant: 'warning' },
 };

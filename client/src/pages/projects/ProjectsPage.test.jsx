@@ -1,6 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ProjectsPage from './ProjectsPage';
 import { useAuthStore } from '@/stores/authStore';
@@ -19,6 +20,7 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
 describe('ProjectsPage (Instructor Review Portal)', () => {
   let container;
   let root;
+  let projectsSpy;
 
   const mockUser = {
     _id: 'inst-1',
@@ -69,6 +71,13 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
   ];
 
   beforeEach(() => {
+    if (!HTMLElement.prototype.hasPointerCapture)
+      HTMLElement.prototype.hasPointerCapture = () => false;
+    if (!HTMLElement.prototype.setPointerCapture)
+      HTMLElement.prototype.setPointerCapture = () => {};
+    if (!HTMLElement.prototype.releasePointerCapture)
+      HTMLElement.prototype.releasePointerCapture = () => {};
+    if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = () => {};
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -78,7 +87,7 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
       fetchUser: vi.fn(),
     });
 
-    vi.spyOn(useProjectsModule, 'useProjects').mockImplementation((filters) => {
+    projectsSpy = vi.spyOn(useProjectsModule, 'useProjects').mockImplementation((filters) => {
       // Mock filtering based on activeCategory or actionNeeded
       let list = mockProjects;
       if (filters?.actionNeeded) {
@@ -100,6 +109,28 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
     });
   });
 
+  it('uses the shared spinner while the session user is unavailable', async () => {
+    const fetchUser = vi.fn();
+    useAuthStore.mockImplementation((selector) => selector({ user: null, fetchUser }));
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/projects']}>
+          <ProjectsPage />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(fetchUser).toHaveBeenCalled();
+    expect(container.querySelector('svg.animate-spin')).not.toBeNull();
+  });
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    container?.remove();
+    vi.restoreAllMocks();
+  });
+
   it('renders modern Instructor Review header, KPI metric strip, and task categories', async () => {
     await act(async () => {
       root.render(
@@ -111,7 +142,9 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
 
     // Check Header
     expect(container.textContent).toContain('Instructor Review');
-    expect(container.textContent).toContain('Review assigned proposals, manuscripts, and defense progress.');
+    expect(container.textContent).toContain(
+      'Review assigned proposals, manuscripts, and defense progress.',
+    );
 
     expect(container.textContent).toContain('Needs Action');
 
@@ -180,5 +213,50 @@ describe('ProjectsPage (Instructor Review Portal)', () => {
 
     const searchInput = container.querySelector('input[placeholder*="Search by team name"]');
     expect(searchInput).toBeTruthy();
+  });
+
+  it('uses accessible shared selects to filter title status and academic year', async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/projects?category=all']}>
+          <ProjectsPage />
+        </MemoryRouter>,
+      );
+    });
+
+    const statusSelect = screen.getByRole('combobox', { name: 'Title status' });
+    expect(statusSelect).toHaveAttribute('data-state', 'closed');
+    await act(async () => {
+      fireEvent.pointerDown(statusSelect, {
+        button: 0,
+        ctrlKey: false,
+        pointerType: 'mouse',
+        pointerId: 1,
+      });
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'Approved' }));
+    });
+    expect(projectsSpy.mock.calls.some(([filters]) => filters.titleStatus === 'approved')).toBe(
+      true,
+    );
+
+    const yearSelect = screen.getByRole('combobox', { name: 'Academic year' });
+    await act(async () => {
+      fireEvent.pointerDown(yearSelect, {
+        button: 0,
+        ctrlKey: false,
+        pointerType: 'mouse',
+        pointerId: 2,
+      });
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: '2024-2025' }));
+    });
+    expect(
+      projectsSpy.mock.calls.some(
+        ([filters]) => filters.titleStatus === 'approved' && filters.academicYear === '2024-2025',
+      ),
+    ).toBe(true);
   });
 });

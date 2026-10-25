@@ -2,6 +2,7 @@ import React from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { fireEvent, screen } from '@testing-library/react';
 import OriginalityShieldBadge from './OriginalityShieldBadge';
 import CitationExportModal from './CitationExportModal';
 import GoogleScholarSearchBar from './GoogleScholarSearchBar';
@@ -45,7 +46,7 @@ describe('Google Scholar Research Archive Components', () => {
 
       expect(container.textContent).toContain('98% Original');
       const button = container.querySelector('button');
-      expect(button.className).toContain('text-[#2e7d32]');
+      expect(button.className).toContain('bg-success/10');
     });
 
     it('renders amber moderate originality badge for scores between 80% and 95%', () => {
@@ -55,7 +56,7 @@ describe('Google Scholar Research Archive Components', () => {
 
       expect(container.textContent).toContain('88% Original');
       const button = container.querySelector('button');
-      expect(button.className).toContain('text-[#f57c00]');
+      expect(button.className).toContain('bg-warning/10');
     });
 
     it('renders red similarity alert badge for scores < 80%', () => {
@@ -65,7 +66,18 @@ describe('Google Scholar Research Archive Components', () => {
 
       expect(container.textContent).toContain('Similarity Alert (28%)');
       const button = container.querySelector('button');
-      expect(button.className).toContain('text-[#c62828]');
+      expect(button.className).toContain('bg-destructive/10');
+    });
+
+    it('preserves the document-opening action for the originality control', () => {
+      const onClick = vi.fn();
+
+      act(() => {
+        root.render(<OriginalityShieldBadge score={98.4} onClick={onClick} />);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Originality score: 98% Original' }));
+      expect(onClick).toHaveBeenCalledOnce();
     });
   });
 
@@ -84,7 +96,7 @@ describe('Google Scholar Research Archive Components', () => {
         root.render(<CitationExportModal open={false} project={mockProject} onClose={vi.fn()} />);
       });
 
-      expect(container.children.length).toBe(0);
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('renders APA, IEEE, MLA, and BibTeX citations when open', () => {
@@ -92,13 +104,13 @@ describe('Google Scholar Research Archive Components', () => {
         root.render(<CitationExportModal open={true} project={mockProject} onClose={vi.fn()} />);
       });
 
-      expect(container.textContent).toContain('Cite Academic Manuscript');
-      expect(container.textContent).toContain('Decentralized Crop Yield Verification Network');
-      expect(container.textContent).toContain('APA (7th Edition)');
-      expect(container.textContent).toContain('IEEE');
-      expect(container.textContent).toContain('MLA (9th Edition)');
-      expect(container.textContent).toContain('BibTeX');
-      expect(container.textContent).toContain('@article{buksu_cript-99_2026');
+      expect(screen.getByRole('dialog', { name: 'Cite Academic Manuscript' })).toBeTruthy();
+      expect(screen.getByText('Decentralized Crop Yield Verification Network')).toBeTruthy();
+      expect(screen.getByText('APA (7th Edition)')).toBeTruthy();
+      expect(screen.getByText('IEEE')).toBeTruthy();
+      expect(screen.getByText('MLA (9th Edition)')).toBeTruthy();
+      expect(screen.getByText('BibTeX')).toBeTruthy();
+      expect(screen.getByText(/@article\{buksu_cript-99_2026/)).toBeTruthy();
     });
 
     it('handles clipboard copy on citation format', () => {
@@ -112,7 +124,7 @@ describe('Google Scholar Research Archive Components', () => {
         root.render(<CitationExportModal open={true} project={mockProject} onClose={vi.fn()} />);
       });
 
-      const copyButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      const copyButtons = Array.from(screen.getAllByRole('button')).filter((b) =>
         b.textContent.includes('Copy'),
       );
       expect(copyButtons.length).toBeGreaterThan(0);
@@ -122,6 +134,17 @@ describe('Google Scholar Research Archive Components', () => {
       });
 
       expect(navigator.clipboard.writeText).toHaveBeenCalled();
+    });
+
+    it('closes through the shared dialog Escape handling', () => {
+      const onClose = vi.fn();
+
+      act(() => {
+        root.render(<CitationExportModal open project={mockProject} onClose={onClose} />);
+      });
+
+      fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+      expect(onClose).toHaveBeenCalledOnce();
     });
   });
 
@@ -232,6 +255,60 @@ describe('Google Scholar Research Archive Components', () => {
       });
 
       expect(container.querySelector('#archive-search-suggestions')).toBeFalsy();
+    });
+
+    it('changes the search scope through the shared select menu', () => {
+      const onScopeChange = vi.fn();
+
+      act(() => {
+        root.render(
+          <GoogleScholarSearchBar
+            query=""
+            onQueryChange={vi.fn()}
+            scope="all"
+            onScopeChange={onScopeChange}
+            onSearch={vi.fn()}
+          />,
+        );
+      });
+
+      const scopeTrigger = container.querySelector('[aria-label="Search scope"]');
+      const searchInput = container.querySelector('input[role="combobox"]');
+      act(() => searchInput.focus());
+      expect(container.querySelector('[role="listbox"]')).toBeTruthy();
+      act(() => scopeTrigger.focus());
+      fireEvent.keyDown(scopeTrigger, { key: 'ArrowDown' });
+      expect(screen.getByRole('option', { name: 'DOI Match' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('option', { name: 'DOI Match' }));
+
+      expect(onScopeChange).toHaveBeenCalledWith('doi');
+      expect(container.querySelector('[role="listbox"]')).toBeNull();
+    });
+
+    it('selects a suggested topic from the combobox keyboard controls', () => {
+      const onQueryChange = vi.fn();
+      const onSearch = vi.fn();
+
+      act(() => {
+        root.render(
+          <GoogleScholarSearchBar
+            query=""
+            onQueryChange={onQueryChange}
+            scope="all"
+            onScopeChange={vi.fn()}
+            onSearch={onSearch}
+          />,
+        );
+      });
+
+      const input = container.querySelector('input[role="combobox"]');
+      act(() => input.focus());
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      expect(onQueryChange).toHaveBeenCalledWith('Deep Learning Agricultural Yield Prediction');
+      expect(onSearch).toHaveBeenCalledWith('Deep Learning Agricultural Yield Prediction');
+      expect(container.querySelector('[role="listbox"]')).toBeNull();
     });
   });
 
@@ -355,9 +432,9 @@ describe('Google Scholar Research Archive Components', () => {
         );
       });
 
-      expect(container.textContent).toContain('Filter Archive');
-      const closeBtn = container.querySelector('button[aria-label="Close filters"]');
-      expect(closeBtn).toBeTruthy();
+      const mobileFilters = screen.getByRole('dialog', { name: 'Filter Archive' });
+      expect(mobileFilters).toBeTruthy();
+      const closeBtn = screen.getByRole('button', { name: 'Close filters' });
 
       act(() => {
         closeBtn.click();

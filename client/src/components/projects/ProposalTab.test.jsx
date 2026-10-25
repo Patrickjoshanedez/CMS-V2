@@ -6,12 +6,15 @@ import ProposalTab from './ProposalTab';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGenerateProposalDeck = vi.fn();
+const mockReviseAndResubmit = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const toastInfo = vi.fn();
 
 vi.mock('@/services/authService', () => ({
   projectService: {
     generateProposalDeck: (...args) => mockGenerateProposalDeck(...args),
+    reviseAndResubmit: (...args) => mockReviseAndResubmit(...args),
   },
 }));
 
@@ -19,6 +22,7 @@ vi.mock('sonner', () => ({
   toast: {
     success: (...args) => toastSuccess(...args),
     error: (...args) => toastError(...args),
+    info: (...args) => toastInfo(...args),
   },
 }));
 
@@ -62,8 +66,7 @@ const approvedProject = {
 const fieldText = {
   problemStatement:
     'High prevalence of manual incident logs and delayed routing leads to unresolved requests and poor visibility.',
-  objectives:
-    'Measure response time, routing accuracy, and the completeness of incident records.',
+  objectives: 'Measure response time, routing accuracy, and the completeness of incident records.',
   technicalStack: 'React dashboard, Express API, and a MongoDB incident store.',
   proposedSolution:
     'A centralized tracker that maps incident categories, owners, and timeline alerts for faster resolution.',
@@ -85,13 +88,13 @@ const placeholders = [
   'Efficiency, transparency, academic integrity...',
 ];
 
-const renderProposalTab = (project = baseProject) => {
+const renderProposalTab = (project = baseProject, props = {}) => {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
 
   act(() => {
-    root.render(<ProposalTab project={project} />);
+    root.render(<ProposalTab project={project} {...props} />);
   });
 
   return {
@@ -121,24 +124,32 @@ describe('ProposalTab', () => {
     view.unmount();
   });
 
-  it('keeps only one accordion expanded at a time', () => {
+  it('switches between proposals through the accessible tab list', () => {
     const view = renderProposalTab();
 
     expect(view.container.querySelector('textarea#proposal-1-problemStatement')).toBeTruthy();
     expect(view.container.querySelector('textarea#proposal-2-problemStatement')).toBeFalsy();
+    expect(view.container.querySelector('[role="tablist"]')).toBeTruthy();
+    expect(
+      view.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+    ).toContain('Smart Incident Tracker: BukSU');
 
-    const secondAccordionButton = Array.from(view.container.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('Barangay Escalation Dashboard'),
+    const secondProposalTab = Array.from(view.container.querySelectorAll('[role="tab"]')).find(
+      (tab) => tab.textContent?.includes('Barangay Escalation Dashboard'),
     );
 
-    expect(secondAccordionButton).toBeTruthy();
+    expect(secondProposalTab).toBeTruthy();
 
     act(() => {
-      secondAccordionButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      secondProposalTab.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+      secondProposalTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     expect(view.container.querySelector('textarea#proposal-2-problemStatement')).toBeTruthy();
     expect(view.container.querySelector('textarea#proposal-1-problemStatement')).toBeFalsy();
+    expect(
+      view.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
+    ).toContain('Barangay Escalation Dashboard');
 
     view.unmount();
   });
@@ -211,13 +222,21 @@ describe('ProposalTab', () => {
       Array.from(textareas, (textarea) => [textarea.id.split('-').at(-1), textarea.value]),
     );
 
-    expect(valuesByField.problemStatement).toContain('difficult for low-literacy and non-native readers');
+    expect(valuesByField.problemStatement).toContain(
+      'difficult for low-literacy and non-native readers',
+    );
     expect(valuesByField.objectives).toContain('Rewrite documents into simple language');
-    expect(valuesByField.technicalStack).toContain('Mobile OCR, a language model, and offline storage');
+    expect(valuesByField.technicalStack).toContain(
+      'Mobile OCR, a language model, and offline storage',
+    );
     expect(valuesByField.proposedSolution).toContain('mobile OCR plus LLM app');
-    expect(valuesByField.uniqueContribution).toContain('cognitive accessibility and supports offline mode');
+    expect(valuesByField.uniqueContribution).toContain(
+      'cognitive accessibility and supports offline mode',
+    );
     expect(valuesByField.targetUsers).toContain('Rural community members, elderly citizens');
-    expect(valuesByField.expectedImpact).toContain('Improves autonomy, lowers administrative errors');
+    expect(valuesByField.expectedImpact).toContain(
+      'Improves autonomy, lowers administrative errors',
+    );
 
     view.unmount();
   });
@@ -230,6 +249,70 @@ describe('ProposalTab', () => {
     );
     expect(view.container.textContent).toContain('Approved');
     expect(view.container.textContent).toContain('Proposal Approved');
+
+    view.unmount();
+  });
+
+  it('requires an accessible confirmation before unlocking the approved scope', async () => {
+    const view = renderProposalTab(approvedProject);
+    const textarea = view.container.querySelector('textarea#proposal-1-problemStatement');
+
+    expect(textarea.disabled).toBe(true);
+
+    const unlockButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Unlock to Edit Scope'),
+    );
+
+    await act(async () => unlockButton.click());
+
+    const dialog = document.body.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain('may require committee re-evaluation');
+    expect(textarea.disabled).toBe(true);
+
+    const confirmButton = Array.from(dialog.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Unlock scope'),
+    );
+
+    await act(async () => confirmButton.click());
+
+    expect(view.container.querySelector('textarea#proposal-1-problemStatement').disabled).toBe(
+      false,
+    );
+    expect(toastInfo).toHaveBeenCalledWith(
+      'Proposal scope unlocked for editing. Modifications will be tracked.',
+    );
+
+    view.unmount();
+  });
+
+  it('resubmits a revision through the project service and refreshes the project', async () => {
+    mockReviseAndResubmit.mockResolvedValue({});
+    const onRefresh = vi.fn();
+    const view = renderProposalTab(
+      { ...baseProject, titleStatus: 'revision_required' },
+      { onRefresh },
+    );
+    const submitButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Confirm Revision & Resubmit for Committee Review'),
+    );
+
+    await act(async () => submitButton.click());
+
+    expect(mockReviseAndResubmit).toHaveBeenCalledWith(
+      'project-1',
+      expect.objectContaining({
+        proposalId: 'proposal-1',
+        title: 'Smart Incident Tracker: BukSU',
+        pitchDeck: expect.objectContaining({
+          problemStatement:
+            'Tracks incidents and response workflows for student and faculty teams.',
+        }),
+      }),
+    );
+    expect(onRefresh).toHaveBeenCalledOnce();
+    expect(toastSuccess).toHaveBeenCalledWith(
+      'Revised proposal resubmitted! Committee and instructors have been notified.',
+    );
 
     view.unmount();
   });

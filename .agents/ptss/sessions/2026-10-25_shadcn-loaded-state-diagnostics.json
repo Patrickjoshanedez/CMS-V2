@@ -1,0 +1,12 @@
+{
+  "session_id": "2026-10-25_shadcn-loaded-state-diagnostics",
+  "date": "2026-10-25",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "classification_of_previous_turn": "progress",
+  "completed": ["Added bounded route-specific dashboard readiness, transport response diagnostics and failed-state captures", "Inspected fully loaded desktop instructor dashboard and mobile document failure screenshot", "Batch 11 passes eight captures"],
+  "findings": ["Realtime HTTP 400 body is Session ID unknown", "Document-editor fixture returns no manuscript, rendering only Back; timeout is insufficient content, not a skeleton", "Batch 10 fixture returns invalid PDF structure", "Batches 9 and 10 terminate after 12 captures each, not accepted passes"],
+  "remaining": ["Repair fixture API shapes/PDF bytes", "Audit GoogleDocViewer and DocumentEditorPage against canonical-reader requirements", "Diagnose realtime session lifecycle", "Complete visual interaction/role/phase matrix", "Exact user-retained performance baseline"],
+  "evidence": "scratch/qa-evidence/shadcn-live-route-audit/cbcea4ffd6afaf90/loaded-state-follow-up.json",
+  "product_sources_changed": false
+}

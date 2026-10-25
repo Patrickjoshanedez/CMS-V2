@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, useNavigate } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import RouteErrorBoundary from './RouteErrorBoundary';
+import { topProgress } from '@/lib/topProgress';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -58,8 +59,34 @@ describe('RouteErrorBoundary', () => {
     expect(view.container.textContent).toContain('Something went wrong');
     expect(view.container.textContent).toContain('Try Again');
     expect(view.container.textContent).toContain('Go to Dashboard');
+    expect(view.container.querySelector('[role="alert"]')).not.toBeNull();
+
+    const details = view.container.querySelector('details');
+    expect(details).not.toBeNull();
+    await act(async () => details.querySelector('summary').click());
+    expect(details.open).toBe(true);
 
     consoleSpy.mockRestore();
     view.unmount();
+  });
+
+  it('clears pending route progress when rendering fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    topProgress.clear();
+    topProgress.start('/broken-route');
+
+    const view = await renderWithRouter(
+      <RouteErrorBoundary>
+        <BuggyComponent shouldThrow={true} />
+      </RouteErrorBoundary>,
+    );
+
+    expect(view.container.textContent).toContain('Something went wrong');
+    expect(topProgress.status).toBe('idle');
+    expect(topProgress.progress).toBe(0);
+
+    view.unmount();
+    topProgress.clear();
+    consoleSpy.mockRestore();
   });
 });

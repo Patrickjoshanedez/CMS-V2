@@ -1,7 +1,7 @@
-import { Loader2 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { useMyTeam } from '@/hooks/useTeams';
 import FacultyTeamsView from './components/FacultyTeamsView';
 import StudentTeamView from './components/StudentTeamView';
@@ -25,9 +25,7 @@ export default function TeamsPage() {
   if (!user) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

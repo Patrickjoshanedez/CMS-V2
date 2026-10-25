@@ -7,7 +7,6 @@ import {
   Plus,
   Trash2,
   Save,
-  Loader2,
   AlertTriangle,
   Image as ImageIcon,
   CheckCircle2,
@@ -18,6 +17,26 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   useUpdateDemoVideoUrl,
   usePrototypes,
@@ -65,17 +84,14 @@ const TYPE_META = {
   image: {
     icon: ImageIcon,
     label: 'Image',
-    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   },
   video: {
     icon: Video,
     label: 'Video',
-    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   },
   link: {
     icon: ExternalLink,
     label: 'Live Link',
-    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   },
 };
 
@@ -93,6 +109,7 @@ export default function PrototypeShowcaseAndDemo({
   const [isUpdatingSystemApproval, setIsUpdatingSystemApproval] = useState(false);
   const [demoUrl, setDemoUrl] = useState(project?.demoVideoUrl || '');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [addMode, setAddMode] = useState('file'); // 'file' | 'link'
   const [newTitle, setNewTitle] = useState('');
   const [newUrl, setNewUrl] = useState('');
@@ -114,8 +131,7 @@ export default function PrototypeShowcaseAndDemo({
 
   const adviserId = String(project?.adviserId?._id || project?.adviserId || '');
   const currentUserId = user?._id || user?.id;
-  const isProjectArchived =
-    project?.isArchived === true || project?.projectStatus === 'archived';
+  const isProjectArchived = project?.isArchived === true || project?.projectStatus === 'archived';
   const canReviewSystem = Boolean(
     !isProjectArchived && currentUserId && adviserId === String(currentUserId),
   );
@@ -196,6 +212,16 @@ export default function PrototypeShowcaseAndDemo({
           toast.error('Please provide a valid URL.');
           return;
         }
+        try {
+          const parsed = new URL(newUrl.trim());
+          if (!['http:', 'https:'].includes(parsed.protocol)) {
+            toast.error('Prototype link must start with http:// or https://');
+            return;
+          }
+        } catch {
+          toast.error('Please enter a valid URL (including https://).');
+          return;
+        }
         await addLinkMutation.mutateAsync({
           projectId,
           title: newTitle.trim(),
@@ -218,9 +244,14 @@ export default function PrototypeShowcaseAndDemo({
     }
   };
 
-  const handleDelete = (prototypeId) => {
-    if (!window.confirm('Delete this prototype showcase item?')) return;
-    removeMutation.mutate({ projectId, prototypeId });
+  const handleDelete = () => {
+    if (!pendingDeleteId) return;
+    removeMutation.mutate(
+      { projectId, prototypeId: pendingDeleteId },
+      {
+        onSettled: () => setPendingDeleteId(null),
+      },
+    );
   };
 
   const embedUrl = getEmbedUrl(project?.demoVideoUrl);
@@ -242,7 +273,8 @@ export default function PrototypeShowcaseAndDemo({
                 </Badge>
               </div>
               <CardDescription className="text-xs">
-                The adviser reviews the repository and working demo before the Capstone 2 hearing is scheduled.
+                The adviser reviews the repository and working demo before the Capstone 2 hearing is
+                scheduled.
                 {systemApproval.remarks ? ` ${systemApproval.remarks}` : ''}
               </CardDescription>
             </div>
@@ -251,9 +283,12 @@ export default function PrototypeShowcaseAndDemo({
                 <Button
                   size="sm"
                   onClick={() => handleSystemClearance(true)}
-                  disabled={!hasSystemEvidence || isUpdatingSystemApproval || systemApproval.approved}
+                  loading={isUpdatingSystemApproval}
+                  loadingText="Updating…"
+                  disabled={
+                    !hasSystemEvidence || isUpdatingSystemApproval || systemApproval.approved
+                  }
                 >
-                  {isUpdatingSystemApproval ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
                   Clear for defense
                 </Button>
                 <Button
@@ -280,7 +315,7 @@ export default function PrototypeShowcaseAndDemo({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-info/10 text-info-foreground font-bold shrink-0">
                   <Video className="h-4 w-4" />
                 </div>
                 <CardTitle className="text-base font-bold text-foreground">
@@ -293,10 +328,10 @@ export default function PrototypeShowcaseAndDemo({
             </div>
             {project?.demoVideoUrl && (
               <Badge
-                variant="outline"
-                className="w-fit text-[11px] font-mono border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300 gap-1.5"
+                variant="success"
+                className="w-fit text-[11px] font-mono gap-1.5"
               >
-                <CheckCircle2 className="h-3 w-3 text-purple-500" />
+                <CheckCircle2 className="h-3 w-3 text-success-foreground" />
                 Video Submitted
               </Badge>
             )}
@@ -327,15 +362,13 @@ export default function PrototypeShowcaseAndDemo({
                 </div>
                 <Button
                   onClick={handleSaveDemo}
+                  loading={updateDemoMutation.isPending}
+                  loadingText="Saving…"
                   disabled={updateDemoMutation.isPending || demoUrl === project?.demoVideoUrl}
                   className="h-9 px-4 text-xs gap-1.5 shrink-0"
                   data-testid="save-demo-video-btn"
                 >
-                  {updateDemoMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
+                  <Save className="h-3.5 w-3.5" />
                   Save Demo Link
                 </Button>
               </div>
@@ -431,120 +464,108 @@ export default function PrototypeShowcaseAndDemo({
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-4">
           {/* Add Item Modal / Inline Form */}
-          {showAddModal && (
-            <div className="rounded-xl border border-primary/30 bg-primary/[0.02] p-4 sm:p-5 space-y-4 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-border/50 pb-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Add Prototype Showcase Item
-                </h4>
-                <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border border-border/60">
-                  <button
-                    type="button"
-                    onClick={() => setAddMode('file')}
-                    className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                      addMode === 'file'
-                        ? 'bg-background font-semibold text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    File Upload
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddMode('link')}
-                    className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                      addMode === 'link'
-                        ? 'bg-background font-semibold text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    External Link
-                  </button>
-                </div>
-              </div>
+          <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Add Prototype Showcase Item</DialogTitle>
+                <DialogDescription>
+                  Upload visual evidence or add a link to the working prototype.
+                </DialogDescription>
+              </DialogHeader>
+              <Tabs value={addMode} onValueChange={setAddMode} className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="file">File Upload</TabsTrigger>
+                  <TabsTrigger value="link">External Link</TabsTrigger>
+                </TabsList>
 
-              <form onSubmit={handleAddPrototype} className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Title</Label>
-                  <Input
-                    placeholder="e.g. Mobile App Navigation Flow, Web Dashboard V1"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="h-8 text-xs"
-                    required
-                  />
-                </div>
-
-                {addMode === 'file' ? (
+                <form onSubmit={handleAddPrototype} className="space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Select Image or Video File</Label>
+                    <Label className="text-xs font-medium">Title</Label>
                     <Input
-                      type="file"
-                      accept={ACCEPTED_MEDIA}
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      className="h-9 text-xs cursor-pointer"
-                      required
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Supported: JPG, PNG, WebP, MP4, WebM (Max 100MB)
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">External Prototype Link</Label>
-                    <Input
-                      placeholder="https://www.figma.com/proto/... or https://your-demo.vercel.app"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
+                      placeholder="e.g. Mobile App Navigation Flow, Web Dashboard V1"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
                       className="h-8 text-xs"
                       required
                     />
                   </div>
-                )}
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Description (Optional)</Label>
-                  <Input
-                    placeholder="Briefly describe what this prototype deliverable demonstrates..."
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
+                  {addMode === 'file' ? (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Select Image or Video File</Label>
+                      <Input
+                        type="file"
+                        accept={ACCEPTED_MEDIA}
+                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                        className="h-9 text-xs cursor-pointer"
+                        required
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Supported: JPG, PNG, WebP, MP4, WebM (Max 100MB)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">External Prototype Link</Label>
+                      <Input
+                        placeholder="https://www.figma.com/proto/... or https://your-demo.vercel.app"
+                        value={newUrl}
+                        onChange={(e) => setNewUrl(e.target.value)}
+                        className="h-8 text-xs"
+                        required
+                      />
+                    </div>
+                  )}
 
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAddModal(false)}
-                    className="h-8 text-xs"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={addMediaMutation.isPending || addLinkMutation.isPending}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {addMediaMutation.isPending || addLinkMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Description (Optional)</Label>
+                    <Input
+                      placeholder="Briefly describe what this prototype deliverable demonstrates..."
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddModal(false)}
+                      className="h-8 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      loading={addMediaMutation.isPending || addLinkMutation.isPending}
+                      loadingText="Saving…"
+                      className="h-8 text-xs gap-1.5"
+                    >
                       <Save className="h-3.5 w-3.5" />
-                    )}
-                    Upload Prototype
-                  </Button>
-                </div>
-              </form>
-            </div>
-          )}
+                      Upload Prototype
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
 
           {/* Loading */}
           {isLoading && (
-            <div className="flex items-center justify-center py-10 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span className="text-xs">Loading prototype deliverables...</span>
+            <div className="space-y-3" role="status" aria-label="Loading prototype deliverables">
+              <span className="sr-only">Loading prototype deliverables...</span>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="space-y-3 rounded-lg border border-border p-3">
+                    <Skeleton className="h-36 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -590,9 +611,9 @@ export default function PrototypeShowcaseAndDemo({
                 const Icon = meta.icon;
 
                 return (
-                  <div
+                  <Card
                     key={item._id}
-                    className="group relative flex flex-col overflow-hidden rounded-xl border border-border/70 bg-card hover:shadow-md transition-shadow"
+                    className="group relative flex flex-col overflow-hidden transition-shadow hover:shadow-md"
                   >
                     {/* Preview thumbnail */}
                     <div className="flex h-36 items-center justify-center bg-muted/40 overflow-hidden relative">
@@ -625,7 +646,7 @@ export default function PrototypeShowcaseAndDemo({
                           <h5 className="text-xs font-semibold text-foreground line-clamp-1">
                             {item.title}
                           </h5>
-                          <Badge variant="outline" className={`shrink-0 text-[10px] ${meta.color}`}>
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">
                             {meta.label}
                           </Badge>
                         </div>
@@ -651,25 +672,49 @@ export default function PrototypeShowcaseAndDemo({
 
                     {/* Delete action */}
                     {canDelete && !isReadOnly && (
-                      <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="absolute right-2 top-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                         <Button
                           variant="destructive"
                           size="icon"
                           className="h-7 w-7 rounded-lg shadow-sm"
                           disabled={removeMutation.isPending}
-                          onClick={() => handleDelete(item._id)}
+                          aria-label={`Delete ${item.title}`}
+                          onClick={() => setPendingDeleteId(item._id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     )}
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
         </CardContent>
       </Card>
+      <AlertDialog
+        open={Boolean(pendingDeleteId)}
+        onOpenChange={(open) => !open && setPendingDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete prototype item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This showcase item will be removed from the project.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={removeMutation.isPending}
+              onClick={handleDelete}
+            >
+              Delete item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

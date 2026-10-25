@@ -1,13 +1,13 @@
 import { cn } from '@/lib/utils';
 
 /**
- * Skeleton — animated glassmorphism shimmer component for loading states.
+ * Skeleton — shadcn-style content placeholder for loading states.
  */
 export function Skeleton({ className, ...props }) {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-md bg-muted/60 backdrop-blur-sm cms-skeleton-shimmer',
+        'rounded-md bg-muted motion-safe:animate-pulse',
         className,
       )}
       aria-hidden="true"
@@ -78,7 +78,7 @@ export function SkeletonCard({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/70 bg-card/60 p-6 shadow-sm space-y-4 backdrop-blur-sm',
+        'space-y-4 rounded-lg border border-border bg-card p-6',
         className,
       )}
       aria-hidden="true"

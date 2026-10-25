@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Menu, Bell, ArrowLeft } from 'lucide-react';
+import { Menu, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import TextScaleDropdown from '@/components/TextScaleDropdown';
 import NotificationBellPopover from '@/components/layouts/NotificationBellPopover';
 import { useAuthStore } from '@/stores/authStore';
-import { useUnreadCount } from '@/hooks/useNotifications';
 import { ROLES } from '@cms/shared';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
 
 /**
  * Declarative route mapping rules with regex patterns.
@@ -178,7 +179,6 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const user = useAuthStore((state) => state.user);
-  const { data: unreadCount = 0 } = useUnreadCount();
   const [avatarBroken, setAvatarBroken] = useState(false);
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
@@ -231,24 +231,28 @@ export default function Header({ sidebarOpen, onMenuClick }) {
       {/* Left side: menu button + page title */}
       <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
         {!sidebarOpen && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onMenuClick}
-            className="lg:hidden min-h-[44px] min-w-[44px] shrink-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="min-h-11 min-w-11 shrink-0 lg:hidden"
             aria-label="Open sidebar"
           >
-            <Menu className="h-5 w-5" />
-          </button>
+            <Menu className="size-5" aria-hidden="true" />
+          </Button>
         )}
 
         {backDestination && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(backDestination.to)}
-            className="min-h-[44px] min-w-[44px] shrink-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:min-w-0"
+            className="min-h-11 min-w-11 shrink-0 sm:min-h-9 sm:min-w-9"
             aria-label={backDestination.label}
             title={backDestination.label}
           >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+            <ArrowLeft className="size-5" aria-hidden="true" />
+          </Button>
         )}
 
         <h2
@@ -271,31 +275,33 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         <TextScaleDropdown />
 
         {/* User avatar */}
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => navigate('/profile')}
-          className="flex min-h-[44px] min-w-[44px] items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent sm:min-h-0 sm:min-w-0"
+          className="h-auto min-h-11 min-w-11 gap-2 px-2 py-1 sm:min-h-9"
           aria-label="Go to profile"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground overflow-hidden">
-            {user?.avatarUrl && !avatarBroken ? (
-              <img
+          <Avatar className="size-8 bg-primary text-primary-foreground">
+            {user?.avatarUrl && !avatarBroken && (
+              <AvatarImage
                 src={user.avatarUrl}
                 alt={user.fullName || 'avatar'}
                 data-testid="header-avatar-img"
-                className="h-full w-full object-cover"
                 onError={() => setAvatarBroken(true)}
               />
-            ) : (
-              initials
             )}
-          </div>
+            <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
           <div className="hidden lg:block min-w-0 max-w-40 text-left">
             <p className="truncate text-sm font-medium leading-tight" title={user?.fullName}>
               {user?.fullName}
             </p>
             <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
-        </button>
+        </Button>
       </div>
     </header>
   );

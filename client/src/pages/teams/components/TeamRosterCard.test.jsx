@@ -59,7 +59,8 @@ describe('TeamRosterCard Component', () => {
     view.unmount();
   });
 
-  it('renders role select and triggers onAssignRole when canAssignRole is true', () => {
+  it('renders the shadcn role select and triggers onAssignRole when canAssignRole is true', async () => {
+    Element.prototype.scrollIntoView ||= vi.fn();
     const onAssignRole = vi.fn();
     const view = renderComponent(
       <TeamRosterCard
@@ -70,12 +71,22 @@ describe('TeamRosterCard Component', () => {
       />,
     );
 
-    const select = view.container.querySelector('select');
-    expect(select).toBeTruthy();
+    const selectTrigger = view.container.querySelector(
+      'button[aria-label="Assign role for Juan Dela Cruz"]',
+    );
+    expect(selectTrigger).toBeTruthy();
 
-    act(() => {
-      select.value = 'Full-Stack Developer';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+    await act(async () => {
+      selectTrigger.click();
+    });
+
+    const fullStackOption = Array.from(document.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent?.trim() === 'Full-Stack Developer',
+    );
+    expect(fullStackOption).toBeTruthy();
+
+    await act(async () => {
+      fullStackOption.click();
     });
 
     expect(onAssignRole).toHaveBeenCalledWith('Full-Stack Developer', 'm-1');

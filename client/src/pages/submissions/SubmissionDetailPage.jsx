@@ -6,8 +6,17 @@ import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
+import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { Spinner } from '@/components/ui/Spinner';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
 import { useAuthStore } from '@/stores/authStore';
@@ -17,7 +26,6 @@ import {
   useChapterHistory,
   useProjectSubmissions,
   useReviewSubmission,
-  useUnlockSubmission,
   useAddAnnotation,
   useRemoveAnnotation,
   useUpdateJustification,
@@ -45,11 +53,9 @@ import {
   X,
   AlertTriangle,
   AlertCircle,
-  Loader2,
   MessageSquare,
   Trash2,
   Lock,
-  Unlock,
   User,
   Send,
   Eye,
@@ -66,7 +72,7 @@ import { useProject } from '@/hooks/useProjects';
 import { Progress } from '@/components/ui/Progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getSubmissionDocumentTitle, CHAPTER_LABELS } from '@/utils/submissionUtils';
+import { getSubmissionDocumentTitle } from '@/utils/submissionUtils';
 
 /* ────────── Helpers ────────── */
 
@@ -194,17 +200,17 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                   {!submission.isLate ? (
                     <Badge
                       variant="outline"
-                      className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs px-2.5 py-0.5"
+                      className="gap-1.5 border-success/30 bg-success/10 text-success font-semibold text-xs px-2.5 py-0.5"
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                       On-Time Submission
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold text-xs px-2.5 py-0.5"
+                      className="gap-1.5 border-warning/30 bg-warning/10 text-warning font-semibold text-xs px-2.5 py-0.5"
                     >
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                       Late Submission
                     </Badge>
                   )}
@@ -270,8 +276,8 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                       className={cn(
                         'text-[10px] font-bold px-1.5 py-0.5 rounded-sm',
                         hasFullScanCoverage && submission.originalityScore >= 75
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+                          ? 'bg-success/10 text-success border border-success/20'
+                          : 'bg-warning/10 text-warning border border-warning/20',
                       )}
                     >
                       {!hasFullScanCoverage
@@ -319,7 +325,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-500',
-                    submission.originalityScore >= 75 ? 'bg-emerald-500' : 'bg-amber-500',
+                    submission.originalityScore >= 75 ? 'bg-success' : 'bg-warning',
                   )}
                   style={{ width: `${Math.max(0, Math.min(100, submission.originalityScore))}%` }}
                 />
@@ -328,8 +334,12 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
           )}
 
           {isScanning && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary animate-pulse">
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary"
+            >
+              <Spinner className="size-4 shrink-0" />
               <span>
                 Scanning manuscript directly against institutional capstone archive and vector
                 embeddings...
@@ -347,8 +357,8 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
           )}
 
           {submission.reviewNote && (
-            <div className="space-y-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+            <div className="space-y-1.5 rounded-xl border border-success/20 bg-success/5 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-success uppercase tracking-wider">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 <span>Committee Review Note</span>
               </div>
@@ -385,11 +395,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
               disabled={downloading}
               onClick={handleDownload}
             >
-              {downloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
+              {downloading ? <Spinner className="h-4 w-4" /> : <Download className="h-4 w-4" />}
               Download Original
             </Button>
             {submission.teamResources?.googleDocUrl && (
@@ -399,7 +405,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FileText className="h-4 w-4 text-blue-500" />
+                  <FileText className="h-4 w-4 text-primary" />
                   Open Team Google Doc
                   <ExternalLink className="h-3 w-3 opacity-70 ml-0.5" />
                 </a>
@@ -445,7 +451,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
             >
               {isScanning ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner className="mr-2 h-4 w-4" />
                   Scanning Archive...
                 </>
               ) : (
@@ -470,7 +476,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
             )}
             {viewUrlLoading && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
-                <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
+                <Spinner className="size-3" /> Generating view link...
               </p>
             )}
           </div>
@@ -526,11 +532,11 @@ function JustificationCard({ submission, isStudent }) {
   }
 
   return (
-    <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10">
+    <Card className="border-warning/30 bg-warning/10">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
             <CardTitle className="text-base font-semibold">Late Justification Note</CardTitle>
           </div>
           <Badge variant="warning" className="text-xs">
@@ -565,7 +571,7 @@ function JustificationCard({ submission, isStudent }) {
               <Button type="submit" size="sm" disabled={updateMutation.isPending || !note.trim()}>
                 {updateMutation.isPending ? (
                   <>
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Saving...
+                    <Spinner className="mr-1 h-3.5 w-3.5" /> Saving...
                   </>
                 ) : (
                   'Save Justification'
@@ -654,7 +660,7 @@ function ReviewPanel({ submissionId, currentStatus }) {
             <AlertTriangle className="mr-2 h-4 w-4" />
             Request Revisions
           </Button>
-          {reviewMutation.isPending && <Loader2 className="h-5 w-5 animate-spin self-center" />}
+          {reviewMutation.isPending && <Spinner className="size-5 self-center" />}
         </div>
       </CardContent>
     </Card>
@@ -671,13 +677,7 @@ function ReviewPanel({ submissionId, currentStatus }) {
  * - Automatically updates defense status to pending_scheduling and notifies instructors
  * - Students see clear institutional status of their defense endorsement
  */
-function AdviserDefenseReadinessCard({
-  submission,
-  canEndorse,
-  isStudent,
-  isFaculty,
-  isInstructor,
-}) {
+function AdviserDefenseReadinessCard({ submission, canEndorse, isStudent, isInstructor }) {
   const [reviewNote, setReviewNote] = useState('');
   const reviewMutation = useReviewSubmission({
     onSuccess: (data, variables) => {
@@ -703,11 +703,11 @@ function AdviserDefenseReadinessCard({
   // 1. Approved state (Adviser or Instructor has endorsed the team)
   if (isApproved) {
     return (
-      <Card className="border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20 shadow-xs">
+      <Card className="border-success/30 bg-success/10 shadow-xs">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 text-success">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
@@ -715,7 +715,7 @@ function AdviserDefenseReadinessCard({
                   Adviser Endorsement Confirmed: Ready for Defense
                   <Badge
                     variant="outline"
-                    className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[11px]"
+                    className="border-success/40 bg-success/10 text-[11px] text-success"
                   >
                     Defense Ready
                   </Badge>
@@ -741,7 +741,7 @@ function AdviserDefenseReadinessCard({
               : 'This team has been signaled as Ready for Defense. Course Instructors have received the endorsement notice for defense scheduling.'}
           </p>
           {submission.reviewNote && (
-            <div className="rounded-md border border-emerald-500/20 bg-background/80 p-3 text-xs text-foreground/80 space-y-1">
+            <div className="rounded-md border border-success/20 bg-background/80 p-3 text-xs text-foreground/80 space-y-1">
               <span className="font-semibold text-foreground">Adviser Endorsement Remarks:</span>
               <p className="italic text-muted-foreground">{submission.reviewNote}</p>
             </div>
@@ -754,11 +754,11 @@ function AdviserDefenseReadinessCard({
   // 2. Revisions Required state
   if (isRevisionsRequired) {
     return (
-      <Card className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs">
+      <Card className="border-warning/30 bg-warning/10 shadow-xs">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning/10 text-warning">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
@@ -766,7 +766,7 @@ function AdviserDefenseReadinessCard({
                   Manuscript Revisions Requested
                   <Badge
                     variant="outline"
-                    className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[11px]"
+                    className="border-warning/40 bg-warning/10 text-[11px] text-warning"
                   >
                     Needs Revision
                   </Badge>
@@ -793,7 +793,7 @@ function AdviserDefenseReadinessCard({
               : 'Revisions have been requested from the team. Defense scheduling remains locked until a revised manuscript is endorsed.'}
           </p>
           {submission.reviewNote && (
-            <div className="rounded-md border border-amber-500/20 bg-background/80 p-3 text-xs text-foreground/80 space-y-1">
+            <div className="rounded-md border border-warning/20 bg-background/80 p-3 text-xs text-foreground/80 space-y-1">
               <span className="font-semibold text-foreground">Adviser Feedback:</span>
               <p className="italic text-muted-foreground">{submission.reviewNote}</p>
             </div>
@@ -871,10 +871,10 @@ function AdviserDefenseReadinessCard({
                 })
               }
               disabled={reviewMutation.isPending}
-              className="gap-2 shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="gap-2 shadow-xs bg-success text-success-foreground hover:bg-success/90"
             >
               {reviewMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner className="h-4 w-4" />
               ) : (
                 <ShieldCheck className="h-4 w-4" />
               )}
@@ -882,7 +882,7 @@ function AdviserDefenseReadinessCard({
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="warningOutline"
               size="sm"
               onClick={() =>
                 reviewMutation.mutate({
@@ -892,7 +892,7 @@ function AdviserDefenseReadinessCard({
                 })
               }
               disabled={reviewMutation.isPending}
-              className="gap-2 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/10"
+              className="gap-2"
             >
               <AlertTriangle className="h-4 w-4" />
               Request Manuscript Revisions
@@ -934,11 +934,11 @@ function AdviserDefenseReadinessCard({
 
   // 5. Pending/Under Review — Committee Member / Panelist / Non-Endorsing Faculty View (Read-Only Preview Mode)
   return (
-    <Card className="border-blue-500/30 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs">
+    <Card className="border-primary/30 bg-primary/5 shadow-xs">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Eye className="h-5 w-5" />
             </div>
             <div>
@@ -948,7 +948,7 @@ function AdviserDefenseReadinessCard({
                 </CardTitle>
                 <Badge
                   variant="outline"
-                  className="border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 text-[11px]"
+                  className="border-primary/30 bg-primary/10 text-[11px] text-primary"
                 >
                   Preview Mode
                 </Badge>
@@ -971,68 +971,6 @@ function AdviserDefenseReadinessCard({
           Formal panel evaluations and rubric scoring will activate once the Course Instructor
           confirms the defense hearing schedule.
         </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * UnlockPanel — lets faculty unlock a locked submission.
- */
-function UnlockPanel({ submissionId, currentStatus }) {
-  const [reason, setReason] = useState('');
-  const unlockMutation = useUnlockSubmission({
-    onSuccess: () => toast.success('Submission unlocked.'),
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Unlock failed.'),
-  });
-
-  if (currentStatus !== SUBMISSION_STATUSES.LOCKED) return null;
-
-  const handleUnlock = () => {
-    if (!reason.trim()) return;
-    unlockMutation.mutate({ submissionId, reason: reason.trim() });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Lock className="h-4 w-4" />
-          Document Locked
-        </CardTitle>
-        <CardDescription>
-          This submission is locked. You can unlock it to allow the student to re-upload.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {unlockMutation.error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {unlockMutation.error?.response?.data?.error?.message || 'Unlock failed.'}
-            </AlertDescription>
-          </Alert>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="unlockReason">Reason for unlocking</Label>
-          <Textarea
-            id="unlockReason"
-            placeholder="Explain why the student can re-upload..."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            disabled={unlockMutation.isPending}
-            maxLength={2000}
-            rows={2}
-          />
-        </div>
-        <Button onClick={handleUnlock} disabled={unlockMutation.isPending || !reason.trim()}>
-          {unlockMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Unlock className="mr-2 h-4 w-4" />
-          )}
-          Unlock Submission
-        </Button>
       </CardContent>
     </Card>
   );
@@ -1235,50 +1173,50 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
                 </AlertDescription>
               </Alert>
             )}
-            <div className="flex gap-3">
-              <div className="w-20 space-y-1">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[5rem_6rem_6rem_minmax(0,1fr)]">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="annPage" className="text-xs">
                   Page
                 </Label>
-                <input
+                <Input
                   id="annPage"
                   type="number"
                   min={1}
                   value={page}
                   onChange={(e) => setPage(e.target.value)}
                   disabled={addMutation.isPending}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  className="h-9 w-full px-2 py-1"
                 />
               </div>
-              <div className="w-24 space-y-1">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="annLineStart" className="text-xs">
                   Line Start
                 </Label>
-                <input
+                <Input
                   id="annLineStart"
                   type="number"
                   min={1}
                   value={lineStart}
                   onChange={(e) => setLineStart(e.target.value)}
                   disabled={addMutation.isPending}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  className="h-9 w-full px-2 py-1"
                 />
               </div>
-              <div className="w-24 space-y-1">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="annLineEnd" className="text-xs">
                   Line End
                 </Label>
-                <input
+                <Input
                   id="annLineEnd"
                   type="number"
                   min={1}
                   value={lineEnd}
                   onChange={(e) => setLineEnd(e.target.value)}
                   disabled={addMutation.isPending}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  className="h-9 w-full px-2 py-1"
                 />
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="annContent" className="text-xs">
                   Comment
                 </Label>
@@ -1310,7 +1248,7 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
             <div className="flex justify-end">
               <Button type="submit" size="sm" disabled={addMutation.isPending || !content.trim()}>
                 {addMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner className="mr-2 h-4 w-4" />
                 ) : (
                   <Send className="mr-2 h-4 w-4" />
                 )}
@@ -1456,207 +1394,220 @@ function ReviseSubmissionModal({ open, onOpenChange, submission, onReviseSuccess
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="revise-submission-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isUploading) {
-          onOpenChange(false);
-        }
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !isUploading) onOpenChange(false);
       }}
     >
-      <div className="relative w-full max-w-xl rounded-2xl border border-border/70 bg-card p-6 shadow-2xl space-y-5">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
-              <FileUp className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 id="revise-submission-title" className="text-lg font-bold text-foreground">
-                Revise Submission
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Upload a replacement manuscript for{' '}
-                <span className="font-semibold text-foreground">{title}</span> (creates v
-                {nextVersion})
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => onOpenChange(false)}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
-            aria-label="Close dialog"
-          >
-            <XCircle className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Informational Guidance */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 text-xs text-muted-foreground space-y-1">
-          <p className="font-medium text-foreground flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Institutional Revision Protocol
-          </p>
-          <p className="leading-relaxed">
-            Uploading a replacement document creates revision{' '}
-            <span className="font-semibold text-foreground">v{nextVersion}</span> while preserving
-            previous versions. Use this if you uploaded an incorrect file or revised your work
-            before committee sign-off.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* File Dropzone */}
-          <div>
-            <label className="text-xs font-semibold text-foreground block mb-1.5">
-              Replacement File (.docx, .pdf) <span className="text-destructive">*</span>
-            </label>
-            {!file ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleFileChange(e.dataTransfer.files[0]);
-                  }
-                }}
-                className={cn(
-                  'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer',
-                  isDragging
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border/70 hover:border-primary/50 hover:bg-muted/30 bg-muted/10',
-                )}
-              >
-                <input
-                  type="file"
-                  accept=".docx,.doc,.pdf"
-                  disabled={isUploading}
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      handleFileChange(e.target.files[0]);
-                    }
-                  }}
-                  className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                />
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary mb-2">
-                  <UploadCloud className="h-5 w-5" />
-                </div>
-                <p className="text-xs font-medium text-foreground">
-                  <span className="text-primary font-semibold">Click to upload</span> or drag and
-                  drop
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Word (.docx) or PDF manuscript up to 25 MB
-                </p>
+      <DialogContent
+        showClose={false}
+        className="max-h-[calc(100dvh_-_2rem)] w-[calc(100vw_-_2rem)] max-w-xl gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none"
+        onEscapeKeyDown={(event) => {
+          if (isUploading) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (isUploading) event.preventDefault();
+        }}
+      >
+        <div className="relative max-h-[calc(100dvh_-_2rem)] w-full space-y-5 overflow-y-auto rounded-xl border border-border/70 bg-card p-6 shadow-lg">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+                <FileUp className="h-5 w-5" />
               </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="h-5 w-5 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{file.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{formatBytes(file.size)}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={isUploading}
-                  onClick={() => setFile(null)}
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              <div>
+                <DialogTitle
+                  id="revise-submission-title"
+                  className="text-lg font-bold text-foreground"
                 >
-                  <X className="h-4 w-4" />
-                </button>
+                  Revise Submission
+                </DialogTitle>
+                <DialogDescription className="mt-0.5 text-xs">
+                  Upload a replacement manuscript for{' '}
+                  <span className="font-semibold text-foreground">{title}</span> (creates v
+                  {nextVersion})
+                </DialogDescription>
               </div>
-            )}
+            </div>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={isUploading}
+                className="min-h-[44px] min-w-[44px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close dialog"
+              >
+                <XCircle className="h-5 w-5" />
+              </Button>
+            </DialogClose>
           </div>
 
-          {/* Remarks Textarea */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground block">
-              Revision Remarks & Notes
-            </label>
-            <Textarea
-              placeholder="e.g. Corrected file upload (replaced accidental draft), updated methodology section..."
-              rows={3}
-              value={remarks}
-              disabled={isUploading}
-              onChange={(e) => setRemarks(e.target.value)}
-              className="text-xs resize-none"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Briefly describe why this revision is submitted so your adviser and panel can track
-              changes.
+          {/* Informational Guidance */}
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Institutional Revision Protocol
+            </p>
+            <p className="leading-relaxed">
+              Uploading a replacement document creates revision{' '}
+              <span className="font-semibold text-foreground">v{nextVersion}</span> while preserving
+              previous versions. Use this if you uploaded an incorrect file or revised your work
+              before committee sign-off.
             </p>
           </div>
 
-          {/* Progress bar */}
-          {isUploading && (
-            <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <div className="flex items-center justify-between text-xs text-primary font-medium">
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading revised manuscript...
-                </span>
-                <span>{uploadProgress}%</span>
-              </div>
-              <Progress value={uploadProgress} className="h-1.5" />
-            </div>
-          )}
-
-          {/* Error display */}
-          {localError && (
-            <Alert variant="destructive" className="py-2.5">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-xs">{localError}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/50">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isUploading}
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="default"
-              size="sm"
-              disabled={!file || isUploading}
-              className="gap-2 shadow-xs"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* File Dropzone */}
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1.5">
+                Replacement File (.docx, .pdf) <span className="text-destructive">*</span>
+              </label>
+              {!file ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    if (e.dataTransfer.files?.[0]) {
+                      handleFileChange(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className={cn(
+                    'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer',
+                    isDragging
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/70 hover:border-primary/50 hover:bg-muted/30 bg-muted/10',
+                  )}
+                >
+                  <input
+                    type="file"
+                    accept=".docx,.doc,.pdf"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleFileChange(e.target.files[0]);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary mb-2">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-medium text-foreground">
+                    <span className="text-primary font-semibold">Click to upload</span> or drag and
+                    drop
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Word (.docx) or PDF manuscript up to 25 MB
+                  </p>
+                </div>
               ) : (
-                <>
-                  <FileUp className="h-4 w-4" />
-                  Submit Revision (v{nextVersion})
-                </>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FileText className="h-5 w-5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{file.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatBytes(file.size)}</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={isUploading}
+                    onClick={() => setFile(null)}
+                    className="min-h-[44px] min-w-[44px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Remove replacement file"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+            </div>
+
+            {/* Remarks Textarea */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground block">
+                Revision Remarks & Notes
+              </label>
+              <Textarea
+                placeholder="e.g. Corrected file upload (replaced accidental draft), updated methodology section..."
+                rows={3}
+                value={remarks}
+                disabled={isUploading}
+                onChange={(e) => setRemarks(e.target.value)}
+                className="text-xs resize-none"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Briefly describe why this revision is submitted so your adviser and panel can track
+                changes.
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            {isUploading && (
+              <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between text-xs text-primary font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Spinner className="size-3.5" /> Uploading revised manuscript...
+                  </span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="h-1.5" />
+              </div>
+            )}
+
+            {/* Error display */}
+            {localError && (
+              <Alert variant="destructive" className="py-2.5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">{localError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/50">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUploading}
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="default"
+                size="sm"
+                disabled={!file || isUploading}
+                className="gap-2 shadow-xs"
+              >
+                {isUploading ? (
+                  <>
+                    <Spinner className="h-4 w-4" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="h-4 w-4" />
+                    Submit Revision (v{nextVersion})
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1759,8 +1710,8 @@ export default function SubmissionDetailPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Back + actions contextual header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
-          <div className="flex items-center gap-2.5">
+        <div className="flex flex-col gap-3 border-b border-border/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
             <Button
               variant="ghost"
               size="sm"
@@ -1781,17 +1732,17 @@ export default function SubmissionDetailPage() {
               {!submission.isLate ? (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px] px-1.5 py-0 h-4"
+                  className="gap-1 border-success/30 bg-success/10 text-success font-medium text-[10px] px-1.5 py-0 h-4"
                 >
-                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                  <CheckCircle2 className="h-2.5 w-2.5 text-success" />
                   On-Time
                 </Badge>
               ) : (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium text-[10px] px-1.5 py-0 h-4"
+                  className="gap-1 border-warning/30 bg-warning/10 text-warning font-medium text-[10px] px-1.5 py-0 h-4"
                 >
-                  <AlertTriangle className="h-2.5 w-2.5 text-amber-500" />
+                  <AlertTriangle className="h-2.5 w-2.5 text-warning" />
                   Late
                 </Badge>
               )}
@@ -1822,7 +1773,7 @@ export default function SubmissionDetailPage() {
                       >
                         v{h.version || 1}
                         {h.status === SUBMISSION_STATUSES.ACCEPTED && (
-                          <span className="ml-0.5 text-[9px] text-emerald-500 font-bold">✓</span>
+                          <span className="ml-0.5 text-[9px] text-success font-bold">✓</span>
                         )}
                       </Button>
                     );
@@ -1831,11 +1782,11 @@ export default function SubmissionDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
             {submission.defenseSchedule && (
               <DefenseScheduleBadge
                 defenseSchedule={submission.defenseSchedule}
-                className="text-xs"
+                className="w-full text-xs sm:w-auto"
                 showTime
               />
             )}
@@ -1844,7 +1795,7 @@ export default function SubmissionDetailPage() {
                 variant="default"
                 size="sm"
                 onClick={() => setReviseModalOpen(true)}
-                className="text-xs gap-1.5 shadow-xs"
+                className="w-full gap-1.5 text-xs shadow-xs sm:w-auto"
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Revise Submission
@@ -1855,7 +1806,7 @@ export default function SubmissionDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate(`/project/submissions/${submission._id}/review`)}
-                className="text-xs"
+                className="w-full text-xs sm:w-auto"
               >
                 Open Review Workspace
               </Button>
@@ -1867,7 +1818,7 @@ export default function SubmissionDetailPage() {
                 onClick={() =>
                   navigate(`/project/submissions?mode=view&projectId=${sourceProjectId}`)
                 }
-                className="text-xs"
+                className="w-full text-xs sm:w-auto"
               >
                 Back to Submissions List
               </Button>
@@ -1877,9 +1828,9 @@ export default function SubmissionDetailPage() {
 
         {/* Outdated Version Alert Banner */}
         {isViewingOlderVersion && (
-          <Alert className="border-blue-500/40 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+          <Alert className="border-primary/40 bg-primary/5 text-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary shrink-0">
                 <AlertCircle className="h-5 w-5" />
               </div>
               <div>
@@ -1917,7 +1868,7 @@ export default function SubmissionDetailPage() {
         )}
 
         {isArchived && (
-          <Alert className="border-amber-500/50 bg-amber-500/5 text-amber-600">
+          <Alert className="border-warning/50 bg-warning/5 text-warning">
             <Lock className="h-4 w-4" />
             <AlertDescription className="font-medium">
               This project is archived. This submission is in read-only mode.
@@ -1931,7 +1882,6 @@ export default function SubmissionDetailPage() {
             submission={submission}
             canEndorse={canEndorse}
             isStudent={isStudent}
-            isFaculty={isFaculty}
             isInstructor={isInstructor}
           />
         )}
@@ -1963,10 +1913,10 @@ export default function SubmissionDetailPage() {
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
         {facultyCanReview && !isProposal && !canEndorse && (
-          <Card className="border-blue-500/30 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs">
+          <Card className="border-primary/30 bg-primary/5 shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Eye className="h-5 w-5" />
                 </div>
                 <div>
@@ -1976,7 +1926,7 @@ export default function SubmissionDetailPage() {
                     </CardTitle>
                     <Badge
                       variant="outline"
-                      className="border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 text-[11px]"
+                      className="border-primary/30 bg-primary/10 text-[11px] text-primary"
                     >
                       Preview Mode
                     </Badge>

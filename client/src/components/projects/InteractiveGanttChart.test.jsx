@@ -67,6 +67,7 @@ describe('InteractiveGanttChart Component', () => {
     expect(container.textContent).not.toContain('ARCH-05');
     expect(container.textContent).not.toContain('INFRA-01');
     expect(container.textContent).toContain('No Gantt Roadmap Data');
+    expect(container.querySelector('[aria-label="Filter by task owner"]')).toBeTruthy();
   });
 
   it('keeps archived schedules read-only and does not autosave when opened', async () => {
@@ -115,8 +116,8 @@ describe('InteractiveGanttChart Component', () => {
       addSectionBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(container.textContent).toContain('Create Milestone Section');
-    const sectionInput = container.querySelector('input#new-section-input');
+    expect(document.body.textContent).toContain('Create Milestone Section');
+    const sectionInput = document.body.querySelector('input#new-section-input');
     expect(sectionInput).toBeTruthy();
 
     await act(async () => {
@@ -124,7 +125,7 @@ describe('InteractiveGanttChart Component', () => {
     });
 
     // Find the Create Section button inside the dialog
-    const modalButtons = Array.from(container.querySelectorAll('[role="dialog"] button'));
+    const modalButtons = Array.from(document.body.querySelectorAll('[role="dialog"] button'));
     const createBtn = modalButtons.find((b) => b.textContent.includes('Create Section'));
     expect(createBtn).toBeTruthy();
 
@@ -134,6 +135,24 @@ describe('InteractiveGanttChart Component', () => {
 
     // Section should now be rendered in the table
     expect(container.textContent).toContain('SECTION 1 — PROJECT PLANNING & RESEARCH');
+  });
+
+  it('dismisses the milestone dialog with Escape', async () => {
+    await renderAsAssignedStudent('compact');
+    const addSectionBtn = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Add Section'),
+    );
+
+    await act(async () => {
+      addSectionBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('opens Add Task modal, appends a new task, and synchronizes task across compact and excel views', async () => {
@@ -146,12 +165,12 @@ describe('InteractiveGanttChart Component', () => {
     await act(async () => {
       addSectionBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    const sectionInput = container.querySelector('input#new-section-input');
+    const sectionInput = document.body.querySelector('input#new-section-input');
     await act(async () => {
       setInputValue(sectionInput, 'SECTION 1 — PROJECT PLANNING & RESEARCH');
     });
-    const createBtn = Array.from(container.querySelectorAll('[role="dialog"] button')).find((b) =>
-      b.textContent.includes('Create Section'),
+    const createBtn = Array.from(document.body.querySelectorAll('[role="dialog"] button')).find(
+      (button) => button.textContent.includes('Create Section'),
     );
     await act(async () => {
       createBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -165,12 +184,11 @@ describe('InteractiveGanttChart Component', () => {
       addTaskBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(container.textContent).toContain('Add Sprint Task');
+    expect(document.body.textContent).toContain('Add Sprint Task');
 
-    const idInput = container.querySelector('input#task-id');
-    const titleInput = container.querySelector('input#task-title');
-    const ownerInput =
-      container.querySelector('select#task-owner') || container.querySelector('input#task-owner');
+    const idInput = document.body.querySelector('input#task-id');
+    const titleInput = document.body.querySelector('input#task-title');
+    const ownerInput = document.body.querySelector('#task-owner');
     expect(titleInput).toBeTruthy();
     expect(ownerInput).toBeTruthy();
 
@@ -180,12 +198,12 @@ describe('InteractiveGanttChart Component', () => {
       if (ownerInput.tagName.toLowerCase() === 'select') {
         ownerInput.value = ownerInput.options[0]?.value || 'Lead';
         ownerInput.dispatchEvent(new Event('change', { bubbles: true }));
-      } else {
+      } else if (ownerInput.tagName.toLowerCase() === 'input') {
         setInputValue(ownerInput, 'Añedez, Patrick Josh');
       }
     });
 
-    const form = container.querySelector('form');
+    const form = document.body.querySelector('[role="dialog"] form');
     expect(form).toBeTruthy();
 
     await act(async () => {

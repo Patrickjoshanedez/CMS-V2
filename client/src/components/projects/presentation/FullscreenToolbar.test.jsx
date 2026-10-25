@@ -64,6 +64,7 @@ describe('FullscreenToolbar', () => {
     expect(minusBtn).toBeTruthy();
     expect(plusBtn).toBeTruthy();
     expect(percentBtn).toBeTruthy();
+    expect(percentBtn.getAttribute('aria-label')).toBe('Reset slide text size');
 
     await act(async () => {
       minusBtn.click();
@@ -105,6 +106,7 @@ describe('FullscreenToolbar', () => {
       b.textContent.includes('Done Editing'),
     );
     expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.getAttribute('aria-pressed')).toBe('true');
 
     await act(async () => {
       toggleBtn.click();
@@ -139,5 +141,33 @@ describe('FullscreenToolbar', () => {
       revertBtn.click();
     });
     expect(onResetEdits).toHaveBeenCalledTimes(1);
+  });
+
+  it('names fullscreen and close actions and exposes the active fullscreen state', async () => {
+    await act(async () => {
+      root.render(
+        <FullscreenToolbar
+          isNativeFullscreen
+          onToggleNativeFullscreen={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+    });
+
+    const fullscreenButton = container.querySelector('button[aria-label="Exit fullscreen"]');
+    expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton.getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('button[aria-label="Close rehearsal"]')).toBeTruthy();
+  });
+
+  it('announces export progress and disables the export action while busy', async () => {
+    await act(async () => {
+      root.render(<FullscreenToolbar isExportingPdf onExportPdf={vi.fn()} onClose={vi.fn()} />);
+    });
+
+    const exportButton = container.querySelector('button[aria-busy="true"]');
+    expect(exportButton).toBeTruthy();
+    expect(exportButton.disabled).toBe(true);
+    expect(exportButton.textContent).toContain('Exporting PDF...');
   });
 });

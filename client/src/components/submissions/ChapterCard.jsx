@@ -60,34 +60,38 @@ function DeadlineBadge({ dateStr, allowLateSubmission = true }) {
   if (!formatted) return <span className="text-xs text-muted-foreground">No deadline</span>;
   const isLateClosed = status === 'overdue' && !allowLateSubmission;
 
-  const styles = {
-    overdue: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-    urgent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    approaching: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
-    ok: 'bg-muted text-muted-foreground border-border',
+  const variants = {
+    overdue: 'destructive',
+    urgent: 'warning',
+    approaching: 'warning',
+    ok: 'secondary',
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${styles[status]}`}
+    <Badge
+      variant={variants[status]}
+      className="gap-1 text-[11px]"
       data-testid="chapter-deadline-status"
       data-status={status}
     >
-      <Clock className="h-3 w-3" />
+      <Clock aria-hidden="true" className="size-3" />
       {isLateClosed ? 'Late submissions closed' : status === 'overdue' ? 'Overdue' : formatted}
-    </span>
+    </Badge>
   );
 }
 
 function StatusIcon({ status }) {
-  if (status === 'locked') return <Lock className="h-4 w-4 text-emerald-500" />;
+  if (status === 'locked')
+    return <Lock aria-hidden="true" className="size-4 text-success-foreground" />;
   if (status === 'approved' || status === 'accepted')
-    return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-  if (status === 'revisions_required') return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  if (status === 'rejected') return <AlertTriangle className="h-4 w-4 text-red-500" />;
+    return <CheckCircle2 aria-hidden="true" className="size-4 text-success-foreground" />;
+  if (status === 'revisions_required')
+    return <AlertTriangle aria-hidden="true" className="size-4 text-warning-foreground" />;
+  if (status === 'rejected')
+    return <AlertTriangle aria-hidden="true" className="size-4 text-destructive" />;
   if (status === 'pending' || status === 'under_review')
-    return <Clock className="h-4 w-4 text-blue-500" />;
-  return <FileText className="h-4 w-4 text-muted-foreground" />;
+    return <Clock aria-hidden="true" className="size-4 text-info" />;
+  return <FileText aria-hidden="true" className="size-4 text-muted-foreground" />;
 }
 
 /**
@@ -102,7 +106,6 @@ export default function ChapterCard({
   canUpload,
   isStudent,
   isReadOnly,
-  projectId,
   searchSuffix = '',
   onUpload,
   onRevise,
@@ -121,8 +124,13 @@ export default function ChapterCard({
   };
 
   const canUploadRevision =
-    isStudent && !isReadOnly && canUpload && !isLateSubmissionClosed && submission?.status === 'revisions_required';
-  const canUploadNew = isStudent && !isReadOnly && canUpload && !isLateSubmissionClosed && !hasSubmission;
+    isStudent &&
+    !isReadOnly &&
+    canUpload &&
+    !isLateSubmissionClosed &&
+    submission?.status === 'revisions_required';
+  const canUploadNew =
+    isStudent && !isReadOnly && canUpload && !isLateSubmissionClosed && !hasSubmission;
 
   const handleUpload = (e) => {
     e.stopPropagation();
@@ -147,7 +155,7 @@ export default function ChapterCard({
     <Card
       className={[
         'group relative overflow-hidden transition-all hover:shadow-md',
-        isLocked ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : '',
+        isLocked ? 'border-success/30 bg-success/5' : '',
         !hasSubmission ? 'border-dashed' : '',
       ].join(' ')}
     >
@@ -159,7 +167,7 @@ export default function ChapterCard({
               className={[
                 'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold',
                 isLocked
-                  ? 'bg-emerald-500/10 text-emerald-600'
+                  ? 'bg-success/10 text-success-foreground'
                   : hasSubmission
                     ? 'bg-primary/10 text-primary'
                     : 'bg-muted text-muted-foreground',

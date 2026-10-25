@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { getSocket, connectSocket } from '@/services/socket';
 import { useProjects, useProject, usePrefetchProject } from '@/hooks/useProjects';
@@ -225,26 +227,27 @@ export default function SecretaryReviewPage() {
                       className="pl-9 text-base sm:text-sm min-h-11"
                     />
                   </div>
-                  <div role="group" aria-label="Compliance status" className="grid grid-cols-2 gap-2 text-xs">
+                  <div
+                    role="group"
+                    aria-label="Compliance status"
+                    className="grid grid-cols-2 gap-2 text-xs"
+                  >
                     {[
                       { id: 'ALL', label: 'All' },
                       { id: 'NEEDS_MINUTES', label: 'Needs Minutes' },
                       { id: 'IN_REVISION', label: 'Under Review' },
                       { id: 'ENDORSED', label: 'Endorsed' },
                     ].map((tab) => (
-                      <button
+                      <Button
                         key={tab.id}
                         type="button"
                         aria-pressed={statusFilter === tab.id}
                         onClick={() => setStatusFilter(tab.id)}
-                        className={`min-h-11 rounded-md px-3 py-2 font-medium transition-colors ${
-                          statusFilter === tab.id
-                            ? 'bg-primary text-primary-foreground font-bold'
-                            : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                        }`}
+                        variant={statusFilter === tab.id ? 'default' : 'outline'}
+                        className="min-h-11 w-full px-3 py-2 text-xs font-medium"
                       >
                         {tab.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -252,13 +255,19 @@ export default function SecretaryReviewPage() {
 
               <CardContent className="p-2 pt-0 max-h-[600px] overflow-y-auto space-y-1.5 custom-scrollbar">
                 {isProjectsLoading ? (
-                  <div className="py-8 text-center text-xs text-muted-foreground">
-                    Loading assigned teams...
+                  <div role="status" aria-label="Loading assigned teams" className="space-y-3 p-2">
+                    {[0, 1, 2].map((item) => (
+                      <Skeleton key={item} className="h-24 w-full rounded-lg" />
+                    ))}
                   </div>
                 ) : filteredProjects.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-muted-foreground">
-                    No matching teams found.
-                  </div>
+                  <EmptyState
+                    icon={Search}
+                    title="No matching teams"
+                    description="Try a different title, team name, or compliance filter."
+                    compact
+                    className="border-0"
+                  />
                 ) : (
                   filteredProjects.map((p) => {
                     const isSelected = p._id === selectedProjectId;
@@ -267,14 +276,15 @@ export default function SecretaryReviewPage() {
                     const pIsEndorsed = pStatus.key === 'endorsed' || pStatus.key === 'approved';
 
                     return (
-                      <button
+                      <Button
                         key={p._id}
                         type="button"
                         aria-pressed={isSelected}
                         onClick={() => handleSelectProject(p._id)}
                         onMouseEnter={() => prefetchProject(p._id)}
                         onFocus={() => prefetchProject(p._id)}
-                        className={`w-full cursor-pointer rounded-lg border p-4 text-left transition-colors ${
+                        variant="ghost"
+                        className={`h-auto w-full cursor-pointer flex-col items-stretch justify-start rounded-lg border p-4 text-left transition-colors ${
                           isSelected
                             ? 'border-primary bg-primary/5 shadow-sm'
                             : 'border-border/60 hover:border-border hover:bg-muted/20'
@@ -295,29 +305,20 @@ export default function SecretaryReviewPage() {
                         </div>
                         <div className="mt-2 flex items-center justify-between">
                           {pIsEndorsed ? (
-                            <Badge
-                              variant="outline"
-                              className="text-[9px] font-bold text-emerald-600 bg-emerald-500/10 border-emerald-500/30"
-                            >
+                            <Badge variant="success" className="text-[9px] font-bold">
                               {pStatus.label}
                             </Badge>
                           ) : pHasMinutes ? (
-                            <Badge
-                              variant="outline"
-                              className="text-[9px] font-bold text-sky-600 bg-sky-500/10 border-sky-500/30"
-                            >
+                            <Badge variant="info" className="text-[9px] font-bold">
                               {pStatus.label} ({pStatus.total || p.actionDoneMatrixCount} items)
                             </Badge>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-[9px] font-bold text-amber-600 bg-amber-500/10 border-amber-500/30"
-                            >
+                            <Badge variant="warning" className="text-[9px] font-bold">
                               Needs Minutes
                             </Badge>
                           )}
                         </div>
-                      </button>
+                      </Button>
                     );
                   })
                 )}
@@ -328,13 +329,16 @@ export default function SecretaryReviewPage() {
           {/* Right Column: Active Project Workspace (9 cols) */}
           <div className="min-w-0 space-y-6 xl:col-span-8">
             {!project && isProjectDetailsLoading ? (
-              <Card className="p-12 text-center text-muted-foreground shadow-sm">
-                Loading project details and Action Done Matrix...
-              </Card>
+              <div role="status" aria-label="Loading project details and Action Done Matrix">
+                <SkeletonCard className="p-6 shadow-sm" />
+              </div>
             ) : !project ? (
-              <Card className="p-12 text-center text-muted-foreground shadow-sm">
-                Select an assigned team to review defense minutes and compliance.
-              </Card>
+              <EmptyState
+                icon={FileSignature}
+                title="Select an assigned team"
+                description="Choose a team from your queue to review defense minutes and compliance."
+                compact
+              />
             ) : (
               <>
                 {/* Project Header Banner */}

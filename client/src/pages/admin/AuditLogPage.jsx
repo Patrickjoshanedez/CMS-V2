@@ -8,11 +8,20 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Spinner } from '@/components/ui/Spinner';
 import { useAuditLogs } from '@/hooks/useAuditLogs';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
-  Loader2,
   ScrollText,
   Search,
   ChevronLeft,
@@ -35,7 +44,6 @@ import {
   Activity,
   Layers,
   KeyRound,
-  ExternalLink,
 } from 'lucide-react';
 
 /**
@@ -47,6 +55,7 @@ import {
  */
 
 const TARGET_TYPES = ['User', 'Team', 'Project', 'Submission', 'Evaluation', 'Settings', 'System'];
+const EMPTY_AUDIT_LOGS = [];
 
 const ACTION_CATEGORIES = {
   auth: { label: 'Authentication', color: 'info', icon: KeyRound },
@@ -187,7 +196,7 @@ export default function AuditLogPage() {
     input.click();
   };
 
-  const logs = data?.logs || [];
+  const logs = data?.logs ?? EMPTY_AUDIT_LOGS;
   const totalPages = data?.totalPages || 1;
   const total = data?.total || 0;
 
@@ -311,7 +320,7 @@ export default function AuditLogPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
+          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-[44px]">
             <Button
               variant="outline"
               size="sm"
@@ -339,7 +348,11 @@ export default function AuditLogPage() {
               disabled={isFetching}
               className="text-xs font-medium"
             >
-              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              {isFetching ? (
+                <Spinner className="mr-1.5 h-3.5 w-3.5" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
               Refresh
             </Button>
           </div>
@@ -347,7 +360,7 @@ export default function AuditLogPage() {
 
         {/* Telemetry KPI Ribbon */}
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-sm transition-all hover:border-primary/30">
+          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground">Total Events</p>
@@ -362,7 +375,7 @@ export default function AuditLogPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-sm transition-all hover:border-primary/30">
+          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground">In Current View</p>
@@ -371,13 +384,13 @@ export default function AuditLogPage() {
                   Page {page} of {totalPages}
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success-foreground">
                 <Activity className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-sm transition-all hover:border-primary/30">
+          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground">Security / Auth</p>
@@ -386,13 +399,13 @@ export default function AuditLogPage() {
                 </p>
                 <p className="text-[11px] text-muted-foreground">Login & credential events</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning-foreground">
                 <Shield className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-sm transition-all hover:border-primary/30">
+          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground">Active Actors</p>
@@ -401,7 +414,7 @@ export default function AuditLogPage() {
                 </p>
                 <p className="text-[11px] text-muted-foreground">Distinct users in view</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10 text-info-foreground">
                 <Users className="h-5 w-5" />
               </div>
             </CardContent>
@@ -422,18 +435,17 @@ export default function AuditLogPage() {
                 {CATEGORY_TABS.map((tab) => {
                   const isActive = activeTab === tab.id;
                   return (
-                    <button
+                    <Button
                       key={tab.id}
                       type="button"
+                      variant={isActive ? 'default' : 'secondary'}
+                      size="sm"
                       onClick={() => handleTabChange(tab)}
-                      className={`inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
+                      aria-pressed={isActive}
+                      className="min-h-[44px] whitespace-nowrap"
                     >
                       {tab.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -454,13 +466,16 @@ export default function AuditLogPage() {
                     className="pr-8 text-sm"
                   />
                   {filters.action && (
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleFilterChange('action', '')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-1 top-1/2 min-h-[44px] min-w-[44px] -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear action filter"
                     >
                       <X className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -472,19 +487,24 @@ export default function AuditLogPage() {
                 >
                   Target Entity
                 </Label>
-                <select
-                  id="targetTypeFilter"
-                  value={filters.targetType}
-                  onChange={(e) => handleFilterChange('targetType', e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors"
+                <Select
+                  value={filters.targetType || 'all'}
+                  onValueChange={(value) =>
+                    handleFilterChange('targetType', value === 'all' ? '' : value)
+                  }
                 >
-                  <option value="">All entity types</option>
-                  {TARGET_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="targetTypeFilter" aria-label="Target Entity">
+                    <SelectValue placeholder="All entity types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All entity types</SelectItem>
+                    {TARGET_TYPES.map((t) => (
+                      <SelectItem key={t} value={t} className="min-h-[44px]">
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -498,7 +518,7 @@ export default function AuditLogPage() {
                     }}
                     id="startDate"
                     type="date"
-                    className="flex-1 text-sm"
+                    className="min-h-[44px] flex-1 text-sm"
                     value={filters.startDate}
                     onChange={(e) => handleFilterChange('startDate', e.target.value)}
                   />
@@ -506,7 +526,7 @@ export default function AuditLogPage() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="h-10 w-10 shrink-0"
+                    className="min-h-[44px] min-w-[44px] shrink-0"
                     onClick={() => openDatePicker('startDate')}
                     aria-label="Open from date calendar"
                     title="Open calendar"
@@ -527,7 +547,7 @@ export default function AuditLogPage() {
                     }}
                     id="endDate"
                     type="date"
-                    className="flex-1 text-sm"
+                    className="min-h-[44px] flex-1 text-sm"
                     value={filters.endDate}
                     onChange={(e) => handleFilterChange('endDate', e.target.value)}
                   />
@@ -535,7 +555,7 @@ export default function AuditLogPage() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="h-10 w-10 shrink-0"
+                    className="min-h-[44px] min-w-[44px] shrink-0"
                     onClick={() => openDatePicker('endDate')}
                     aria-label="Open to date calendar"
                     title="Open calendar"
@@ -555,7 +575,7 @@ export default function AuditLogPage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleClearFilters}
-                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  className="min-h-[44px] text-xs text-muted-foreground hover:text-foreground"
                 >
                   <X className="mr-1.5 h-3.5 w-3.5" />
                   Clear filters
@@ -586,16 +606,16 @@ export default function AuditLogPage() {
           </CardHeader>
           <CardContent className="pt-4">
             {isLoading ? (
-              <div className="space-y-3 py-4">
+              <div className="space-y-3 py-4" role="status" aria-label="Loading audit records">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 rounded-lg border p-4 animate-pulse"
+                    className="flex items-start gap-3 rounded-lg border border-border/60 p-4"
                   >
-                    <div className="h-8 w-8 rounded-lg bg-muted" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-4 w-1/3 rounded bg-muted" />
-                      <div className="h-3 w-2/3 rounded bg-muted" />
+                      <Skeleton className="h-4 w-1/3 rounded" />
+                      <Skeleton className="h-3 w-2/3 rounded" />
                     </div>
                   </div>
                 ))}
@@ -649,7 +669,7 @@ export default function AuditLogPage() {
                   size="sm"
                   disabled={page <= 1 || isFetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="text-xs"
+                  className="min-h-[44px] text-xs"
                 >
                   <ChevronLeft className="mr-1 h-3.5 w-3.5" />
                   Previous
@@ -665,7 +685,7 @@ export default function AuditLogPage() {
                   size="sm"
                   disabled={page >= totalPages || isFetching}
                   onClick={() => setPage((p) => p + 1)}
-                  className="text-xs"
+                  className="min-h-[44px] text-xs"
                 >
                   Next
                   <ChevronRight className="ml-1 h-3.5 w-3.5" />
@@ -677,17 +697,17 @@ export default function AuditLogPage() {
       </div>
 
       {/* Metadata Inspector Dialog */}
-      {selectedLog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="audit-inspector-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
-          onClick={() => setSelectedLog(null)}
-        >
-          <div
-            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border border-border/80 bg-background shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+      <Dialog
+        open={Boolean(selectedLog)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLog(null);
+        }}
+      >
+        {selectedLog && (
+          <DialogContent
+            showClose={false}
+            aria-labelledby="audit-inspector-title"
+            className="flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b px-5 py-3.5 bg-muted/30">
@@ -696,25 +716,27 @@ export default function AuditLogPage() {
                   <Code2 className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <h3
+                  <DialogTitle
                     id="audit-inspector-title"
                     className="text-sm font-semibold truncate text-foreground"
                   >
                     Audit Event Payload
-                  </h3>
-                  <p className="text-xs text-muted-foreground truncate">
+                  </DialogTitle>
+                  <DialogDescription className="text-xs truncate">
                     {selectedLog.action} &bull; ID: {selectedLog._id}
-                  </p>
+                  </DialogDescription>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => setSelectedLog(null)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                variant="ghost"
+                size="icon"
+                className="min-h-[44px] min-w-[44px] text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Close inspector"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Modal Body */}
@@ -780,12 +802,12 @@ export default function AuditLogPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="min-h-[44px] text-xs"
                     onClick={() => handleCopyPayload(selectedLog.metadata || {})}
                   >
                     {copiedPayload ? (
                       <>
-                        <Check className="mr-1 h-3.5 w-3.5 text-emerald-500" />
+                        <Check className="mr-1 h-3.5 w-3.5 text-success-foreground" />
                         Copied
                       </>
                     ) : (
@@ -810,14 +832,14 @@ export default function AuditLogPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedLog(null)}
-                className="text-xs"
+                className="min-h-[44px] text-xs"
               >
                 Close
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </DashboardLayout>
   );
 }
@@ -832,85 +854,87 @@ function AuditLogEntry({ log, onInspect }) {
   const relativeTime = formatRelativeTime(log.createdAt);
 
   return (
-    <div className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3.5 transition-all hover:bg-muted/40 hover:border-border shadow-2xs">
-      <div className="flex items-start gap-3 min-w-0">
-        {/* Category Icon */}
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-          <TargetIcon type={log.targetType} />
-        </div>
-
-        {/* Content */}
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant={category.color}
-              className="text-[10px] font-mono tracking-tight font-semibold"
-            >
-              {log.action}
-            </Badge>
-            {log.targetType && (
-              <span className="text-xs text-muted-foreground">
-                on <span className="font-medium text-foreground">{log.targetType}</span>
-                {log.targetId && (
-                  <span className="ml-1 text-[10px] font-mono text-muted-foreground/80">
-                    #{String(log.targetId).slice(-6)}
-                  </span>
-                )}
-              </span>
-            )}
+    <Card className="group border-border/60 shadow-2xs transition-all hover:border-border hover:bg-muted/40">
+      <CardContent className="flex flex-col justify-between gap-3 p-3.5 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          {/* Category Icon */}
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+            <TargetIcon type={log.targetType} />
           </div>
 
-          {log.description && (
-            <p className="text-sm font-normal text-foreground leading-snug line-clamp-2">
-              {log.description}
-            </p>
-          )}
-
-          {/* Sub-meta */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-0.5">
-            {log.actor && (
-              <span className="flex items-center gap-1 font-medium text-foreground/90">
-                <User className="h-3 w-3 text-muted-foreground" />
-                {log.actor.firstName
-                  ? `${log.actor.firstName} ${log.actor.lastName}`
-                  : log.actor.email || log.actor._id}
-              </span>
-            )}
-            {log.actorRole && (
-              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal uppercase">
-                {log.actorRole}
+          {/* Content */}
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={category.color}
+                className="text-[10px] font-mono tracking-tight font-semibold"
+              >
+                {log.action}
               </Badge>
+              {log.targetType && (
+                <span className="text-xs text-muted-foreground">
+                  on <span className="font-medium text-foreground">{log.targetType}</span>
+                  {log.targetId && (
+                    <span className="ml-1 text-[10px] font-mono text-muted-foreground/80">
+                      #{String(log.targetId).slice(-6)}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {log.description && (
+              <p className="text-sm font-normal text-foreground leading-snug line-clamp-2">
+                {log.description}
+              </p>
             )}
-            <span className="flex items-center gap-1" title={timestamp.toLocaleString()}>
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span>{timestamp.toLocaleDateString()}</span>
-              <span>
-                {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+            {/* Sub-meta */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-0.5">
+              {log.actor && (
+                <span className="flex items-center gap-1 font-medium text-foreground/90">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  {log.actor.firstName
+                    ? `${log.actor.firstName} ${log.actor.lastName}`
+                    : log.actor.email || log.actor._id}
+                </span>
+              )}
+              {log.actorRole && (
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal uppercase">
+                  {log.actorRole}
+                </Badge>
+              )}
+              <span className="flex items-center gap-1" title={timestamp.toLocaleString()}>
+                <Clock className="h-3 w-3 text-muted-foreground" />
+                <span>{timestamp.toLocaleDateString()}</span>
+                <span>
+                  {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                {relativeTime && <span className="text-muted-foreground/70">({relativeTime})</span>}
               </span>
-              {relativeTime && <span className="text-muted-foreground/70">({relativeTime})</span>}
-            </span>
-            {log.ipAddress && (
-              <span className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded text-muted-foreground">
-                {log.ipAddress}
-              </span>
-            )}
+              {log.ipAddress && (
+                <span className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded text-muted-foreground">
+                  {log.ipAddress}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Action / Inspect */}
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onInspect}
-          className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
-          title="Inspect event payload"
-        >
-          <Code2 className="mr-1.5 h-3.5 w-3.5" />
-          Inspect
-        </Button>
-      </div>
-    </div>
+        {/* Action / Inspect */}
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onInspect}
+            className="min-h-[44px] px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted sm:min-h-8"
+            title="Inspect event payload"
+          >
+            <Code2 className="mr-1.5 h-3.5 w-3.5" />
+            Inspect
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

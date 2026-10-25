@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
   CheckCircle2,
@@ -14,22 +13,30 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
 import { ADM_MILESTONES, resolveAdmStatus } from './adm/admWorkflow';
 
-const STATUS_BADGE_STYLES = {
-  success: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-  info: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30',
-  review: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
-  warning: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
-  muted: 'bg-transparent text-muted-foreground border-border/60',
+const STATUS_BADGE_VARIANTS = {
+  success: 'success',
+  info: 'info',
+  review: 'info',
+  warning: 'warning',
+  muted: 'outline',
 };
 
 function StatusIcon({ tone }) {
-  if (tone === 'success') return <CheckCircle2 className="h-3 w-3" />;
-  if (tone === 'info') return <ShieldCheck className="h-3 w-3" />;
+  if (tone === 'success') return <CheckCircle2 aria-hidden="true" className="h-3 w-3" />;
+  if (tone === 'info') return <ShieldCheck aria-hidden="true" className="h-3 w-3" />;
   if (tone === 'muted') return null;
-  return <Clock className="h-3 w-3" />;
+  return <Clock aria-hidden="true" className="h-3 w-3" />;
 }
 
 StatusIcon.propTypes = { tone: PropTypes.string.isRequired };
@@ -109,8 +116,8 @@ export default function ActionDoneMatrixSection({
                   {meta.pillLabel}
                 </Badge>
                 <Badge
-                  variant="outline"
-                  className={cn('gap-1 text-[10px] font-medium', STATUS_BADGE_STYLES[status.tone])}
+                  variant={STATUS_BADGE_VARIANTS[status.tone]}
+                  className="gap-1 text-[10px] font-medium"
                   data-testid="adm-status-badge"
                 >
                   <StatusIcon tone={status.tone} />
@@ -166,50 +173,42 @@ export default function ActionDoneMatrixSection({
         )}
       </CardContent>
 
-      {isModalOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="adm-viewer-dialog-title"
-          >
-            <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0 no-print">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <FileSpreadsheet className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3
-                      id="adm-viewer-dialog-title"
-                      className="text-base font-bold text-foreground"
-                    >
-                      {meta.longLabel}: Action Done Matrix (ADM)
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Official BukSU Form RU-F-033 — Panel Recommendations, Action Taken, and
-                      Committee Digital Signatures.
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setModalOpen(false)}
-                  aria-label="Close ADM Dialog"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+      <Dialog open={isModalOpen} onOpenChange={setModalOpen}>
+        <DialogContent
+          showClose={false}
+          aria-modal="true"
+          className="flex max-h-[92vh] w-[calc(100%-1.5rem)] max-w-7xl flex-col gap-0 overflow-hidden rounded-xl border-border/80 bg-card p-4 shadow-lg sm:p-6"
+        >
+          <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b border-border/60 pb-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />
               </div>
-
-              <div className="flex-1 overflow-y-auto pt-4 min-h-0">{tab}</div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-bold text-foreground">
+                  {meta.longLabel}: Action Done Matrix (ADM)
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Official BukSU Form RU-F-033 — Panel Recommendations, Action Taken, and Committee
+                  Digital Signatures.
+                </DialogDescription>
+              </div>
             </div>
-          </div>,
-          document.body,
-        )}
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Close ADM Dialog"
+              >
+                <X aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto pt-4">{tab}</div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

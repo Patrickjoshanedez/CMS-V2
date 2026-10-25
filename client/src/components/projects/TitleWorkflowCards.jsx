@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Spinner } from '@/components/ui/Spinner';
 import { TITLE_STATUSES } from '@cms/shared';
 import {
   useUpdateTitle,
@@ -17,7 +19,6 @@ import { toast } from 'sonner';
 import {
   Edit3,
   Send,
-  Loader2,
   Plus,
   X,
   CheckCircle2,
@@ -133,13 +134,16 @@ function EditTitleForm({ project }) {
                   className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
                 >
                   {kw}
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setKeywordList((prev) => prev.filter((k) => k !== kw))}
-                    className="rounded-full p-0.5 hover:bg-primary/20"
+                    aria-label={`Remove keyword ${kw}`}
+                    className="size-6 min-h-6 min-w-6 rounded-full p-0 hover:bg-primary/20"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
+                    <X aria-hidden="true" className="h-3 w-3" />
+                  </Button>
                 </span>
               ))}
             </div>
@@ -154,11 +158,11 @@ function EditTitleForm({ project }) {
             onClick={() => submitTitle.mutate(project._id)}
             disabled={submitTitle.isPending}
           >
-            {submitTitle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitTitle.isPending && <Spinner className="mr-2 h-4 w-4" />}
             Submit for Review
           </Button>
           <Button onClick={handleSave} disabled={updateTitle.isPending}>
-            {updateTitle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {updateTitle.isPending && <Spinner className="mr-2 h-4 w-4" />}
             Save Changes
           </Button>
         </div>
@@ -184,7 +188,7 @@ function ReviseAndResubmitForm({ project }) {
   const [abstract, setAbstract] = useState(project.abstract || '');
 
   return (
-    <Card className="border-amber-200 dark:border-amber-800">
+    <Card className="border-warning/30 bg-warning/5">
       <CardHeader>
         <CardTitle className="text-base">Revisions Required</CardTitle>
         <CardDescription>Your title needs changes. Update and resubmit below.</CardDescription>
@@ -218,7 +222,7 @@ function ReviseAndResubmitForm({ project }) {
             disabled={revise.isPending}
           >
             {revise.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Spinner className="mr-2 h-4 w-4" />
             ) : (
               <Send className="mr-2 h-4 w-4" />
             )}
@@ -238,7 +242,7 @@ function ReviseAndResubmitForm({ project }) {
 }
 
 /* ── RequestModificationForm ── */
-function RequestModificationForm({ project, isApprovedTitle = false }) {
+function RequestModificationForm({ project }) {
   const requestMod = useRequestTitleModification({
     onSuccess: () => toast.success('Revision submitted for instructor review.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Request failed.'),
@@ -250,9 +254,7 @@ function RequestModificationForm({ project, isApprovedTitle = false }) {
 
   return (
     <Card
-      className={
-        isRevisionRequired ? 'border-amber-400 dark:border-amber-600' : 'border-border/60 bg-card'
-      }
+      className={isRevisionRequired ? 'border-warning/40 bg-warning/5' : 'border-border/60 bg-card'}
     >
       <CardHeader>
         <CardTitle className="text-base">
@@ -296,7 +298,7 @@ function RequestModificationForm({ project, isApprovedTitle = false }) {
             }
             disabled={requestMod.isPending}
           >
-            {requestMod.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {requestMod.isPending && <Spinner className="mr-2 h-4 w-4" />}
             {isRevisionRequired ? 'Submit Revised Title' : 'Submit Modification Request'}
           </Button>
         </div>
@@ -317,12 +319,12 @@ function ApprovedTitleCard({ project }) {
   const [showModificationForm, setShowModificationForm] = useState(false);
 
   return (
-    <Card className="border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-800/50 dark:bg-emerald-950/20">
+    <Card className="border-success/30 bg-success/5">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <CardTitle className="text-base text-emerald-800 dark:text-emerald-200">
+            <CheckCircle2 aria-hidden="true" className="h-5 w-5 text-success shrink-0" />
+            <CardTitle className="text-base text-success-foreground">
               Title Formally Approved
             </CardTitle>
           </div>
@@ -330,20 +332,20 @@ function ApprovedTitleCard({ project }) {
             variant="outline"
             size="sm"
             onClick={() => setShowModificationForm((prev) => !prev)}
-            className="text-xs border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+            className="text-xs border-success/30 text-success-foreground hover:bg-success/10"
           >
             <Edit3 className="mr-1.5 h-3.5 w-3.5" />
             {showModificationForm ? 'Hide Modification Form' : 'Request Title Modification'}
           </Button>
         </div>
-        <CardDescription className="text-emerald-700 dark:text-emerald-300">
+        <CardDescription className="text-success-foreground/90">
           Your proposed capstone title has been formally ratified by your defense committee and
           instructor.
         </CardDescription>
       </CardHeader>
       {showModificationForm && (
-        <CardContent className="pt-2 border-t border-emerald-200/50 dark:border-emerald-800/40 mt-2">
-          <RequestModificationForm project={project} isApprovedTitle />
+        <CardContent className="mt-2 border-t border-success/20 pt-2">
+          <RequestModificationForm project={project} />
         </CardContent>
       )}
     </Card>
@@ -354,7 +356,7 @@ function ApprovedTitleCard({ project }) {
 function PendingModificationCard({ project }) {
   const mod = project.titleModificationRequest;
   return (
-    <Card className="border-amber-200 dark:border-amber-800">
+    <Card className="border-warning/30 bg-warning/5">
       <CardHeader>
         <CardTitle className="text-base">Title Modification Pending</CardTitle>
         <CardDescription>Waiting for instructor approval.</CardDescription>
@@ -379,54 +381,61 @@ function SubmittedCard({ project, onSelectProposal }) {
     : [];
 
   return (
-    <Card className="border-emerald-500/30 bg-emerald-500/10 dark:border-emerald-800/50 dark:bg-emerald-950/20">
+    <Card className="border-success/30 bg-success/10">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
+            <CheckCircle2 aria-hidden="true" className="h-5 w-5 text-success shrink-0" />
+            <CardTitle className="text-base text-success-foreground">
               Proposals Submitted Successfully
             </CardTitle>
           </div>
           <Button
             size="sm"
             onClick={() => navigate('/project/approval')}
-            className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+            variant="outline"
+            className="gap-1.5 text-xs border-success/30 text-success-foreground hover:bg-success/10"
           >
             <Eye className="h-3.5 w-3.5" />
             Reveal Titles & Defense Blueprint
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <CardDescription className="text-emerald-800 dark:text-emerald-300 text-xs">
+        <CardDescription className="text-success-foreground/90 text-xs">
           Your candidate capstone titles have been submitted. Deliberation and defense evaluation by
           the committee is in progress.
         </CardDescription>
       </CardHeader>
       {proposalTitles.length > 0 && (
         <CardContent className="pt-0">
-          <div className="rounded-xl border border-emerald-500/20 bg-background/60 dark:bg-background/40 p-3.5 space-y-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+          <div className="space-y-2.5 rounded-lg border border-success/20 bg-background/60 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-success-foreground">
               Candidate Proposals Under Review ({proposalTitles.length})
             </p>
             <div className="flex flex-wrap gap-2">
               {proposalTitles.map((title, idx) => (
-                <button
+                <Button
                   key={`submitted-${idx}`}
                   type="button"
                   onClick={() => onSelectProposal?.(idx)}
-                  className="flex items-center gap-2 rounded-xl bg-card hover:bg-muted/80 border border-emerald-500/30 px-3.5 py-2 text-xs font-medium text-foreground transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+                  aria-label={`Proposal ${idx + 1}: ${title}`}
+                  variant="outline"
+                  size="sm"
+                  className="h-auto min-h-11 max-w-full justify-start gap-2 border-success/25 px-3.5 py-2 text-left text-xs font-medium shadow-none"
                 >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold shrink-0">
+                  <Badge
+                    variant="success"
+                    className="size-5 shrink-0 justify-center rounded-full p-0 text-[10px]"
+                  >
                     {idx + 1}
-                  </span>
+                  </Badge>
                   <span
                     className="font-semibold truncate max-w-[200px] sm:max-w-[280px]"
                     title={title}
                   >
                     {title}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -439,12 +448,12 @@ function SubmittedCard({ project, onSelectProposal }) {
 /* ── PanelistsPendingCard ── */
 export function PanelistsPendingCard() {
   return (
-    <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30">
+    <Card className="border-success/30 bg-success/10">
       <CardContent className="flex items-start gap-3 pt-6">
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+        <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <div>
-          <p className="text-sm font-semibold text-green-800 dark:text-green-200">Title Approved</p>
-          <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+          <p className="text-sm font-semibold text-success-foreground">Title Approved</p>
+          <p className="mt-1 text-sm text-success-foreground/90">
             Your title has been approved. Waiting for the instructor to assign panelists before you
             can proceed to Capstone 1.
           </p>
@@ -463,49 +472,49 @@ export function TitlePendingCard({ titleStatus }) {
       title: 'Submit Your Title for Review',
       description:
         'Your project title is currently in draft. Edit your title details and submit it for instructor approval to unlock the chapter submission workflow.',
-      bgClass: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30',
-      iconClass: 'text-blue-600 dark:text-blue-400',
-      textClass: 'text-blue-800 dark:text-blue-200',
-      descClass: 'text-blue-700 dark:text-blue-300',
+      bgClass: 'border-info/30 bg-info/5',
+      iconClass: 'text-info',
+      textClass: 'text-info-foreground',
+      descClass: 'text-info-foreground/90',
     },
     [TITLE_STATUSES.SUBMITTED]: {
       icon: Clock,
       title: 'Pending Proposal',
       description: 'Your team has a pending proposal. Waiting for panel and instructor feedback.',
-      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
-      iconClass: 'text-amber-600 dark:text-amber-400',
-      textClass: 'text-amber-800 dark:text-amber-200',
-      descClass: 'text-amber-700 dark:text-amber-300',
+      bgClass: 'border-warning/30 bg-warning/5',
+      iconClass: 'text-warning-foreground',
+      textClass: 'text-warning-foreground',
+      descClass: 'text-warning-foreground/90',
     },
     [TITLE_STATUSES.REVISION_REQUIRED]: {
       icon: AlertTriangle,
       title: 'Title Revision Required',
       description:
         'The instructor has requested changes to your title. Please address the feedback and resubmit your revised title below.',
-      bgClass: 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30',
-      iconClass: 'text-orange-600 dark:text-orange-400',
-      textClass: 'text-orange-800 dark:text-orange-200',
-      descClass: 'text-orange-700 dark:text-orange-300',
+      bgClass: 'border-destructive/30 bg-destructive/5',
+      iconClass: 'text-destructive-text',
+      textClass: 'text-destructive-text',
+      descClass: 'text-destructive-text/90',
     },
     [TITLE_STATUSES.APPROVED_WITH_REVISION]: {
       icon: AlertTriangle,
       title: 'Approved — Title Revision Required',
       description:
         'Your project concept is approved, but the instructor requires a title change before you can proceed to Capstone 1. Submit a proposed new title below.',
-      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
-      iconClass: 'text-amber-600 dark:text-amber-400',
-      textClass: 'text-amber-800 dark:text-amber-200',
-      descClass: 'text-amber-700 dark:text-amber-300',
+      bgClass: 'border-warning/30 bg-warning/5',
+      iconClass: 'text-warning-foreground',
+      textClass: 'text-warning-foreground',
+      descClass: 'text-warning-foreground/90',
     },
     [TITLE_STATUSES.PENDING_MODIFICATION]: {
       icon: Clock,
       title: 'Modification Request Pending',
       description:
         'Your title modification request is being reviewed by the instructor. Please wait for approval.',
-      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
-      iconClass: 'text-amber-600 dark:text-amber-400',
-      textClass: 'text-amber-800 dark:text-amber-200',
-      descClass: 'text-amber-700 dark:text-amber-300',
+      bgClass: 'border-warning/30 bg-warning/5',
+      iconClass: 'text-warning-foreground',
+      textClass: 'text-warning-foreground',
+      descClass: 'text-warning-foreground/90',
     },
   };
 
@@ -521,7 +530,7 @@ export function TitlePendingCard({ titleStatus }) {
           <p className={`text-sm font-semibold ${config.textClass}`}>{config.title}</p>
           <p className={`text-sm ${config.descClass}`}>{config.description}</p>
           {titleStatus !== TITLE_STATUSES.APPROVED && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-white/60 dark:bg-black/20 p-2.5 border border-border/40">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-background/60 p-2.5">
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-xs text-muted-foreground">
@@ -574,8 +583,8 @@ export function WorkflowPrerequisiteBanner({ titleStatus }) {
   return (
     <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
       <CardContent className="pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Info className="h-5 w-5 text-primary" />
+        <div className="mb-4 flex items-center gap-2">
+          <Info aria-hidden="true" className="h-5 w-5 text-primary" />
           <h4 className="font-semibold text-primary">Complete These Steps to Unlock Chapters</h4>
         </div>
         <div className="flex items-center gap-0 max-w-xs mx-auto">
@@ -585,9 +594,9 @@ export function WorkflowPrerequisiteBanner({ titleStatus }) {
                 <div
                   className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
                     step.completed
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-success text-success-foreground'
                       : currentStep === step.num
-                        ? 'bg-primary text-white'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
                   }`}
                 >
@@ -596,7 +605,7 @@ export function WorkflowPrerequisiteBanner({ titleStatus }) {
                 <span
                   className={`mt-2 text-xs font-medium whitespace-nowrap ${
                     step.completed
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-success-foreground'
                       : currentStep === step.num
                         ? 'text-primary'
                         : 'text-muted-foreground'
@@ -607,7 +616,7 @@ export function WorkflowPrerequisiteBanner({ titleStatus }) {
               </div>
               {idx < steps.length - 1 && (
                 <div
-                  className={`mx-3 h-0.5 flex-1 min-w-[40px] rounded-full ${step.completed ? 'bg-green-500' : 'bg-border'}`}
+                  className={`mx-3 h-0.5 flex-1 min-w-[40px] rounded-full ${step.completed ? 'bg-success' : 'bg-border'}`}
                 />
               )}
             </div>

@@ -1,20 +1,37 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import {
-  Calendar,
-  CalendarPlus,
-  Clock,
-  Trash2,
-  X,
-  AlertCircle,
-  CheckCircle2,
-  Layers,
-  ChevronRight,
-  Filter,
-} from 'lucide-react';
+import { Calendar, CalendarPlus, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Card } from '@/components/ui/Card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -85,6 +102,7 @@ export default function MilestoneDeadlinesModal({
   const [allowLateSubmission, setAllowLateSubmission] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Available deliverables for the currently selected stage
   const availableDeliverables = useMemo(() => {
@@ -111,7 +129,14 @@ export default function MilestoneDeadlinesModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!batchYear || !stage || !deliverable || !title || !deadlineDate) {
+    if (
+      !batchYear ||
+      !stage ||
+      !deliverable ||
+      !title ||
+      !deadlineDate ||
+      (targetType === 'section' && !sectionId)
+    ) {
       toast.error('Please complete all required fields.');
       return;
     }
@@ -149,9 +174,6 @@ export default function MilestoneDeadlinesModal({
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this milestone deadline?')) {
-      return;
-    }
     setDeletingId(id);
     try {
       await api.delete(`/settings/deadlines/milestone/${id}`);
@@ -164,324 +186,353 @@ export default function MilestoneDeadlinesModal({
       toast.error(err?.response?.data?.message || 'Failed to delete milestone deadline.');
     } finally {
       setDeletingId(null);
+      setDeleteTarget(null);
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in-50">
-      <div
-        className="relative w-full max-w-4xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden my-auto"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="milestone-modal-title"
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-border/80 px-6 py-4 bg-muted/20">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-              <CalendarPlus className="h-5 w-5" />
+    <>
+      <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)] max-h-[min(90dvh,56rem)] max-w-5xl gap-0 overflow-hidden p-0">
+          {/* Modal Header */}
+          <DialogHeader className="relative flex-row items-center justify-between border-b border-border/70 bg-muted/20 px-5 py-4 pr-14 sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
+                <CalendarPlus aria-hidden="true" className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Set Milestone Submission Deadlines
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-xs">
+                  Configure deliverable cutoffs across the 4-phase capstone lifecycle (Batch or
+                  Section level).
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <h2 id="milestone-modal-title" className="text-base font-bold text-foreground">
-                Set Milestone Submission Deadlines
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Configure deliverable cutoffs across the 4-phase capstone lifecycle (Batch or
-                Section level).
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+          </DialogHeader>
 
-        {/* Modal Body: Split view (Create Form on Left, Active Deadlines on Right) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 max-h-[75vh] overflow-y-auto">
-          {/* Left Column: Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="md:col-span-7 p-6 border-b md:border-b-0 md:border-r border-border/60 space-y-4"
-          >
-            <div className="space-y-1">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-                Schedule New Milestone Cutoff
-              </h3>
-              <p className="text-[11px] text-muted-foreground">
-                Deadlines normalize to End-of-Day (23:59:59 UTC) and automatically render on the
-                calendar ribbon.
-              </p>
-            </div>
-
-            {/* Batch & Target Scope */}
-            <div className="grid grid-cols-2 gap-3">
+          {/* Modal Body: Split view (Create Form on Left, Active Deadlines on Right) */}
+          <div className="grid min-h-0 grid-cols-1 overflow-y-auto md:grid-cols-12">
+            {/* Left Column: Form */}
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4 border-b border-border/60 p-5 sm:p-6 md:col-span-7 md:border-b-0 md:border-r"
+            >
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">
-                  Academic Year (Batch)
-                </label>
-                <select
-                  value={batchYear}
-                  onChange={(e) => setBatchYear(e.target.value)}
-                  className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  required
-                >
-                  <option value="" disabled>
-                    Select Academic Year...
-                  </option>
-                  {availableBatches.map((b) => (
-                    <option key={b} value={b}>
-                      AY {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Target Scope</label>
-                <div className="grid grid-cols-2 gap-1 bg-muted/40 p-0.5 rounded-md border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setTargetType('batch')}
-                    className={`h-7 text-xs font-semibold rounded transition-all ${
-                      targetType === 'batch'
-                        ? 'bg-background text-foreground shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Batch-Wide
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetType('section')}
-                    className={`h-7 text-xs font-semibold rounded transition-all ${
-                      targetType === 'section'
-                        ? 'bg-background text-foreground shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Section Only
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Section Picker (if Section Only) */}
-            {targetType === 'section' && (
-              <div className="space-y-1 animate-in fade-in-50">
-                <label className="text-xs font-semibold text-foreground">Specific Section</label>
-                <select
-                  value={sectionId}
-                  onChange={(e) => setSectionId(e.target.value)}
-                  className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  required
-                >
-                  <option value="">Select Target Section...</option>
-                  {sections.map((sec) => (
-                    <option key={sec._id} value={sec._id}>
-                      {sec.name} ({sec.code || 'IT'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Phase selector: title proposal work followed by the three one-semester Capstone courses. */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Capstone Stage</label>
-              <select
-                value={stage}
-                onChange={(e) => handleStageChange(e.target.value)}
-                className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-              >
-                {Object.entries(STAGE_LABELS).map(([val, label]) => (
-                  <option key={val} value={val}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Deliverable Selector */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Deliverable Component</label>
-              <select
-                value={deliverable}
-                onChange={(e) => handleDeliverableChange(e.target.value)}
-                className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-              >
-                {availableDeliverables.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label} {d.postApprovalGated ? '(Post-Approval Gated)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Milestone Title */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Display Title</label>
-              <Input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Chapter 1 Final Draft Submission"
-                className="h-8 text-xs"
-                required
-              />
-            </div>
-
-            {/* Deadline Date */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">
-                Submission Cutoff Date
-              </label>
-              <Input
-                type="date"
-                value={deadlineDate}
-                onChange={(e) => setDeadlineDate(e.target.value)}
-                className="h-8 text-xs"
-                required
-              />
-            </div>
-
-            {/* Allow Late Submissions Toggle */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="allow-late"
-                checked={allowLateSubmission}
-                onChange={(e) => setAllowLateSubmission(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <label
-                htmlFor="allow-late"
-                className="text-xs text-foreground select-none cursor-pointer"
-              >
-                Allow late submissions (marked as late with instructor justification flag)
-              </label>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-border/40">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onClose}
-                className="h-8 text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSubmitting}
-                className="h-8 text-xs gap-1.5 shadow-xs"
-              >
-                <CalendarPlus className="h-3.5 w-3.5" />
-                {isSubmitting ? 'Saving...' : 'Set Deadline'}
-              </Button>
-            </div>
-          </form>
-
-          {/* Right Column: Existing Deadlines List */}
-          <div className="md:col-span-5 p-6 bg-muted/10 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-primary" />
-                Active Milestones ({deadlines.length})
-              </h3>
-              <Badge variant="outline" className="text-[10px] font-mono">
-                {batchYear}
-              </Badge>
-            </div>
-
-            {deadlines.length === 0 ? (
-              <div className="py-12 text-center space-y-2">
-                <Calendar className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-                <p className="text-xs font-medium text-foreground">No Deadlines Configured</p>
-                <p className="text-[11px] text-muted-foreground max-w-[220px] mx-auto">
-                  Use the form to define milestone submission dates for batch {batchYear}.
+                <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Schedule New Milestone Cutoff
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Deadlines normalize to End-of-Day (23:59:59 UTC) and automatically render on the
+                  calendar ribbon.
                 </p>
               </div>
-            ) : (
-              <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
-                {deadlines.map((item) => {
-                  const dateObj = new Date(item.deadlineDate);
-                  const isPast = dateObj < new Date();
-                  const cat = DELIVERABLE_CATEGORY_MAP[item.deliverable] || 'manuscript';
 
-                  let badgeClass = 'bg-blue-500/10 text-blue-600 border-blue-500/30';
-                  if (cat === 'adm')
-                    badgeClass = 'bg-purple-500/10 text-purple-600 border-purple-500/30';
-                  if (cat === 'prototype')
-                    badgeClass = 'bg-amber-500/10 text-amber-600 border-amber-500/30';
-                  if (cat === 'final_paper')
-                    badgeClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30';
-
-                  return (
-                    <div
-                      key={item._id}
-                      className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs space-y-1.5 transition-all hover:border-border"
+              {/* Batch & Target Scope */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="deadline-batch-year" className="text-xs">
+                    Academic Year (Batch)
+                  </Label>
+                  <Select value={batchYear} onValueChange={setBatchYear}>
+                    <SelectTrigger
+                      id="deadline-batch-year"
+                      aria-required="true"
+                      className="h-10 text-sm"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-foreground truncate">{item.title}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span
-                              className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border ${badgeClass}`}
-                            >
-                              {item.stage}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {item.targetType === 'section'
-                                ? item.sectionId?.name || 'Section'
-                                : 'Batch-Wide'}
-                            </span>
+                      <SelectValue placeholder="Select Academic Year..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableBatches.map((b) => (
+                        <SelectItem key={b} value={b}>
+                          AY {b}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Target Scope</Label>
+                  <RadioGroup
+                    value={targetType}
+                    onValueChange={setTargetType}
+                    aria-label="Target Scope"
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    <Label
+                      htmlFor="deadline-target-batch"
+                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
+                    >
+                      <RadioGroupItem id="deadline-target-batch" value="batch" />
+                      Batch-Wide
+                    </Label>
+                    <Label
+                      htmlFor="deadline-target-section"
+                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
+                    >
+                      <RadioGroupItem id="deadline-target-section" value="section" />
+                      Section Only
+                    </Label>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              {/* Section Picker (if Section Only) */}
+              {targetType === 'section' && (
+                <div className="space-y-1.5 animate-in fade-in-50">
+                  <Label htmlFor="deadline-section" className="text-xs">
+                    Specific Section
+                  </Label>
+                  <Select value={sectionId} onValueChange={setSectionId}>
+                    <SelectTrigger
+                      id="deadline-section"
+                      aria-required="true"
+                      className="h-10 text-sm"
+                    >
+                      <SelectValue placeholder="Select Target Section..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sections.map((sec) => (
+                        <SelectItem key={sec._id} value={String(sec._id)}>
+                          {sec.name} ({sec.code || 'IT'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Phase selector: title proposal work followed by the three one-semester Capstone courses. */}
+              <div className="space-y-1.5">
+                <Label htmlFor="deadline-stage" className="text-xs">
+                  Capstone Stage
+                </Label>
+                <Select value={stage} onValueChange={handleStageChange}>
+                  <SelectTrigger id="deadline-stage" aria-required="true" className="h-10 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STAGE_LABELS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Deliverable Selector */}
+              <div className="space-y-1.5">
+                <Label htmlFor="deadline-deliverable" className="text-xs">
+                  Deliverable Component
+                </Label>
+                <Select value={deliverable} onValueChange={handleDeliverableChange}>
+                  <SelectTrigger
+                    id="deadline-deliverable"
+                    aria-required="true"
+                    className="h-10 text-sm"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDeliverables.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.label} {d.postApprovalGated ? '(Post-Approval Gated)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Milestone Title */}
+              <div className="space-y-1.5">
+                <Label htmlFor="deadline-title" className="text-xs">
+                  Display Title
+                </Label>
+                <Input
+                  id="deadline-title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Chapter 1 Final Draft Submission"
+                  className="h-8 text-xs"
+                  required
+                />
+              </div>
+
+              {/* Deadline Date */}
+              <div className="space-y-1.5">
+                <Label htmlFor="deadline-date" className="text-xs">
+                  Submission Cutoff Date
+                </Label>
+                <Input
+                  id="deadline-date"
+                  type="date"
+                  value={deadlineDate}
+                  onChange={(e) => setDeadlineDate(e.target.value)}
+                  className="h-8 text-xs"
+                  required
+                />
+              </div>
+
+              {/* Allow Late Submissions Toggle */}
+              <div className="flex items-start gap-2 pt-1">
+                <Checkbox
+                  id="allow-late"
+                  checked={allowLateSubmission}
+                  onCheckedChange={(checked) => setAllowLateSubmission(checked === true)}
+                />
+                <Label
+                  htmlFor="allow-late"
+                  className="cursor-pointer select-none text-xs leading-relaxed text-foreground"
+                >
+                  Allow late submissions (marked as late with instructor justification flag)
+                </Label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  className="h-8 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmitting}
+                  className="h-8 text-xs gap-1.5 shadow-xs"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  {isSubmitting ? 'Saving...' : 'Set Deadline'}
+                </Button>
+              </div>
+            </form>
+
+            {/* Right Column: Existing Deadlines List */}
+            <div className="space-y-4 bg-muted/10 p-5 sm:p-6 md:col-span-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Active Milestones ({deadlines.length})
+                </h3>
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  {batchYear}
+                </Badge>
+              </div>
+
+              {deadlines.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <Calendar className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-xs font-medium text-foreground">No Deadlines Configured</p>
+                  <p className="text-[11px] text-muted-foreground max-w-[220px] mx-auto">
+                    Use the form to define milestone submission dates for batch {batchYear}.
+                  </p>
+                </div>
+              ) : (
+                <div className="max-h-[min(32rem,50dvh)] space-y-2.5 overflow-y-auto pr-1">
+                  {deadlines.map((item) => {
+                    const dateObj = new Date(item.deadlineDate);
+                    const isPast = dateObj < new Date();
+                    const cat = DELIVERABLE_CATEGORY_MAP[item.deliverable] || 'manuscript';
+
+                    const categoryVariant =
+                      cat === 'adm'
+                        ? 'info'
+                        : cat === 'prototype'
+                          ? 'warning'
+                          : cat === 'final_paper'
+                            ? 'success'
+                            : 'secondary';
+
+                    return (
+                      <Card
+                        key={item._id}
+                        className="space-y-1.5 p-3 shadow-none hover:border-border"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-foreground truncate">
+                              {item.title}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Badge
+                                variant={categoryVariant}
+                                className="px-1.5 py-0 text-[9px] uppercase"
+                              >
+                                {item.stage}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {item.targetType === 'section'
+                                  ? item.sectionId?.name || 'Section'
+                                  : 'Batch-Wide'}
+                              </span>
+                            </div>
                           </div>
+
+                          <Button
+                            type="button"
+                            onClick={() => setDeleteTarget(item)}
+                            disabled={deletingId === item._id}
+                            variant="ghost"
+                            size="icon"
+                            className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label={`Delete deadline: ${item.title}`}
+                          >
+                            <Trash2 aria-hidden="true" className="h-4 w-4" />
+                          </Button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item._id)}
-                          disabled={deletingId === item._id}
-                          className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
-                          title="Delete deadline"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
-                        <span className="text-muted-foreground">Cutoff Date:</span>
-                        <span
-                          className={`font-mono font-semibold ${isPast ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}
-                        >
-                          {dateObj.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
+                          <span className="text-muted-foreground">Cutoff Date:</span>
+                          <span
+                            className={`font-mono font-semibold ${isPast ? 'text-destructive-text' : 'text-foreground'}`}
+                          >
+                            {dateObj.toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove milestone deadline?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove “{deleteTarget?.title}” from the active milestone deadlines.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => deleteTarget && handleDelete(deleteTarget._id)}
+            >
+              Remove deadline
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

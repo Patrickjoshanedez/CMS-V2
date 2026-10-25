@@ -1,11 +1,11 @@
 import React from 'react';
 import { act } from 'react';
+import { fireEvent } from '@testing-library/react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SecretaryReviewPage from '@/pages/projects/SecretaryReviewPage';
-import { ROLES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -195,8 +195,7 @@ describe('SecretaryReviewPage Studio', () => {
 
     const selectedTeamCard = Array.from(view.container.querySelectorAll('[class]')).find(
       (element) =>
-        element.classList.contains('cursor-pointer') &&
-        element.textContent.includes('Team Flora'),
+        element.classList.contains('cursor-pointer') && element.textContent.includes('Team Flora'),
     );
     expect(selectedTeamCard.textContent).toContain('Phase 3');
     expect(selectedTeamCard.textContent).toContain('Awaiting Secretary Endorsement');
@@ -206,21 +205,35 @@ describe('SecretaryReviewPage Studio', () => {
   });
 
   it('distinguishes secretary endorsement from full committee approval in the team card', () => {
-    const wasEndorsed =
-      mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed;
+    const wasEndorsed = mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed;
     mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed = true;
     const view = renderComponent();
 
     const selectedTeamCard = Array.from(view.container.querySelectorAll('[class]')).find(
       (element) =>
-        element.classList.contains('cursor-pointer') &&
-        element.textContent.includes('Team Flora'),
+        element.classList.contains('cursor-pointer') && element.textContent.includes('Team Flora'),
     );
     expect(selectedTeamCard.textContent).toContain('Secretary Endorsed');
     expect(selectedTeamCard.textContent).not.toContain('Approved');
 
     view.unmount();
     mockProject.admSignaturesByMilestone.CAPSTONE_2.secretary.endorsed = wasEndorsed;
+  });
+
+  it('uses accessible compliance filter buttons and updates the selected filter', () => {
+    const view = renderComponent();
+    const group = view.container.querySelector('[aria-label="Compliance status"]');
+    const needsMinutes = Array.from(group.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Needs Minutes'),
+    );
+    expect(needsMinutes).toHaveAttribute('aria-pressed', 'false');
+
+    act(() => {
+      needsMinutes.click();
+    });
+
+    expect(needsMinutes).toHaveAttribute('aria-pressed', 'true');
+    view.unmount();
   });
 
   it('autofills project title and committee roster into Form OVPAA-F-INS-032 when clicking autofill', () => {
@@ -249,7 +262,7 @@ describe('SecretaryReviewPage Studio', () => {
     expect(admTabBtn).not.toBeNull();
 
     act(() => {
-      admTabBtn.click();
+      fireEvent.mouseDown(admTabBtn, { button: 0, ctrlKey: false });
     });
 
     expect(view.container.textContent).toContain('Upload Hearing Defense Minutes');

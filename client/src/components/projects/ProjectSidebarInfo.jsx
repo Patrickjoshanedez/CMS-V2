@@ -2,6 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import PropTypes from 'prop-types';
 import { CAPSTONE_PHASES, TITLE_STATUSES, resolveWorkflowPhase } from '@cms/shared';
 import {
   BookOpen,
@@ -16,7 +17,7 @@ import {
 function cleanTeamName(name) {
   if (!name) return 'Team';
   const stripped = String(name)
-    .replace(/^Team\s+/i, '')
+    .replace(/^(?:Team\s+)+/i, '')
     .trim();
   return stripped ? `Team ${stripped}` : 'Team';
 }
@@ -36,8 +37,8 @@ export default function ProjectSidebarInfo({ project }) {
   return (
     <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
       <CardHeader className="pb-3 border-b border-border/60">
-        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-foreground">
-          <BookOpen className="h-4 w-4 text-indigo-500" />
+        <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+          <BookOpen className="h-4 w-4 text-primary" />
           Project Details
         </CardTitle>
       </CardHeader>
@@ -129,7 +130,7 @@ export default function ProjectSidebarInfo({ project }) {
         {/* Team Members List (FRAD2 - Adviser/Faculty Right-Sidebar Visibility) */}
         {Array.isArray(project.teamId?.members) && project.teamId.members.length > 0 && (
           <div className="pt-2 border-t border-border/60 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-muted-foreground">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Team Roster ({project.teamId.members.length})
             </p>
             <div className="space-y-1.5">
@@ -148,9 +149,7 @@ export default function ProjectSidebarInfo({ project }) {
                     key={member._id || idx}
                     className="flex items-center justify-between rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs"
                   >
-                    <span className="font-semibold text-slate-900 dark:text-foreground truncate">
-                      {memberName}
-                    </span>
+                    <span className="font-semibold text-foreground truncate">{memberName}</span>
                     {isLeader ? (
                       <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
                         Leader
@@ -178,7 +177,7 @@ export default function ProjectSidebarInfo({ project }) {
           <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
             {project.teamId?.googleDocUrl && (
               <Button type="button" variant="secondary" size="sm" asChild>
-                <a href={project.teamId.googleDocUrl} target="_blank" rel="noreferrer">
+                <a href={project.teamId.googleDocUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Team Google Doc
                 </a>
@@ -201,7 +200,7 @@ export default function ProjectSidebarInfo({ project }) {
                     project.githubRepo
                   }
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   <ExternalLink className="mr-2 h-4 w-4 text-primary" />
                   GitHub Repository
@@ -212,7 +211,7 @@ export default function ProjectSidebarInfo({ project }) {
         )}
 
         {project.rejectionReason && (
-          <Alert className="bg-rose-50/50 border-rose-200 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-300">
+          <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <span className="font-semibold block mb-1">Instructor Revision Notes:</span>
@@ -224,6 +223,10 @@ export default function ProjectSidebarInfo({ project }) {
     </Card>
   );
 }
+
+ProjectSidebarInfo.propTypes = {
+  project: PropTypes.object.isRequired,
+};
 
 function getCapstonePhaseLabel(project) {
   const phase = resolveWorkflowPhase(project);

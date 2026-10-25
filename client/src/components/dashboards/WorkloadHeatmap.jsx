@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Users, GraduationCap, ShieldCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 
 const heatClass = (score) => {
   if (score >= 18)
-    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800/50';
+    return 'border-destructive/30 bg-destructive/10 text-destructive';
   if (score >= 10)
-    return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/50';
-  return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/50';
+    return 'border-warning/30 bg-warning/10 text-warning-foreground';
+  return 'border-success/30 bg-success/10 text-success-foreground';
 };
 
 const VIEW_TABS = [
@@ -72,140 +75,132 @@ const WorkloadHeatmap = ({ workload }) => {
 
       {/* View Switcher Tabs & Legend */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/40 rounded-lg border border-border/40">
+        <div role="group" aria-label="Faculty workload views" className="flex flex-wrap gap-1 rounded-md border border-border/60 bg-muted/40 p-1">
           {VIEW_TABS.map(({ id, label, icon: Icon }) => (
-            <button
+            <Button
               key={id}
               type="button"
+              variant={activeTab === id ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-pressed={activeTab === id}
               onClick={() => setActiveTab(id)}
-              className={`inline-flex min-h-11 items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                activeTab === id
-                  ? 'bg-background text-foreground shadow-2xs border border-border/60 font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              }`}
+              className="min-h-11 gap-1.5 px-3 py-2 text-xs"
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="size-3.5" aria-hidden="true" />
               {label}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-            Low
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-            Medium
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-            High
-          </span>
+          <Badge variant="success">Low</Badge>
+          <Badge variant="warning">Medium</Badge>
+          <Badge variant="destructive">High</Badge>
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground sm:hidden">Scroll the table horizontally to see all workload details.</p>
       <div className="max-w-full overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm border-separate border-spacing-0">
-          <thead>
-            <tr className="text-left text-muted-foreground border-b border-border/60">
-              <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+        <Table className="min-w-[560px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>
                 {activeTab === 'panelists'
                   ? 'Panelist'
                   : activeTab === 'faculty'
                     ? 'Faculty Member'
                     : 'Adviser'}
-              </th>
+              </TableHead>
               {activeTab === 'faculty' ? (
                 <>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  <TableHead>
                     Advisory
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Panelist
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Total Projects
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Pending
-                  </th>
+                  </TableHead>
                 </>
               ) : activeTab === 'panelists' ? (
                 <>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  <TableHead>
                     Panel Projects
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Pending Reviews
-                  </th>
+                  </TableHead>
                 </>
               ) : (
                 <>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  <TableHead>
                     Projects
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Pending
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Revisions
-                  </th>
-                  <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead>
                     Overdue
-                  </th>
+                  </TableHead>
                 </>
               )}
-              <th className="px-3 py-3 font-semibold text-xs uppercase tracking-wider">
+              <TableHead>
                 Workload Score
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {currentList.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No {activeTab} workload data found. Once active assignments and reviews begin,
                   this heatmap will rank load pressure.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {currentList.map((row) => {
               const name = row.facultyName || row.panelistName || row.adviserName;
               const key = row.facultyId || row.panelistId || row.adviserId || name;
 
               return (
-                <tr
+                <TableRow
                   key={key}
-                  className="border-b border-border/40 hover:bg-muted/20 transition-colors"
                 >
-                  <td className="px-3 py-3 font-medium text-foreground">{name}</td>
+                  <TableCell className="font-medium text-foreground">{name}</TableCell>
                   {activeTab === 'faculty' ? (
                     <>
-                      <td className="px-3 py-3 font-mono tabular-nums">
+                      <TableCell className="font-mono tabular-nums">
                         {row.adviserProjectCount ?? 0}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">
+                      </TableCell>
+                      <TableCell className="font-mono tabular-nums">
                         {row.panelistProjectCount ?? 0}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums font-semibold">
+                      </TableCell>
+                      <TableCell className="font-mono font-semibold tabular-nums">
                         {row.projectCount ?? 0}
-                      </td>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.pending ?? 0}</td>
+                      </TableCell>
+                      <TableCell className="font-mono tabular-nums">{row.pending ?? 0}</TableCell>
                     </>
                   ) : activeTab === 'panelists' ? (
                     <>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.projectCount ?? 0}</td>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.pending ?? 0}</td>
+                      <TableCell className="font-mono tabular-nums">{row.projectCount ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{row.pending ?? 0}</TableCell>
                     </>
                   ) : (
                     <>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.projectCount ?? 0}</td>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.pending ?? 0}</td>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.revisions ?? 0}</td>
-                      <td className="px-3 py-3 font-mono tabular-nums">{row.overdue ?? 0}</td>
+                      <TableCell className="font-mono tabular-nums">{row.projectCount ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{row.pending ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{row.revisions ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{row.overdue ?? 0}</TableCell>
                     </>
                   )}
-                  <td className="px-3 py-3">
+                  <TableCell>
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-md border font-mono text-xs font-bold tabular-nums ${heatClass(
                         row.workloadScore,
@@ -213,12 +208,12 @@ const WorkloadHeatmap = ({ workload }) => {
                     >
                       {row.workloadScore}
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </section>
   );

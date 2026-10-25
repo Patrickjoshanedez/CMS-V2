@@ -4,6 +4,7 @@ import buksuCotLogo from '@/assets/buksu-cot-logo.png';
 import buksuItLogo from '@/assets/buksu-it-logo.png';
 import { cn } from '@/lib/utils';
 import { Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
 
 /**
  * Domain-specific BukSU Capstone Slide Fallbacks
@@ -120,7 +121,7 @@ export default function ProposalSlideCanvas({
   const renderOrangeBanner = () => (
     <div
       data-slide-footer="true"
-      className="bg-[#FF7300] w-full px-2.5 py-1 sm:px-5 sm:py-2 flex items-center justify-between text-black shrink-0 relative z-10 select-none overflow-hidden"
+      className="bg-slide-brand-orange w-full px-2.5 py-1 sm:px-5 sm:py-2 flex items-center justify-between text-black shrink-0 relative z-10 select-none overflow-hidden"
     >
       {/* Discreet Slide Indicator, Category & Proponents info */}
       <div className="min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-xs text-black/90 pr-2 overflow-hidden">
@@ -197,23 +198,25 @@ export default function ProposalSlideCanvas({
       <div
         data-slide-canvas="cover"
         className={cn(
-          'w-full aspect-video rounded-xl overflow-hidden shadow-lg flex flex-col justify-between bg-[#0B3064] relative select-none',
+          'w-full aspect-video rounded-xl overflow-hidden shadow-lg flex flex-col justify-between bg-slide-brand-navy relative select-none',
           className,
         )}
       >
         {/* Edit mode indicator */}
         {isEditMode && (
-          <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-[10px] font-bold text-amber-300 shadow-sm animate-in fade-in">
-            <Pencil className="h-3 w-3 text-amber-400" />
+          <Badge
+            variant="outline"
+            className="absolute top-3 right-4 z-20 gap-1.5 rounded-full border-slide-brand-gold/40 bg-slide-brand-gold/10 px-2.5 py-1 text-[10px] font-bold text-slide-brand-gold shadow-sm animate-in fade-in"
+          >
+            <Pencil aria-hidden="true" className="h-3 w-3" />
             <span>Click text to edit</span>
-          </div>
+          </Badge>
         )}
 
         {/* Main Title Area */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-4 sm:py-8 text-center my-auto">
           <h1
             style={{
-              color: '#FFA726',
               fontSize: `calc(clamp(1.5rem, 3.8vw, 3.4rem) * ${fontScale})`,
             }}
             contentEditable={isEditMode}
@@ -229,9 +232,9 @@ export default function ProposalSlideCanvas({
               }
             }}
             className={cn(
-              'font-black tracking-tight text-[#FFA726] leading-tight max-w-4xl drop-shadow-sm transition-all',
+              'line-clamp-3 max-w-full break-words [overflow-wrap:anywhere] font-black tracking-tight text-slide-brand-gold leading-tight sm:max-w-4xl drop-shadow-sm transition-all',
               isEditMode &&
-                'border border-dashed border-amber-400/60 hover:border-amber-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 rounded-lg px-3 py-1 cursor-text outline-none bg-amber-400/5',
+                'border border-dashed border-slide-brand-gold/60 hover:border-slide-brand-gold focus:border-slide-brand-gold focus-visible:ring-2 focus-visible:ring-slide-brand-gold/40 rounded-lg px-3 py-1 cursor-text outline-none bg-slide-brand-gold/5',
             )}
             title={isEditMode ? 'Click to edit proposal title' : undefined}
           >
@@ -258,7 +261,7 @@ export default function ProposalSlideCanvas({
               className={cn(
                 'mt-3 sm:mt-5 text-white/80 max-w-2xl text-center font-normal transition-all',
                 isEditMode &&
-                  'border border-dashed border-white/30 hover:border-white/60 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 rounded px-2 py-0.5 cursor-text outline-none bg-white/5',
+                  'border border-dashed border-white/30 hover:border-white/60 focus:border-slide-brand-gold focus-visible:ring-2 focus-visible:ring-slide-brand-gold/40 rounded px-2 py-0.5 cursor-text outline-none bg-white/5',
               )}
               title={isEditMode ? 'Click to edit subtitle' : undefined}
             >
@@ -285,23 +288,23 @@ export default function ProposalSlideCanvas({
     <div
       data-slide-canvas="content"
       className={cn(
-        'w-full aspect-video rounded-xl overflow-hidden shadow-lg flex flex-col justify-between bg-white !text-slate-900 relative select-none',
+        'w-full aspect-video rounded-xl overflow-hidden shadow-lg flex flex-col justify-between bg-white !text-slide-brand-ink relative select-none',
         className,
       )}
     >
-      {/* Edit mode subtle indicator */}
-      {isEditMode && (
-        <div className="absolute top-2.5 right-4 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 shadow-xs animate-in fade-in">
-          <Pencil className="h-3 w-3 text-emerald-600" />
-          <span>Interactive Editor Active</span>
-        </div>
-      )}
-
       {/* Top Slide Header: Bold + Italic with guaranteed dark contrast */}
-      <div className="px-6 sm:px-10 pt-5 sm:pt-8 pb-2 shrink-0">
+      <div className="flex shrink-0 flex-col px-4 pt-2 pb-1 sm:px-10 sm:pt-8 sm:pb-2">
+        {isEditMode && (
+          <Badge
+            variant="success"
+            className="mb-1 self-end gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-xs animate-in fade-in"
+          >
+            <Pencil aria-hidden="true" className="h-3 w-3" />
+            <span>Interactive Editor Active</span>
+          </Badge>
+        )}
         <h2
           style={{
-            color: '#0f172a',
             fontSize: `calc(clamp(1.35rem, 3.2vw, 2.75rem) * ${fontScale})`,
           }}
           contentEditable={isEditMode}
@@ -317,7 +320,7 @@ export default function ProposalSlideCanvas({
             }
           }}
           className={cn(
-            'font-black italic !text-slate-900 tracking-tight transition-all',
+            'font-black italic !text-slide-brand-ink tracking-tight transition-all',
             isEditMode &&
               'border border-dashed border-primary/50 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20 rounded px-2 py-0.5 cursor-text outline-none bg-primary/5',
           )}
@@ -328,20 +331,22 @@ export default function ProposalSlideCanvas({
       </div>
 
       {/* Main Slide Content Area with Bulleted List */}
-      <div className="flex-1 px-6 sm:px-10 py-2 sm:py-4 overflow-y-auto my-auto">
+      <div
+        data-slide-content-region="true"
+        className="flex-1 px-6 sm:px-10 py-2 sm:py-4 overflow-y-auto my-auto"
+      >
         {slide.type === 'alignment' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 pt-1">
             <div className="space-y-2 sm:space-y-3">
               <h3
                 style={{
-                  color: '#0B3064',
                   fontSize: `calc(clamp(0.75rem, 1.4vw, 1.1rem) * ${fontScale})`,
                 }}
-                className="font-bold uppercase tracking-wider text-[#0B3064]"
+                className="font-bold uppercase tracking-wider text-slide-brand-navy"
               >
                 IT Fields of Discipline
               </h3>
-              <ul className="space-y-2 sm:space-y-3 text-slate-700 list-disc list-inside">
+              <ul className="space-y-2 sm:space-y-3 text-slide-brand-slate list-disc list-inside">
                 {(slide.disciplines && slide.disciplines.length > 0
                   ? slide.disciplines
                   : ['Software Engineering & Web Applications']
@@ -349,10 +354,9 @@ export default function ProposalSlideCanvas({
                   <li
                     key={i}
                     style={{
-                      color: '#334155',
                       fontSize: `calc(clamp(0.8rem, 1.5vw, 1.15rem) * ${fontScale})`,
                     }}
-                    className="leading-relaxed !text-slate-700 font-medium"
+                    className="leading-relaxed !text-slide-brand-slate font-medium"
                   >
                     {d}
                   </li>
@@ -362,14 +366,13 @@ export default function ProposalSlideCanvas({
             <div className="space-y-2 sm:space-y-3">
               <h3
                 style={{
-                  color: '#047857',
                   fontSize: `calc(clamp(0.75rem, 1.4vw, 1.1rem) * ${fontScale})`,
                 }}
-                className="font-bold uppercase tracking-wider text-emerald-700"
+                className="font-bold uppercase tracking-wider text-slide-brand-green"
               >
                 Target UN SDGs
               </h3>
-              <ul className="space-y-2 sm:space-y-3 text-slate-700 list-disc list-inside">
+              <ul className="space-y-2 sm:space-y-3 text-slide-brand-slate list-disc list-inside">
                 {(slide.sdgs && slide.sdgs.length > 0
                   ? slide.sdgs
                   : ['SDG 4: Quality Education']
@@ -377,10 +380,9 @@ export default function ProposalSlideCanvas({
                   <li
                     key={i}
                     style={{
-                      color: '#334155',
                       fontSize: `calc(clamp(0.8rem, 1.5vw, 1.15rem) * ${fontScale})`,
                     }}
-                    className="leading-relaxed !text-slate-700 font-medium"
+                    className="leading-relaxed !text-slide-brand-slate font-medium"
                   >
                     {s}
                   </li>
@@ -391,11 +393,10 @@ export default function ProposalSlideCanvas({
         ) : (
           <ul
             ref={bulletListRef}
-            style={{ color: '#1e293b' }}
             className={cn(
-              'list-disc list-outside pl-6 sm:pl-8 !text-slate-800 font-medium leading-relaxed',
+              'list-disc list-outside pl-6 sm:pl-8 !text-slide-brand-ink font-medium leading-relaxed',
               bullets.length <= 2
-                ? 'space-y-3 sm:space-y-5 md:space-y-7'
+                ? 'space-y-1 sm:space-y-5 md:space-y-7'
                 : bullets.length <= 3
                   ? 'space-y-2.5 sm:space-y-4 md:space-y-5'
                   : 'space-y-2 sm:space-y-3 md:space-y-3.5',
@@ -406,7 +407,6 @@ export default function ProposalSlideCanvas({
                 key={idx}
                 data-bullet-item="true"
                 style={{
-                  color: '#1e293b',
                   fontSize: `calc(clamp(0.82rem, 1.65vw, 1.35rem) * ${fontScale})`,
                 }}
                 contentEditable={isEditMode}
@@ -417,7 +417,7 @@ export default function ProposalSlideCanvas({
                 }}
                 onBlur={handleBulletBlur}
                 className={cn(
-                  'marker:text-slate-500 !text-slate-800 font-medium leading-relaxed transition-all',
+                  'marker:text-slide-brand-slate !text-slide-brand-ink font-medium leading-relaxed transition-all',
                   isEditMode &&
                     'border border-dashed border-primary/40 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20 rounded px-1.5 py-0.5 cursor-text outline-none bg-primary/5',
                 )}

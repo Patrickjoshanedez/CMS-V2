@@ -9,6 +9,11 @@ import { SUBMISSION_STATUSES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const { mockReviewMutate, mockToastError } = vi.hoisted(() => ({
+  mockReviewMutate: vi.fn(),
+  mockToastError: vi.fn(),
+}));
+
 const ROUTER_FUTURE_FLAGS = {
   v7_startTransition: true,
   v7_relativeSplatPath: true,
@@ -16,9 +21,13 @@ const ROUTER_FUTURE_FLAGS = {
 
 vi.mock('@/hooks/useSubmissions', () => ({
   useReviewSubmission: () => ({
-    mutate: vi.fn(),
+    mutate: mockReviewMutate,
     isPending: false,
   }),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { error: mockToastError, success: vi.fn() },
 }));
 
 vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
@@ -220,33 +229,83 @@ describe('ChapterReviewPanel Component', () => {
     expect(view.container.textContent).toContain('Round 1');
 
     // Filter to Session 1 (Initial Rounds)
-    const select = view.container.querySelector('select[data-testid="session-filter-select"]');
+    const select = view.container.querySelector('[data-testid="session-filter-select"]');
     expect(select).not.toBeNull();
 
-    act(() => {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype,
-        'value',
-      ).set;
-      nativeSetter.call(select, 's1');
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    const chooseSession = (label) => {
+      act(() => select.click());
+      const option = Array.from(document.querySelectorAll('[role="option"]')).find((candidate) =>
+        candidate.textContent.includes(label),
+      );
+      expect(option).toBeTruthy();
+      act(() => option.click());
+      expect(select.textContent).toContain(label);
+    };
+
+    chooseSession('Session 1 (Initial Rounds)');
 
     expect(view.container.textContent).toContain('Round 1');
     expect(view.container.textContent).not.toContain('Round 2');
 
     // Filter to Session 2 (Revisions & Defense)
-    act(() => {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype,
-        'value',
-      ).set;
-      nativeSetter.call(select, 's2');
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    chooseSession('Session 2 (Revisions & Defense)');
 
     expect(view.container.textContent).toContain('Round 2');
     expect(view.container.textContent).not.toContain('Round 1');
+
+    view.unmount();
+  });
+
+  it('requires revision feedback and submits the trimmed note through the guarded review mutation', () => {
+    const mockSubmissions = [
+      {
+        _id: 'sub-ch1-v2',
+        type: 'chapter',
+        chapter: 1,
+        version: 2,
+        status: SUBMISSION_STATUSES.PENDING,
+        updatedAt: '2026-10-22T10:00:00.000Z',
+      },
+    ];
+    const view = renderComponent({ submissions: mockSubmissions });
+
+    const requestRevision = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Request Revision'),
+    );
+    expect(requestRevision).toBeTruthy();
+    act(() => requestRevision.click());
+
+    const submitRevision = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Send for Revision'),
+    );
+    expect(submitRevision).toBeTruthy();
+    act(() => submitRevision.click());
+
+    expect(mockReviewMutate).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Please provide revision feedback before requesting revisions.',
+    );
+
+    const feedback = view.container.querySelector('#note-sub-ch1-v2');
+    act(() => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value',
+      ).set;
+      nativeSetter.call(feedback, '  Clarify the sampling criteria.  ');
+      feedback.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    act(() => submitRevision.click());
+
+    expect(mockReviewMutate).toHaveBeenCalledWith(
+      {
+        submissionId: 'sub-ch1-v2',
+        status: SUBMISSION_STATUSES.REVISIONS_REQUIRED,
+        reviewNote: 'Clarify the sampling criteria.',
+        expectedUpdatedAt: '2026-10-22T10:00:00.000Z',
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
 
     view.unmount();
   });

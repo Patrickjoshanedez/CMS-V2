@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import PlagiarismReportPage from './PlagiarismReportPage';
+import PlagiarismReportPage, { SOURCE_PALETTE } from './PlagiarismReportPage';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -104,6 +104,12 @@ describe('PlagiarismReportPage', () => {
     expect(container.textContent).toContain('18%');
     expect(container.textContent).toContain('82%');
     expect(container.textContent).toContain('BukSU Precision Agriculture Study 2025');
+    const sourceButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.getAttribute('aria-label')?.includes('BukSU Precision Agriculture Study 2025'),
+    );
+    expect(sourceButton?.getAttribute('aria-pressed')).toBe('true');
+    expect(sourceButton?.className).toContain('min-h-11');
+    expect(container.textContent).toContain('MIXED');
   });
 
   it('renders embedded SophisticatedDocumentViewer in Original Document mode and allows toggling to Extracted Text', () => {
@@ -119,9 +125,16 @@ describe('PlagiarismReportPage', () => {
     // Toggle to Extracted Text mode
     const extractedBtn = container.querySelector('[data-testid="canvasmode-extracted-btn"]');
     expect(extractedBtn).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-testid="canvasmode-document-btn"]')
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(extractedBtn.getAttribute('aria-pressed')).toBe('false');
     act(() => {
       extractedBtn.click();
     });
+    expect(extractedBtn.getAttribute('aria-pressed')).toBe('true');
 
     // Now extracted text article is mounted and embedded document viewer is unmounted
     expect(container.querySelector('article')).not.toBeNull();
@@ -138,6 +151,65 @@ describe('PlagiarismReportPage', () => {
     const mark = container.querySelector('mark');
     expect(mark).not.toBeNull();
     expect(mark.textContent).toContain('Modern agricultural monitoring systems enable');
+    expect(mark.style.background).toContain('color-mix');
+    expect(SOURCE_PALETTE[0].dot).toContain('var(--chart-1)');
+  });
+
+  it('exposes semantic shadcn source filtering and paper mode controls', () => {
+    act(() => {
+      root.render(
+        <PlagiarismReportPage
+          initialCanvasMode="extracted"
+          originalText="A manuscript excerpt for similarity review."
+          reportData={{
+            overallScore: 18,
+            textMatches: [
+              {
+                sourceId: 'source-a',
+                sourceTitle: 'Source Alpha',
+                similarityPercentage: 18,
+                matchedBlocks: [{ studentStart: 0, studentEnd: 5 }],
+              },
+              {
+                sourceId: 'source-b',
+                sourceTitle: 'Source Beta',
+                similarityPercentage: 12,
+                matchedBlocks: [{ studentStart: 6, studentEnd: 16 }],
+              },
+              {
+                sourceId: 'source-c',
+                sourceTitle: 'Source Gamma',
+                similarityPercentage: 9,
+                matchedBlocks: [{ studentStart: 17, studentEnd: 28 }],
+              },
+            ],
+          }}
+        />,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="Filter sources by title"]')).not.toBeNull();
+    expect(
+      container.querySelector('[role="group"][aria-label="Document view mode"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[role="group"][aria-label="Manuscript appearance"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('[role="group"][aria-label="Manuscript zoom"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="plagiarism-source-row-source-a"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="plagiarism-source-row-source-b"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="plagiarism-source-row-source-c"]'),
+    ).not.toBeNull();
+    const paperModeButton = container.querySelector('[data-testid="paper-mode-paper-btn"]');
+    const themeModeButton = container.querySelector('[data-testid="paper-mode-theme-btn"]');
+    expect(paperModeButton.getAttribute('aria-pressed')).toBe('true');
+    expect(themeModeButton.getAttribute('aria-pressed')).toBe('false');
+    expect(themeModeButton.className).toContain('min-h-11');
   });
 
   it('opens SophisticatedDocumentViewer when clicking Inspect in Reader', () => {

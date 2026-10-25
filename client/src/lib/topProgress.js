@@ -25,23 +25,38 @@ class TopProgressManager {
     this.clickVerifyTimer = null;
     this._initialized = false;
     this._isSuspended = false;
+    this._suspensionGeneration = null;
+    this.generation = 0;
+    this.target = null;
+    this._listenerRefCount = 0;
+    this._historyWrappers = [];
   }
 
   get isSuspended() {
     return this._isSuspended;
   }
 
-  setSuspended(val) {
-    this._isSuspended = Boolean(val);
-    if (this._isSuspended) {
+  setSuspended(val, generation) {
+    if (val) {
+      const activeGeneration = this.start();
+      this._isSuspended = true;
+      this._suspensionGeneration = activeGeneration;
       if (this.completeTimer) {
         clearTimeout(this.completeTimer);
         this.completeTimer = null;
       }
-      this.start();
-    } else {
-      this.done();
+      return activeGeneration;
     }
+
+    const expectedGeneration = generation ?? this._suspensionGeneration ?? this.generation;
+    if (expectedGeneration !== this.generation) return false;
+    if (this._suspensionGeneration !== null && expectedGeneration !== this._suspensionGeneration) {
+      return false;
+    }
+
+    this._isSuspended = false;
+    this._suspensionGeneration = null;
+    return this.done(expectedGeneration);
   }
 
   subscribe(listener) {
@@ -56,31 +71,39 @@ class TopProgressManager {
     }
   }
 
-  start() {
+  start(target = null) {
+    if (this.status === 'loading' && (target === null || target === this.target)) {
+      return this.generation;
+    }
+
     if (this.completeTimer) {
       clearTimeout(this.completeTimer);
       this.completeTimer = null;
     }
 
-    if (this.status === 'loading') {
-      return; // Already actively trickling
-    }
+    if (this.trickleTimer) clearInterval(this.trickleTimer);
+    if (this.safetyTimer) clearTimeout(this.safetyTimer);
+    if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
+
+    this.generation += 1;
+    this.target = target;
+    this._isSuspended = false;
+    this._suspensionGeneration = null;
+    const generation = this.generation;
 
     this.status = 'loading';
     this.progress = 24;
     this.notify();
 
-    if (this.trickleTimer) clearInterval(this.trickleTimer);
     this.trickleTimer = setInterval(() => {
       this.trickle();
     }, 200);
 
-    // Fail-safe watchdog: automatically complete after 6s if navigation hangs
-    if (this.safetyTimer) clearTimeout(this.safetyTimer);
+    // Clear a stuck visual without announcing a successful navigation.
     this.safetyTimer = setTimeout(() => {
-      this._isSuspended = false;
-      this.done(true);
+      this.clear(generation);
     }, 6000);
+    return generation;
   }
 
   trickle() {
@@ -101,19 +124,19 @@ class TopProgressManager {
     this.notify();
   }
 
-  done(force = false) {
+  done(generation = this.generation) {
+    if (generation !== this.generation) return false;
+
     if (this.clickVerifyTimer) {
       clearTimeout(this.clickVerifyTimer);
       this.clickVerifyTimer = null;
     }
 
     // If React is actively suspended waiting for route chunk/resources,
-    // do not complete unless forced (e.g. by safety watchdog timeout)
-    if (this._isSuspended && !force) {
-      return;
-    }
+    // keep the current route generation pending until it settles.
+    if (this._isSuspended) return false;
 
-    if (this.status === 'idle') return;
+    if (this.status === 'idle') return false;
 
     if (this.trickleTimer) {
       clearInterval(this.trickleTimer);
@@ -130,11 +153,39 @@ class TopProgressManager {
 
     if (this.completeTimer) clearTimeout(this.completeTimer);
     this.completeTimer = setTimeout(() => {
+      if (generation !== this.generation || this.status !== 'completing') return;
       this.status = 'idle';
       this.progress = 0;
+      this.target = null;
       this.completeTimer = null;
       this.notify();
     }, 250);
+    return true;
+  }
+
+  clear(generation = this.generation) {
+    if (generation !== this.generation) return false;
+
+    if (this.trickleTimer) clearInterval(this.trickleTimer);
+    if (this.completeTimer) clearTimeout(this.completeTimer);
+    if (this.safetyTimer) clearTimeout(this.safetyTimer);
+    if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
+
+    this.trickleTimer = null;
+    this.completeTimer = null;
+    this.safetyTimer = null;
+    this.clickVerifyTimer = null;
+    this._isSuspended = false;
+    this._suspensionGeneration = null;
+    this.target = null;
+    this.status = 'idle';
+    this.progress = 0;
+    this.notify();
+    return true;
+  }
+
+  fail(generation = this.generation) {
+    return this.clear(generation);
   }
 
   /**
@@ -142,81 +193,98 @@ class TopProgressManager {
    * and History API state changes with zero latency.
    */
   initGlobalListeners() {
-    if (this._initialized || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return () => {};
+
+    if (this._initialized) {
+      this._listenerRefCount += 1;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        this.releaseGlobalListeners();
+      };
+    }
+
     this._initialized = true;
+    this._listenerRefCount = 1;
 
     // Capture-phase link click interceptor
-    document.addEventListener(
-      'click',
-      (e) => {
-        // Ignore modified clicks or non-primary button
-        if (
-          e.defaultPrevented ||
-          e.button !== 0 ||
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          e.altKey
-        ) {
-          return;
+    this._clickHandler = (e) => {
+      // Ignore modified clicks or non-primary button
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
+        return;
+      }
+
+      const anchor = e.target.closest('a');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        anchor.getAttribute('role') === 'button' ||
+        anchor.getAttribute('aria-disabled') === 'true'
+      ) {
+        return;
+      }
+      if (anchor.target && anchor.target !== '_self') return;
+      if (anchor.hasAttribute('download')) return;
+
+      try {
+        const currentPath = cleanPath(window.location.href, window.location.origin);
+        const targetPath = cleanPath(anchor.href, window.location.origin);
+
+        if (targetPath && currentPath && targetPath !== currentPath) {
+          const generation = this.start(targetPath);
+
+          // Safety guard: If within 600ms no pushState/popstate actually occurred
+          // (e.g. event was defaultPrevented by a router/component, or route transition was aborted),
+          // auto-reset progress so the bar does not trickle to 100% while contents remain on same page.
+          if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
+          this.clickVerifyTimer = setTimeout(() => {
+            const nowPath = cleanPath(window.location.href, window.location.origin);
+            if (
+              nowPath === currentPath &&
+              this.status === 'loading' &&
+              !this._isSuspended &&
+              generation === this.generation
+            ) {
+              this.clear(generation);
+            }
+          }, 600);
         }
-
-        const anchor = e.target.closest('a');
-        if (!anchor) return;
-
-        const href = anchor.getAttribute('href');
-        if (
-          !href ||
-          href.startsWith('#') ||
-          href.startsWith('mailto:') ||
-          href.startsWith('tel:') ||
-          anchor.getAttribute('role') === 'button' ||
-          anchor.getAttribute('aria-disabled') === 'true'
-        ) {
-          return;
-        }
-        if (anchor.target && anchor.target !== '_self') return;
-        if (anchor.hasAttribute('download')) return;
-
-        try {
-          const currentPath = cleanPath(window.location.href, window.location.origin);
-          const targetPath = cleanPath(anchor.href, window.location.origin);
-
-          if (targetPath && currentPath && targetPath !== currentPath) {
-            this.start();
-
-            // Safety guard: If within 600ms no pushState/popstate actually occurred
-            // (e.g. event was defaultPrevented by a router/component, or route transition was aborted),
-            // auto-reset progress so the bar does not trickle to 100% while contents remain on same page.
-            if (this.clickVerifyTimer) clearTimeout(this.clickVerifyTimer);
-            this.clickVerifyTimer = setTimeout(() => {
-              const nowPath = cleanPath(window.location.href, window.location.origin);
-              if (nowPath === currentPath && this.status === 'loading' && !this._isSuspended) {
-                this.done();
-              }
-            }, 600);
-          }
-        } catch {
-          // Ignore URL parsing errors
-        }
-      },
-      true, // capture phase
-    );
+      } catch {
+        // Ignore URL parsing errors
+      }
+    };
+    document.addEventListener('click', this._clickHandler, true);
 
     // History API popstate listener (back/forward navigation)
-    window.addEventListener('popstate', () => {
+    this._popstateHandler = () => {
       if (this.clickVerifyTimer) {
         clearTimeout(this.clickVerifyTimer);
         this.clickVerifyTimer = null;
       }
-      this.start();
-    });
+      this.start(cleanPath(window.location.href, window.location.origin));
+    };
+    window.addEventListener('popstate', this._popstateHandler);
 
-    // Wrap pushState and replaceState to catch programmatic navigations
-    const origPushState = window.history.pushState;
-    if (origPushState) {
-      const self = this;
-      window.history.pushState = function (...args) {
+    // Wrap both History API methods used for programmatic route changes.
+    const self = this;
+    for (const method of ['pushState', 'replaceState']) {
+      const original = window.history[method];
+      if (!original) continue;
+
+      const wrapped = function (...args) {
         if (self.clickVerifyTimer) {
           clearTimeout(self.clickVerifyTimer);
           self.clickVerifyTimer = null;
@@ -227,15 +295,41 @@ class TopProgressManager {
             const currentPath = cleanPath(window.location.href, window.location.origin);
             const targetPath = cleanPath(url, window.location.origin);
             if (targetPath && currentPath && targetPath !== currentPath) {
-              self.start();
+              self.start(targetPath);
             }
           } catch {
             // Ignore
           }
         }
-        return origPushState.apply(this, args);
+        return original.apply(this, args);
       };
+      window.history[method] = wrapped;
+      this._historyWrappers.push({ method, original, wrapped });
     }
+
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.releaseGlobalListeners();
+    };
+  }
+
+  releaseGlobalListeners() {
+    this._listenerRefCount = Math.max(0, this._listenerRefCount - 1);
+    if (this._listenerRefCount > 0 || !this._initialized) return;
+
+    document.removeEventListener('click', this._clickHandler, true);
+    window.removeEventListener('popstate', this._popstateHandler);
+    for (const { method, original, wrapped } of this._historyWrappers) {
+      if (window.history[method] === wrapped) window.history[method] = original;
+    }
+
+    this._clickHandler = null;
+    this._popstateHandler = null;
+    this._historyWrappers = [];
+    this._initialized = false;
+    this.clear();
   }
 }
 

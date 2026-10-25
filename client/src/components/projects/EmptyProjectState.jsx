@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { FileText, AlertTriangle, Users, Plus, FileEdit, RotateCcw } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { FileText, Users, Plus, FileEdit, RotateCcw } from 'lucide-react';
 import { projectService } from '@/services/authService';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -104,9 +105,9 @@ export default function EmptyProjectState({ team, userId: propUserId }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+      <Card className="flex flex-col items-center justify-center border-dashed bg-muted/50 px-6 py-16 text-center">
         {hasDraft ? (
-          <FileEdit className="mb-4 h-12 w-12 text-blue-600 dark:text-blue-400" />
+          <FileEdit className="mb-4 h-12 w-12 text-primary" />
         ) : (
           <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
         )}
@@ -122,8 +123,7 @@ export default function EmptyProjectState({ team, userId: propUserId }) {
 
         {!hasLockedTeam ? (
           <div className="mt-6 space-y-4 max-w-md">
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="warning">
               <AlertDescription>
                 Finalize and lock your team first before creating a project.
               </AlertDescription>
@@ -155,7 +155,7 @@ export default function EmptyProjectState({ team, userId: propUserId }) {
             Create Capstone Proposal
           </Button>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

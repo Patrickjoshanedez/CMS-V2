@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { AlertTriangle, CheckCircle2, Eye, Loader2, Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useCheckTitleSimilarity } from '@/hooks/useProjects';
 import { DEFAULT_TITLE_SIMILARITY_THRESHOLD } from '@cms/shared';
@@ -118,15 +120,7 @@ export default function TitleSimilarityChecker({
         isTooShort: false,
       });
     }
-  }, [
-    title,
-    debouncedTitle,
-    isChecking,
-    isFetching,
-    isDebouncing,
-    isError,
-    data,
-  ]);
+  }, [title, debouncedTitle, isChecking, isFetching, isDebouncing, isError, data]);
 
   // ----- Idle: title too short to check -----
   const isTooShort = !title || title.trim().length < 10;
@@ -143,10 +137,12 @@ export default function TitleSimilarityChecker({
   if (isChecking) {
     return (
       <p
-        className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 animate-pulse"
+        className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1"
+        role="status"
+        aria-live="polite"
         data-testid="similarity-checking-indicator"
       >
-        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+        <Spinner className="size-3 text-primary" />
         Checking for similar titles…
       </p>
     );
@@ -169,10 +165,7 @@ export default function TitleSimilarityChecker({
     return (
       <>
         <Alert variant="destructive" className="mt-2" data-testid="similarity-conflict-alert">
-          <AlertTitle className="flex items-center gap-1.5 text-sm font-semibold">
-            <AlertTriangle className="h-4 w-4" />
-            Similar titles detected
-          </AlertTitle>
+          <AlertTitle className="text-sm font-semibold">Similar titles detected</AlertTitle>
           <AlertDescription className="mt-2 space-y-2">
             <p className="text-xs">
               The following existing titles are above the{' '}
@@ -202,12 +195,13 @@ export default function TitleSimilarityChecker({
                           : 'Capstone 1 (Proposal)';
 
                 return (
-                  <button
+                  <Button
                     key={key}
                     type="button"
+                    variant="outline"
                     onClick={() => setSelectedProject(project)}
-                    className="w-full flex items-center justify-between p-3 bg-card border border-rose-200 dark:border-rose-900/60 rounded-lg shadow-2xs hover:border-rose-400 dark:hover:border-rose-700 hover:shadow-md transition-all text-left group cursor-pointer gap-2"
                     data-testid={`similar-project-trigger-${project.id || project.projectId || scorePct}`}
+                    className="group flex w-full justify-between gap-2 rounded-lg p-3 text-left shadow-none transition-all hover:border-border hover:bg-accent/50 hover:shadow-sm"
                   >
                     <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
                       <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
@@ -216,7 +210,7 @@ export default function TitleSimilarityChecker({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge
                           variant="outline"
-                          className="text-[10px] px-1.5 py-0 font-normal border-rose-200 dark:border-rose-900/80 text-muted-foreground"
+                          className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
                         >
                           {stageLabel}
                         </Badge>
@@ -229,15 +223,18 @@ export default function TitleSimilarityChecker({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2.5 py-0.5 text-xs font-semibold text-white bg-rose-500 rounded-full">
+                      <Badge
+                        variant="warning"
+                        className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      >
                         {scorePct}%
-                      </span>
+                      </Badge>
                       <span className="text-xs font-medium text-muted-foreground group-hover:text-primary flex items-center gap-1 transition-colors">
                         <Eye className="h-3.5 w-3.5" />
                         View Scope &rarr;
                       </span>
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -256,13 +253,11 @@ export default function TitleSimilarityChecker({
 
   // ----- Clear: no matches -----
   return (
-    <p
-      className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5 mt-1"
-      data-testid="similarity-clear-indicator"
-    >
-      <CheckCircle2 className="h-3.5 w-3.5" />
-      No similar titles found — your title looks unique!
-    </p>
+    <Alert variant="success" className="mt-2 py-3" data-testid="similarity-clear-indicator">
+      <AlertDescription className="text-xs">
+        No similar titles found — your title looks unique!
+      </AlertDescription>
+    </Alert>
   );
 }
 

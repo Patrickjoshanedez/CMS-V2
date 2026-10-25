@@ -20,13 +20,13 @@ describe('AnnouncementBanner', () => {
     vi.clearAllMocks();
   });
 
-  const renderBanner = () => {
+  const renderBanner = (className) => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
     act(() => {
-      root.render(<AnnouncementBanner />);
+      root.render(<AnnouncementBanner className={className} />);
     });
 
     return {
@@ -63,6 +63,27 @@ describe('AnnouncementBanner', () => {
     const view = renderBanner();
 
     expect(view.container.textContent).toBe('');
+
+    view.unmount();
+  });
+
+  it('uses the shared alert and accessible button to dismiss the announcement', () => {
+    mockUseQuery.mockReturnValue({
+      data: { systemAnnouncement: 'Review the updated capstone calendar.' },
+      isLoading: false,
+    });
+
+    const view = renderBanner('mb-6');
+    const alert = view.container.querySelector('[role="alert"]');
+    const dismissButton = view.container.querySelector('button[aria-label="Dismiss announcement"]');
+
+    expect(alert?.className).toContain('mb-6');
+    expect(alert?.textContent).toContain('Review the updated capstone calendar.');
+    expect(dismissButton).toBeTruthy();
+
+    act(() => dismissButton.click());
+
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
 
     view.unmount();
   });

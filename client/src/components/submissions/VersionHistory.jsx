@@ -1,16 +1,36 @@
 /**
  * VersionHistory.jsx
  * Displays all versions (upload history) for a submission.
- * Shows version number, date, status, plagiarism score.
+ * Shows version number, date, status, and originality score.
  * Allows comparing two versions side-by-side (with VersionCompare).
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Checkbox } from '@/components/ui/Checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
+import { Spinner } from '@/components/ui/Spinner';
+import { submissionService } from '@/services/submissionService';
 import VersionCompare from './VersionCompare';
-import { submissionService } from '../../services';
+
+const formatVersionDate = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : format(date, 'MMM dd, yyyy h:mm aa');
+};
 
 const VersionHistory = ({ submissionId }) => {
   const [selectedVersions, setSelectedVersions] = useState([null, null]);
@@ -32,137 +52,146 @@ const VersionHistory = ({ submissionId }) => {
 
   if (isLoading) {
     return (
-      <div className="tw-flex tw-items-center tw-justify-center tw-py-8">
-        <div className="tw-animate-spin tw-rounded-full tw-h-8 tw-w-8 tw-border-b-2 tw-border-blue-500" />
-      </div>
+      <Card aria-busy="true">
+        <CardHeader>
+          <CardTitle className="text-base">Version history</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3" role="status" aria-live="polite">
+            <Spinner className="text-primary" />
+            <span className="text-sm text-muted-foreground">Loading submission versions…</span>
+          </div>
+          <div className="space-y-3" aria-hidden="true">
+            <Skeleton className="h-20 w-full" />
+            <SkeletonText lines={2} />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="tw-bg-red-50 tw-border tw-border-red-200 tw-rounded tw-p-3">
-        <p className="tw-text-sm tw-text-red-700">Failed to load version history</p>
-      </div>
+      <Alert variant="destructive">
+        <AlertTitle>Version history unavailable</AlertTitle>
+        <AlertDescription>Failed to load version history. Please try again later.</AlertDescription>
+      </Alert>
     );
   }
 
   if (versions.length === 0) {
     return (
-      <div className="tw-text-center tw-py-8">
-        <p className="tw-text-gray-700 font-medium">No previous versions</p>
-      </div>
+      <EmptyState
+        title="No previous versions"
+        description="Earlier uploads will appear here when this submission has more than one version."
+        compact
+      />
     );
   }
 
-  const handleSelectVersion = (index, version) => {
-    const newSelected = [...selectedVersions];
-    newSelected[index] = version;
-    setSelectedVersions(newSelected);
+  const handleSelectVersion = (index, versionId) => {
+    setSelectedVersions((current) => {
+      const next = [...current];
+      next[index] = versionId;
+      return next;
+    });
   };
 
   const canCompare = selectedVersions[0] && selectedVersions[1];
+  const selectedVersionRecords = selectedVersions.map((id) =>
+    versions.find((version) => version._id === id),
+  );
 
   return (
-    <div className="tw-space-y-4">
-      {/* Version List */}
-      <div className="tw-space-y-2">
-        <h3 className="tw-font-medium tw-text-gray-900 tw-mb-3">All Versions</h3>
-        {versions.map((version, idx) => (
-          <div
-            key={version._id}
-            className={`tw-border tw-rounded-lg tw-p-4 tw-transition-colors ${
-              selectedVersions.includes(version._id)
-                ? 'tw-border-blue-500 tw-bg-blue-50'
-                : 'tw-border-gray-200 tw-bg-white hover:tw-bg-gray-50'
-            }`}
-          >
-            <div className="tw-flex tw-items-start tw-justify-between">
-              <div className="tw-flex-1">
-                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-                  <span className="tw-font-medium tw-text-gray-900">v{version.version}</span>
-                  {idx === 0 && (
-                    <span className="tw-text-xs tw-bg-blue-100 tw-text-blue-700 tw-px-2 tw-py-1 tw-rounded">
-                      Latest
-                    </span>
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <h3 className="text-base font-semibold text-foreground">All versions</h3>
+        {versions.map((version, index) => {
+          const isSelected = selectedVersions.includes(version._id);
+          const originality = Number.isFinite(version.plagiarismScore)
+            ? `${version.plagiarismScore}%`
+            : null;
+
+          return (
+            <Card
+              key={version._id}
+              className={
+                isSelected ? 'border-primary bg-primary/5' : 'transition-colors hover:bg-muted/30'
+              }
+              data-selected={isSelected || undefined}
+            >
+              <CardContent className="flex items-start justify-between gap-4 p-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-foreground">v{version.version}</span>
+                    {index === 0 && <Badge variant="info">Latest</Badge>}
+                    <Badge variant="outline" className="capitalize">
+                      {version.status?.replaceAll('_', ' ') || 'Status unavailable'}
+                    </Badge>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    {formatVersionDate(version.submittedAt)}
+                  </p>
+
+                  {originality !== null && (
+                    <p className="text-sm text-muted-foreground">
+                      Originality: <strong className="text-foreground">{originality}</strong>
+                    </p>
                   )}
-                  <span className="tw-text-xs tw-bg-gray-100 tw-text-gray-700 font-medium tw-px-2 tw-py-1 tw-rounded">
-                    {version.status}
-                  </span>
+
+                  {version.reviewNote && (
+                    <p className="mt-2 break-words text-sm italic text-muted-foreground">
+                      &ldquo;{version.reviewNote}&rdquo;
+                    </p>
+                  )}
                 </div>
 
-                <p className="tw-text-sm tw-text-gray-700 tw-mb-2">
-                  {format(new Date(version.submittedAt), 'MMM dd, yyyy h:mm aa')}
-                </p>
-
-                {version.plagiarismScore !== null && (
-                  <p className="tw-text-sm tw-text-gray-700">
-                    Originality: <strong>{version.plagiarismScore}%</strong>
-                  </p>
-                )}
-
-                {version.reviewNote && (
-                  <p className="tw-text-sm tw-text-gray-700 tw-mt-2 tw-italic">
-                    &ldquo;{version.reviewNote}&rdquo;
-                  </p>
-                )}
-              </div>
-
-              {/* Checkbox for comparison */}
-              <input
-                type="checkbox"
-                checked={selectedVersions.includes(version._id)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    const emptyIndex = selectedVersions.findIndex((v) => !v);
-                    if (emptyIndex !== -1) {
-                      handleSelectVersion(emptyIndex, version._id);
-                    }
-                  } else {
-                    const newSelected = selectedVersions.map((v) => (v === version._id ? null : v));
-                    setSelectedVersions(newSelected);
-                  }
-                }}
-                className="tw-w-5 tw-h-5 tw-text-blue-600 tw-rounded tw-cursor-pointer"
-              />
-            </div>
-          </div>
-        ))}
+                <label className="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 focus-within:ring-2 focus-within:ring-ring">
+                  <Checkbox
+                    checked={isSelected}
+                    aria-label={`Select version ${version.version} for comparison`}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        const emptyIndex = selectedVersions.findIndex((selected) => !selected);
+                        if (emptyIndex !== -1) handleSelectVersion(emptyIndex, version._id);
+                      } else {
+                        setSelectedVersions((current) =>
+                          current.map((selected) => (selected === version._id ? null : selected)),
+                        );
+                      }
+                    }}
+                  />
+                  <span className="sr-only">Select for comparison</span>
+                </label>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Compare Button */}
       {canCompare && (
-        <button
-          onClick={() => setShowCompare(true)}
-          className="tw-w-full tw-bg-blue-600 hover:tw-bg-blue-700 tw-text-white tw-py-2 tw-px-4 tw-rounded-lg tw-font-medium tw-transition-colors"
-        >
-          Compare Selected Versions
-        </button>
+        <Button className="w-full" onClick={() => setShowCompare(true)}>
+          Compare selected versions
+        </Button>
       )}
 
-      {/* Version Compare Modal/View */}
-      {showCompare && canCompare && (
-        <div className="tw-fixed tw-inset-0 tw-bg-black tw-bg-opacity-50 tw-flex tw-items-center tw-justify-center tw-z-50 tw-p-4">
-          <div className="tw-bg-white tw-rounded-lg tw-w-full tw-max-w-6xl tw-max-h-96 tw-flex tw-flex-col">
-            <div className="tw-flex tw-justify-between tw-items-center tw-px-6 tw-py-4 tw-border-b tw-border-gray-200">
-              <h2 className="tw-text-lg tw-font-semibold tw-text-gray-900">Compare Versions</h2>
-              <button
-                onClick={() => setShowCompare(false)}
-                className="tw-text-gray-700 hover:tw-text-gray-900 tw-text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="tw-flex-1 tw-overflow-y-auto">
-              <VersionCompare
-                submissionId={submissionId}
-                version1Id={selectedVersions[0]}
-                version2Id={selectedVersions[1]}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={showCompare} onOpenChange={setShowCompare}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-6xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Compare versions</DialogTitle>
+            <DialogDescription>
+              Compare the saved submission details for the selected versions.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedVersionRecords[0] && selectedVersionRecords[1] && (
+            <VersionCompare
+              version1={selectedVersionRecords[0]}
+              version2={selectedVersionRecords[1]}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

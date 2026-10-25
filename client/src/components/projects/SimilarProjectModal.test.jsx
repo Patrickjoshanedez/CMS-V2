@@ -131,7 +131,7 @@ describe('SimilarProjectModal component', () => {
     });
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
     expect(onClose).toHaveBeenCalled();

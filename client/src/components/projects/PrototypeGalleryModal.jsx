@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   X,
@@ -9,10 +9,19 @@ import {
   Image as ImageIcon,
   Video,
   Layers,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/Card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import EmptyState from '@/components/ui/EmptyState';
 import { toast } from 'sonner';
 
 /**
@@ -44,97 +53,109 @@ export default function PrototypeGalleryModal({
   const prototypes =
     propPrototypes || (Array.isArray(project.prototypes) ? project.prototypes : []) || [];
 
-  const handleCopyGithub = () => {
+  const handleClose = () => {
+    setActiveImage(null);
+    onClose();
+  };
+
+  const handleCopyGithub = async () => {
     if (githubUrl && navigator.clipboard) {
-      navigator.clipboard.writeText(githubUrl);
-      setCopied(true);
-      toast.success('GitHub repository link copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(githubUrl);
+        setCopied(true);
+        toast.success('GitHub repository link copied to clipboard');
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        toast.error('Could not copy the GitHub repository link.');
+      }
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in-50"
-      onClick={onClose}
+    <Dialog
+      open={open && Boolean(project)}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) handleClose();
+      }}
     >
-      <div
-        className="relative w-full max-w-4xl max-h-[85vh] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        showClose={false}
+        className="flex max-h-[85vh] max-w-4xl flex-col gap-0 overflow-hidden p-0"
         data-testid="prototype-gallery-modal"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border bg-muted/20">
-          <div className="space-y-1 pr-6 min-w-0">
+        <DialogHeader className="flex-row items-start justify-between gap-4 border-b border-border bg-muted/20 p-5 pr-14">
+          <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-primary shrink-0" />
-              <h2 className="text-lg font-bold text-foreground truncate">
+              <Layers className="size-5 shrink-0 text-primary" aria-hidden="true" />
+              <DialogTitle className="truncate text-lg">
                 Architecture &amp; Prototype Showcase
-              </h2>
+              </DialogTitle>
             </div>
-            <p className="text-xs text-muted-foreground truncate">{title}</p>
+            <DialogDescription className="truncate">{title}</DialogDescription>
           </div>
-          <button
+          <Button
             type="button"
-            onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Close modal"
+            variant="ghost"
+            size="icon"
+            onClick={handleClose}
+            className="-mr-10 -mt-1 shrink-0"
+            aria-label="Close prototype gallery"
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+            <X className="size-4" aria-hidden="true" />
+          </Button>
+        </DialogHeader>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
           {/* Verified GitHub Repository Pill / Banner */}
           {githubUrl ? (
-            <div className="p-4 rounded-lg border border-border/80 bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Code2 className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">
-                      Verified GitHub Repository
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-                    >
-                      Active
-                    </Badge>
+            <Card className="bg-muted/30 shadow-none">
+              <CardContent className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Code2 className="size-5" aria-hidden="true" />
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono truncate mt-0.5 max-w-lg">
-                    {githubUrl}
-                  </p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        Verified GitHub Repository
+                      </span>
+                      <Badge variant="success" className="text-[10px]">
+                        Active
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono truncate mt-0.5 max-w-lg">
+                      {githubUrl}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopyGithub}
-                  className="h-8 text-xs gap-1.5"
-                >
-                  {copied ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                  {copied ? 'Copied' : 'Copy'}
-                </Button>
-                <Button size="sm" asChild className="h-8 text-xs gap-1.5">
-                  <a href={githubUrl} target="_blank" rel="noopener noreferrer">
-                    <span>Open Code</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </Button>
-              </div>
-            </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyGithub}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {copied ? (
+                      <Check className="size-3.5 text-success" aria-hidden="true" />
+                    ) : (
+                      <Copy className="size-3.5" aria-hidden="true" />
+                    )}
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                  <Button size="sm" asChild className="h-8 text-xs gap-1.5">
+                    <a href={githubUrl} target="_blank" rel="noopener noreferrer">
+                      <span>Open Code</span>
+                      <ExternalLink className="size-3.5" aria-hidden="true" />
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="p-3.5 rounded-lg border border-dashed border-border/70 text-xs text-muted-foreground flex items-center gap-2">
-              <Code2 className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+            <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3.5 text-sm text-muted-foreground">
+              <Code2 className="size-4 shrink-0" aria-hidden="true" />
               <span>No public GitHub repository linked to this capstone yet.</span>
             </div>
           )}
@@ -142,23 +163,21 @@ export default function PrototypeGalleryModal({
           {/* Prototype Media Showcase */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-primary" />
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <ImageIcon className="size-4 text-primary" aria-hidden="true" />
                 Uploaded System Media &amp; Architecture ({prototypes.length})
               </h3>
             </div>
 
             {prototypes.length === 0 ? (
-              <div className="py-12 text-center space-y-2 border border-dashed border-border/80 rounded-lg">
-                <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                <p className="text-sm font-medium text-foreground">No media assets uploaded</p>
-                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  The proponents have not uploaded architecture diagrams or UI screenshots for this
-                  project yet.
-                </p>
-              </div>
+              <EmptyState
+                icon={Layers}
+                compact
+                title="No media assets uploaded"
+                description="The proponents have not uploaded architecture diagrams or UI screenshots for this project yet."
+              />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                 {prototypes.map((item, idx) => {
                   const mediaUrl = item.signedUrl || item.fileUrl || item.externalUrl || item.url;
                   const itemTitle = item.title || `Media Asset ${idx + 1}`;
@@ -167,39 +186,46 @@ export default function PrototypeGalleryModal({
                     (!item.type && mediaUrl && /\.(png|jpe?g|webp|gif|svg)$/i.test(mediaUrl));
 
                   return (
-                    <div
+                    <Card
                       key={item._id || idx}
-                      className="group rounded-lg border border-border/80 bg-card overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col"
+                      className="group flex flex-col overflow-hidden shadow-sm transition-shadow hover:shadow-md"
                     >
-                      <div className="aspect-video bg-muted/40 relative overflow-hidden flex items-center justify-center">
+                      <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted/40">
                         {isImage && mediaUrl ? (
-                          <img
-                            src={mediaUrl}
-                            alt={itemTitle}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="absolute inset-0 h-full min-h-0 w-full min-w-0 overflow-hidden rounded-none p-0"
                             onClick={() => setActiveImage({ url: mediaUrl, title: itemTitle })}
-                            loading="lazy"
-                          />
+                            aria-label={`Preview image: ${itemTitle}`}
+                          >
+                            <img
+                              src={mediaUrl}
+                              alt=""
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          </Button>
                         ) : item.type === 'video' ? (
                           <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                            <Video className="w-8 h-8 text-purple-500" />
+                            <Video className="size-8 text-info" aria-hidden="true" />
                             <span className="text-[11px] font-medium">Demo Video</span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                            <ExternalLink className="w-8 h-8 text-primary" />
+                            <ExternalLink className="size-8 text-primary" aria-hidden="true" />
                             <span className="text-[11px] font-medium">Prototype Link</span>
                           </div>
                         )}
                         <Badge
                           variant="secondary"
-                          className="absolute top-2 left-2 text-[10px] font-medium backdrop-blur-md bg-background/80"
+                          className="absolute left-2 top-2 bg-background/90 text-[10px] font-medium"
                         >
                           {item.type || 'Media'}
                         </Badge>
                       </div>
 
-                      <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                      <CardContent className="flex flex-1 flex-col justify-between space-y-2 p-3">
                         <div>
                           <h4
                             className="text-xs font-semibold text-foreground line-clamp-1"
@@ -220,15 +246,15 @@ export default function PrototypeGalleryModal({
                               href={mediaUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[11px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                             >
                               <span>View Original</span>
-                              <ExternalLink className="w-3 h-3" />
+                              <ExternalLink className="size-3" aria-hidden="true" />
                             </a>
                           </div>
                         )}
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
@@ -237,37 +263,48 @@ export default function PrototypeGalleryModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/10 flex justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>
+        <DialogFooter className="border-t border-border bg-muted/10 p-4">
+          <Button variant="outline" size="sm" onClick={handleClose}>
             Close
           </Button>
-        </div>
-      </div>
+        </DialogFooter>
+      </DialogContent>
 
       {/* Expanded Lightbox Image Preview */}
-      {activeImage && (
-        <div
-          className="fixed inset-0 z-60 bg-black/90 flex flex-col items-center justify-center p-4 animate-in fade-in"
-          onClick={() => setActiveImage(null)}
+      <Dialog
+        open={Boolean(activeImage)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setActiveImage(null);
+        }}
+      >
+        <DialogContent
+          showClose={false}
+          className="max-w-6xl gap-3 border-0 bg-background/95 p-4 shadow-xl sm:p-6"
+          aria-label={activeImage ? `Image preview: ${activeImage.title}` : undefined}
         >
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setActiveImage(null)}
-            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white rounded-full bg-white/10 hover:bg-white/20"
+            className="absolute right-3 top-3 z-10"
             aria-label="Close image preview"
           >
-            <X className="w-6 h-6" />
-          </button>
-          <img
-            src={activeImage.url}
-            alt={activeImage.title}
-            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <p className="text-white/90 text-sm mt-3 font-medium">{activeImage.title}</p>
-        </div>
-      )}
-    </div>
+            <X className="size-4" aria-hidden="true" />
+          </Button>
+          {activeImage && (
+            <>
+              <DialogTitle className="pr-10">{activeImage.title}</DialogTitle>
+              <img
+                src={activeImage.url}
+                alt={activeImage.title}
+                className="mx-auto max-h-[75vh] max-w-full rounded-md object-contain"
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Dialog>
   );
 }
 

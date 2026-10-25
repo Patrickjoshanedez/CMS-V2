@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useContext } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import {
@@ -10,8 +10,10 @@ import {
   CardFooter,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Progress } from '@/components/ui/Progress';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
@@ -20,7 +22,8 @@ import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDial
 import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
 import useAutosave from '@/hooks/useAutosave';
 import SaveStatusIndicator from '@/components/common/SaveStatusIndicator';
-import { useCreateProject, useUpdateTitle } from '@/hooks/useProjects';
+import { QueryClientContext } from '@tanstack/react-query';
+import { useCreateProject, useUpdateTitle, projectKeys } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -47,7 +50,6 @@ import {
   Presentation,
   Plus,
   Trash2,
-  Loader2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -186,6 +188,7 @@ export function extractProposalsFromProject(project) {
           pitchDeck: parsedPitchDeck,
           capstoneType,
           sdgTags,
+          status: meta.status || (isObj ? rawItem.status : undefined),
         });
       }
     }
@@ -237,8 +240,10 @@ export default function CreateProjectPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const queryClient = useContext(QueryClientContext);
 
   const editState = location.state;
+  const [editingProjectData, setEditingProjectData] = useState(editState?.project || null);
   const targetProjectId =
     editState?.projectId || searchParams.get('projectId') || editState?.project?._id;
   const [editingProjectId, setEditingProjectId] = useState(targetProjectId || null);
@@ -249,6 +254,7 @@ export default function CreateProjectPage() {
     searchParams.get('projectId') ||
     editingProjectId,
   );
+  const isRevisionMode = editingProjectData?.titleStatus === 'revision_required';
   const authState = useAuthStore((s) => s?.user);
   const user = authState?.user ?? authState;
   const currentUserId = user?._id || user?.id || null;
@@ -473,6 +479,7 @@ export default function CreateProjectPage() {
         }
 
         if (projectData && isMounted) {
+          setEditingProjectData(projectData);
           const extracted = extractProposalsFromProject(projectData);
           if (extracted.length > 0) {
             setTitleProposals(extracted);
@@ -608,7 +615,7 @@ export default function CreateProjectPage() {
     return () => {
       isMounted = false;
     };
-  }, [isEditMode, targetProjectId, editState, currentUserId]);
+  }, [isEditMode, targetProjectId, editState, currentUserId, userBackupKey, userDraftKey]);
 
   // Autosave setup with local cache and background synchronization
   const autosavePayload = useMemo(
@@ -834,6 +841,10 @@ export default function CreateProjectPage() {
           sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
           submit: false,
         });
+        queryClient?.invalidateQueries?.({ queryKey: projectKeys.detail(editingProjectId) });
+        queryClient?.invalidateQueries?.({ queryKey: projectKeys.all });
+        queryClient?.invalidateQueries?.({ queryKey: projectKeys.lists() });
+        queryClient?.invalidateQueries?.({ queryKey: projectKeys.my() });
         setSaveStatus('saved');
         toast.success('Proposal updates saved.');
         return;
@@ -919,7 +930,7 @@ export default function CreateProjectPage() {
         title: 'Problem Statement',
         content: pitch.problemStatement || 'Not provided.',
         type: 'statement',
-        accent: 'border-l-4 border-amber-500/80 pl-4',
+        accent: 'border-l-4 border-warning/80 pl-4',
         icon: AlertTriangle,
       },
       {
@@ -941,7 +952,7 @@ export default function CreateProjectPage() {
         title: 'Unique Technical Contribution',
         content: pitch.uniqueContribution || 'Not provided.',
         type: 'innovation',
-        accent: 'border-l-4 border-blue-500/80 pl-4',
+        accent: 'border-l-4 border-primary/80 pl-4',
         icon: ShieldCheck,
       },
       {
@@ -952,7 +963,7 @@ export default function CreateProjectPage() {
         title: 'Target Users & Beneficiaries',
         content: pitch.targetUsers || 'Not provided.',
         type: 'users',
-        accent: 'border-l-4 border-emerald-500/80 pl-4',
+        accent: 'border-l-4 border-success/80 pl-4',
         icon: Layers,
       },
       {
@@ -963,7 +974,7 @@ export default function CreateProjectPage() {
         title: 'Expected Institutional Impact',
         content: pitch.expectedImpact || 'Not provided.',
         type: 'impact',
-        accent: 'border-l-4 border-indigo-500/80 pl-4',
+        accent: 'border-l-4 border-chart-4 pl-4',
         icon: CheckCircle2,
       },
       {
@@ -1151,11 +1162,15 @@ export default function CreateProjectPage() {
     const incompleteIndex = titleProposals.findIndex(
       (proposal) =>
         proposal.title?.trim() &&
-        (!proposal.pitchDeck?.objectives?.trim() || !proposal.pitchDeck?.technicalStack?.trim()),
+        (proposal.title.trim().length < 10 ||
+          !proposal.pitchDeck?.objectives?.trim() ||
+          !proposal.pitchDeck?.technicalStack?.trim()),
     );
     if (incompleteIndex >= 0) {
       setActiveProposalIndex(incompleteIndex);
-      toast.error('Add the objectives and technical stack for each candidate proposal.');
+      toast.error(
+        'Each proposal must have a valid title (at least 10 characters), objectives, and technical stack.',
+      );
       return;
     }
 
@@ -1263,9 +1278,9 @@ export default function CreateProjectPage() {
               {isEditMode && (
                 <Badge
                   variant="outline"
-                  className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-medium"
+                  className="text-xs border-warning/30 bg-warning/10 text-warning-foreground font-medium"
                 >
-                  Editing Proposals
+                  {isRevisionMode ? 'Revising Proposals' : 'Editing Proposals'}
                 </Badge>
               )}
               <SaveStatusIndicator status={saveStatus} />
@@ -1286,7 +1301,7 @@ export default function CreateProjectPage() {
               className="h-9 gap-1.5 border-border bg-card text-xs text-foreground shadow-xs hover:bg-accent"
             >
               {savingDraftIndex !== null ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <Spinner className="h-3.5 w-3.5 text-muted-foreground" />
               ) : (
                 <Save className="h-3.5 w-3.5 text-muted-foreground" />
               )}
@@ -1308,15 +1323,16 @@ export default function CreateProjectPage() {
               className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createProject.isPending || updateTitleMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner className="h-3.5 w-3.5" />
               ) : isLiveScanning ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Spinner className="h-3.5 w-3.5" />
                   Verifying Similarity...
                 </>
               ) : isEditMode ? (
                 <>
-                  Update Proposals <ArrowRight className="h-3.5 w-3.5" />
+                  {isRevisionMode ? 'Submit Revised Proposals' : 'Update Proposals'}{' '}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </>
               ) : (
                 <>
@@ -1327,16 +1343,34 @@ export default function CreateProjectPage() {
           </div>
         </div>
 
+        {isRevisionMode && (
+          <Alert
+            variant="warning"
+            className="border-warning/40 bg-warning/10"
+            data-testid="committee-revision-instructions-banner"
+          >
+            <AlertTitle>Committee Deliberation Feedback — Revision Required</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                {editingProjectData.rejectionReason || 'Please revise your title proposals.'}
+              </span>
+              <Badge variant="outline" className="border-warning/40 text-warning-foreground">
+                Feedback Provided
+              </Badge>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Similarity Conflict Flag Banner */}
         {hasSimilarityConflict && (
           <div
             id="similarity-conflict-banner"
             role="alert"
-            className="rounded-lg border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-3.5 text-xs text-warning-foreground animate-in fade-in duration-150"
             data-testid="similarity-conflict-banner"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <AlertTriangle className="h-4 w-4 shrink-0 text-warning-foreground" />
               <span className="leading-snug">
                 <strong>Proposal Flagged for Similarity Scrutiny:</strong> Similar existing capstone
                 titles above the {titleThreshold}% threshold were detected for Proposal{' '}
@@ -1347,7 +1381,7 @@ export default function CreateProjectPage() {
             </div>
             <Badge
               variant="outline"
-              className="border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-[10px] shrink-0 font-semibold uppercase tracking-wider"
+              className="shrink-0 border-warning/40 text-warning-foreground text-[10px] font-semibold uppercase tracking-wider"
             >
               Similarity Flagged
             </Badge>
@@ -1396,41 +1430,47 @@ export default function CreateProjectPage() {
 
                 let dotColor = 'bg-muted-foreground/30';
                 if (pCleared) {
-                  dotColor = 'bg-emerald-500';
+                  dotColor = 'bg-success';
                 } else if (pConflict) {
-                  dotColor = 'bg-rose-500';
+                  dotColor = 'bg-destructive';
                 } else if (pLive?.isLoading) {
-                  dotColor = 'bg-sky-500 animate-pulse';
+                  dotColor = 'bg-info animate-pulse';
                 } else if (hasTitle) {
-                  dotColor = 'bg-amber-500';
+                  dotColor = 'bg-warning';
                 }
 
                 return (
-                  <button
+                  <Button
                     key={prop.id || idx}
                     type="button"
                     onClick={() => setActiveProposalIndex(idx)}
+                    aria-pressed={isActive}
+                    variant={isActive ? 'secondary' : 'ghost'}
                     className={cn(
-                      'inline-flex min-h-11 sm:min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-all select-none',
-                      isActive
-                        ? 'bg-card text-foreground shadow-xs font-semibold'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80',
+                      'inline-flex min-h-11 sm:min-h-9 items-center gap-1.5 px-3 text-xs font-medium transition-all select-none',
+                      isActive && 'font-semibold shadow-xs',
                     )}
                   >
                     <span className={cn('h-2 w-2 rounded-full transition-colors', dotColor)} />
                     Proposal {idx + 1} {isPrimary ? '(Primary)' : ''}
-                  </button>
+                    {prop.status === 'rejected' && (
+                      <span role="img" aria-label="Revision required">
+                        ⚠️
+                      </span>
+                    )}
+                  </Button>
                 );
               })}
 
               {titleProposals.length < 10 && (
-                <button
+                <Button
                   type="button"
                   onClick={addProposalOption}
-                  className="inline-flex min-h-11 sm:min-h-9 items-center gap-1 rounded-md px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors select-none"
+                  variant="ghost"
+                  className="inline-flex min-h-11 sm:min-h-9 items-center gap-1 px-2.5 text-xs text-muted-foreground transition-colors select-none"
                 >
                   <Plus className="h-3 w-3" /> Add Proposal {titleProposals.length + 1}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -1447,14 +1487,18 @@ export default function CreateProjectPage() {
                 className="min-w-0 min-h-11 sm:min-h-9 text-xs gap-1.5 px-2 sm:px-3"
               >
                 <FileText className="h-3.5 w-3.5 shrink-0" />
-                <span>Write<span className="hidden sm:inline"> Proposal</span></span>
+                <span>
+                  Write<span className="hidden sm:inline"> Proposal</span>
+                </span>
               </TabsTrigger>
               <TabsTrigger
                 value="similarity"
                 className="min-w-0 min-h-11 sm:min-h-9 text-xs gap-1.5 px-2 sm:px-3"
               >
                 <Search className="h-3.5 w-3.5 shrink-0" />
-                <span>Similarity<span className="hidden sm:inline"> Clearance</span></span>
+                <span>
+                  Similarity<span className="hidden sm:inline"> Clearance</span>
+                </span>
               </TabsTrigger>
               <TabsTrigger
                 value="deck"
@@ -1513,7 +1557,7 @@ export default function CreateProjectPage() {
                         htmlFor={`proposal-${activeProposalIndex}-title`}
                         className="mb-1.5 block text-xs font-bold text-foreground"
                       >
-                        Proposed Project Title <span className="text-rose-500">*</span>
+                        Proposed Project Title <span className="text-destructive">*</span>
                       </label>
                       <Input
                         id={`proposal-${activeProposalIndex}-title`}
@@ -1531,7 +1575,7 @@ export default function CreateProjectPage() {
                     {currentProposal.title?.trim() && (
                       <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3.5">
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <Search className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                          <Search className="h-3.5 w-3.5 text-primary" />
                           Title similarity check
                         </p>
                         <TitleSimilarityChecker
@@ -1570,7 +1614,11 @@ export default function CreateProjectPage() {
                       minRows={3}
                       value={currentProposal.pitchDeck?.objectives || ''}
                       onChange={(e) =>
-                        handlePitchDeckFieldChange(activeProposalIndex, 'objectives', e.target.value)
+                        handlePitchDeckFieldChange(
+                          activeProposalIndex,
+                          'objectives',
+                          e.target.value,
+                        )
                       }
                       placeholder="List the specific, measurable objectives of the proposed capstone..."
                     />
@@ -1675,16 +1723,18 @@ export default function CreateProjectPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-foreground">
-                          IT Field of Discipline <span className="text-rose-500">*</span>
+                          IT Field of Discipline <span className="text-destructive">*</span>
                         </label>
-                        <button
+                        <Button
                           type="button"
                           id={`proposal-${activeProposalIndex}-discipline-btn`}
                           onClick={handleOpenDisciplineModal}
-                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                          variant="link"
+                          size="sm"
+                          className="h-auto gap-1 p-0 text-[11px] font-medium"
                         >
                           <Plus className="h-3 w-3" /> Edit Disciplines
-                        </button>
+                        </Button>
                       </div>
                       <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
                         {(currentProposal.capstoneType || []).length === 0 ? (
@@ -1698,16 +1748,19 @@ export default function CreateProjectPage() {
                               key={disc}
                               className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground shadow-2xs"
                             >
-                              <Layers className="h-3 w-3 text-blue-500" />
+                              <Layers className="h-3 w-3 text-primary" />
                               <span>{disc}</span>
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleRemoveDiscipline(disc)}
-                                className="ml-0.5 text-muted-foreground hover:text-destructive"
+                                variant="ghost"
+                                size="icon"
+                                className="ml-0.5 size-6 text-muted-foreground hover:text-destructive"
                                 title={`Remove ${disc}`}
+                                aria-label={`Remove ${disc}`}
                               >
                                 <X className="h-3 w-3" />
-                              </button>
+                              </Button>
                             </span>
                           ))
                         )}
@@ -1718,16 +1771,18 @@ export default function CreateProjectPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-foreground">
-                          Target SDG Alignment <span className="text-rose-500">*</span>
+                          Target SDG Alignment <span className="text-destructive">*</span>
                         </label>
-                        <button
+                        <Button
                           type="button"
                           id={`proposal-${activeProposalIndex}-sdg-btn`}
                           onClick={handleOpenSdgModal}
-                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                          variant="link"
+                          size="sm"
+                          className="h-auto gap-1 p-0 text-[11px] font-medium"
                         >
                           <Plus className="h-3 w-3" /> Edit SDGs
-                        </button>
+                        </Button>
                       </div>
                       <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
                         {(currentProposal.sdgTags || []).length === 0 ? (
@@ -1738,18 +1793,21 @@ export default function CreateProjectPage() {
                           (currentProposal.sdgTags || []).map((sdg) => (
                             <span
                               key={sdg}
-                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 shadow-2xs"
+                              className="inline-flex items-center gap-1 rounded-md border border-success/30 bg-success/10 px-2.5 py-1 text-xs text-success-foreground shadow-2xs"
                             >
-                              <Globe className="h-3 w-3 text-emerald-500" />
+                              <Globe className="h-3 w-3 text-success" />
                               <span>{sdg}</span>
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleRemoveSdg(sdg)}
-                                className="text-emerald-600/70 hover:text-rose-500 ml-0.5"
+                                variant="ghost"
+                                size="icon"
+                                className="ml-0.5 size-6 text-success/70 hover:text-destructive"
                                 title={`Remove ${sdg}`}
+                                aria-label={`Remove ${sdg}`}
                               >
                                 <X className="h-3 w-3" />
-                              </button>
+                              </Button>
                             </span>
                           ))
                         )}
@@ -1808,7 +1866,7 @@ export default function CreateProjectPage() {
                               !hasScanned
                                 ? 'text-muted-foreground'
                                 : isCleared
-                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  ? 'text-success'
                                   : 'text-destructive',
                             )}
                           >
@@ -1821,11 +1879,7 @@ export default function CreateProjectPage() {
                       </CardHeader>
                       <CardContent className="space-y-2.5 pt-2">
                         <Progress
-                          value={
-                            hasScanned
-                              ? plagiarismProgress
-                              : 0
-                          }
+                          value={hasScanned ? plagiarismProgress : 0}
                           className="h-2 bg-muted"
                         />
                         {!hasScanned ? (
@@ -1834,7 +1888,7 @@ export default function CreateProjectPage() {
                             <span>Pending scan — not yet verified</span>
                           </p>
                         ) : isCleared ? (
-                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <p className="flex items-center gap-1 text-[11px] font-medium text-success">
                             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                             <span>Cleared for hearing defense</span>
                           </p>
@@ -1943,7 +1997,11 @@ export default function CreateProjectPage() {
                           disabled={isScanning}
                           className="h-8 text-xs gap-1.5 border-border"
                         >
-                          <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
+                          {isScanning ? (
+                            <Spinner className="h-3 w-3" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3" />
+                          )}
                           {hasScanned ? 'Re-Scan Title' : 'Scan Title'}
                         </Button>
                       </div>
@@ -1971,7 +2029,11 @@ export default function CreateProjectPage() {
                             disabled={isScanning}
                             className="text-xs gap-1.5 border-border"
                           >
-                            <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
+                            {isScanning ? (
+                              <Spinner className="h-3 w-3" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
                             {isScanning
                               ? 'Scanning Archive...'
                               : `Scan Proposal ${activeProposalIndex + 1}`}
@@ -1979,7 +2041,7 @@ export default function CreateProjectPage() {
                         </div>
                       ) : currentMatches.length === 0 ? (
                         <div className="p-8 text-center space-y-2">
-                          <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                          <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-success/10 text-success">
                             <CheckCircle2 className="h-5 w-5" />
                           </div>
                           <p className="text-sm font-medium text-foreground">
@@ -2017,7 +2079,7 @@ export default function CreateProjectPage() {
                                   return (
                                     <Badge
                                       variant="outline"
-                                      className="text-[10px] shrink-0 whitespace-nowrap px-1.5 py-0.5 border-rose-200 dark:border-rose-900/80 text-muted-foreground"
+                                      className="shrink-0 whitespace-nowrap border-destructive/30 px-1.5 py-0.5 text-[10px] text-muted-foreground"
                                     >
                                       {stageLabel}
                                     </Badge>
@@ -2095,18 +2157,29 @@ export default function CreateProjectPage() {
                   {/* Slide Indicator Dots / Pills */}
                   <div className="flex items-center gap-1.5">
                     {deckSlides.map((slide, idx) => (
-                      <button
+                      <Button
                         key={slide.id}
                         type="button"
                         onClick={() => setActiveSlide(idx)}
                         aria-label={`Go to slide ${idx + 1}`}
+                        aria-pressed={activeSlide === idx}
+                        variant={activeSlide === idx ? 'secondary' : 'ghost'}
+                        size="icon"
                         className={cn(
-                          'h-2 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                          activeSlide === idx
-                            ? 'w-6 bg-primary'
-                            : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                          'group min-h-11 min-w-11 rounded-full p-0 transition-all duration-200',
+                          activeSlide === idx ? 'bg-primary/10' : 'hover:bg-muted',
                         )}
-                      />
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            'h-2 rounded-full transition-all duration-200',
+                            activeSlide === idx
+                              ? 'w-6 bg-primary'
+                              : 'w-2 bg-muted-foreground/40 group-hover:bg-muted-foreground/60',
+                          )}
+                        />
+                      </Button>
                     ))}
                     <span className="text-xs text-muted-foreground font-mono ml-2">
                       {activeSlide + 1} / {deckSlides.length}
@@ -2152,9 +2225,9 @@ export default function CreateProjectPage() {
                       data-testid="export-pptx-button"
                     >
                       {exportingPptxIndex !== null ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Spinner className="h-3.5 w-3.5" />
                       ) : (
-                        <Presentation className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <Presentation className="h-3.5 w-3.5 text-warning" />
                       )}
                       Export PowerPoint (.pptx)
                     </Button>
@@ -2167,7 +2240,7 @@ export default function CreateProjectPage() {
                       data-testid="export-pdf-button"
                     >
                       {generatingProposalIndex !== null ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Spinner className="h-3.5 w-3.5" />
                       ) : (
                         <Download className="h-3.5 w-3.5" />
                       )}
@@ -2220,22 +2293,14 @@ export default function CreateProjectPage() {
                 {/* Dynamic Policy Meter */}
                 <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">
-                      Plagiarism similarity limit
-                    </span>
+                    <span className="font-medium text-foreground">Plagiarism similarity limit</span>
                     <span className="font-mono font-bold text-foreground">
                       ≤ {effectiveThreshold}%
                     </span>
                   </div>
 
                   <Progress
-                    value={
-                      !hasDetailsFilled
-                        ? 0
-                        : hasScanned
-                          ? plagiarismProgress
-                          : 0
-                    }
+                    value={!hasDetailsFilled ? 0 : hasScanned ? plagiarismProgress : 0}
                     className="h-2 bg-muted"
                   />
 
@@ -2251,8 +2316,8 @@ export default function CreateProjectPage() {
                           : !hasScanned
                             ? 'text-muted-foreground'
                             : isCleared
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-amber-600 dark:text-amber-400',
+                              ? 'text-success'
+                              : 'text-warning',
                       )}
                     >
                       {!hasDetailsFilled
@@ -2271,22 +2336,22 @@ export default function CreateProjectPage() {
                   </span>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                       <span>Roster locked with verified proponents</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                       <span>Core problem and methodology defined</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       {!hasScanned ? (
                         <>
-                          <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-warning" />
                           <span>Similarity scan pending</span>
                         </>
                       ) : isCleared ? (
                         <>
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                           <span className="text-foreground">
                             Plagiarism similarity meets the {effectiveThreshold}% limit
                           </span>
@@ -2313,7 +2378,7 @@ export default function CreateProjectPage() {
                   disabled={isScanning}
                   className="w-full text-xs gap-1.5 h-8 border-border"
                 >
-                  <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
+                  {isScanning ? <Spinner className="h-3 w-3" /> : <RefreshCw className="h-3 w-3" />}
                   {isScanning
                     ? 'Running Scan...'
                     : hasScanned

@@ -192,4 +192,39 @@ describe('ProjectDetailPage Schedule Defense Navigation Suite', () => {
 
     view.unmount();
   });
+
+  it('renders the live-minutes entry point for an appointed panelist', () => {
+    mockUseAuthStore.mockImplementation((selector) => {
+      const state = {
+        user: { _id: 'panelist-1', role: ROLES.FACULTY, firstName: 'Panel', lastName: 'Chair' },
+      };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
+    mockUseProject.mockReturnValue({
+      data: {
+        ...projectFixture,
+        panelists: [{ userId: 'panelist-1', role: 'chair' }],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    const view = renderPage();
+    expect(view.container.querySelector('[data-testid="open-live-defense-minutes"]')).toBeTruthy();
+    view.unmount();
+  });
+
+  it('does not render the live-minutes entry point for an unassigned adviser', () => {
+    mockUseAuthStore.mockImplementation((selector) => {
+      const state = {
+        user: { _id: 'adv-1', role: ROLES.FACULTY, firstName: 'Prof', lastName: 'Adviser' },
+      };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
+
+    const view = renderPage();
+    expect(view.container.querySelector('[data-testid="open-live-defense-minutes"]')).toBeNull();
+    view.unmount();
+  });
 });

@@ -5,12 +5,18 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Type, Pen, Check, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Card } from './Card';
 
 const INK_COLORS = [
-  { id: 'navy', label: 'Institutional Navy', value: '#1e3a8a' },
-  { id: 'black', label: 'Classic Black', value: '#09090b' },
-  { id: 'blue', label: 'Royal Blue', value: '#2563eb' },
+  { id: 'navy', label: 'Institutional Navy', token: '--slide-brand-navy' },
+  { id: 'black', label: 'Classic Ink', token: '--slide-brand-ink' },
+  { id: 'blue', label: 'Royal Blue', token: '--primary' },
 ];
+
+const resolveInkColor = (token) => {
+  const colorChannels = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  return colorChannels ? `hsl(${colorChannels})` : getComputedStyle(document.documentElement).color;
+};
 
 /**
  * SignaturePad component
@@ -27,11 +33,14 @@ export function SignaturePad({
 }) {
   const canvasRef = useRef(null);
   const [mode, setMode] = useState('draw'); // 'draw' | 'type'
-  const [strokeColor, setStrokeColor] = useState('#1e3a8a');
+  const [strokeColor, setStrokeColor] = useState(INK_COLORS[0].token);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [typedName, setTypedName] = useState(defaultSignatoryName);
   const [typedFont, setTypedFont] = useState('cursive'); // 'cursive' | 'serif'
+  const generatedId = React.useId().replaceAll(':', '');
+  const typedNameId = `signature-name-${generatedId}`;
+  const canvasHelpId = `signature-canvas-help-${generatedId}`;
 
   // Initialize canvas coordinates & high-DPR scaling
   const setupCanvas = useCallback(() => {
@@ -50,7 +59,7 @@ export function SignaturePad({
     ctx.scale(dpr, dpr);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = strokeColor;
+    ctx.strokeStyle = resolveInkColor(strokeColor);
     ctx.lineWidth = 2.5;
 
     // If there's an initial value (image URL or data URL) and we haven't drawn yet, paint it
@@ -107,7 +116,7 @@ export function SignaturePad({
       }
 
       ctx.save();
-      ctx.fillStyle = color;
+      ctx.fillStyle = resolveInkColor(color);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
@@ -119,7 +128,7 @@ export function SignaturePad({
 
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
-      ctx.fillText(name.trim(), centerX, centerY);
+      ctx.fillText(name.trim(), centerX, centerY, Math.max(1, rect.width - 24));
       ctx.restore();
 
       setHasDrawn(true);
@@ -170,7 +179,7 @@ export function SignaturePad({
 
     const { x, y } = getCoordinates(e);
     const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = strokeColor;
+    ctx.strokeStyle = resolveInkColor(strokeColor);
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -222,60 +231,57 @@ export function SignaturePad({
     <div className={cn('space-y-3', className)}>
       {/* Mode Switcher & Tools */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
-          <button
+        <div role="group" aria-label="Signature entry mode" className="flex flex-wrap gap-1">
+          <Button
             type="button"
+            variant={mode === 'draw' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => {
               setMode('draw');
               handleClear();
             }}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors',
-              mode === 'draw'
-                ? 'bg-card text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+            aria-pressed={mode === 'draw'}
+            className="min-h-[44px] gap-1.5 sm:min-h-9"
           >
-            <Pen className="h-3.5 w-3.5" /> Draw Signature
-          </button>
-          <button
+            <Pen className="size-3.5" aria-hidden="true" /> Draw Signature
+          </Button>
+          <Button
             type="button"
+            variant={mode === 'type' ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => {
               setMode('type');
               const nameToUse = typedName || defaultSignatoryName;
               setTypedName(nameToUse);
               renderTypedSignature(nameToUse, typedFont, strokeColor);
             }}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors',
-              mode === 'type'
-                ? 'bg-card text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
+            aria-pressed={mode === 'type'}
+            className="min-h-[44px] gap-1.5 sm:min-h-9"
           >
-            <Type className="h-3.5 w-3.5" /> Type to Sign
-          </button>
+            <Type className="size-3.5" aria-hidden="true" /> Type to Sign
+          </Button>
         </div>
 
         {/* Ink Colors & Clear */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
+          <div role="group" aria-label="Signature ink color" className="flex items-center gap-1">
             {INK_COLORS.map((c) => (
-              <button
+              <Button
                 key={c.id}
                 type="button"
+                variant="outline"
+                size="icon"
                 title={c.label}
-                onClick={() => handleColorChange(c.value)}
-                className={cn(
-                  'h-6 w-6 rounded-full border-2 transition-all flex items-center justify-center',
-                  strokeColor === c.value
-                    ? 'border-primary scale-110 shadow-xs'
-                    : 'border-transparent opacity-80 hover:opacity-100',
-                )}
-                style={{ backgroundColor: c.value }}
+                aria-label={c.label}
+                aria-pressed={strokeColor === c.token}
+                onClick={() => handleColorChange(c.token)}
+                className="h-[44px] w-[44px] rounded-full border-2 p-0 sm:size-9"
+                style={{ backgroundColor: `hsl(var(${c.token}))` }}
               >
-                {strokeColor === c.value && <Check className="h-3 w-3 text-white stroke-[3]" />}
-              </button>
+                {strokeColor === c.token && (
+                  <Check className="size-3.5 text-primary-foreground" aria-hidden="true" />
+                )}
+              </Button>
             ))}
           </div>
 
@@ -284,9 +290,9 @@ export function SignaturePad({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+            className="min-h-[44px] gap-1 px-2 text-xs text-muted-foreground hover:text-foreground sm:min-h-9"
           >
-            <RotateCcw className="h-3 w-3" /> Clear
+            <RotateCcw className="size-3.5" aria-hidden="true" /> Clear
           </Button>
         </div>
       </div>
@@ -295,11 +301,11 @@ export function SignaturePad({
       {mode === 'type' && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="sm:col-span-2 space-y-1">
-            <Label htmlFor="type-sig-input" className="text-xs">
+            <Label htmlFor={typedNameId} className="text-xs">
               Legal Full Name
             </Label>
             <Input
-              id="type-sig-input"
+              id={typedNameId}
               value={typedName}
               onChange={handleTypedNameChange}
               placeholder="e.g. Sales G. Aribe Jr."
@@ -308,63 +314,63 @@ export function SignaturePad({
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Font Style</Label>
-            <div className="flex rounded-md border border-input h-8 p-0.5 bg-background">
-              <button
+            <div role="group" aria-label="Signature font style" className="flex flex-wrap gap-1">
+              <Button
                 type="button"
+                variant={typedFont === 'cursive' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => handleFontChange('cursive')}
-                className={cn(
-                  'flex-1 text-xs font-serif italic rounded px-2 transition-colors',
-                  typedFont === 'cursive'
-                    ? 'bg-muted font-bold text-foreground'
-                    : 'text-muted-foreground',
-                )}
+                aria-pressed={typedFont === 'cursive'}
+                className="min-h-[44px] flex-1 font-serif text-xs italic sm:min-h-9"
               >
                 Cursive
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant={typedFont === 'serif' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => handleFontChange('serif')}
-                className={cn(
-                  'flex-1 text-xs font-serif rounded px-2 transition-colors',
-                  typedFont === 'serif'
-                    ? 'bg-muted font-bold text-foreground'
-                    : 'text-muted-foreground',
-                )}
+                aria-pressed={typedFont === 'serif'}
+                className="min-h-[44px] flex-1 font-serif text-xs sm:min-h-9"
               >
                 Formal
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Clean White Canvas Container */}
-      <div className="relative rounded-xl border border-border bg-white shadow-xs overflow-hidden">
+      <Card className="relative overflow-hidden rounded-lg shadow-none">
         {/* Subtle Guideline */}
-        <div className="absolute inset-x-6 bottom-7 border-b border-dashed border-slate-300 pointer-events-none" />
-        <span className="absolute bottom-1 right-3 text-[10px] text-slate-400 select-none pointer-events-none font-mono">
-          Sign above the line • Transparent PNG Export
+        <div className="pointer-events-none absolute inset-x-6 bottom-7 border-b border-dashed border-border/70" />
+        <span className="pointer-events-none absolute bottom-1 right-3 select-none font-mono text-[10px] text-muted-foreground">
+          Sign above the line • Transparent PNG export
         </span>
 
         <canvas
           ref={canvasRef}
           style={{ height: `${height}px` }}
-          className="w-full block cursor-crosshair touch-none select-none bg-transparent"
+          className="block w-full cursor-crosshair touch-none select-none bg-transparent"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          aria-label="Signature drawing canvas"
+          aria-describedby={canvasHelpId}
         />
 
-        {!hasDrawn && mode === 'draw' && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <p className="text-xs text-slate-400 font-sans tracking-wide">
-              Draw your signature here using mouse, stylus, or finger
-            </p>
-          </div>
-        )}
-      </div>
+        <p
+          id={canvasHelpId}
+          className={
+            !hasDrawn && mode === 'draw'
+              ? 'pointer-events-none absolute inset-0 flex items-center justify-center px-3 text-center text-xs tracking-wide text-muted-foreground'
+              : 'sr-only'
+          }
+        >
+          Draw your signature here using mouse, stylus, or finger
+        </p>
+      </Card>
     </div>
   );
 }

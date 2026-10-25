@@ -10,6 +10,13 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 
 /* ────────── 5 Standard Capstone Roles ────────── */
@@ -21,10 +28,9 @@ export const STANDARD_CAPSTONE_ROLES = [
     focus:
       'System requirements, defense presentations/pitching, sprint management, and panel coordination.',
     icon: Presentation,
-    color: 'text-indigo-600 dark:text-indigo-400',
-    bg: 'bg-indigo-500/10 border-indigo-500/20',
-    badgeClass:
-      'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60',
+    color: 'text-chart-1',
+    bg: 'bg-chart-1/10 border-chart-1/20',
+    badgeClass: 'bg-chart-1/10 text-chart-1 border-chart-1/20',
   },
   {
     name: 'Frontend & UI/UX Developer',
@@ -32,20 +38,18 @@ export const STANDARD_CAPSTONE_ROLES = [
     focus:
       'User flow design, responsive layouts, accessibility, and client-side UI integration (shadcn/Tailwind).',
     icon: Palette,
-    color: 'text-pink-600 dark:text-pink-400',
-    bg: 'bg-pink-500/10 border-pink-500/20',
-    badgeClass:
-      'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800/60',
+    color: 'text-chart-4',
+    bg: 'bg-chart-4/10 border-chart-4/20',
+    badgeClass: 'bg-chart-4/10 text-chart-4 border-chart-4/20',
   },
   {
     name: 'Backend & Database Developer',
     consolidates: 'Backend Developer + Programmer',
     focus: 'Schema design, API routing, server-side business logic, and database migrations.',
     icon: Database,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
-    badgeClass:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
+    color: 'text-success',
+    bg: 'bg-success/10 border-success/20',
+    badgeClass: 'bg-success/10 text-success-foreground border-success/20',
   },
   {
     name: 'Full-Stack Developer',
@@ -53,10 +57,9 @@ export const STANDARD_CAPSTONE_ROLES = [
     focus:
       'End-to-end feature integration, Git workflow/PR reviews, deployment, and cross-layer support.',
     icon: Layers,
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-500/10 border-amber-500/20',
-    badgeClass:
-      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+    color: 'text-warning',
+    bg: 'bg-warning/10 border-warning/20',
+    badgeClass: 'bg-warning/10 text-warning-foreground border-warning/20',
   },
   {
     name: 'QA & Technical Documentor',
@@ -64,12 +67,13 @@ export const STANDARD_CAPSTONE_ROLES = [
     focus:
       'Unit/integration testing, bug verification, and authoring Chapters 1–5 of the capstone manuscript.',
     icon: ShieldCheck,
-    color: 'text-sky-600 dark:text-sky-400',
-    bg: 'bg-sky-500/10 border-sky-500/20',
-    badgeClass:
-      'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60',
+    color: 'text-info',
+    bg: 'bg-info/10 border-info/20',
+    badgeClass: 'bg-info/10 text-foreground border-info/20',
   },
 ];
+
+const NO_ROLE_SELECT_VALUE = '__no_role__';
 
 export const STANDARD_CAPSTONE_ROLE_NAMES = STANDARD_CAPSTONE_ROLES.map((r) => r.name);
 
@@ -83,9 +87,8 @@ export function getRoleMetadata(roleName) {
       consolidates: 'Legacy Role',
       focus: 'Migrated into Project Lead & Systems Analyst',
       icon: Presentation,
-      color: 'text-indigo-600 dark:text-indigo-400',
-      badgeClass:
-        'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300',
+      color: 'text-chart-1',
+      badgeClass: 'bg-chart-1/10 text-chart-1 border-chart-1/20',
     };
   }
   if (roleName === 'Frontend Developer' || roleName === 'UI/UX') {
@@ -94,8 +97,8 @@ export function getRoleMetadata(roleName) {
       consolidates: 'Legacy Role',
       focus: 'Migrated into Frontend & UI/UX Developer',
       icon: Palette,
-      color: 'text-pink-600 dark:text-pink-400',
-      badgeClass: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300',
+      color: 'text-chart-4',
+      badgeClass: 'bg-chart-4/10 text-chart-4 border-chart-4/20',
     };
   }
   if (roleName === 'Backend Developer' || roleName === 'Programmer') {
@@ -104,9 +107,8 @@ export function getRoleMetadata(roleName) {
       consolidates: 'Legacy Role',
       focus: 'Migrated into Backend & Database Developer',
       icon: Database,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      badgeClass:
-        'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300',
+      color: 'text-success',
+      badgeClass: 'bg-success/10 text-success-foreground border-success/20',
     };
   }
   if (roleName === 'All-Around' || roleName === 'All-around') {
@@ -115,9 +117,8 @@ export function getRoleMetadata(roleName) {
       consolidates: 'Legacy Role',
       focus: 'Migrated into Full-Stack Developer',
       icon: Layers,
-      color: 'text-amber-600 dark:text-amber-400',
-      badgeClass:
-        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
+      color: 'text-warning',
+      badgeClass: 'bg-warning/10 text-warning-foreground border-warning/20',
     };
   }
   if (roleName === 'QA/Tester' || roleName === 'Documentor') {
@@ -126,8 +127,8 @@ export function getRoleMetadata(roleName) {
       consolidates: 'Legacy Role',
       focus: 'Migrated into QA & Technical Documentor',
       icon: ShieldCheck,
-      color: 'text-sky-600 dark:text-sky-400',
-      badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300',
+      color: 'text-info',
+      badgeClass: 'bg-info/10 text-foreground border-info/20',
     };
   }
   return {
@@ -192,10 +193,10 @@ export default function TeamRosterCard({
             <p className="text-sm font-medium leading-none truncate text-foreground">{fullName}</p>
             {isLeader && (
               <Badge
-                variant="secondary"
-                className="text-[11px] py-0 px-1.5 gap-1 font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
+                variant="warning"
+                className="text-[11px] py-0 px-1.5 gap-1 font-medium shrink-0"
               >
-                <Crown className="h-3 w-3 text-amber-500" /> Leader
+                <Crown className="h-3 w-3" /> Leader
               </Badge>
             )}
           </div>
@@ -219,22 +220,33 @@ export default function TeamRosterCard({
         )}
 
         {canAssignRole && (
-          <select
-            aria-label={`Assign role for ${fullName}`}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground font-medium shadow-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
-            value={role}
+          <Select
+            value={role || NO_ROLE_SELECT_VALUE}
             disabled={isAssignPending}
-            onChange={(event) => {
-              onAssignRole?.(event.target.value, memberId);
+            onValueChange={(nextRole) => {
+              onAssignRole?.(
+                nextRole === NO_ROLE_SELECT_VALUE ? '' : nextRole,
+                memberId,
+              );
             }}
           >
-            <option value="">{role ? 'Change role...' : 'Assign role...'}</option>
+            <SelectTrigger
+              aria-label={`Assign role for ${fullName}`}
+              className="h-9 min-h-11 min-w-0 text-xs font-medium shadow-xs sm:h-9 sm:min-h-9"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ROLE_SELECT_VALUE}>
+                {role ? 'Change role...' : 'Assign role...'}
+              </SelectItem>
             {roleOptions.map((roleOption) => (
-              <option key={roleOption} value={roleOption}>
+              <SelectItem key={roleOption} value={roleOption}>
                 {roleOption}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
         )}
       </div>
     </div>

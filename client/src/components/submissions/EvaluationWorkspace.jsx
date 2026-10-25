@@ -16,6 +16,13 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Label } from '@/components/ui/Label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import { Slider } from '@/components/ui/Slider';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { cn } from '@/lib/utils';
 import PdfViewerWorkspace from './PdfViewerWorkspace';
 
 /**
@@ -31,7 +38,7 @@ export function StickyVerdictBar({
   return (
     <footer
       data-no-print="true"
-      className="print:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3 bg-background/95 backdrop-blur-md border-t border-border shadow-2xl"
+      className="print:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3 bg-background border-t border-border shadow-md"
     >
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
@@ -39,10 +46,7 @@ export function StickyVerdictBar({
             Defense Verdict
           </span>
           {verdictScore !== null && (
-            <Badge
-              variant="outline"
-              className="text-xs border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-mono"
-            >
+            <Badge variant="success" className="font-mono text-xs">
               Score: {verdictScore}%
             </Badge>
           )}
@@ -57,11 +61,11 @@ export function StickyVerdictBar({
           <>
             <Button
               type="button"
-              variant="outline"
+              variant="destructiveOutline"
               size="sm"
               disabled={isSubmitting}
               onClick={() => onVerdict?.('rejected')}
-              className="text-xs border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 gap-1.5"
+              className="min-h-[44px] gap-1.5 text-xs sm:min-h-0"
             >
               <AlertCircle className="h-3.5 w-3.5" />
               <span className="hidden xs:inline">Reject Submission</span>
@@ -70,11 +74,11 @@ export function StickyVerdictBar({
 
             <Button
               type="button"
-              variant="outline"
+              variant="warningOutline"
               size="sm"
               disabled={isSubmitting}
               onClick={() => onVerdict?.('revision_required')}
-              className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1.5"
+              className="min-h-[44px] gap-1.5 text-xs sm:min-h-0"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span className="hidden xs:inline">Request Revision</span>
@@ -83,10 +87,11 @@ export function StickyVerdictBar({
 
             <Button
               type="button"
+              variant="default"
               size="sm"
               disabled={isSubmitting}
               onClick={() => onVerdict?.('approved')}
-              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 shadow-sm"
+              className="min-h-[44px] gap-1.5 text-xs sm:min-h-0"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span className="hidden xs:inline">Approve Submission</span>
@@ -183,52 +188,45 @@ export function EvaluationWorkspace({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Evaluation View
         </span>
-        <div className="inline-flex rounded-md p-1 bg-muted text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveMobileTab('pdf')}
-            className={`px-3 py-1 rounded transition-colors flex items-center gap-1 ${
-              activeMobileTab === 'pdf'
-                ? 'bg-primary text-primary-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <FileText className="h-3 w-3" />
-            PDF
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveMobileTab('rubric')}
-            className={`px-3 py-1 rounded transition-colors flex items-center gap-1 ${
-              activeMobileTab === 'rubric'
-                ? 'bg-primary text-primary-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <CheckSquare className="h-3 w-3" />
-            Panel
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveMobileTab('both')}
-            className={`px-3 py-1 rounded transition-colors ${
-              activeMobileTab === 'both'
-                ? 'bg-primary text-primary-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Stack
-          </button>
-        </div>
+        <Tabs value={activeMobileTab} onValueChange={setActiveMobileTab} className="space-y-0">
+          <TabsList aria-label="Evaluation view" className="h-auto gap-1">
+            <TabsTrigger
+              value="pdf"
+              onClick={() => setActiveMobileTab('pdf')}
+              className="min-h-[44px] px-3 text-xs sm:min-h-9"
+            >
+              <FileText aria-hidden="true" className="size-3" />
+              PDF
+            </TabsTrigger>
+            <TabsTrigger
+              value="rubric"
+              onClick={() => setActiveMobileTab('rubric')}
+              className="min-h-[44px] px-3 text-xs sm:min-h-9"
+            >
+              <CheckSquare aria-hidden="true" className="size-3" />
+              Panel
+            </TabsTrigger>
+            <TabsTrigger
+              value="both"
+              onClick={() => setActiveMobileTab('both')}
+              className="min-h-[44px] px-3 text-xs sm:min-h-9"
+            >
+              Stack
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Main Grid: 55/45 desktop split, fluid stack on mobile/tablet */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[55%_45%] pb-20 print:hidden">
         {/* Left Pane (55%): PDF Viewer Workspace */}
         <section
-          className={`flex flex-col h-[65vh] lg:h-[calc(100vh-8rem)] border-b lg:border-b-0 lg:border-r border-border overflow-hidden ${
-            activeMobileTab === 'rubric' ? 'hidden lg:flex' : 'flex'
-          }`}
+          className={cn(
+            'flex flex-col h-[65vh] lg:h-[calc(100vh-8rem)] border-b lg:border-b-0 lg:border-r border-border overflow-hidden',
+            activeMobileTab === 'rubric'
+              ? 'invisible absolute h-0 w-0 overflow-hidden lg:visible lg:relative lg:h-[calc(100vh-8rem)] lg:w-auto'
+              : 'visible relative',
+          )}
         >
           {/* Layer Filter Toolbar */}
           <div
@@ -239,116 +237,124 @@ export function EvaluationWorkspace({
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Layers:
               </span>
-              <div className="inline-flex rounded-md p-0.5 bg-background border border-border text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('all')}
-                  className={`px-2 py-0.5 rounded transition-colors ${
-                    layerFilter === 'all'
-                      ? 'bg-muted text-foreground font-medium shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
+              <Tabs value={layerFilter} onValueChange={setLayerFilter} className="space-y-0">
+                <TabsList
+                  aria-label="Evaluation layers"
+                  className="h-auto gap-0.5 bg-background text-[11px]"
                 >
-                  All ({highlights.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('comments')}
-                  className={`px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
-                    layerFilter === 'comments'
-                      ? 'bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-medium'
-                      : 'text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400'
-                  }`}
-                >
-                  <MessageSquare className="h-2.5 w-2.5" />
-                  Comments
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('plagiarism')}
-                  className={`px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
-                    layerFilter === 'plagiarism'
-                      ? 'bg-rose-600/20 text-rose-600 dark:text-rose-400 font-medium'
-                      : 'text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400'
-                  }`}
-                >
-                  <ShieldAlert className="h-2.5 w-2.5" />
-                  Plagiarism
-                </button>
-              </div>
+                  <TabsTrigger
+                    value="all"
+                    onClick={() => setLayerFilter('all')}
+                    className="min-h-[44px] px-2 py-1 text-[11px] sm:min-h-9"
+                  >
+                    All ({highlights.length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="comments"
+                    onClick={() => setLayerFilter('comments')}
+                    className="min-h-[44px] gap-1 px-2 py-1 text-[11px] sm:min-h-9"
+                  >
+                    <MessageSquare className="h-2.5 w-2.5" />
+                    Comments
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="plagiarism"
+                    onClick={() => setLayerFilter('plagiarism')}
+                    className="min-h-[44px] gap-1 px-2 py-1 text-[11px] sm:min-h-9"
+                  >
+                    <ShieldAlert className="h-2.5 w-2.5" />
+                    Plagiarism
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className="flex items-center gap-2">
               {/* Opacity Controls Popover */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowOpacityControls(!showOpacityControls)}
-                  className="px-2 py-1 rounded border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1"
-                  title="Adjust overlay opacity"
-                >
-                  <SlidersHorizontal className="h-3 w-3" />
-                  <span>Opacity</span>
-                </button>
+              <Popover open={showOpacityControls} onOpenChange={setShowOpacityControls}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowOpacityControls(true)}
+                    className="min-h-[44px] gap-1 px-2 py-1 text-[11px] font-medium sm:min-h-0"
+                    title="Adjust overlay opacity"
+                  >
+                    <SlidersHorizontal className="h-3 w-3" />
+                    <span>Opacity</span>
+                  </Button>
+                </PopoverTrigger>
 
-                {showOpacityControls && (
-                  <div className="absolute right-0 top-full mt-1.5 w-56 p-3 bg-popover text-popover-foreground border border-border rounded-lg shadow-xl z-50 space-y-3 text-xs">
-                    <div className="flex items-center justify-between pb-1 border-b border-border text-[11px] font-semibold">
-                      <span>Overlay Opacity</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowOpacityControls(false)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-indigo-400 font-medium">Comments:</span>
-                        <span className="font-mono text-[10px]">{commentsOpacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="100"
-                        step="5"
-                        value={commentsOpacity}
-                        onChange={(e) => setCommentsOpacity(Number(e.target.value))}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-rose-400 font-medium">Plagiarism:</span>
-                        <span className="font-mono text-[10px]">{plagiarismOpacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="100"
-                        step="5"
-                        value={plagiarismOpacity}
-                        onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-500"
-                      />
-                    </div>
+                <PopoverContent align="end" className="w-60 space-y-3 p-3 text-xs">
+                  <div className="flex items-center justify-between pb-1 border-b border-border text-[11px] font-semibold">
+                    <span>Overlay Opacity</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Close opacity controls"
+                      onClick={() => setShowOpacityControls(false)}
+                      className="size-11 min-h-[44px] min-w-[44px] sm:size-8 sm:min-h-8 sm:min-w-8"
+                    >
+                      <X aria-hidden="true" className="size-3" />
+                    </Button>
                   </div>
-                )}
-              </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <Label
+                        htmlFor="comments-opacity"
+                        className="text-info-foreground font-medium"
+                      >
+                        Comments
+                      </Label>
+                      <span className="font-mono text-[10px]">{commentsOpacity}%</span>
+                    </div>
+                    <Slider
+                      id="comments-opacity"
+                      min={15}
+                      max={100}
+                      step={5}
+                      value={commentsOpacity}
+                      onChange={(e) => setCommentsOpacity(Number(e.target.value))}
+                      aria-label="Comments overlay opacity"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <Label
+                        htmlFor="plagiarism-opacity"
+                        className="text-destructive-text font-medium"
+                      >
+                        Plagiarism
+                      </Label>
+                      <span className="font-mono text-[10px]">{plagiarismOpacity}%</span>
+                    </div>
+                    <Slider
+                      id="plagiarism-opacity"
+                      min={15}
+                      max={100}
+                      step={5}
+                      value={plagiarismOpacity}
+                      onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
+                      aria-label="Plagiarism overlay opacity"
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Print Defense Binder Button */}
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => window.print()}
-                className="px-2 py-1 rounded border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1"
+                className="min-h-[44px] gap-1 px-2 py-1 text-[11px] font-medium sm:min-h-0"
                 title="Print Defense Binder Summary"
               >
                 <Printer className="h-3 w-3" />
                 <span className="hidden sm:inline">Print Binder</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -372,213 +378,226 @@ export function EvaluationWorkspace({
         </section>
 
         {/* Right Pane (45%): Rubrics, ADM, Plagiarism Breakdown */}
-        <section
-          className={`flex flex-col min-h-[50vh] lg:h-[calc(100vh-8rem)] overflow-hidden bg-muted/20 ${
-            activeMobileTab === 'pdf' ? 'hidden lg:flex' : 'flex'
-          }`}
+        <Tabs
+          value={activeRightTab}
+          onValueChange={setActiveRightTab}
+          className="flex flex-col space-y-0"
         >
-          {/* Right Pane Tabs */}
-          <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2 shrink-0">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveRightTab('rubrics')}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                  activeRightTab === 'rubrics'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                <CheckSquare className="h-3.5 w-3.5" />
-                Rubric Scorecard
-              </button>
+          <section
+            className={cn(
+              'flex flex-col min-h-[50vh] lg:h-[calc(100vh-8rem)] overflow-hidden bg-muted/20',
+              activeMobileTab === 'pdf'
+                ? 'invisible absolute h-0 w-0 overflow-hidden lg:visible lg:relative lg:h-[calc(100vh-8rem)] lg:w-auto'
+                : 'visible relative',
+            )}
+          >
+            {/* Right Pane Tabs */}
+            <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2 shrink-0">
+              <TabsList aria-label="Evaluation panel" className="h-auto gap-1 bg-card p-0">
+                <TabsTrigger
+                  value="rubrics"
+                  className="min-h-[44px] gap-1.5 px-3 text-xs sm:min-h-9"
+                  type="button"
+                  onClick={() => setActiveRightTab('rubrics')}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Rubric Scorecard
+                </TabsTrigger>
 
-              <button
-                type="button"
-                onClick={() => setActiveRightTab('adm')}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                  activeRightTab === 'adm'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                Action Done Matrix
-                {localAdmItems.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-primary/20 text-primary border border-primary/30">
-                    {localAdmItems.length}
-                  </span>
-                )}
-              </button>
+                <TabsTrigger
+                  value="adm"
+                  className="min-h-[44px] gap-1.5 px-3 text-xs sm:min-h-9"
+                  type="button"
+                  onClick={() => setActiveRightTab('adm')}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Action Done Matrix
+                  {localAdmItems.length > 0 && (
+                    <Badge variant="info" className="ml-1 px-1.5 py-0 text-[10px]">
+                      {localAdmItems.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
 
-              <button
-                type="button"
-                onClick={() => setActiveRightTab('sources')}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                  activeRightTab === 'sources'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                <ShieldAlert className="h-3.5 w-3.5" />
-                Sources
-                {plagiarismSources.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                    {plagiarismSources.length}
-                  </span>
-                )}
-              </button>
+                <TabsTrigger
+                  value="sources"
+                  className="min-h-[44px] gap-1.5 px-3 text-xs sm:min-h-9"
+                  type="button"
+                  onClick={() => setActiveRightTab('sources')}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Sources
+                  {plagiarismSources.length > 0 && (
+                    <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-[10px]">
+                      {plagiarismSources.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
             </div>
-          </div>
 
-          {/* Right Pane Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-            {/* Rubrics Tab */}
-            {activeRightTab === 'rubrics' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <CheckSquare className="h-4 w-4 text-primary" />
-                    Committee Evaluation Rubric
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    75% passing threshold enforced
-                  </span>
+            {/* Right Pane Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              {/* Rubrics Tab */}
+              {activeRightTab === 'rubrics' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                      Committee Evaluation Rubric
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      75% passing threshold enforced
+                    </span>
+                  </div>
+
+                  {rubrics.length === 0 ? (
+                    <EmptyState
+                      icon={CheckSquare}
+                      title="No rubric criteria configured"
+                      description="This defense round does not have any configured rubric criteria."
+                      compact
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {rubrics.map((criterion, cIdx) => (
+                        <Card key={criterion.id || cIdx} className="rounded-xl">
+                          <CardContent className="space-y-2 p-3.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-xs text-foreground">
+                                {criterion.title || `Criterion ${cIdx + 1}`}
+                              </span>
+                              <span className="text-xs font-mono text-primary font-medium">
+                                Weight: {criterion.weight || 20}%
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              {criterion.description || 'Evaluation standard for this milestone.'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
 
-                {rubrics.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground rounded-xl border border-dashed border-border bg-card">
-                    No rubric criteria configured for this defense round.
+              {/* ADM Tab */}
+              {activeRightTab === 'adm' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <FileSpreadsheet className="h-4 w-4 text-primary" />
+                      Action Done Matrix (ADM)
+                    </h3>
+                    <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                      Gated by Secretary Endorsement
+                    </Badge>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {rubrics.map((criterion, cIdx) => (
-                      <div
-                        key={criterion.id || cIdx}
-                        className="p-3.5 rounded-xl border border-border/70 bg-card space-y-2 shadow-xs"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-xs text-foreground">
-                            {criterion.title || `Criterion ${cIdx + 1}`}
-                          </span>
-                          <span className="text-xs font-mono text-primary font-medium">
-                            Weight: {criterion.weight || 20}%
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          {criterion.description || 'Evaluation standard for this milestone.'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* ADM Tab */}
-            {activeRightTab === 'adm' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <FileSpreadsheet className="h-4 w-4 text-primary" />
-                    Action Done Matrix (ADM)
-                  </h3>
-                  <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-                    Gated by Secretary Endorsement
-                  </Badge>
+                  {localAdmItems.length === 0 ? (
+                    <EmptyState
+                      icon={FileSpreadsheet}
+                      title="No panel remarks logged"
+                      description="Highlight passages on the PDF to add remarks to the Action Done Matrix."
+                      compact
+                    />
+                  ) : (
+                    <div className="space-y-2.5">
+                      {localAdmItems.map((item, idx) => (
+                        <Card key={item._id || idx} className="rounded-lg">
+                          <CardContent className="space-y-1 p-3 text-xs">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-semibold text-foreground">
+                                {item.pageNumber
+                                  ? `Page ${item.pageNumber}`
+                                  : item.itemNumber
+                                    ? `Item #${item.itemNumber}`
+                                    : 'Page —'}{' '}
+                                · {item.category || item.section || 'Remark'}
+                              </span>
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 text-[10px] capitalize"
+                              >
+                                {item.status || 'Pending'}
+                              </Badge>
+                            </div>
+                            <p className="text-foreground/80 italic">
+                              &ldquo;
+                              {item.commentText ||
+                                item.remarks ||
+                                item.comment ||
+                                item.panelRemarks ||
+                                'Panel remark'}
+                              &rdquo;
+                            </p>
+                            {item.actionTaken && (
+                              <p className="text-[11px] text-muted-foreground pt-0.5">
+                                <span className="font-semibold text-foreground/70">Action:</span>{' '}
+                                {item.actionTaken}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
 
-                {localAdmItems.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground rounded-xl border border-dashed border-border bg-card">
-                    No panel remarks logged in the ADM yet. Highlight passages on the PDF to add
-                    remarks.
+              {/* Plagiarism Sources Tab */}
+              {activeRightTab === 'sources' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <ShieldAlert className="h-4 w-4 text-destructive-text" />
+                      Plagiarism Matching Sources
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      Vector + Winnowing Corroboration
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {localAdmItems.map((item, idx) => (
-                      <div
-                        key={item._id || idx}
-                        className="p-3 rounded-lg border border-border/70 bg-card space-y-1 text-xs shadow-xs"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-foreground">
-                            {item.pageNumber
-                              ? `Page ${item.pageNumber}`
-                              : item.itemNumber
-                                ? `Item #${item.itemNumber}`
-                                : 'Page —'}{' '}
-                            · {item.category || item.section || 'Remark'}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 capitalize">
-                            {item.status || 'Pending'}
-                          </Badge>
-                        </div>
-                        <p className="text-foreground/80 italic">
-                          &ldquo;
-                          {item.commentText ||
-                            item.remarks ||
-                            item.comment ||
-                            item.panelRemarks ||
-                            'Panel remark'}
-                          &rdquo;
-                        </p>
-                        {item.actionTaken && (
-                          <p className="text-[11px] text-muted-foreground pt-0.5">
-                            <span className="font-semibold text-foreground/70">Action:</span>{' '}
-                            {item.actionTaken}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* Plagiarism Sources Tab */}
-            {activeRightTab === 'sources' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <ShieldAlert className="h-4 w-4 text-rose-500" />
-                    Plagiarism Matching Sources
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    Vector + Winnowing Corroboration
-                  </span>
+                  {plagiarismSources.length === 0 ? (
+                    <EmptyState
+                      icon={ShieldAlert}
+                      title="No significant matches detected"
+                      description="No significant plagiarism matches were detected in this manuscript."
+                      compact
+                    />
+                  ) : (
+                    <div className="space-y-2.5">
+                      {plagiarismSources.map((source, sIdx) => (
+                        <Card
+                          key={source.id || sIdx}
+                          className="rounded-xl border-destructive/20 bg-destructive/5"
+                        >
+                          <CardContent className="space-y-1.5 p-3.5 text-xs">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-semibold text-foreground">
+                                {source.title || 'Archived Paper'}
+                              </span>
+                              <Badge variant="destructive" className="shrink-0 font-mono">
+                                {source.similarityScore || 0}%
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Authors:{' '}
+                              {Array.isArray(source.authors)
+                                ? source.authors.join(', ')
+                                : 'Unknown'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {plagiarismSources.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground rounded-xl border border-dashed border-border bg-card">
-                    No significant plagiarism matches detected in this manuscript.
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {plagiarismSources.map((source, sIdx) => (
-                      <div
-                        key={source.id || sIdx}
-                        className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/5 space-y-1.5 text-xs shadow-xs"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-foreground">
-                            {source.title || 'Archived Paper'}
-                          </span>
-                          <span className="font-bold text-rose-500 font-mono">
-                            {source.similarityScore || 0}%
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Authors:{' '}
-                          {Array.isArray(source.authors) ? source.authors.join(', ') : 'Unknown'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          </section>
+        </Tabs>
       </main>
 
       {/* Persistent Bottom Verdict Bar */}

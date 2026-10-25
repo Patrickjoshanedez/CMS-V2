@@ -92,6 +92,29 @@ export function useSocket() {
       }
     };
 
+    /** Handle real-time project title, status, and details synchronization */
+    const handleProjectUpdated = (payload) => {
+      if (!payload || typeof payload !== 'object') {
+        queryClient.invalidateQueries({ queryKey: projectKeys.all });
+        return;
+      }
+
+      const rawId = payload.projectId || payload._id || payload.id;
+      const targetProjectId =
+        rawId && typeof rawId === 'object'
+          ? String(rawId._id || rawId)
+          : rawId
+            ? String(rawId)
+            : null;
+
+      if (targetProjectId) {
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(targetProjectId) });
+      }
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+      queryClient.invalidateQueries({ queryKey: projectKeys.all });
+    };
+
     /** Handle connection errors (auth failure, server down, etc.) */
     const handleConnectError = (err) => {
       if (err?.message === 'xhr poll error') {
@@ -116,6 +139,7 @@ export function useSocket() {
     };
 
     socket.on('notification:new', handleNotification);
+    socket.on('project:updated', handleProjectUpdated);
     socket.on('connect_error', handleConnectError);
     socket.io.on('reconnect_failed', handleReconnectFailed);
     socket.io.on('reconnect', handleReconnect);
@@ -123,6 +147,7 @@ export function useSocket() {
     // Cleanup: remove the listeners (but keep the connection for other hooks)
     return () => {
       socket.off('notification:new', handleNotification);
+      socket.off('project:updated', handleProjectUpdated);
       socket.off('connect_error', handleConnectError);
       socket.io.off('reconnect_failed', handleReconnectFailed);
       socket.io.off('reconnect', handleReconnect);

@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import ProjectDetailsModal from './ProjectDetailsModal';
 import TitleFeedbackRemarksCard from './TitleFeedbackRemarksCard';
 import { TITLE_STATUSES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
@@ -57,6 +57,11 @@ const mockProject = {
   sdgTags: ['SDG 9: Industry, Innovation, and Infrastructure'],
   keywords: ['Machine Learning', 'Indoor Positioning'],
 };
+
+function CurrentPath() {
+  const location = useLocation();
+  return <span data-testid="current-path">{location.pathname}</span>;
+}
 
 describe('ProjectDetailsModal', () => {
   let container;
@@ -137,6 +142,53 @@ describe('ProjectDetailsModal', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     unmount();
   });
+
+  it('closes on Escape through the shared dialog primitive', () => {
+    const onOpenChange = vi.fn();
+    const { unmount } = renderModal({ open: true, onOpenChange });
+
+    act(() => {
+      document
+        .querySelector('[role="dialog"]')
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    unmount();
+  });
+
+  it('normalizes repeated Team prefixes and retains approval portal navigation', () => {
+    const onOpenChange = vi.fn();
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={['/my-project']}>
+          <CurrentPath />
+          <ProjectDetailsModal
+            open
+            onOpenChange={onOpenChange}
+            project={{ ...mockProject, teamId: { ...mockProject.teamId, name: 'Team Team Alpha' } }}
+          />
+        </MemoryRouter>,
+      );
+    });
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog.textContent).toContain('Team Roster (Team Alpha)');
+    expect(dialog.textContent).not.toContain('Team Team Alpha');
+
+    act(() => {
+      [...dialog.querySelectorAll('button')]
+        .find((button) => button.textContent.includes('Title Proposals & Approval Portal'))
+        .click();
+    });
+
+    expect(container.querySelector('[data-testid="current-path"]').textContent).toBe(
+      '/project/approval',
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    act(() => root.unmount());
+    container.remove();
+  });
 });
 
 describe('TitleFeedbackRemarksCard', () => {
@@ -187,6 +239,7 @@ describe('TitleFeedbackRemarksCard', () => {
     expect(container.textContent).toContain('Title Defense Feedback & Panel Remarks');
     expect(container.textContent).toContain('Prof. Ada Lovelace');
     expect(container.textContent).toContain('Panel Chair');
+    expect(container.querySelectorAll('[data-testid="title-feedback-remark"]')).toHaveLength(1);
     expect(container.textContent).toContain(
       'Ensure system handles GPS-denied environments within campus buildings.',
     );

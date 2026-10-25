@@ -190,7 +190,8 @@ describe('DocumentEditorPage', () => {
 
     const view = renderDocumentEditorPage();
 
-    expect(view.container.textContent).toContain('loading-icon');
+    expect(view.container.querySelector('[role="status"]')).not.toBeNull();
+    expect(view.container.textContent).toContain('Loading document');
     expect(view.container.textContent).toContain('Document unavailable.');
 
     view.unmount();

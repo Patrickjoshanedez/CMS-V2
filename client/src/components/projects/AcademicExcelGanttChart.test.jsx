@@ -212,13 +212,52 @@ describe('AcademicExcelGanttChart Component', () => {
       });
 
       // Filter should show All Members (1)
-      const select = container.querySelector('select[aria-label="Filter by task owner"]');
+      const select = container.querySelector('button[aria-label="Filter by task owner"]');
       expect(select).toBeTruthy();
       expect(select.textContent).toContain('All Members (1)');
-      expect(select.textContent).toContain('Fushiguro, Megumi Josh');
+      expect(container.textContent).toContain('Fushiguro, Megumi Josh');
 
       // Header should display Fushiguro, Megumi Josh
       expect(container.textContent).toContain('Fushiguro, Megumi Josh');
+    });
+
+    it('filters schedule rows through the shared accessible owner Select', async () => {
+      Element.prototype.scrollIntoView ||= () => {};
+      await act(async () => {
+        root.render(
+          <AcademicExcelGanttChart
+            project={{
+              ...mockSoloProject,
+              teamId: {
+                ...mockSoloProject.teamId,
+                members: [
+                  { userId: { firstName: 'Megumi Josh', lastName: 'Fushiguro' } },
+                  { userId: { fullName: 'Sung Jin-Woo' } },
+                ],
+              },
+            }}
+            tasks={[
+              { ...mockSampleTasks[0], id: 'PLAN-01', owner: 'Fushiguro, Megumi Josh' },
+              { ...mockSampleTasks[0], id: 'INFRA-02', owner: 'Sung Jin-Woo' },
+            ]}
+            sections={['SECTION 1 — PROJECT PLANNING & RESEARCH']}
+            setTasks={() => {}}
+            setSections={() => {}}
+          />,
+        );
+      });
+
+      const trigger = container.querySelector('button[aria-label="Filter by task owner"]');
+      expect(trigger).toBeTruthy();
+      await act(async () => trigger.click());
+      const ownerOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+        (option) => option.textContent.includes('Sung Jin-Woo'),
+      );
+      expect(ownerOption).toBeTruthy();
+      await act(async () => ownerOption.click());
+
+      expect(container.textContent).toContain('INFRA-02');
+      expect(container.textContent).not.toContain('PLAN-01');
     });
 
     it('renders 8 color theme options in the paint palette', async () => {
@@ -229,6 +268,43 @@ describe('AcademicExcelGanttChart Component', () => {
       const colorBtns = container.querySelectorAll('button[title^="Fill Color:"]');
       expect(colorBtns.length).toBe(COLOR_OPTIONS.length);
       expect(colorBtns.length).toBe(8);
+      expect(colorBtns[0].getAttribute('aria-pressed')).toBe('true');
+      expect(COLOR_OPTIONS.map((option) => option.bgClass)).toEqual([
+        'bg-chart-3',
+        'bg-chart-2',
+        'bg-chart-1',
+        'bg-chart-6',
+        'bg-chart-4',
+        'bg-chart-7',
+        'bg-chart-5',
+        'bg-chart-8',
+      ]);
+    });
+
+    it('uses the shared accessible Dialog for milestone section creation', async () => {
+      await act(async () => {
+        root.render(<AcademicExcelGanttChart project={mockSoloProject} />);
+      });
+
+      const addSection = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent.includes('Add Section'),
+      );
+      expect(addSection).toBeTruthy();
+
+      await act(async () => {
+        addSection.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+
+      const dialog = document.body.querySelector('[role="dialog"]');
+      expect(dialog).toBeTruthy();
+      expect(dialog.getAttribute('aria-modal')).toBe('true');
+      expect(dialog.textContent).toContain('Create Milestone Section');
+      expect(dialog.querySelector('#new-section-input')).toBeTruthy();
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     });
 
     it('adds a new row when "+ Add Row" is clicked', async () => {

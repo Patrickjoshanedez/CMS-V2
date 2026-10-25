@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   normalizeText,
   areRectsOverlapping,
@@ -145,26 +145,26 @@ describe('plagiarismHighlightAdapter', () => {
 
   describe('getTurnitinSourceColor', () => {
     it('returns distinct canonical colors for sources 1 through 10', () => {
-      expect(getTurnitinSourceColor(1)).toBe('#ef4444'); // Red
-      expect(getTurnitinSourceColor(2)).toBe('#f97316'); // Orange
-      expect(getTurnitinSourceColor(3)).toBe('#ca8a04'); // Yellow/Amber
-      expect(getTurnitinSourceColor(4)).toBe('#10b981'); // Emerald
-      expect(getTurnitinSourceColor(5)).toBe('#3b82f6'); // Blue
-      expect(getTurnitinSourceColor(6)).toBe('#a855f7'); // Purple
-      expect(getTurnitinSourceColor(7)).toBe('#14b8a6'); // Teal
-      expect(getTurnitinSourceColor(8)).toBe('#ec4899'); // Pink
-      expect(getTurnitinSourceColor(9)).toBe('#22c55e'); // Green
-      expect(getTurnitinSourceColor(10)).toBe('#f43f5e'); // Rose
+      expect(getTurnitinSourceColor(1)).toBe('hsl(var(--chart-7))');
+      expect(getTurnitinSourceColor(2)).toBe('hsl(var(--chart-6))');
+      expect(getTurnitinSourceColor(3)).toBe('hsl(var(--chart-3))');
+      expect(getTurnitinSourceColor(4)).toBe('hsl(var(--chart-2))');
+      expect(getTurnitinSourceColor(5)).toBe('hsl(var(--chart-1))');
+      expect(getTurnitinSourceColor(6)).toBe('hsl(var(--chart-4))');
+      expect(getTurnitinSourceColor(7)).toBe('hsl(var(--chart-5))');
+      expect(getTurnitinSourceColor(8)).toBe('hsl(var(--chart-8))');
+      expect(getTurnitinSourceColor(9)).toBe('hsl(var(--chart-9))');
+      expect(getTurnitinSourceColor(10)).toBe('hsl(var(--chart-10))');
     });
 
     it('wraps around modulo for sources beyond 10', () => {
-      expect(getTurnitinSourceColor(11)).toBe('#ef4444');
-      expect(getTurnitinSourceColor(12)).toBe('#f97316');
+      expect(getTurnitinSourceColor(11)).toBe('hsl(var(--chart-7))');
+      expect(getTurnitinSourceColor(12)).toBe('hsl(var(--chart-6))');
     });
 
     it('handles falsy or invalid source numbers gracefully', () => {
-      expect(getTurnitinSourceColor(null)).toBe('#ef4444');
-      expect(getTurnitinSourceColor(0)).toBe('#ef4444');
+      expect(getTurnitinSourceColor(null)).toBe('hsl(var(--chart-7))');
+      expect(getTurnitinSourceColor(0)).toBe('hsl(var(--chart-7))');
     });
   });
 

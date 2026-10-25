@@ -293,8 +293,36 @@ describe('SophisticatedDocumentViewer', () => {
     await act(async () => {
       detailsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(el.textContent).toContain('Manuscript Record');
-    expect(el.textContent).toContain('Archival submission metadata');
+    const detailsSheet = document.body.querySelector('#document-metadata-sheet');
+    expect(detailsSheet).not.toBeNull();
+    expect(detailsSheet.textContent).toContain('Manuscript Record');
+    expect(detailsSheet.textContent).toContain('Archival submission metadata');
+    expect(detailsBtn).toHaveAttribute('aria-expanded', 'true');
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(document.body.querySelector('#document-metadata-sheet')).toBeNull();
+    expect(detailsBtn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens document details for a file without a submission record', async () => {
+    const el = await renderViewer({
+      submission: undefined,
+      fileBlob: new Blob(['Standalone archive text'], { type: 'text/plain' }),
+      fileName: 'Standalone_Archive.txt',
+      isArchive: true,
+    });
+    const detailsBtn = el.querySelector('[aria-label="Toggle document details"]');
+    expect(detailsBtn).not.toBeNull();
+    await act(async () => {
+      detailsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const detailsSheet = document.body.querySelector('#document-metadata-sheet');
+    expect(detailsSheet).not.toBeNull();
+    expect(detailsSheet.textContent).toContain('Standalone_Archive.txt');
+    expect(detailsSheet.textContent).toContain('Recently submitted');
+    expect(detailsSheet.textContent).not.toContain('Plagiarism Engine Score');
   });
 
   it('renders inline directly into the DOM tree when embedded is true without modal backdrop', async () => {

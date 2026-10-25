@@ -1,25 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileDown,
-  Loader2,
-  Lock,
-  Save,
-  Send,
-  Unlock,
-} from 'lucide-react';
+import { CheckCircle2, FileDown, Lock, Save, Send, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
 import { Label } from '@/components/ui/Label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Textarea } from '@/components/ui/Textarea';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import TitleStatusBadge from './TitleStatusBadge';
 import { projectService } from '@/services/authService';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { cn } from '@/lib/utils';
 import { CAPSTONE_PHASES, TITLE_STATUSES, resolveWorkflowPhase } from '@cms/shared';
 import {
   PITCH_DECK_FIELDS,
@@ -115,6 +117,7 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
   const [loadingProposalId, setLoadingProposalId] = useState(null);
   const [isEditingApproved, setIsEditingApproved] = useState(false);
   const [isSubmittingRevision, setIsSubmittingRevision] = useState(false);
+  const [isUnlockConfirmationOpen, setIsUnlockConfirmationOpen] = useState(false);
 
   useEffect(() => {
     if (typeof selectedProposalIndex === 'number' && proposalItems[selectedProposalIndex]) {
@@ -181,13 +184,13 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
   };
 
   const handleUnlockApproved = () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to edit the approved proposal? Any modifications to an approved title or proposal scope will alter the agreed project baseline and may require committee re-evaluation.',
-    );
-    if (confirmed) {
-      setIsEditingApproved(true);
-      toast.info('Proposal scope unlocked for editing. Modifications will be tracked.');
-    }
+    setIsUnlockConfirmationOpen(true);
+  };
+
+  const confirmUnlockApproved = () => {
+    setIsEditingApproved(true);
+    setIsUnlockConfirmationOpen(false);
+    toast.info('Proposal scope unlocked for editing. Modifications will be tracked.');
   };
 
   const handleConfirmRevision = async (proposal) => {
@@ -305,21 +308,20 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
 
           {/* Revision Banner (when revision is required) */}
           {isRevisionRequired && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-2 text-foreground">
-              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>Committee Title Revision Required</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">Remarks: </strong>
-                {project?.rejectionReason ||
-                  'The evaluation panel requires revisions to your proposed title and scope before proceeding.'}
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                Fields below are unlocked and editable by default. Update your proposal details and
-                click &ldquo;Confirm Revision &amp; Resubmit&rdquo; to notify your committee.
-              </p>
-            </div>
+            <Alert variant="warning">
+              <AlertTitle>Committee title revision required</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>
+                  <strong className="text-foreground">Remarks: </strong>
+                  {project?.rejectionReason ||
+                    'The evaluation panel requires revisions to your proposed title and scope before proceeding.'}
+                </p>
+                <p>
+                  Fields below are unlocked and editable by default. Update your proposal details
+                  and confirm the revision to notify your committee.
+                </p>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Institutional Policy Thresholds */}
@@ -345,243 +347,222 @@ export default function ProposalTab({ project, selectedProposalIndex, onRefresh 
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Candidate Proposals Tab Bar (Image 1) */}
-        <div className="space-y-2.5 rounded-xl border border-border/60 bg-muted/20 p-3.5 sm:p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Candidate Proposals Under Review ({proposalItems.length})
-            </p>
-            <span className="text-[10px] text-muted-foreground font-medium">
-              Select a proposal to view and edit pitch deck details
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-2.5">
-            {proposalItems.map((proposal, index) => {
-              const isSelected = proposal.id === activeProposal.id;
-              return (
-                <button
+        <Tabs value={activeProposal.id} onValueChange={setSelectedProposalId} className="space-y-5">
+          <section aria-labelledby="proposal-selector-label" className="space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <h4 id="proposal-selector-label" className="text-sm font-semibold text-foreground">
+                Candidate proposals
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {proposalItems.length} under review
+                </span>
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Select a proposal to view and edit pitch deck details.
+              </p>
+            </div>
+            <TabsList
+              aria-label="Candidate proposals"
+              className="h-auto w-full flex-wrap justify-start gap-2 rounded-lg bg-muted/40 p-2"
+            >
+              {proposalItems.map((proposal, index) => (
+                <TabsTrigger
                   key={proposal.id}
-                  type="button"
-                  onClick={() => setSelectedProposalId(proposal.id)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs transition-all border text-left cursor-pointer select-none font-medium shadow-2xs',
-                    isSelected
-                      ? 'bg-primary/10 border-primary text-primary font-bold shadow-xs ring-1 ring-primary/25'
-                      : 'bg-card hover:bg-muted/60 border-border/80 text-foreground hover:border-border',
-                  )}
+                  value={proposal.id}
+                  className="h-auto min-h-11 min-w-0 max-w-full justify-start gap-2 rounded-md border border-border bg-card px-3 py-2 text-left whitespace-normal data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
-                  <span
-                    className={cn(
-                      'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold shrink-0 transition-colors',
-                      isSelected
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-primary/10 text-primary',
-                    )}
-                  >
+                  <Badge variant="secondary" className="size-5 shrink-0 justify-center p-0 text-xs">
                     {index + 1}
-                  </span>
-                  <span
-                    className="font-semibold truncate max-w-[180px] sm:max-w-[260px]"
-                    title={proposal.title}
-                  >
+                  </Badge>
+                  <span className="max-w-[180px] truncate sm:max-w-[260px]" title={proposal.title}>
                     {proposal.title}
                   </span>
                   {proposal.isApproved && (
-                    <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[9px] px-1.5 py-0 h-4 gap-0.5 ml-0.5">
-                      <CheckCircle2 className="h-2.5 w-2.5" />
+                    <Badge variant="success" className="shrink-0 gap-1 px-1.5 py-0 text-[10px]">
+                      <CheckCircle2 className="size-3" aria-hidden="true" />
                       Approved
                     </Badge>
                   )}
                   {isRevisionRequired && (
-                    <Badge
-                      variant="outline"
-                      className="text-amber-600 border-amber-500/40 text-[9px] px-1.5 py-0 h-4 ml-0.5"
-                    >
+                    <Badge variant="warning" className="shrink-0 px-1.5 py-0 text-[10px]">
                       Revision
                     </Badge>
                   )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </section>
 
-        {/* Selected Proposal Studio Content */}
-        {activeProposal &&
-          (() => {
-            const formData = getFormData(activeProposal);
-            const isGenerating = loadingProposalId === activeProposal.id;
+          {proposalItems.map((proposal) => {
+            const formData = getFormData(proposal);
+            const isGenerating = loadingProposalId === proposal.id;
 
             return (
-              <div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5 space-y-5 shadow-xs">
-                {/* Active Proposal Header / Status Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-border/50">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Proposal {activeProposal.index + 1} of {proposalItems.length}
-                      </span>
-                      {activeProposal.isApproved && (
-                        <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] h-4 gap-1">
-                          <CheckCircle2 className="h-2.5 w-2.5" />
-                          Approved Title
-                        </Badge>
-                      )}
-                      {isRevisionRequired && (
-                        <Badge
-                          variant="outline"
-                          className="text-amber-600 border-amber-500/40 text-[10px] h-4"
-                        >
-                          Revision Required
-                        </Badge>
-                      )}
+              <TabsContent key={proposal.id} value={proposal.id} className="mt-0 space-y-5">
+                <div className="space-y-5 rounded-lg border border-border/70 bg-card p-4 sm:p-5">
+                  {/* Active Proposal Header / Status Bar */}
+                  <div className="flex flex-col justify-between gap-3 border-b border-border/50 pb-3 sm:flex-row sm:items-start">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Proposal {proposal.index + 1} of {proposalItems.length}
+                        </span>
+                        {proposal.isApproved && (
+                          <Badge variant="success" className="h-5 gap-1 text-[10px]">
+                            <CheckCircle2 className="size-3" aria-hidden="true" />
+                            Approved Title
+                          </Badge>
+                        )}
+                        {isRevisionRequired && (
+                          <Badge variant="warning" className="h-5 text-[10px]">
+                            Revision Required
+                          </Badge>
+                        )}
+                      </div>
+                      <h4 className="text-base font-bold text-foreground sm:text-lg">
+                        {proposal.title}
+                      </h4>
                     </div>
-                    <h4 className="text-base sm:text-lg font-bold text-foreground">
-                      {activeProposal.title}
-                    </h4>
-                  </div>
 
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSaveDraft(activeProposal)}
-                      disabled={isLocked}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      <Save className="h-3.5 w-3.5" />
-                      Save Draft
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => generateDeck(activeProposal)}
-                      disabled={isGenerating}
-                      className="h-8 text-xs gap-1.5"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Generating Deck...
-                        </>
-                      ) : (
-                        <>
-                          <FileDown className="h-3.5 w-3.5" />
-                          Generate Presentation Deck (PDF)
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Approved Title Lock / Unlock Guard */}
-                {titleApproved && (
-                  <div
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg p-3 text-xs border ${
-                      isLocked
-                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-                        : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isLocked ? (
-                        <>
-                          <Lock className="h-4 w-4 shrink-0" />
-                          <span>
-                            Approved Title &amp; Scope locked. Inputs are read-only to preserve the
-                            formal defense baseline.
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                          <span>
-                            Editing Approved Scope: Modifications are active. Save your draft and
-                            notify your committee if structural changes occur.
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    {isLocked ? (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={handleUnlockApproved}
-                        className="h-7 text-xs gap-1.5 border-emerald-400 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 shrink-0 self-start sm:self-auto"
+                        onClick={() => handleSaveDraft(proposal)}
+                        disabled={isLocked}
+                        className="h-8 text-xs gap-1.5"
                       >
-                        <Unlock className="h-3 w-3" />
-                        Unlock to Edit Scope
+                        <Save className="h-3.5 w-3.5" />
+                        Save Draft
                       </Button>
-                    ) : (
                       <Button
                         type="button"
                         size="sm"
-                        variant="ghost"
-                        onClick={() => setIsEditingApproved(false)}
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0 self-start sm:self-auto"
+                        variant="secondary"
+                        onClick={() => generateDeck(proposal)}
+                        disabled={isGenerating}
+                        className="h-8 text-xs gap-1.5"
+                        loading={isGenerating}
+                        loadingText="Generating deck..."
                       >
-                        <Lock className="h-3 w-3 mr-1" />
-                        Lock Scope
+                        {!isGenerating && (
+                          <>
+                            <FileDown className="h-3.5 w-3.5" />
+                            Generate Presentation Deck (PDF)
+                          </>
+                        )}
                       </Button>
+                    </div>
+                  </div>
+
+                  {/* Approved Title Lock / Unlock Guard */}
+                  {titleApproved && (
+                    <Alert
+                      variant={isLocked ? 'success' : 'warning'}
+                      className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between [&>svg]:static [&>svg]:shrink-0 [&>svg~*]:pl-0"
+                    >
+                      <div className="space-y-1">
+                        <AlertTitle className="text-sm">
+                          {isLocked
+                            ? 'Approved title and scope are locked'
+                            : 'Editing approved scope'}
+                        </AlertTitle>
+                        <AlertDescription>
+                          {isLocked
+                            ? 'Inputs are read-only to preserve the formal defense baseline.'
+                            : 'Modifications are active. Save your draft and notify your committee if structural changes occur.'}
+                        </AlertDescription>
+                      </div>
+                      {isLocked ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleUnlockApproved}
+                          className="h-8 shrink-0 self-start text-xs sm:self-auto"
+                        >
+                          <Unlock className="h-3 w-3" />
+                          Unlock to Edit Scope
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsEditingApproved(false)}
+                          className="h-8 shrink-0 self-start text-xs sm:self-auto"
+                        >
+                          <Lock className="h-3 w-3 mr-1" />
+                          Lock Scope
+                        </Button>
+                      )}
+                    </Alert>
+                  )}
+
+                  {/* Seven Pitch Deck Fields */}
+                  <div className="space-y-4">
+                    {PITCH_DECK_FIELDS.map((field) => (
+                      <div key={field.key} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label
+                            htmlFor={`${proposal.id}-${field.key}`}
+                            className="text-xs font-semibold"
+                          >
+                            {field.label}
+                          </Label>
+                          <span className="text-[10px] uppercase font-mono text-muted-foreground">
+                            {field.tag}
+                          </span>
+                        </div>
+                        <Textarea
+                          id={`${proposal.id}-${field.key}`}
+                          value={formData[field.key] || ''}
+                          disabled={isLocked}
+                          onChange={(event) =>
+                            handleFieldChange(proposal.id, field.key, event.target.value)
+                          }
+                          placeholder={field.placeholder}
+                          className="min-h-24 text-sm"
+                        />
+                      </div>
+                    ))}
+
+                    {isRevisionRequired && (
+                      <div className="border-t border-border/50 pt-4">
+                        <Button
+                          type="button"
+                          onClick={() => handleConfirmRevision(proposal)}
+                          disabled={isSubmittingRevision}
+                          className="gap-1.5 text-xs font-semibold"
+                          loading={isSubmittingRevision}
+                          loadingText="Resubmitting revision..."
+                        >
+                          {!isSubmittingRevision && <Send className="h-4 w-4" />}
+                          Confirm Revision &amp; Resubmit for Committee Review
+                        </Button>
+                      </div>
                     )}
                   </div>
-                )}
-
-                {/* Seven Pitch Deck Fields */}
-                <div className="space-y-4">
-                  {PITCH_DECK_FIELDS.map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label
-                          htmlFor={`${activeProposal.id}-${field.key}`}
-                          className="text-xs font-semibold"
-                        >
-                          {field.label}
-                        </Label>
-                        <span className="text-[10px] uppercase font-mono text-muted-foreground">
-                          {field.tag}
-                        </span>
-                      </div>
-                      <Textarea
-                        id={`${activeProposal.id}-${field.key}`}
-                        value={formData[field.key] || ''}
-                        disabled={isLocked}
-                        onChange={(event) =>
-                          handleFieldChange(activeProposal.id, field.key, event.target.value)
-                        }
-                        placeholder={field.placeholder}
-                        className={`min-h-24 text-sm ${
-                          isLocked ? 'bg-muted/40 cursor-not-allowed opacity-90' : 'bg-background'
-                        }`}
-                      />
-                    </div>
-                  ))}
-
-                  {isRevisionRequired && (
-                    <div className="pt-2 border-t border-border/40">
-                      <Button
-                        type="button"
-                        onClick={() => handleConfirmRevision(activeProposal)}
-                        disabled={isSubmittingRevision}
-                        className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm text-xs font-semibold"
-                      >
-                        {isSubmittingRevision ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                        Confirm Revision &amp; Resubmit for Committee Review
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              </div>
+              </TabsContent>
             );
-          })()}
+          })}
+        </Tabs>
+        <AlertDialog open={isUnlockConfirmationOpen} onOpenChange={setIsUnlockConfirmationOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Edit the approved proposal scope?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Any modifications to an approved title or proposal scope will alter the agreed
+                project baseline and may require committee re-evaluation.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep scope locked</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmUnlockApproved}>Unlock scope</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

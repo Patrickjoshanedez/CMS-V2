@@ -106,6 +106,38 @@ describe('EvaluationWorkspace', () => {
     expect(container.textContent).toContain('Sources');
   });
 
+  it('keeps the PDF workspace mounted while switching mobile panes', () => {
+    act(() => {
+      root.render(
+        <EvaluationWorkspace
+          submission={{ _id: 'sub-1' }}
+          pdfUrl="https://example.com/test.pdf"
+          highlights={mockHighlights}
+        />,
+      );
+    });
+
+    const findTab = (label) =>
+      Array.from(container.querySelectorAll('[role="tab"]')).find((tab) =>
+        tab.textContent.includes(label),
+      );
+    const panelTab = findTab('Panel');
+    const pdfTab = findTab('PDF');
+    const pdfViewer = container.querySelector('[data-testid="mock-pdf-viewer-workspace"]');
+    const pdfPane = pdfViewer.closest('section');
+
+    act(() => panelTab.click());
+    expect(panelTab).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelector('[data-testid="mock-pdf-viewer-workspace"]')).toBe(pdfViewer);
+    expect(pdfPane.classList.contains('invisible')).toBe(true);
+    expect(pdfPane.classList.contains('hidden')).toBe(false);
+
+    act(() => pdfTab.click());
+    expect(pdfTab).toHaveAttribute('aria-selected', 'true');
+    expect(pdfPane.classList.contains('visible')).toBe(true);
+    expect(pdfPane.classList.contains('invisible')).toBe(false);
+  });
+
   it('updates layer filter state when layer buttons are clicked', () => {
     act(() => {
       root.render(
@@ -152,8 +184,8 @@ describe('EvaluationWorkspace', () => {
     });
 
     // Check sliders appear
-    expect(container.textContent).toContain('Overlay Opacity');
-    const rangeInputs = container.querySelectorAll('input[type="range"]');
+    expect(document.body.textContent).toContain('Overlay Opacity');
+    const rangeInputs = document.body.querySelectorAll('input[type="range"]');
     expect(rangeInputs.length).toBe(2);
 
     // Initial opacity is 80%

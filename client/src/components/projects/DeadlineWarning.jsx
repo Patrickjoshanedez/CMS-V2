@@ -101,39 +101,39 @@ function computeUrgency(deadline) {
 const LEVEL_CONFIG = {
   overdue: {
     icon: AlertTriangle,
-    badgeClass: 'bg-destructive text-destructive-foreground',
+    badgeVariant: 'destructive',
     rowClass: 'border-destructive/40 bg-destructive/5',
     iconClass: 'text-destructive',
   },
   critical: {
     icon: Timer,
-    badgeClass: 'bg-destructive text-destructive-foreground',
+    badgeVariant: 'destructive',
     rowClass: 'border-destructive/30 bg-destructive/5',
     iconClass: 'text-destructive',
   },
   warning: {
     icon: Clock,
-    badgeClass: 'bg-amber-500 text-white dark:bg-amber-600',
-    rowClass: 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30',
-    iconClass: 'text-amber-600 dark:text-amber-400',
+    badgeVariant: 'warning',
+    rowClass: 'border-warning/30 bg-warning/5',
+    iconClass: 'text-warning',
   },
   safe: {
     icon: Clock,
-    badgeClass: 'bg-green-600 text-white dark:bg-green-700',
-    rowClass: 'border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950/20',
-    iconClass: 'text-green-600 dark:text-green-400',
+    badgeVariant: 'success',
+    rowClass: 'border-success/30 bg-success/5',
+    iconClass: 'text-success',
   },
   distant: {
     icon: CheckCircle2,
-    badgeClass: 'bg-muted text-muted-foreground',
+    badgeVariant: 'secondary',
     rowClass: '',
     iconClass: 'text-muted-foreground',
   },
   tba: {
     icon: Info,
-    badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-    rowClass: 'border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20',
-    iconClass: 'text-blue-500 dark:text-blue-400',
+    badgeVariant: 'info',
+    rowClass: 'border-info/30 bg-info/5',
+    iconClass: 'text-info',
   },
 };
 
@@ -155,14 +155,8 @@ function DeadlineRow({ label, deadline, isMoved = false }) {
   });
 
   const badgeText = isMoved ? `Deadline moved to ${formattedDate}` : text;
-  const badgeClass = isMoved
-    ? 'bg-amber-600 text-white dark:bg-amber-500 font-medium'
-    : config.badgeClass;
-
   return (
-    <div
-      className={`flex flex-col gap-1.5 rounded-lg border px-4 py-3 transition-colors ${config.rowClass}`}
-    >
+    <Card className={`flex flex-col gap-1.5 px-4 py-3 ${config.rowClass}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
@@ -171,7 +165,9 @@ function DeadlineRow({ label, deadline, isMoved = false }) {
             <span className="ml-2 text-xs text-muted-foreground">{formattedDate}</span>
           </div>
         </div>
-        <Badge className={`shrink-0 text-xs ${badgeClass}`}>{badgeText}</Badge>
+        <Badge variant={isMoved ? 'warning' : config.badgeVariant} className="shrink-0 text-xs">
+          {badgeText}
+        </Badge>
       </div>
       {!isMoved && level === 'overdue' && (
         <p className="text-[11px] text-destructive font-medium pl-7">
@@ -180,11 +176,11 @@ function DeadlineRow({ label, deadline, isMoved = false }) {
         </p>
       )}
       {isMoved && (
-        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium pl-7">
+        <p className="pl-7 text-[11px] font-medium text-warning-foreground">
           Milestone schedule adjusted. Remaining time: {text}.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -193,18 +189,18 @@ function DeadlineRow({ label, deadline, isMoved = false }) {
  */
 function RemovedRow({ label }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-4 py-3 transition-colors">
+    <Card className="flex items-center justify-between bg-muted/20 px-4 py-3">
       <div className="flex items-center gap-3">
         <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
       <Badge
-        variant="outline"
-        className="shrink-0 text-xs border-muted-foreground/30 text-muted-foreground bg-muted/40 font-medium"
+        variant="secondary"
+        className="shrink-0 text-xs font-medium"
       >
         Deadline removed
       </Badge>
-    </div>
+    </Card>
   );
 }
 
@@ -216,15 +212,15 @@ function TbaRow({ label }) {
   const Icon = config.icon;
 
   return (
-    <div
-      className={`flex items-center justify-between rounded-lg border px-4 py-3 transition-colors ${config.rowClass}`}
-    >
+    <Card className={`flex items-center justify-between px-4 py-3 ${config.rowClass}`}>
       <div className="flex items-center gap-3">
         <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
         <span className="text-sm font-medium">{label}</span>
       </div>
-      <Badge className={`shrink-0 text-xs ${config.badgeClass}`}>To Be Announced</Badge>
-    </div>
+      <Badge variant={config.badgeVariant} className="shrink-0 text-xs">
+        To Be Announced
+      </Badge>
+    </Card>
   );
 }
 
@@ -340,7 +336,7 @@ export default function DeadlineWarning({ deadlines, defenseSchedule, compact = 
     if (hasUrgent) {
       const hasOverdue = overdueOrCritical.some((i) => i.level === 'overdue');
       return (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+        <Card className="space-y-3 border-destructive/40 bg-destructive/5 p-4">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <span className="text-sm font-semibold">
@@ -360,7 +356,7 @@ export default function DeadlineWarning({ deadlines, defenseSchedule, compact = 
               <RemovedRow key={item.key} label={item.label} />
             ))}
           </div>
-        </div>
+        </Card>
       );
     }
 
@@ -370,16 +366,16 @@ export default function DeadlineWarning({ deadlines, defenseSchedule, compact = 
       const isUpcomingOnly = allUpcoming.length > 0 && removedItems.length === 0;
 
       return (
-        <div
-          className={`rounded-lg border p-4 space-y-3 ${
+        <Card
+          className={`space-y-3 p-4 ${
             isUpcomingOnly
-              ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30'
+              ? 'border-warning/30 bg-warning/5'
               : 'border-border/60 bg-muted/20'
           }`}
         >
           <div className="flex items-center gap-2">
             {isUpcomingOnly ? (
-              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <Clock className="h-4 w-4 text-warning" />
             ) : (
               <Info className="h-4 w-4 text-muted-foreground" />
             )}
@@ -400,7 +396,7 @@ export default function DeadlineWarning({ deadlines, defenseSchedule, compact = 
               <RemovedRow key={item.key} label={item.label} />
             ))}
           </div>
-        </div>
+        </Card>
       );
     }
 

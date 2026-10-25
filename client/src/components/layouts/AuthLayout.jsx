@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import ThemeToggle from '@/components/ThemeToggle';
+import { Card } from '@/components/ui/Card';
 import buksuLogo from '@/assets/buksu-logo.png';
 
 /**
@@ -24,13 +25,7 @@ export default function AuthLayout({ children, title, description, wide = false 
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-buksu-gold-500/30">
-      {/* Background: grid + soft glow */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.5)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.5)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_55%_50%_at_50%_0%,black_40%,transparent_100%)]" />
-        <div className="absolute left-1/2 top-[-14rem] h-[30rem] w-[44rem] -translate-x-1/2 rounded-full bg-buksu-blue-500/20 blur-3xl dark:bg-buksu-blue-500/25" />
-        <div className="absolute bottom-[-10rem] right-[-6rem] h-80 w-80 rounded-full bg-buksu-gold-500/15 blur-3xl" />
-      </div>
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/20">
 
       {/* Top bar */}
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
@@ -47,10 +42,10 @@ export default function AuthLayout({ children, title, description, wide = false 
 
       {/* Card */}
       <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-12 pt-4 sm:px-6">
-        <div
-          className={`auth-form w-full ${wide ? 'max-w-xl' : 'max-w-md'} ${
+        <Card
+          className={`auth-form relative z-10 w-full ${wide ? 'max-w-xl' : 'max-w-md'} ${
             loaded ? 'auth-loaded' : ''
-          } rounded-2xl border border-border/60 bg-card/80 p-6 shadow-xl shadow-black/5 backdrop-blur-xl sm:p-8 dark:shadow-black/40`}
+          } rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8`}
         >
           {title && (
             <div className="auth-item mb-6 text-center">
@@ -62,7 +57,7 @@ export default function AuthLayout({ children, title, description, wide = false 
           )}
 
           {children}
-        </div>
+        </Card>
       </main>
 
       <footer className="relative z-10 pb-6 text-center text-xs text-muted-foreground">

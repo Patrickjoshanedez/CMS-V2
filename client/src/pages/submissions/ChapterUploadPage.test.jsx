@@ -83,7 +83,7 @@ describe('ChapterUploadPage Component', () => {
     expect(document.body.textContent).toContain('Deliverable Manuscript Submission');
     expect(document.body.textContent).toContain('Academic Workflow Gate');
     expect(document.body.textContent).toContain('Institutional Pipeline Checks');
-    expect(document.body.querySelector('select#chapter')).toBeTruthy();
+    expect(document.body.querySelector('[role="combobox"]#chapter')).toBeTruthy();
   });
 
   it('blocks submission and warns when a previous chapter is not approved', async () => {

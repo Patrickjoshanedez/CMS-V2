@@ -23,11 +23,37 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/Collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
 import { toast } from 'sonner';
 import {
-  Loader2,
-  AlertCircle,
-  AlertTriangle,
   ChevronDown,
   ChevronRight,
   Save,
@@ -37,28 +63,22 @@ import {
   Download,
   Lock,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 
-const STATUS_BADGE_CLASS = {
-  [EVALUATION_STATUSES.DRAFT]: 'bg-muted text-muted-foreground',
-  [EVALUATION_STATUSES.SUBMITTED]: 'bg-primary/10 text-primary',
-  [EVALUATION_STATUSES.RELEASED]:
-    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+const STATUS_BADGE_VARIANT = {
+  [EVALUATION_STATUSES.DRAFT]: 'secondary',
+  [EVALUATION_STATUSES.SUBMITTED]: 'info',
+  [EVALUATION_STATUSES.RELEASED]: 'success',
 };
 
 function StatusBadge({ status }) {
-  return (
-    <Badge className={STATUS_BADGE_CLASS[status] ?? 'bg-muted text-muted-foreground'}>
-      {status}
-    </Badge>
-  );
+  return <Badge variant={STATUS_BADGE_VARIANT[status] ?? 'secondary'}>{status}</Badge>;
 }
 
 function LoadingSpinner({ message = 'Loading evaluations…' }) {
   return (
     <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-      <Loader2 className="h-5 w-5 animate-spin" />
+      <Spinner className="size-5" />
       <span>{message}</span>
     </div>
   );
@@ -67,7 +87,6 @@ function LoadingSpinner({ message = 'Loading evaluations…' }) {
 function ErrorAlert({ message }) {
   return (
     <Alert variant="destructive" className="my-4">
-      <AlertCircle className="h-4 w-4" />
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );
@@ -79,29 +98,29 @@ const DECISION_OPTIONS = [
   {
     value: DEFENSE_DECISIONS.PASSED,
     label: 'Passed',
-    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+    variant: 'success',
   },
   {
     value: DEFENSE_DECISIONS.PASSED_WITH_REVISIONS,
     label: 'Passed with Revisions',
-    color: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+    variant: 'warning',
   },
   {
     value: DEFENSE_DECISIONS.RE_DEFENSE_REQUIRED,
     label: 'Re-Defense Required',
-    color: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+    variant: 'warning',
   },
   {
     value: DEFENSE_DECISIONS.FAILED,
     label: 'Failed',
-    color: 'bg-red-500/10 text-red-600 border-red-500/30',
+    variant: 'destructive',
   },
 ];
 
 function DecisionBadge({ decision }) {
   const opt = DECISION_OPTIONS.find((o) => o.value === decision);
   if (!opt) return null;
-  return <Badge className={opt.color}>{opt.label}</Badge>;
+  return <Badge variant={opt.variant}>{opt.label}</Badge>;
 }
 
 /**
@@ -119,22 +138,26 @@ function BukSUGradeChip({ grade, percentage, className = '' }) {
 
   if (!gradeObj || !gradeObj.grade) return null;
 
+  const gradeDescription = gradeObj.descriptor ?? gradeObj.meaning ?? 'Grade';
+  const gradeVariant =
+    gradeObj.status === 'failed' || gradeObj.isPassing === false
+      ? 'destructive'
+      : gradeObj.status === 'passed' || gradeObj.isPassing === true
+        ? 'success'
+        : gradeObj.status === 'conditional_pass' || gradeObj.status === 'borderline_pass'
+          ? 'warning'
+          : 'secondary';
+
   return (
     <Badge
-      variant="outline"
-      className={cn(
-        'font-mono text-xs font-bold gap-1 px-2 py-0.5 shadow-2xs',
-        gradeObj.color?.border || 'border-border',
-        gradeObj.color?.bg || 'bg-muted/50',
-        gradeObj.color?.text || 'text-foreground',
-        className,
-      )}
-      title={`BukSU Grade: ${gradeObj.grade} (${gradeObj.descriptor})`}
+      variant={gradeVariant}
+      className={cn('gap-1 px-2 py-0.5 font-mono text-xs font-bold shadow-2xs', className)}
+      title={`BukSU Grade: ${gradeObj.grade} (${gradeDescription})`}
       data-testid="buksu-grade-chip"
     >
       <span>BukSU {gradeObj.grade}</span>
       <span className="opacity-80 text-[10px] font-normal hidden sm:inline">
-        ({gradeObj.descriptor})
+        ({gradeDescription})
       </span>
     </Badge>
   );
@@ -149,6 +172,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
   const [overallComment, setOverallComment] = useState('');
   const [decision, setDecision] = useState(null);
   const [initialized, setInitialized] = useState(false);
+  const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false);
 
   // Sync server data into local state once loaded
   if (evaluation && !initialized) {
@@ -195,8 +219,6 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Are you sure you want to submit? You cannot edit after submission.'))
-      return;
     try {
       // Save draft first to ensure the backend has the latest scores and decision
       await updateEvaluation.mutateAsync({
@@ -207,6 +229,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
       });
 
       await submitEvaluation.mutateAsync(evaluation._id);
+      setSubmitConfirmationOpen(false);
       toast.success('Evaluation submitted successfully.');
     } catch (err) {
       toast.error(err?.message ?? 'Failed to submit evaluation.');
@@ -243,26 +266,24 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
       <CardContent className="space-y-6">
         {/* Criteria Table */}
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Criterion</th>
-                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
-                  Max
-                </th>
-                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-28">
-                  Score
-                </th>
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Comment</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="hidden rounded-md border sm:block">
+          <Table className="min-w-[38rem]">
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="px-4 text-foreground">Criterion</TableHead>
+                <TableHead className="w-24 px-4 text-center">Max</TableHead>
+                <TableHead className="w-28 px-4 text-center">Score</TableHead>
+                <TableHead className="px-4">Comment</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {activeCriteria.map((c, i) => (
-                <tr key={c.name ?? i} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium">{c.name}</td>
-                  <td className="px-4 py-3 text-center text-muted-foreground">{c.maxScore}</td>
-                  <td className="px-4 py-3 text-center">
+                <TableRow key={c.name ?? i}>
+                  <TableCell className="px-4 font-medium">{c.name}</TableCell>
+                  <TableCell className="px-4 text-center text-muted-foreground">
+                    {c.maxScore}
+                  </TableCell>
+                  <TableCell className="px-4 text-center">
                     {isReadOnly ? (
                       <span className="font-semibold">{c.score ?? '—'}</span>
                     ) : (
@@ -275,8 +296,8 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
                         className="w-20 mx-auto text-center"
                       />
                     )}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="px-4">
                     {isReadOnly ? (
                       <span className="text-muted-foreground">{c.comment || '—'}</span>
                     ) : (
@@ -285,14 +306,63 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
                         onChange={(e) => handleCommentChange(i, e.target.value)}
                         placeholder="Optional comment…"
                         rows={1}
-                        className="min-h-[2.25rem] resize-y"
+                        className="min-h-[2.25rem] min-w-48 resize-y"
                       />
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
+        </div>
+        <div className="grid gap-3 sm:hidden">
+          {activeCriteria.map((criterion, index) => (
+            <Card key={criterion.name ?? index} className="shadow-none">
+              <CardContent className="space-y-3 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium leading-snug">{criterion.name}</p>
+                  <Badge variant="outline" className="shrink-0">
+                    Max {criterion.maxScore}
+                  </Badge>
+                </div>
+                <div className="grid gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`mobile-evaluation-score-${index}`}>Score</Label>
+                    {isReadOnly ? (
+                      <p className="rounded-md border border-border bg-muted/40 px-3 py-2 font-semibold">
+                        {criterion.score ?? '—'} / {criterion.maxScore}
+                      </p>
+                    ) : (
+                      <Input
+                        id={`mobile-evaluation-score-${index}`}
+                        type="number"
+                        min={0}
+                        max={criterion.maxScore}
+                        value={criterion.score ?? ''}
+                        onChange={(event) => handleScoreChange(index, event.target.value)}
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`mobile-evaluation-comment-${index}`}>Comment</Label>
+                    {isReadOnly ? (
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {criterion.comment || '—'}
+                      </p>
+                    ) : (
+                      <Textarea
+                        id={`mobile-evaluation-comment-${index}`}
+                        value={criterion.comment ?? ''}
+                        onChange={(event) => handleCommentChange(index, event.target.value)}
+                        placeholder="Optional comment…"
+                        rows={2}
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Total Score & BukSU Grade */}
@@ -311,22 +381,24 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
               <DecisionBadge decision={evaluation.decision} />
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {DECISION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setDecision(opt.value)}
-                  className={[
-                    'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                    decision === opt.value
-                      ? opt.color + ' ring-2 ring-offset-1 ring-current'
-                      : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-                  ].join(' ')}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div>
+              <RadioGroup
+                value={decision ?? ''}
+                onValueChange={setDecision}
+                aria-label="Evaluation decision"
+                className="flex flex-wrap gap-2"
+              >
+                {DECISION_OPTIONS.map((opt) => (
+                  <Label
+                    key={opt.value}
+                    htmlFor={`decision-${opt.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                  >
+                    <RadioGroupItem id={`decision-${opt.value}`} value={opt.value} />
+                    <Badge variant={opt.variant}>{opt.label}</Badge>
+                  </Label>
+                ))}
+              </RadioGroup>
             </div>
           )}
         </div>
@@ -358,15 +430,18 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
               disabled={updateEvaluation.isPending}
             >
               {updateEvaluation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
               Save Draft
             </Button>
-            <Button onClick={handleSubmit} disabled={submitEvaluation.isPending}>
+            <Button
+              onClick={() => setSubmitConfirmationOpen(true)}
+              disabled={submitEvaluation.isPending}
+            >
               {submitEvaluation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
@@ -375,6 +450,20 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
           </div>
         )}
       </CardContent>
+      <AlertDialog open={submitConfirmationOpen} onOpenChange={setSubmitConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit your evaluation?</AlertDialogTitle>
+            <AlertDialogDescription>You cannot edit after submission.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit} disabled={submitEvaluation.isPending}>
+              Submit Evaluation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -383,6 +472,8 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
 function PanelistSection({ evaluation, role }) {
   const [open, setOpen] = useState(false);
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [unlockReason, setUnlockReason] = useState('');
   const total = evaluation.criteria.reduce((s, c) => s + (Number(c.score) || 0), 0);
   const max = evaluation.criteria.reduce((s, c) => s + c.maxScore, 0);
   const unlockEvaluation = useUnlockEvaluation();
@@ -399,11 +490,15 @@ function PanelistSection({ evaluation, role }) {
   const canUnlock = role === ROLES.INSTRUCTOR && evaluation.status !== EVALUATION_STATUSES.DRAFT;
 
   const handleUnlock = async () => {
-    const reason = window.prompt('Enter a reason for unlocking this evaluation:');
-    if (!reason?.trim()) return;
+    if (!unlockReason.trim()) return;
 
     try {
-      await unlockEvaluation.mutateAsync({ evaluationId: evaluation._id, reason: reason.trim() });
+      await unlockEvaluation.mutateAsync({
+        evaluationId: evaluation._id,
+        reason: unlockReason.trim(),
+      });
+      setUnlockDialogOpen(false);
+      setUnlockReason('');
       toast.success('Evaluation unlocked successfully.');
     } catch (err) {
       toast.error(err?.message ?? 'Failed to unlock evaluation.');
@@ -411,15 +506,13 @@ function PanelistSection({ evaluation, role }) {
   };
 
   return (
-    <div className="rounded-md border">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <span className="font-medium">{panelistName || 'Panelist'}</span>
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/50">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+          <CollapsibleTrigger className="inline-flex min-w-0 items-center gap-2 text-left">
+            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="truncate font-medium">{panelistName}</span>
+          </CollapsibleTrigger>
           <StatusBadge status={evaluation.status} />
           {evaluation.decision && <DecisionBadge decision={evaluation.decision} />}
           {evaluation.status !== EVALUATION_STATUSES.DRAFT && (
@@ -429,7 +522,7 @@ function PanelistSection({ evaluation, role }) {
             />
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-end">
           <span className="text-sm font-semibold text-muted-foreground">
             {total} / {max}
           </span>
@@ -437,11 +530,11 @@ function PanelistSection({ evaluation, role }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleUnlock}
+              onClick={() => setUnlockDialogOpen(true)}
               disabled={unlockEvaluation.isPending}
             >
               {unlockEvaluation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner className="mr-2" />
               ) : (
                 <Unlock className="mr-2 h-4 w-4" />
               )}
@@ -449,37 +542,35 @@ function PanelistSection({ evaluation, role }) {
             </Button>
           )}
         </div>
-      </button>
+      </div>
 
-      {open && (
+      <CollapsibleContent>
         <div className="border-t px-4 py-4 space-y-4">
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                    Criterion
-                  </th>
-                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
-                    Max
-                  </th>
-                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
-                    Score
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">Comment</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-md border">
+            <Table className="min-w-[38rem]">
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="px-4 text-foreground">Criterion</TableHead>
+                  <TableHead className="w-24 px-4 text-center">Max</TableHead>
+                  <TableHead className="w-24 px-4 text-center">Score</TableHead>
+                  <TableHead className="px-4">Comment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {evaluation.criteria.map((c, i) => (
-                  <tr key={c.name ?? i} className="border-b last:border-0">
-                    <td className="px-4 py-2">{c.name}</td>
-                    <td className="px-4 py-2 text-center text-muted-foreground">{c.maxScore}</td>
-                    <td className="px-4 py-2 text-center font-semibold">{c.score ?? '—'}</td>
-                    <td className="px-4 py-2 text-muted-foreground">{c.comment || '—'}</td>
-                  </tr>
+                  <TableRow key={c.name ?? i}>
+                    <TableCell className="px-4">{c.name}</TableCell>
+                    <TableCell className="px-4 text-center text-muted-foreground">
+                      {c.maxScore}
+                    </TableCell>
+                    <TableCell className="px-4 text-center font-semibold">
+                      {c.score ?? '—'}
+                    </TableCell>
+                    <TableCell className="px-4 text-muted-foreground">{c.comment || '—'}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {evaluation.overallComment && (
             <div className="space-y-1">
@@ -488,8 +579,38 @@ function PanelistSection({ evaluation, role }) {
             </div>
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+      <Dialog open={unlockDialogOpen} onOpenChange={setUnlockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unlock evaluation</DialogTitle>
+            <DialogDescription>
+              Enter a reason for unlocking this evaluation. The reason will be recorded.
+            </DialogDescription>
+          </DialogHeader>
+          <Label htmlFor={`unlock-reason-${evaluation._id}`}>Reason for unlocking</Label>
+          <Textarea
+            id={`unlock-reason-${evaluation._id}`}
+            autoFocus
+            value={unlockReason}
+            onChange={(event) => setUnlockReason(event.target.value)}
+            placeholder="Reason for unlocking"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlockDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUnlock}
+              disabled={!unlockReason.trim() || unlockEvaluation.isPending}
+            >
+              {unlockEvaluation.isPending && <Spinner className="mr-2" />}
+              Unlock evaluation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Collapsible>
   );
 }
 
@@ -498,6 +619,7 @@ function PanelistSection({ evaluation, role }) {
 function EvaluationsSummary({ projectId, defenseType, role }) {
   const { data, isLoading, error } = useProjectEvaluations(projectId, defenseType);
   const releaseEvaluations = useReleaseEvaluations();
+  const [releaseConfirmationOpen, setReleaseConfirmationOpen] = useState(false);
 
   const isInstructor = role === ROLES.INSTRUCTOR;
   const isStudent = role === ROLES.STUDENT;
@@ -510,9 +632,9 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       error?.response?.data?.error?.code === 'GRADES_LOCKED_PENDING_PANEL_COMPLETION')
   ) {
     return (
-      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+      <Card className="border-warning/30 bg-warning/5 shadow-sm">
         <CardContent className="py-12 text-center space-y-3">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 text-warning-foreground">
             <Lock className="h-6 w-6" />
           </div>
           <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
@@ -545,9 +667,9 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 
   if (isStudent && visibleEvaluations.length === 0) {
     return (
-      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+      <Card className="border-warning/30 bg-warning/5 shadow-sm">
         <CardContent className="py-12 text-center space-y-3">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 text-warning-foreground">
             <Lock className="h-6 w-6" />
           </div>
           <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
@@ -582,10 +704,9 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       );
       return;
     }
-    if (!window.confirm('Release all submitted evaluations to the team? This cannot be undone.'))
-      return;
     try {
       await releaseEvaluations.mutateAsync({ projectId, defenseType });
+      setReleaseConfirmationOpen(false);
       toast.success('Evaluations released successfully.');
     } catch (err) {
       toast.error(err?.message ?? 'Failed to release evaluations.');
@@ -596,7 +717,7 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     try {
       window.open(`/api/evaluations/project/${projectId}/${defenseType}/report`, '_blank');
       toast.success('Opening defense evaluation report...');
-    } catch (err) {
+    } catch {
       toast.error('Failed to download evaluation report.');
     }
   };
@@ -605,8 +726,7 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     <div className="space-y-6">
       {/* Grade Leakage Warning for Instructor */}
       {isInstructor && unsubmittedEvaluations.length > 0 && (
-        <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <Alert variant="warning">
           <AlertDescription className="text-xs">
             <span className="font-semibold">Grade Leakage Prevention Active:</span>{' '}
             {unsubmittedEvaluations.length} panel member(s) have not yet completed their
@@ -686,12 +806,12 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       {hasSubmittedUnreleased && (
         <div className="flex justify-end gap-2">
           <Button
-            onClick={handleRelease}
+            onClick={() => setReleaseConfirmationOpen(true)}
             disabled={releaseEvaluations.isPending || !allPanelistsSubmitted}
             className={!allPanelistsSubmitted ? 'opacity-60 cursor-not-allowed' : ''}
           >
             {releaseEvaluations.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Spinner className="mr-2" />
             ) : (
               <Unlock className="mr-2 h-4 w-4" />
             )}
@@ -699,6 +819,22 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
           </Button>
         </div>
       )}
+      <AlertDialog open={releaseConfirmationOpen} onOpenChange={setReleaseConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Release evaluations to the team?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cannot be undone. All panel members must submit before release.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRelease} disabled={releaseEvaluations.isPending}>
+              Release evaluations
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

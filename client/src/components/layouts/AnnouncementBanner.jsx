@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X } from 'lucide-react';
+import PropTypes from 'prop-types';
 import { useSettings } from '@/hooks/useSettings';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 /**
  * AnnouncementBanner — displays the system announcement from settings.
@@ -24,23 +28,25 @@ export default function AnnouncementBanner({ className = '' }) {
   }
 
   return (
-    <div
-      className={`flex items-start gap-3 rounded-md border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-950 dark:border-blue-400 ${className}`}
-      role="alert"
-      aria-live="polite"
-    >
-      <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-300 mt-0.5" />
-      <div className="flex-1 min-w-0 break-words">
-        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">System Announcement</p>
-        <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">{announcement}</p>
+    <Alert variant="info" className={cn('pr-14', className)} aria-live="polite">
+      <div className="min-w-0 break-words">
+        <AlertTitle>System Announcement</AlertTitle>
+        <AlertDescription className="mt-1">{announcement}</AlertDescription>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss announcement"
+          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </Button>
       </div>
-      <button
-        onClick={() => setDismissed(true)}
-        aria-label="Dismiss announcement"
-        className="flex-shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
+    </Alert>
   );
 }
+
+AnnouncementBanner.propTypes = {
+  className: PropTypes.string,
+};

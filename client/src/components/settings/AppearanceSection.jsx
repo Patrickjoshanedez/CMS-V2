@@ -1,4 +1,13 @@
 import { Label } from '@/components/ui/Label';
+import { Card } from '@/components/ui/Card';
+import { Switch } from '@/components/ui/Switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { useSettingsStore, ZOOM_OPTIONS } from '@/stores/settingsStore';
 import { Palette } from 'lucide-react';
 import { SettingSection } from './SettingsShared';
@@ -22,7 +31,7 @@ export default function AppearanceSection() {
         </div>
 
         {/* High Contrast Mode Toggle */}
-        <div className="rounded-lg border p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 space-y-1">
               <Label htmlFor="high-contrast-toggle" className="text-sm font-medium cursor-pointer">
@@ -32,15 +41,14 @@ export default function AppearanceSection() {
                 Increase text and border contrast for easier reading.
               </p>
             </div>
-            <input
-              type="checkbox"
+            <Switch
               id="high-contrast-toggle"
               checked={highContrast}
-              onChange={(e) => setHighContrast(e.target.checked)}
-              className="h-5 w-5 shrink-0 cursor-pointer rounded border-input text-primary focus:ring-primary"
+              onCheckedChange={setHighContrast}
+              aria-label="High-Contrast Interface"
             />
           </div>
-        </div>
+        </Card>
 
         {/* Font Scaling Options */}
         <div>
@@ -48,18 +56,21 @@ export default function AppearanceSection() {
             Dynamic Font Scaling
           </Label>
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-            <select
-              id="font-size-select"
+            <Select
               value={zoomLevel}
-              onChange={(e) => setZoomLevel(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary sm:max-w-[240px]"
+              onValueChange={setZoomLevel}
             >
+              <SelectTrigger id="font-size-select" className="w-full sm:max-w-[240px]">
+                <SelectValue placeholder="Choose text size" />
+              </SelectTrigger>
+              <SelectContent>
               {ZOOM_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
+                <SelectItem key={opt.value} value={opt.value}>
                   {opt.label} — {opt.scale}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">{currentOption.desc}</p>
           </div>
         </div>

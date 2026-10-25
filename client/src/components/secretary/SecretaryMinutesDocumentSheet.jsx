@@ -1,11 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { Textarea } from '@/components/ui/Textarea';
 import { SignaturePad } from '@/components/ui/SignaturePad';
+import Spinner from '@/components/ui/Spinner';
 import { resolveMinutesPermissions } from '@/components/projects/adm/admWorkflow';
 import { projectService, userService } from '@/services/authService';
 import { toast } from 'sonner';
@@ -14,7 +24,6 @@ import { cn } from '@/lib/utils';
 import {
   FileText,
   Upload,
-  RefreshCw,
   Plus,
   Trash2,
   CheckCircle2,
@@ -591,7 +600,7 @@ function AutoResizeTextarea({ value, onChange, placeholder, className, rows = 1,
 
   return (
     <>
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => {
@@ -601,7 +610,7 @@ function AutoResizeTextarea({ value, onChange, placeholder, className, rows = 1,
         rows={rows}
         placeholder={placeholder}
         className={cn(
-          'w-full bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none resize-none overflow-hidden text-xs sm:text-sm text-black leading-snug py-0.5 transition-[height] duration-75 print:hidden',
+          'min-h-[44px] w-full resize-none overflow-hidden rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0.5 text-xs leading-snug text-black shadow-none transition-[height] duration-75 hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden',
           className,
         )}
         style={{
@@ -766,16 +775,6 @@ export default function SecretaryMinutesDocumentSheet({
       });
     }
   }, [project, user, milestone]);
-
-  // Lock body scroll when signature modal is open
-  useEffect(() => {
-    if (!isSignModalOpen || typeof document === 'undefined') return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isSignModalOpen]);
 
   // Update top-level text fields
   const handleFieldChange = (field, value) => {
@@ -1386,12 +1385,10 @@ export default function SecretaryMinutesDocumentSheet({
 
   // Only the appointed secretary (or the instructor, who has oversight) may edit; only the secretary signs.
   const minutesPermissions = resolveMinutesPermissions(project, user);
-  const isProjectArchived =
-    project?.isArchived === true || project?.projectStatus === 'archived';
+  const isProjectArchived = project?.isArchived === true || project?.projectStatus === 'archived';
   const isUserSecretary = !isProjectArchived && (!user || minutesPermissions.canEdit);
   const canSignMinutes = !isProjectArchived && (!user || minutesPermissions.canSign);
-  const isReadOnlyMinutes =
-    isProjectArchived || (Boolean(user) && !minutesPermissions.canEdit);
+  const isReadOnlyMinutes = isProjectArchived || (Boolean(user) && !minutesPermissions.canEdit);
 
   const isSigned = Boolean(minutes.signature?.signed);
   const signatureData = minutes.signature;
@@ -1688,7 +1685,7 @@ export default function SecretaryMinutesDocumentSheet({
             >
               {isScanning ? (
                 <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <Spinner className="h-3.5 w-3.5" />
                   Scanning OCR...
                 </>
               ) : (
@@ -1710,7 +1707,7 @@ export default function SecretaryMinutesDocumentSheet({
               className="gap-1.5 text-xs h-8"
               title="Autofill project title, proponents, adviser, and panel members from project database"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Sparkles className="h-3.5 w-3.5 text-warning" />
               Autofill from Project
             </Button>
           )}
@@ -1731,7 +1728,7 @@ export default function SecretaryMinutesDocumentSheet({
               title="Automatically balance comments and continuation sheets across pages"
               data-testid="auto-distribute-btn"
             >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Sparkles className="h-3.5 w-3.5 text-warning" />
               Balance Pages
             </Button>
           )}
@@ -1776,7 +1773,7 @@ export default function SecretaryMinutesDocumentSheet({
               title="Convert panel remarks into official Action Done Matrix rows"
             >
               {isSyncingADM ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <Spinner className="h-3.5 w-3.5" />
               ) : (
                 <FileSpreadsheet className="h-3.5 w-3.5" />
               )}
@@ -1790,7 +1787,7 @@ export default function SecretaryMinutesDocumentSheet({
               variant="outline"
               size="sm"
               onClick={handleOpenSignModal}
-              className="gap-1.5 text-xs h-8 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10"
+              className="min-h-[44px] gap-1.5 text-xs text-success border-success/40 hover:bg-success/10 sm:min-h-8 sm:h-8"
               title="Apply Secretary digital signature"
             >
               <PenTool className="h-3.5 w-3.5" />
@@ -1842,8 +1839,12 @@ export default function SecretaryMinutesDocumentSheet({
 
       {/* ── Scanning Banner ── */}
       {isScanning && (
-        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 flex items-center gap-3 animate-pulse no-print">
-          <RefreshCw className="h-5 w-5 text-primary animate-spin shrink-0" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-primary/40 bg-primary/5 p-4 flex items-center gap-3 no-print"
+        >
+          <Spinner className="h-5 w-5 shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-bold text-foreground">
               Scanning &ldquo;{scanFilename}&rdquo; with OCR Engine...
@@ -1877,7 +1878,7 @@ export default function SecretaryMinutesDocumentSheet({
               <React.Fragment key={pageIdx}>
                 <div
                   className={cn(
-                    'secretary-minutes-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs',
+                    'secretary-minutes-page bg-white text-black font-serif shadow-lg border border-border min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs',
                     isLastPage && 'is-last-page',
                   )}
                   data-testid={`secretary-minutes-page-${pageNumber}`}
@@ -1897,19 +1898,21 @@ export default function SecretaryMinutesDocumentSheet({
                         </h2>
                       </div>
                     ) : (
-                      <div className="pt-2 pb-1 flex items-center justify-between border-b border-neutral-300 print:border-b-0 pb-2">
+                      <div className="pt-2 pb-1 flex items-center justify-between border-b border-border print:border-b-0 pb-2">
                         <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-black">
                           SECRETARY’S MINUTES (CONTINUATION)
                         </h2>
                         {!isLastPage && (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleRemovePage(pageIdx)}
-                            className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print font-medium"
+                            className="min-h-[44px] gap-1 font-sans text-xs font-medium text-destructive hover:underline no-print sm:min-h-8"
                             title="Remove this continuation page"
                           >
                             <Trash2 className="h-3.5 w-3.5" /> Remove Page {pageNumber}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
@@ -1920,12 +1923,12 @@ export default function SecretaryMinutesDocumentSheet({
                         {/* Title of Paper */}
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-bold text-black shrink-0">Title of Paper:</span>
-                          <input
+                          <Input
                             type="text"
                             value={minutes.title}
                             onChange={(e) => handleFieldChange('title', e.target.value)}
                             placeholder="Project Workspace: Capstone Management System with Plagiarism Checker"
-                            className="flex-1 font-bold text-black bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm print:hidden"
+                            className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs font-bold text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                             data-testid="minutes-title-input"
                           />
                           <span className="hidden print:inline flex-1 font-bold text-black text-xs sm:text-sm">
@@ -1938,42 +1941,47 @@ export default function SecretaryMinutesDocumentSheet({
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-black">Name of Proponents:</span>
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={handleAddProponent}
-                              className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
+                              className="min-h-[44px] gap-1 font-sans text-[11px] text-primary hover:underline no-print sm:min-h-8"
                             >
                               <Plus className="h-3 w-3" /> Add Proponent
-                            </button>
+                            </Button>
                           </div>
                           <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
                             {minutes.proponents.length === 0 ? (
-                              <div className="italic text-neutral-600 text-xs py-1 no-print">
+                              <div className="italic text-muted-foreground text-xs py-1 no-print">
                                 No proponents listed. Click &quot;Autofill from Project&quot; or
                                 &quot;+ Add Proponent&quot;.
                               </div>
                             ) : (
                               minutes.proponents.map((proponent, idx) => (
                                 <div key={idx} className="flex items-center gap-2 group/prop">
-                                  <input
+                                  <Input
                                     type="text"
                                     value={proponent}
                                     onChange={(e) => handleProponentChange(idx, e.target.value)}
                                     placeholder="Antipuesto, Throylan"
-                                    className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black print:hidden"
+                                    className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0.5 text-xs text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                                     data-testid={`minutes-proponent-${idx}`}
                                   />
                                   <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black font-normal">
                                     {proponent}
                                   </span>
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleRemoveProponent(idx)}
-                                    className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/prop:opacity-100 transition-opacity no-print"
+                                    className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive opacity-100 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover/prop:opacity-100 sm:group-focus-within/prop:opacity-100 no-print"
                                     title="Remove proponent"
+                                    aria-label={`Remove proponent ${idx + 1}`}
                                   >
                                     <Trash2 className="h-3 w-3" />
-                                  </button>
+                                  </Button>
                                 </div>
                               ))
                             )}
@@ -1991,13 +1999,16 @@ export default function SecretaryMinutesDocumentSheet({
                             const isChecked = minutes.defenseType === dt.value;
                             return (
                               <React.Fragment key={dt.value}>
-                                <button
+                                <Button
                                   type="button"
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => {
                                     handleFieldChange('defenseType', dt.value);
                                     handleFieldChange('defenseTypeLabel', dt.label);
                                   }}
-                                  className="inline-flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity print:hidden"
+                                  aria-pressed={isChecked}
+                                  className="min-h-[44px] gap-1.5 px-2 text-xs text-black transition-opacity hover:opacity-80 sm:min-h-8 sm:text-sm print:hidden"
                                 >
                                   <span className="font-bold text-black">
                                     {isChecked ? '(✓)' : '( )'}
@@ -2007,7 +2018,7 @@ export default function SecretaryMinutesDocumentSheet({
                                   >
                                     {dt.label}
                                   </span>
-                                </button>
+                                </Button>
                                 <span className="hidden print:inline-flex items-center gap-1.5 text-xs sm:text-sm text-black">
                                   <span className="font-bold text-black">
                                     {isChecked ? '(✓)' : '( )'}
@@ -2030,11 +2041,14 @@ export default function SecretaryMinutesDocumentSheet({
                             const isChecked = minutes.round === r;
                             return (
                               <React.Fragment key={r}>
-                                <button
+                                <Button
                                   key={r}
                                   type="button"
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => handleFieldChange('round', r)}
-                                  className="inline-flex items-center gap-1 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity print:hidden"
+                                  aria-pressed={isChecked}
+                                  className="min-h-[44px] gap-1 px-2 text-xs text-black transition-opacity hover:opacity-80 sm:min-h-8 sm:text-sm print:hidden"
                                 >
                                   <span className="font-bold text-black">
                                     {isChecked ? '(✓)' : '( )'}
@@ -2045,7 +2059,7 @@ export default function SecretaryMinutesDocumentSheet({
                                     {r.slice(0, 1)}
                                     <sup>{r.slice(1)}</sup>
                                   </span>
-                                </button>
+                                </Button>
                                 <span className="hidden print:inline-flex items-center gap-1 text-xs sm:text-sm text-black">
                                   <span className="font-bold text-black">
                                     {isChecked ? '(✓)' : '( )'}
@@ -2065,12 +2079,12 @@ export default function SecretaryMinutesDocumentSheet({
                         {/* Date/Time & Venue */}
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-bold text-black shrink-0">Date/Time & Venue:</span>
-                          <input
+                          <Input
                             type="text"
                             value={minutes.dateTimeVenue}
                             onChange={(e) => handleFieldChange('dateTimeVenue', e.target.value)}
                             placeholder="April 20, 2026 || 9:00am || COT Conference Room"
-                            className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black print:hidden"
+                            className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                             data-testid="minutes-datetime-venue-input"
                           />
                           <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black">
@@ -2081,12 +2095,12 @@ export default function SecretaryMinutesDocumentSheet({
                         {/* Adviser */}
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-bold text-black shrink-0">Adviser:</span>
-                          <input
+                          <Input
                             type="text"
                             value={minutes.adviser}
                             onChange={(e) => handleFieldChange('adviser', e.target.value)}
                             placeholder="Glaiza Mae Libe"
-                            className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black print:hidden"
+                            className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                             data-testid="minutes-adviser-input"
                           />
                           <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black">
@@ -2097,12 +2111,12 @@ export default function SecretaryMinutesDocumentSheet({
                         {/* Panel Chair/REC */}
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-bold text-black shrink-0">Panel Chair/REC:</span>
-                          <input
+                          <Input
                             type="text"
                             value={minutes.panelChair}
                             onChange={(e) => handleFieldChange('panelChair', e.target.value)}
                             placeholder="Louie Jay S. Labastida"
-                            className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold print:hidden"
+                            className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs font-bold text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                             data-testid="minutes-chair-input"
                           />
                           <span className="hidden print:inline flex-1 font-bold text-xs sm:text-sm text-black">
@@ -2114,42 +2128,47 @@ export default function SecretaryMinutesDocumentSheet({
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-black">Panel Members:</span>
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={handleAddPanelMember}
-                              className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
+                              className="min-h-[44px] gap-1 font-sans text-[11px] text-primary hover:underline no-print sm:min-h-8"
                             >
                               <Plus className="h-3 w-3" /> Add Member
-                            </button>
+                            </Button>
                           </div>
                           <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
                             {minutes.panelMembers.length === 0 ? (
-                              <div className="italic text-neutral-600 text-xs py-1 no-print">
+                              <div className="italic text-muted-foreground text-xs py-1 no-print">
                                 No panel members listed. Click &quot;Autofill from Project&quot; or
                                 &quot;+ Add Member&quot;.
                               </div>
                             ) : (
                               minutes.panelMembers.map((member, idx) => (
                                 <div key={idx} className="flex items-center gap-2 group/mem">
-                                  <input
+                                  <Input
                                     type="text"
                                     value={member}
                                     onChange={(e) => handlePanelMemberChange(idx, e.target.value)}
                                     placeholder="Lecaros, Raul"
-                                    className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black print:hidden"
+                                    className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0.5 text-xs text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                                     data-testid={`minutes-panel-member-${idx}`}
                                   />
                                   <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black font-normal">
                                     {member}
                                   </span>
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleRemovePanelMember(idx)}
-                                    className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/mem:opacity-100 transition-opacity no-print"
+                                    className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive opacity-100 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover/mem:opacity-100 sm:group-focus-within/mem:opacity-100 no-print"
                                     title="Remove panel member"
+                                    aria-label={`Remove panel member ${idx + 1}`}
                                   >
                                     <Trash2 className="h-3 w-3" />
-                                  </button>
+                                  </Button>
                                 </div>
                               ))
                             )}
@@ -2159,7 +2178,7 @@ export default function SecretaryMinutesDocumentSheet({
                         {/* Secretary */}
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-bold text-black shrink-0">Secretary:</span>
-                          <input
+                          <Input
                             type="text"
                             value={minutes.secretary}
                             onChange={(e) => {
@@ -2172,7 +2191,7 @@ export default function SecretaryMinutesDocumentSheet({
                               }
                             }}
                             placeholder="Joan Marie M. Panes"
-                            className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold print:hidden"
+                            className="h-auto min-h-[44px] min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs font-bold text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                             data-testid="minutes-secretary-input"
                           />
                           <span className="hidden print:inline flex-1 font-bold text-xs sm:text-sm text-black">
@@ -2222,13 +2241,13 @@ export default function SecretaryMinutesDocumentSheet({
                                       Client
                                     </div>
                                   )}
-                                  <input
+                                  <Input
                                     type="text"
                                     value={panel.panelName}
                                     onChange={(e) =>
                                       handlePanelNameChangeOnPage(pageIdx, pIdx, e.target.value)
                                     }
-                                    className="w-full font-bold bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none text-xs sm:text-sm text-black print:hidden"
+                                    className="h-auto min-h-[44px] w-full rounded-none border-0 border-b border-transparent bg-transparent px-1 py-0.5 text-xs font-bold text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden"
                                     placeholder={
                                       isFirstPage && pIdx === 0
                                         ? 'Louie Jay Labastida'
@@ -2239,36 +2258,43 @@ export default function SecretaryMinutesDocumentSheet({
                                   <div className="hidden print:block font-bold text-xs sm:text-sm text-black whitespace-pre-wrap">
                                     {panel.panelName}
                                   </div>
-                                  <div className="mt-2 flex items-center gap-1.5 opacity-0 group-hover/paneltd:opacity-100 transition-opacity no-print">
+                                  <div className="mt-2 flex items-center gap-1.5 opacity-100 transition-opacity no-print sm:opacity-0 sm:group-hover/paneltd:opacity-100 sm:group-focus-within/paneltd:opacity-100">
                                     {pageIdx > 0 && (
-                                      <button
+                                      <Button
                                         type="button"
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() => handleMovePanelRowUp(pageIdx, pIdx)}
-                                        className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 font-sans"
+                                        className="min-h-[44px] gap-0.5 px-2 font-sans text-[10px] text-primary sm:min-h-8"
                                         title="Move row to previous page"
                                       >
                                         ↑ Page {pageIdx}
-                                      </button>
+                                      </Button>
                                     )}
                                     {pageIdx < totalPages - 1 && (
-                                      <button
+                                      <Button
                                         type="button"
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() => handleMovePanelRowDown(pageIdx, pIdx)}
-                                        className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 font-sans"
+                                        className="min-h-[44px] gap-0.5 px-2 font-sans text-[10px] text-primary sm:min-h-8"
                                         title="Move row to next page"
                                       >
                                         ↓ Page {pageIdx + 2}
-                                      </button>
+                                      </Button>
                                     )}
                                     {page.panelRemarks.length > 1 && (
-                                      <button
+                                      <Button
                                         type="button"
+                                        variant="ghost"
+                                        size="icon"
                                         onClick={() => handleRemovePanelRowFromPage(pageIdx, pIdx)}
-                                        className="text-[10px] text-neutral-500 hover:text-red-600 flex items-center gap-0.5 font-sans"
+                                        className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive sm:min-h-8 sm:min-w-8"
                                         title="Delete this panel row"
+                                        aria-label={`Delete panel row ${pIdx + 1}`}
                                       >
-                                        <Trash2 className="h-2.5 w-2.5" />
-                                      </button>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
                                     )}
                                   </div>
                                 </td>
@@ -2291,33 +2317,38 @@ export default function SecretaryMinutesDocumentSheet({
                                               placeholder="Type comment or suggestion here..."
                                               data-testid={`panel-comment-${pageIdx}-${pIdx}-${cIdx}`}
                                             />
-                                            <button
+                                            <Button
                                               type="button"
+                                              variant="ghost"
+                                              size="icon"
                                               onClick={() =>
                                                 handleRemoveCommentOnPage(pageIdx, pIdx, cIdx)
                                               }
-                                              className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/bullet:opacity-100 transition-opacity no-print pt-0.5"
+                                              className="min-h-[44px] min-w-[44px] shrink-0 text-muted-foreground hover:text-destructive opacity-100 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover/bullet:opacity-100 sm:group-focus-within/bullet:opacity-100 no-print"
                                               title="Remove comment bullet"
+                                              aria-label={`Remove comment ${cIdx + 1} from panel ${pIdx + 1}`}
                                             >
-                                              <Trash2 className="h-3 w-3" />
-                                            </button>
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
                                           </div>
                                         </li>
                                       ))
                                     ) : (
-                                      <li className="italic text-neutral-500 text-xs list-none no-print">
+                                      <li className="italic text-muted-foreground text-xs list-none no-print">
                                         No comments yet. Click &quot;+ Add Suggestion&quot;.
                                       </li>
                                     )}
                                   </ul>
                                   <div className="mt-2 text-right no-print">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => handleAddCommentOnPage(pageIdx, pIdx)}
-                                      className="text-[11px] text-blue-700 hover:underline inline-flex items-center gap-1 font-sans"
+                                      className="min-h-[44px] gap-1 font-sans text-[11px] text-primary hover:underline sm:min-h-8"
                                     >
                                       <Plus className="h-3 w-3" /> Add Suggestion
-                                    </button>
+                                    </Button>
                                   </div>
                                 </td>
                               </tr>
@@ -2326,7 +2357,7 @@ export default function SecretaryMinutesDocumentSheet({
                             <tr className="no-print">
                               <td
                                 colSpan={2}
-                                className="p-6 text-center text-neutral-600 italic text-xs"
+                                className="p-6 text-center text-muted-foreground italic text-xs"
                               >
                                 No panel remarks recorded yet. Click &quot;+ Add Panelist Row&quot;
                                 or &quot;Autofill from Project&quot;.
@@ -2337,17 +2368,19 @@ export default function SecretaryMinutesDocumentSheet({
                       </table>
                       {/* Option to Add Rows to this Table */}
                       <div className="flex items-center justify-between pt-1.5 no-print">
-                        <span className="text-[11px] text-neutral-500 italic">
+                        <span className="text-[11px] text-muted-foreground italic">
                           Tables dynamically allocate space as you type.
                         </span>
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleAddPanelRowToPage(pageIdx)}
-                          className="text-xs text-blue-700 hover:underline flex items-center gap-1 font-sans font-medium"
+                          className="min-h-[44px] gap-1 font-sans text-xs font-medium text-primary hover:underline sm:min-h-8"
                           title="Add another panelist row to this table"
                         >
                           <Plus className="h-3.5 w-3.5" /> Add Panelist Row
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -2388,13 +2421,16 @@ export default function SecretaryMinutesDocumentSheet({
                               const isChecked = minutes.panelVerdict === v.value;
                               return (
                                 <React.Fragment key={v.value}>
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => {
                                       handleFieldChange('panelVerdict', v.value);
                                       handleFieldChange('verdictLabel', v.label);
                                     }}
-                                    className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm hover:opacity-85 text-left py-0.5 print:hidden"
+                                    aria-pressed={isChecked}
+                                    className="min-h-[44px] justify-start gap-2 px-2 py-0.5 text-left text-xs text-black hover:opacity-85 sm:min-h-8 sm:text-sm print:hidden"
                                   >
                                     <span className="font-bold text-black w-6">
                                       {isChecked ? '(✓)' : '( )'}
@@ -2404,7 +2440,7 @@ export default function SecretaryMinutesDocumentSheet({
                                     >
                                       {v.label}
                                     </span>
-                                  </button>
+                                  </Button>
                                   <div className="hidden print:flex items-center gap-2 text-xs sm:text-sm text-left py-0.5 text-black">
                                     <span className="font-bold text-black w-6">
                                       {isChecked ? '(✓)' : '( )'}
@@ -2439,7 +2475,7 @@ export default function SecretaryMinutesDocumentSheet({
                                       {signatoryNameDisplay}
                                     </span>
                                   )}
-                                  <span className="text-[9px] text-neutral-600 font-mono tracking-tight print:hidden">
+                                  <span className="text-[9px] text-muted-foreground font-mono tracking-tight print:hidden">
                                     Digitally signed on{' '}
                                     {signatureData.signedAt
                                       ? new Date(signatureData.signedAt).toLocaleDateString()
@@ -2456,19 +2492,19 @@ export default function SecretaryMinutesDocumentSheet({
                                   variant="outline"
                                   size="sm"
                                   onClick={handleOpenSignModal}
-                                  className="h-7 text-xs px-3 text-primary border-primary/50 hover:bg-primary/10 gap-1.5 shadow-xs no-print font-sans"
+                                  className="min-h-[44px] gap-1.5 px-3 font-sans text-xs text-primary shadow-xs no-print sm:min-h-8 sm:h-8"
                                 >
                                   <PenTool className="h-3 w-3" /> Sign Digitally
                                 </Button>
                               ) : (
-                                <div className="text-[11px] text-neutral-500 italic font-sans flex items-center gap-1 no-print">
+                                <div className="text-[11px] text-muted-foreground italic font-sans flex items-center gap-1 no-print">
                                   <Clock className="h-3 w-3" /> Pending Secretary Signature
                                 </div>
                               )}
                             </div>
 
                             {/* 2. MIDDLE: Bold Uppercase Printed Name */}
-                            <input
+                            <Input
                               type="text"
                               value={signatoryNameDisplay}
                               onChange={(e) => {
@@ -2479,7 +2515,7 @@ export default function SecretaryMinutesDocumentSheet({
                               }}
                               disabled={!canSignMinutes || isSigned}
                               placeholder="COMMITTEE SECRETARY"
-                              className="text-center font-bold text-xs sm:text-sm uppercase tracking-wide bg-transparent border-none focus:outline-none w-full text-black print:hidden disabled:cursor-default"
+                              className="h-auto min-h-[44px] w-full rounded-none border-0 bg-transparent px-1 py-0.5 text-center text-xs font-bold uppercase tracking-wide text-black shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-sm print:hidden disabled:cursor-default"
                               data-testid="minutes-signatory-name"
                             />
                             <span className="hidden print:block text-center font-bold text-xs sm:text-sm uppercase tracking-wide text-black w-full">
@@ -2498,22 +2534,21 @@ export default function SecretaryMinutesDocumentSheet({
                             <div className="pt-1 flex items-center justify-center gap-2 no-print font-sans">
                               {isSigned && (
                                 <>
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] h-5 bg-emerald-50 text-emerald-700 border-emerald-500/30 gap-1"
-                                  >
-                                    <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  <Badge variant="success" className="gap-1 text-[10px]">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
                                     Verified
                                   </Badge>
                                   {canSignMinutes && (
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={handleClearSignature}
-                                      className="text-[10px] text-neutral-600 hover:text-red-600 underline"
+                                      className="min-h-[44px] text-[10px] text-muted-foreground underline hover:text-destructive sm:min-h-8"
                                       title="Remove signature to re-sign"
                                     >
                                       Re-sign
-                                    </button>
+                                    </Button>
                                   )}
                                 </>
                               )}
@@ -2544,7 +2579,7 @@ export default function SecretaryMinutesDocumentSheet({
                       variant="outline"
                       size="sm"
                       onClick={() => handleAddContinuationPage(pageIdx + 1)}
-                      className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 dark:bg-card/90 dark:text-primary dark:border-primary/60 dark:hover:bg-primary/20 backdrop-blur-xs"
+                      className="gap-2 border-primary/50 bg-background text-xs font-semibold text-primary shadow-xs hover:bg-primary/10"
                       data-testid={`add-continuation-page-btn-${pageNumber}`}
                       title="Insert a continuation page before the final sign-off sheet"
                     >
@@ -2561,164 +2596,159 @@ export default function SecretaryMinutesDocumentSheet({
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* ── SECRETARY DIGITAL SIGNATURE MODAL (CONSISTENT WITH ADM) ── */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {isSignModalOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="secretary-sign-modal-title"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isSubmittingSignature) {
-                setIsSignModalOpen(false);
-              }
-            }}
-          >
-            <div
-              className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
+      <Dialog
+        open={isSignModalOpen}
+        onOpenChange={(open) => {
+          if (!isSubmittingSignature) setIsSignModalOpen(open);
+        }}
+      >
+        <DialogContent
+          aria-labelledby="secretary-sign-modal-title"
+          showClose={false}
+          onEscapeKeyDown={(event) => {
+            if (isSubmittingSignature) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (isSubmittingSignature) event.preventDefault();
+          }}
+          className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg gap-4 overflow-y-auto rounded-xl border-border bg-card p-4 shadow-lg sm:p-6"
+        >
+          <DialogHeader className="flex-row items-center justify-between border-b border-border/60 pb-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <PenTool className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle id="secretary-sign-modal-title" className="text-base">
+                  Secretary Digital Signature
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-xs">
+                  Official Defense Hearing Sign-Off (Form OVPAA-F-INS-032)
+                </DialogDescription>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSignModalOpen(false)}
+              disabled={isSubmittingSignature}
+              className="min-h-[44px] min-w-[44px] shrink-0 sm:min-h-9 sm:min-w-9"
+              aria-label="Close signature dialog"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <PenTool className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 id="secretary-sign-modal-title" className="text-base font-semibold">
-                      Secretary Digital Signature
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Official Defense Hearing Sign-Off (Form OVPAA-F-INS-032)
-                    </p>
-                  </div>
-                </div>
+              <span aria-hidden="true">✕</span>
+            </Button>
+          </DialogHeader>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Applying your digital signature certifies that these hearing minutes and panel verdict
+            are authentic records of the capstone proceedings. This digital signature will also
+            synchronize with the Action Done Matrix (ADM) Secretary Endorsement Gate.
+          </p>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sec-legal-name" className="text-xs font-medium">
+              Secretary Legal Full Name
+            </Label>
+            <Input
+              id="sec-legal-name"
+              value={typedSignatoryName}
+              onChange={(e) => setTypedSignatoryName(e.target.value)}
+              placeholder="Joan Marie M. Panes"
+              disabled={isSubmittingSignature}
+              className="h-11 text-xs sm:h-9"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs font-medium">Digital Signature</Label>
+              {user?.digitalSignature && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsSignModalOpen(false)}
-                  disabled={isSubmittingSignature}
-                  className="h-7 w-7 p-0 rounded-md"
+                  onClick={() => {
+                    setIsDrawingSignature(!isDrawingSignature);
+                    if (!isDrawingSignature) {
+                      setSignatureDataUrl(null);
+                    } else {
+                      setSignatureDataUrl(user.digitalSignature);
+                    }
+                  }}
+                  className="min-h-[44px] text-xs font-medium text-primary sm:min-h-9"
                 >
-                  ✕
+                  {isDrawingSignature ? 'Use Saved Profile Signature' : 'Draw New Signature'}
                 </Button>
+              )}
+            </div>
+
+            {!isDrawingSignature && user?.digitalSignature ? (
+              <div className="flex flex-col items-center justify-center space-y-2 rounded-lg border border-border/80 bg-card/60 p-3">
+                <img
+                  src={user.digitalSignature}
+                  alt="Saved Signature"
+                  className="max-h-16 max-w-full object-contain dark:invert"
+                />
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  Using saved signature from your user profile
+                </Badge>
               </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Applying your digital signature certifies that these hearing minutes and panel
-                verdict are authentic records of the capstone proceedings. This digital signature
-                will also synchronize with the Action Done Matrix (ADM) Secretary Endorsement Gate.
-              </p>
-
-              {/* Legal Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="sec-legal-name" className="text-xs font-medium">
-                  Secretary Legal Full Name
-                </Label>
-                <Input
-                  id="sec-legal-name"
-                  value={typedSignatoryName}
-                  onChange={(e) => setTypedSignatoryName(e.target.value)}
-                  placeholder="Joan Marie M. Panes"
-                  disabled={isSubmittingSignature}
-                  className="h-9 text-xs"
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-border bg-background">
+                <SignaturePad
+                  onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
+                  onClear={() => setSignatureDataUrl(null)}
+                  defaultSignatoryName={typedSignatoryName}
+                  height={150}
                 />
               </div>
+            )}
+          </div>
 
-              {/* Signature Canvas / Profile Signature */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">Digital Signature</Label>
-                  {user?.digitalSignature && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsDrawingSignature(!isDrawingSignature);
-                        if (!isDrawingSignature) {
-                          setSignatureDataUrl(null);
-                        } else {
-                          setSignatureDataUrl(user.digitalSignature);
-                        }
-                      }}
-                      className="text-xs text-primary hover:underline font-medium"
-                    >
-                      {isDrawingSignature ? 'Use Saved Profile Signature' : 'Draw New Signature'}
-                    </button>
-                  )}
-                </div>
+          {isDrawingSignature && (
+            <label className="flex min-h-[44px] cursor-pointer select-none items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+              <Checkbox
+                checked={saveSignatureToProfile}
+                onCheckedChange={setSaveSignatureToProfile}
+                aria-label="Save this signature to my profile for future documents"
+                disabled={isSubmittingSignature}
+              />
+              <span>Save this signature to my profile for future documents</span>
+            </label>
+          )}
 
-                {!isDrawingSignature && user?.digitalSignature ? (
-                  <div className="border border-border/80 rounded-lg p-3 bg-card/60 flex flex-col items-center justify-center space-y-2">
-                    <img
-                      src={user.digitalSignature}
-                      alt="Saved Signature"
-                      className="max-h-16 max-w-full object-contain dark:invert"
-                    />
-                    <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                      Using saved signature from your user profile
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="border border-border rounded-lg overflow-hidden bg-background">
-                    <SignaturePad
-                      onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
-                      onClear={() => setSignatureDataUrl(null)}
-                      defaultSignatoryName={typedSignatoryName}
-                      height={150}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Save signature checkbox */}
-              {isDrawingSignature && (
-                <label className="flex items-center gap-2 select-none text-xs cursor-pointer text-muted-foreground hover:text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={saveSignatureToProfile}
-                    onChange={(e) => setSaveSignatureToProfile(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <span>Save this signature to my profile for future documents</span>
-                </label>
+          <DialogFooter className="border-t border-border/60 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSignModalOpen(false)}
+              disabled={isSubmittingSignature}
+              className="min-h-[44px] text-xs sm:min-h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmSignature}
+              disabled={isSubmittingSignature || (!signatureDataUrl && !user?.digitalSignature)}
+              className="min-h-[44px] gap-1.5 text-xs font-medium sm:min-h-9"
+            >
+              {isSubmittingSignature ? (
+                <>
+                  <Spinner className="h-3.5 w-3.5" /> Recording...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Confirm &amp; Sign Minutes
+                </>
               )}
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSignModalOpen(false)}
-                  disabled={isSubmittingSignature}
-                  className="h-8 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleConfirmSignature}
-                  disabled={isSubmittingSignature || (!signatureDataUrl && !user?.digitalSignature)}
-                  className="gap-1.5 h-8 text-xs font-medium"
-                >
-                  {isSubmittingSignature ? (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Recording...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Confirm & Sign Minutes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2758,7 +2788,7 @@ function BuksuDocumentHeader() {
             href="https://www.buksu.edu.ph"
             target="_blank"
             rel="noreferrer"
-            className="text-blue-700 underline"
+            className="text-primary underline"
           >
             www.buksu.edu.ph
           </a>
@@ -2793,31 +2823,31 @@ function BuksuDocumentFooter({
         <span>Document Code: {documentCode}</span>
         <span className="inline-flex items-center gap-0.5">
           Revision No: <span className="hidden print:inline font-medium">{revisionNo}</span>
-          <input
+          <Input
             type="text"
             value={revisionNo}
             onChange={(e) => onFieldChange?.('revisionNo', e.target.value)}
-            className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="h-auto min-h-[44px] w-9 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0 text-center font-sans text-[10px] font-medium text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-[11px] print:hidden"
             title="Edit Revision No"
           />
         </span>
         <span className="inline-flex items-center gap-0.5">
           Issue No: <span className="hidden print:inline font-medium">{issueNo}</span>
-          <input
+          <Input
             type="text"
             value={issueNo}
             onChange={(e) => onFieldChange?.('issueNo', e.target.value)}
-            className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="h-auto min-h-[44px] w-9 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0 text-center font-sans text-[10px] font-medium text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-[11px] print:hidden"
             title="Edit Issue No"
           />
         </span>
         <span className="inline-flex items-center gap-0.5">
           Issue Date: <span className="hidden print:inline font-medium">{issueDate}</span>
-          <input
+          <Input
             type="text"
             value={issueDate}
             onChange={(e) => onFieldChange?.('issueDate', e.target.value)}
-            className="print:hidden w-24 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="h-auto min-h-[44px] w-28 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-0 text-center font-sans text-[10px] font-medium text-black shadow-none hover:border-border focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 sm:min-h-0 sm:text-[11px] print:hidden"
             title="Edit Issue Date"
           />
         </span>

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Badge } from '@/components/ui/Badge';
 import { SUBMISSION_STATUSES } from '@cms/shared';
 
@@ -34,3 +35,7 @@ export default function SubmissionStatusBadge({ status }) {
 
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
+
+SubmissionStatusBadge.propTypes = {
+  status: PropTypes.string.isRequired,
+};

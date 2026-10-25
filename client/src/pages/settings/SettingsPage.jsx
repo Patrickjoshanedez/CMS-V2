@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { Loader2, Palette, Shield, Bell, Settings2, Info, PenTool } from 'lucide-react';
+import { Palette, Shield, Bell, Settings2, Info, PenTool } from 'lucide-react';
+import { Spinner } from '@/components/ui/Spinner';
 import { ROLES } from '@cms/shared';
 
 // Components
@@ -35,26 +36,32 @@ export default function SettingsPage() {
   const { user, fetchUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab') || 'appearance';
-  const activeTab = rawTab === 'admin' ? 'administration' : rawTab;
+  const requestedTab = rawTab === 'admin' ? 'administration' : rawTab;
 
   const tabs =
     user?.role === ROLES.INSTRUCTOR || user?.role === ROLES.ADMIN ? ADMIN_TABS : BASE_TABS;
+
+  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : 'appearance';
+
+  const handleTabChange = useCallback((value) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', value);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!user) fetchUser();
   }, [user, fetchUser]);
 
-  const handleTabChange = (value) => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('tab', value);
-    setSearchParams(nextParams, { replace: true });
-  };
+  useEffect(() => {
+    if (user && requestedTab !== activeTab) handleTabChange(activeTab);
+  }, [user, requestedTab, activeTab, handleTabChange]);
 
   if (!user) {
     return (
       <DashboardLayout>
         <div className="flex h-[50vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Spinner className="size-8 text-primary" />
         </div>
       </DashboardLayout>
     );
@@ -77,7 +84,7 @@ export default function SettingsPage() {
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="relative flex min-h-11 items-center justify-start gap-2 rounded-none border-b-2 border-transparent px-2 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-none focus-visible:ring-0 data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                    className="relative flex min-h-11 items-center justify-start gap-2 rounded-none border-b-2 border-transparent px-2 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-none data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}

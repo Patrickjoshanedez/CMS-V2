@@ -1,8 +1,12 @@
 import * as React from 'react';
+import PropTypes from 'prop-types';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from './Badge';
+import { Button } from './Button';
+import { Input } from './Input';
+import { Popover, PopoverAnchor, PopoverContent } from './Popover';
 
 /**
  * TagInput — A reusable tag input component with autocomplete.
@@ -26,6 +30,8 @@ const TagInput = React.forwardRef(
       maxTags = 10,
       disabled = false,
       className,
+      id,
+      'aria-label': ariaLabel,
       ...props
     },
     ref,
@@ -34,7 +40,7 @@ const TagInput = React.forwardRef(
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const inputRef = useRef(null);
-    const containerRef = useRef(null);
+    const suggestionListId = `tag-suggestions-${React.useId().replaceAll(':', '')}`;
 
     // Combine refs if external ref is provided
     React.useImperativeHandle(ref, () => inputRef.current);
@@ -165,17 +171,6 @@ const TagInput = React.forwardRef(
       setIsOpen(filteredSuggestions.length > 0 && inputValue.trim() !== '');
     }, [filteredSuggestions, inputValue]);
 
-    // Close suggestions on outside click
-    useEffect(() => {
-      const handleClickOutside = (e) => {
-        if (containerRef.current && !containerRef.current.contains(e.target)) {
-          setIsOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     // Reset highlighted index when suggestions change
     useEffect(() => {
       if (highlightedIndex >= filteredSuggestions.length) {
@@ -184,111 +179,137 @@ const TagInput = React.forwardRef(
     }, [filteredSuggestions, highlightedIndex]);
 
     return (
-      <div ref={containerRef} className={cn('relative w-full', className)} {...props}>
-        {/* Main container styled like an input */}
-        <div
-          className={cn(
-            'flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
-            'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
-            disabled && 'cursor-not-allowed opacity-50',
-          )}
-          onClick={() => !disabled && inputRef.current?.focus()}
-        >
-          {/* Rendered tags */}
-          {value.map((tag, index) => (
-            <Badge
-              key={`${tag}-${index}`}
-              variant="secondary"
-              className="flex items-center gap-1 pr-1"
-            >
-              <span className="max-w-[150px] truncate">{tag}</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeTag(index);
-                }}
-                disabled={disabled}
-                className={cn(
-                  'ml-1 rounded-full p-0.5 hover:bg-secondary-foreground/20 focus:outline-none focus:ring-1 focus:ring-ring',
-                  disabled && 'pointer-events-none',
-                )}
-                aria-label={`Remove ${tag}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-
-          {/* Input field */}
-          {canAddMore && (
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onFocus={() => filteredSuggestions.length > 0 && setIsOpen(true)}
-              placeholder={value.length === 0 ? placeholder : ''}
-              disabled={disabled}
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverAnchor asChild>
+          <div className={cn('relative w-full', className)} {...props}>
+            {/* Main container styled like an input */}
+            <div
               className={cn(
-                'flex-1 min-w-[120px] bg-transparent outline-none placeholder:text-muted-foreground',
-                disabled && 'cursor-not-allowed',
+                'flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+                'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+                disabled && 'cursor-not-allowed opacity-50',
               )}
-              aria-autocomplete="list"
-              aria-expanded={isOpen}
-              aria-controls="tag-suggestions"
-            />
-          )}
-        </div>
+              onClick={() => !disabled && inputRef.current?.focus()}
+            >
+              {/* Rendered tags */}
+              {value.map((tag, index) => (
+                <Badge
+                  key={`${tag}-${index}`}
+                  variant="secondary"
+                  className="flex items-center gap-1 pr-1"
+                >
+                  <span className="max-w-[150px] truncate">{tag}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTag(index);
+                    }}
+                    disabled={disabled}
+                    className="ml-1 h-[44px] w-[44px] rounded-full text-secondary-foreground hover:bg-secondary-foreground/20 sm:h-8 sm:w-8"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </Badge>
+              ))}
 
-        {/* Tag counter */}
-        <div className="mt-1.5 flex justify-end">
-          <span
-            className={cn(
-              'text-xs text-muted-foreground',
-              value.length >= maxTags && 'text-amber-500 dark:text-amber-400',
-            )}
-          >
-            {value.length}/{maxTags} tags
-          </span>
-        </div>
+              {/* Input field */}
+              {canAddMore && (
+                <Input
+                  ref={inputRef}
+                  id={id}
+                  type="text"
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => filteredSuggestions.length > 0 && setIsOpen(true)}
+                  placeholder={value.length === 0 ? placeholder : ''}
+                  disabled={disabled}
+                  className="h-8 min-w-[120px] flex-1 border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  aria-label={ariaLabel || placeholder}
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  aria-expanded={isOpen}
+                  aria-controls={isOpen ? suggestionListId : undefined}
+                  aria-activedescendant={
+                    highlightedIndex >= 0
+                      ? `${suggestionListId}-option-${highlightedIndex}`
+                      : undefined
+                  }
+                />
+              )}
+            </div>
 
-        {/* Autocomplete dropdown */}
-        {isOpen && filteredSuggestions.length > 0 && (
-          <div
-            id="tag-suggestions"
-            role="listbox"
-            className={cn(
-              'absolute left-0 right-0 top-full z-50 mt-1',
-              'max-h-60 overflow-auto rounded-md border border-input bg-popover shadow-md',
-            )}
-          >
-            {filteredSuggestions.map((suggestion, index) => (
-              <div
-                key={suggestion}
-                role="option"
-                aria-selected={index === highlightedIndex}
-                onClick={() => handleSuggestionClick(suggestion)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                className={cn(
-                  'cursor-pointer px-3 py-2 text-sm text-popover-foreground',
-                  'hover:bg-accent hover:text-accent-foreground',
-                  index === highlightedIndex && 'bg-accent text-accent-foreground',
-                )}
+            {/* Tag counter */}
+            <div className="mt-1.5 flex justify-end">
+              <Badge
+                variant={value.length >= maxTags ? 'warning' : 'secondary'}
+                className="px-1.5 py-0 text-[10px] tabular-nums"
+                aria-live="polite"
+                aria-atomic="true"
               >
-                {/* Highlight matching text */}
-                <HighlightMatch text={suggestion} query={inputValue} />
-              </div>
-            ))}
+                {value.length}/{maxTags} tags
+              </Badge>
+            </div>
+
+            {/* Autocomplete dropdown */}
+            {isOpen && filteredSuggestions.length > 0 && (
+              <PopoverContent
+                id={suggestionListId}
+                role="listbox"
+                align="start"
+                sideOffset={4}
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                className="max-h-60 w-[var(--radix-popover-anchor-width)] overflow-y-auto p-1"
+              >
+                {filteredSuggestions.map((suggestion, index) => (
+                  <Button
+                    key={suggestion}
+                    id={`${suggestionListId}-option-${index}`}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    role="option"
+                    aria-selected={index === highlightedIndex}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    className={cn(
+                      'flex h-[44px] min-h-11 w-full min-w-0 cursor-pointer items-center justify-start rounded-sm px-3 py-2 text-left text-sm text-popover-foreground sm:h-9',
+                      'hover:bg-accent hover:text-accent-foreground',
+                      index === highlightedIndex && 'bg-accent text-accent-foreground',
+                    )}
+                  >
+                    {/* Highlight matching text */}
+                    <HighlightMatch text={suggestion} query={inputValue} />
+                  </Button>
+                ))}
+              </PopoverContent>
+            )}
           </div>
-        )}
-      </div>
+        </PopoverAnchor>
+      </Popover>
     );
   },
 );
 
 TagInput.displayName = 'TagInput';
+
+TagInput.propTypes = {
+  value: PropTypes.arrayOf(PropTypes.string),
+  onChange: PropTypes.func.isRequired,
+  suggestions: PropTypes.arrayOf(PropTypes.string),
+  placeholder: PropTypes.string,
+  maxTags: PropTypes.number,
+  disabled: PropTypes.bool,
+  className: PropTypes.string,
+  id: PropTypes.string,
+  'aria-label': PropTypes.string,
+};
 
 /**
  * Helper component to highlight matching text in suggestions

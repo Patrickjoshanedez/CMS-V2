@@ -1,18 +1,30 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Plus, Filter, X, Table as TableIcon, LayoutList, Trash2, FolderPlus } from 'lucide-react';
+import { Plus, Filter, Table as TableIcon, LayoutList, Trash2, FolderPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { projectService } from '@/services/authService';
 import { useAuthStore } from '@/stores/authStore';
 import AcademicExcelGanttChart, {
-  DEFAULT_ACADEMIC_SECTIONS,
-  DEFAULT_ACADEMIC_TASKS,
   isOwnerMatch,
   CANONICAL_MEMBERS,
   extractProjectMembers,
@@ -64,7 +76,7 @@ export default function InteractiveGanttChart({
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
     return [];
@@ -77,7 +89,7 @@ export default function InteractiveGanttChart({
     try {
       const saved = localStorage.getItem(sectionsStorageKey);
       if (saved) return JSON.parse(saved);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
     return [];
@@ -105,10 +117,17 @@ export default function InteractiveGanttChart({
       );
       setGanttApproval(project?.ganttApproval || {});
       setPlanProjectId(String(project?._id || project?.id || ''));
-    } catch (_) {
+    } catch {
       /* ignore */
     }
-  }, [storageKey, sectionsStorageKey, project?._id, project?.id]);
+  }, [
+    storageKey,
+    sectionsStorageKey,
+    project?._id,
+    project?.id,
+    project?.ganttApproval,
+    project?.ganttPlan,
+  ]);
 
   // Debounced autosave across both views
   const saveTimerRef = useRef(null);
@@ -120,7 +139,7 @@ export default function InteractiveGanttChart({
       try {
         localStorage.setItem(storageKey, JSON.stringify(tasks));
         localStorage.setItem(sectionsStorageKey, JSON.stringify(sections));
-      } catch (_) {
+      } catch {
         /* ignore */
       }
     }, 400);
@@ -204,7 +223,7 @@ export default function InteractiveGanttChart({
     if (!newTask.owner && proponentList.length > 0) {
       setNewTask((prev) => ({ ...prev, owner: proponentList[0] }));
     }
-  }, [allSections, proponentList]);
+  }, [allSections, proponentList, newTask.owner, newTask.section]);
 
   // Section & Row Handlers (Shared between views)
   const handleAddSection = useCallback(
@@ -339,32 +358,28 @@ export default function InteractiveGanttChart({
         {/* View Mode Toggle & Global Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="inline-flex rounded-lg border border-border/70 p-0.5 bg-muted/30">
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant={viewMode === 'excel' ? 'secondary' : 'ghost'}
+              aria-pressed={viewMode === 'excel'}
               onClick={() => setViewMode('excel')}
-              className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer',
-                viewMode === 'excel'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+              className="h-8 text-xs"
             >
               <TableIcon className="h-3.5 w-3.5" />
               Academic Excel View
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant={viewMode === 'compact' ? 'secondary' : 'ghost'}
+              aria-pressed={viewMode === 'compact'}
               onClick={() => setViewMode('compact')}
-              className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer',
-                viewMode === 'compact'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+              className="h-8 text-xs"
             >
               <LayoutList className="h-3.5 w-3.5" />
               Compact Roadmap
-            </button>
+            </Button>
           </div>
 
           {!isScheduleReadOnly && (
@@ -439,19 +454,22 @@ export default function InteractiveGanttChart({
               {/* Owner Filter — canonical proponents */}
               <div className="flex items-center gap-1.5 bg-muted/30 border border-border/60 rounded-md px-2 py-1 text-xs">
                 <Filter className="h-3 w-3 text-muted-foreground" />
-                <select
-                  aria-label="Filter by task owner"
-                  value={selectedOwner}
-                  onChange={(e) => setSelectedOwner(e.target.value)}
-                  className="bg-transparent border-0 text-xs text-foreground focus:outline-none cursor-pointer"
-                >
-                  <option value="ALL">All Members ({proponentList.length})</option>
-                  {proponentList.map((owner) => (
-                    <option key={owner} value={owner}>
-                      {owner}
-                    </option>
-                  ))}
-                </select>
+                <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+                  <SelectTrigger
+                    aria-label="Filter by task owner"
+                    className="h-8 w-auto min-w-36 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Members ({proponentList.length})</SelectItem>
+                    {proponentList.map((owner) => (
+                      <SelectItem key={owner} value={owner}>
+                        {owner}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {!isScheduleReadOnly && (
@@ -547,22 +565,27 @@ export default function InteractiveGanttChart({
                                 </span>
                                 {!isScheduleReadOnly && (
                                   <div className="flex items-center gap-1.5 lowercase">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => handleAddRow(sec)}
-                                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                      className="h-7 min-h-0 min-w-0 gap-1 px-2 text-[11px] font-medium text-primary hover:bg-primary/10 hover:text-primary"
                                       title={`Add deliverable task to ${sec}`}
                                     >
                                       <Plus className="h-3 w-3" /> Add Task
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleDeleteSection(sec)}
-                                      className="inline-flex items-center text-muted-foreground hover:text-destructive p-1 rounded transition-colors cursor-pointer"
                                       title={`Delete section: ${sec}`}
+                                      aria-label={`Delete section: ${sec}`}
+                                      className="size-8 min-h-0 min-w-0 text-muted-foreground hover:text-destructive"
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
                                   </div>
                                 )}
                               </div>
@@ -578,13 +601,15 @@ export default function InteractiveGanttChart({
                               >
                                 No deliverable tasks in this section yet.{' '}
                                 {!isScheduleReadOnly && (
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="link"
+                                    size="sm"
                                     onClick={() => handleAddRow(sec)}
-                                    className="text-primary hover:underline not-italic font-medium ml-1 cursor-pointer"
+                                    className="h-auto min-h-0 min-w-0 p-0 ml-1 not-italic font-medium"
                                   >
                                     + Add task
-                                  </button>
+                                  </Button>
                                 )}
                               </td>
                             </tr>
@@ -619,7 +644,7 @@ export default function InteractiveGanttChart({
                                       <div
                                         className={cn(
                                           'h-full transition-all duration-300',
-                                          isComplete ? 'bg-emerald-500' : 'bg-primary',
+                                          isComplete ? 'bg-success' : 'bg-primary',
                                         )}
                                         style={{ width: `${pct}%` }}
                                       />
@@ -633,7 +658,7 @@ export default function InteractiveGanttChart({
                                       className={cn(
                                         'h-4 rounded text-[10px] font-mono font-semibold flex items-center justify-center transition-all shadow-xs',
                                         isComplete
-                                          ? 'bg-emerald-500 text-white'
+                                          ? 'bg-success text-success-foreground'
                                           : 'bg-primary/85 text-primary-foreground',
                                       )}
                                       style={{
@@ -646,14 +671,17 @@ export default function InteractiveGanttChart({
                                 </td>
                                     {!isScheduleReadOnly && (
                                   <td className="p-3 text-center">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="ghost"
+                                      size="icon"
                                       onClick={() => handleDeleteRow(task.id)}
                                       title={`Delete task ${task.id}`}
-                                      className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors cursor-pointer"
+                                      aria-label={`Delete task ${task.id}`}
+                                      className="size-8 min-h-0 min-w-0 text-muted-foreground hover:text-destructive"
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
                                   </td>
                                 )}
                               </tr>
@@ -670,255 +698,237 @@ export default function InteractiveGanttChart({
         </Card>
       )}
 
-      {/* Add Task Modal */}
-      {isAddModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="gantt-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-        >
-          <div className="relative w-full max-w-lg rounded-xl border border-border/80 bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 id="gantt-modal-title" className="text-base font-bold text-foreground">
-                Add Sprint Task
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      {/* Add Task Dialog */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="max-w-lg space-y-4">
+          <DialogHeader className="border-b border-border/60 pb-3">
+            <DialogTitle id="gantt-modal-title" className="text-base">
+              Add Sprint Task
+            </DialogTitle>
+            <DialogDescription>Add a deliverable to the Capstone 2 schedule.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs">
+            <div className="space-y-1">
+              <Label htmlFor="task-section">Project Section</Label>
+              {allSections.length > 0 ? (
+                <Select
+                  value={newTask.section}
+                  onValueChange={(value) =>
+                    setNewTask((prev) => ({ ...prev, section: value }))
+                  }
+                >
+                  <SelectTrigger id="task-section" className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allSections.map((sec) => (
+                      <SelectItem key={sec} value={sec}>
+                        {sec}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="task-section"
+                  value={newTask.section}
+                  onChange={(e) => setNewTask((prev) => ({ ...prev, section: e.target.value }))}
+                  placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
+                  className="h-9 text-xs"
+                  required
+                />
+              )}
             </div>
 
-            <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs">
-              <div className="space-y-1">
-                <Label htmlFor="task-section">Project Section</Label>
-                {allSections.length > 0 ? (
-                  <select
-                    id="task-section"
-                    value={newTask.section}
-                    onChange={(e) => setNewTask((prev) => ({ ...prev, section: e.target.value }))}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none cursor-pointer"
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1 col-span-1">
+                <Label htmlFor="task-id">Task ID</Label>
+                <Input
+                  id="task-id"
+                  placeholder="e.g. DEV-09"
+                  value={newTask.id}
+                  onChange={(e) => setNewTask((prev) => ({ ...prev, id: e.target.value }))}
+                  className="h-9 text-xs uppercase"
+                />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label htmlFor="task-owner">Assigned Owner *</Label>
+                {proponentList.length > 0 ? (
+                  <Select
+                    value={newTask.owner}
+                    onValueChange={(value) => setNewTask((prev) => ({ ...prev, owner: value }))}
+                    required
                   >
-                    {allSections.map((sec) => (
-                      <option key={sec} value={sec}>
-                        {sec}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="task-owner" className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {proponentList.map((person) => (
+                        <SelectItem key={person} value={person}>
+                          {person}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Input
-                    id="task-section"
-                    value={newTask.section}
-                    onChange={(e) => setNewTask((prev) => ({ ...prev, section: e.target.value }))}
-                    placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
+                    id="task-owner"
+                    placeholder="e.g. Añedez, Patrick Josh"
+                    value={newTask.owner}
+                    onChange={(e) => setNewTask((prev) => ({ ...prev, owner: e.target.value }))}
                     className="h-9 text-xs"
                     required
                   />
                 )}
               </div>
+            </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1 col-span-1">
-                  <Label htmlFor="task-id">Task ID</Label>
-                  <Input
-                    id="task-id"
-                    placeholder="e.g. DEV-09"
-                    value={newTask.id}
-                    onChange={(e) => setNewTask((prev) => ({ ...prev, id: e.target.value }))}
-                    className="h-9 text-xs uppercase"
-                  />
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <Label htmlFor="task-owner">Assigned Owner *</Label>
-                  {proponentList.length > 0 ? (
-                    <select
-                      id="task-owner"
-                      value={newTask.owner}
-                      onChange={(e) => setNewTask((prev) => ({ ...prev, owner: e.target.value }))}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none cursor-pointer"
-                      required
-                    >
-                      {proponentList.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id="task-owner"
-                      placeholder="e.g. Añedez, Patrick Josh"
-                      value={newTask.owner}
-                      onChange={(e) => setNewTask((prev) => ({ ...prev, owner: e.target.value }))}
-                      className="h-9 text-xs"
-                      required
-                    />
-                  )}
-                </div>
-              </div>
+            <div className="space-y-1">
+              <Label htmlFor="task-title">Task Description *</Label>
+              <Input
+                id="task-title"
+                placeholder="e.g. Implement real-time WebSocket events"
+                value={newTask.title}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, title: e.target.value }))}
+                required
+                className="h-9 text-xs"
+              />
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="task-title">Task Description *</Label>
+                <Label htmlFor="task-duration">Duration (Days)</Label>
                 <Input
-                  id="task-title"
-                  placeholder="e.g. Implement real-time WebSocket events"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask((prev) => ({ ...prev, title: e.target.value }))}
-                  required
+                  id="task-duration"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={newTask.durationDays}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({
+                      ...prev,
+                      durationDays: Number(e.target.value),
+                    }))
+                  }
                   className="h-9 text-xs"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="task-duration">Duration (Days)</Label>
-                  <Input
-                    id="task-duration"
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={newTask.durationDays}
-                    onChange={(e) =>
-                      setNewTask((prev) => ({
-                        ...prev,
-                        durationDays: Number(e.target.value),
-                      }))
-                    }
-                    className="h-9 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="task-progress">Initial Progress (%)</Label>
-                  <Input
-                    id="task-progress"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newTask.progress}
-                    onChange={(e) =>
-                      setNewTask((prev) => ({
-                        ...prev,
-                        progress: Number(e.target.value),
-                      }))
-                    }
-                    className="h-9 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" className="bg-primary text-primary-foreground">
-                  Save Task
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Section Modal Dialog */}
-      {isAddSectionOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-section-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-        >
-          <div className="relative w-full max-w-md rounded-xl border border-border/80 bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 id="add-section-modal-title" className="text-base font-bold text-foreground">
-                Create Milestone Section
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddSectionOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 text-xs">
-              <div className="space-y-1.5">
-                <label htmlFor="new-section-input" className="font-semibold text-foreground">
-                  Section Name *
-                </label>
-                <input
-                  id="new-section-input"
-                  placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
-                  value={newSectionTitle}
-                  onChange={(e) => setNewSectionTitle(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/70"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSection();
-                    }
-                  }}
+              <div className="space-y-1">
+                <Label htmlFor="task-progress">Initial Progress (%)</Label>
+                <Input
+                  id="task-progress"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={newTask.progress}
+                  onChange={(e) =>
+                    setNewTask((prev) => ({
+                      ...prev,
+                      progress: Number(e.target.value),
+                    }))
+                  }
+                  className="h-9 text-xs"
                 />
               </div>
+            </div>
 
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Standard Capstone Suggestions:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'SECTION 1 — PROJECT PLANNING & RESEARCH',
-                    'SECTION 2 — ARCHITECTURE & SYSTEM DESIGN',
-                    'SECTION 3 — DEVELOPMENT & SYSTEM INTEGRATION',
-                    'SECTION 4 — TESTING & QA',
-                    'SECTION 5 — DEPLOYMENT & DOCUMENTATION',
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setNewSectionTitle(preset)}
-                      className="text-[10px] px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
-                    >
-                      {preset.split('—')[1]?.trim() || preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">
+                Save Task
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsAddSectionOpen(false);
-                    setNewSectionTitle('');
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleAddSection()}
-                  className="bg-primary text-primary-foreground gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Create Section
-                </Button>
+      {/* Add Section Modal Dialog */}
+      <Dialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen}>
+        <DialogContent className="max-w-md space-y-4">
+          <DialogHeader className="border-b border-border/60 pb-3">
+            <DialogTitle id="add-section-modal-title" className="text-base">
+              Create Milestone Section
+            </DialogTitle>
+            <DialogDescription>Add a section to organize schedule deliverables.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3.5 text-xs">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-section-input" className="font-semibold">
+                Section Name *
+              </Label>
+              <Input
+                id="new-section-input"
+                placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
+                value={newSectionTitle}
+                onChange={(e) => setNewSectionTitle(e.target.value)}
+                className="h-9 text-xs"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSection();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Standard Capstone Suggestions:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'SECTION 1 — PROJECT PLANNING & RESEARCH',
+                  'SECTION 2 — ARCHITECTURE & SYSTEM DESIGN',
+                  'SECTION 3 — DEVELOPMENT & SYSTEM INTEGRATION',
+                  'SECTION 4 — TESTING & QA',
+                  'SECTION 5 — DEPLOYMENT & DOCUMENTATION',
+                ].map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setNewSectionTitle(preset)}
+                    className="h-auto min-h-0 min-w-0 px-2 py-1 text-[10px]"
+                  >
+                    {preset.split('—')[1]?.trim() || preset}
+                  </Button>
+                ))}
               </div>
             </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsAddSectionOpen(false);
+                  setNewSectionTitle('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleAddSection()}
+                className="bg-primary text-primary-foreground gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Create Section
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
       <WeeklyProgressCheckIns
         project={project}
         isReadOnly={isReadOnly || isProjectArchived}

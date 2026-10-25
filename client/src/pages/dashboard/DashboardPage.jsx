@@ -6,6 +6,8 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
 
 const FacultyDashboardV2 = lazy(() => import('@/components/dashboards/FacultyDashboard'));
 const InstructorDashboardV2 = lazy(() => import('@/components/dashboards/InstructorDashboard'));
@@ -209,7 +211,7 @@ function StudentDashboard({ user }) {
       {isLoading && (
         <Card className="rounded-xl border-border/60">
           <CardContent className="flex items-center gap-3 p-6">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <Spinner />
             <p className="text-sm text-muted-foreground">Loading student dashboard insights...</p>
           </CardContent>
         </Card>
@@ -264,8 +266,8 @@ function StudentDashboard({ user }) {
                 <div
                   className={`relative flex flex-col justify-between rounded-xl border p-5 transition-all shadow-xs ${
                     user.sectionId && user.instructorId
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
-                      : 'border-amber-500/40 bg-amber-500/5'
+                      ? 'border-success/30 bg-success/5'
+                      : 'border-warning/40 bg-warning/5'
                   }`}
                 >
                   <div>
@@ -431,12 +433,12 @@ function StudentDashboard({ user }) {
               title="Team Members"
               metric={team?.memberCount ?? team?.members?.length ?? 0}
               description={team.name}
-              accent="text-sky-600 dark:text-sky-400"
+              accent="text-info-foreground"
             />
             <Card className="rounded-xl border border-border/60 bg-card p-5 shadow-xs transition-colors hover:border-border">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-emerald-600 dark:text-emerald-400">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-success">
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -471,9 +473,9 @@ function StudentDashboard({ user }) {
                         key={ch}
                         className={`h-2 rounded-full transition-all ${
                           isApproved
-                            ? 'bg-emerald-500 shadow-2xs shadow-emerald-500/20'
+                            ? 'bg-success'
                             : isInProgress
-                              ? 'bg-amber-500/80 animate-pulse'
+                              ? 'bg-warning/80'
                               : 'bg-muted/70'
                         }`}
                         title={`Chapter ${ch}: ${formatChapterStatus(chapterInfo?.status || 'not_started')}`}
@@ -493,7 +495,7 @@ function StudentDashboard({ user }) {
                 <CardHeader className="border-b border-border/60 bg-muted/20 px-4 sm:px-6 py-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info-foreground">
                         <FolderKanban className="h-4 w-4" />
                       </div>
                       <div>
@@ -562,7 +564,7 @@ function StudentDashboard({ user }) {
               <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
                 <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning-foreground">
                       <Bell className="h-4 w-4" />
                     </div>
                     <div>
@@ -625,7 +627,7 @@ function StudentDashboard({ user }) {
               <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
                 <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                       <Clock3 className="h-4 w-4" />
                     </div>
                     <div>
@@ -658,12 +660,12 @@ function StudentDashboard({ user }) {
                             {completionPercent}%
                           </span>
                         </div>
-                        <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
-                          <div
-                            className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
-                            style={{ width: `${completionPercent}%` }}
-                          />
-                        </div>
+                        <Progress
+                          value={completionPercent}
+                          aria-label={`Completion progress: ${completionPercent}%`}
+                          className="h-2 bg-muted/60"
+                          indicatorClassName="bg-success transition-all duration-500"
+                        />
                       </div>
                       <div className="space-y-2 pt-1">
                         {derivedChapterProgress.map((chapter) => (

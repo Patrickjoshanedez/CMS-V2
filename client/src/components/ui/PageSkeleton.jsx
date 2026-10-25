@@ -14,7 +14,6 @@ import {
  */
 function useSafePathname() {
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const location = useLocation();
     return location?.pathname || '';
   } catch {
@@ -27,9 +26,15 @@ function useSafePathname() {
  */
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse" aria-busy="true" aria-label="Loading dashboard...">
+    <div
+      className="space-y-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading dashboard..."
+    >
       {/* Welcome Banner */}
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-sm">
+      <div className="overflow-hidden rounded-lg border border-border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-8 w-64 rounded-lg" />
@@ -45,10 +50,7 @@ export function DashboardSkeleton() {
       {/* Metric Cards Row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm space-y-3"
-          >
+          <div key={i} className="space-y-3 rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-28 rounded" />
               <Skeleton className="h-8 w-8 rounded-lg" />
@@ -62,7 +64,7 @@ export function DashboardSkeleton() {
       {/* Main Multi-column Area */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Left main card */}
-        <div className="xl:col-span-3 rounded-xl border border-border/70 bg-card/60 p-6 space-y-4 shadow-sm">
+        <div className="xl:col-span-3 space-y-4 rounded-lg border border-border bg-card p-6">
           <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-44 rounded-md" />
             <SkeletonButton size="sm" />
@@ -76,7 +78,7 @@ export function DashboardSkeleton() {
         </div>
 
         {/* Right status card */}
-        <div className="xl:col-span-2 rounded-xl border border-border/70 bg-card/60 p-6 space-y-4 shadow-sm">
+        <div className="xl:col-span-2 space-y-4 rounded-lg border border-border bg-card p-6">
           <Skeleton className="h-6 w-36 rounded-md" />
           <div className="space-y-3">
             <Skeleton className="h-12 w-full rounded-lg" />
@@ -99,7 +101,13 @@ export function DashboardSkeleton() {
  */
 export function TableSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse" aria-busy="true" aria-label="Loading data table...">
+    <div
+      className="space-y-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading data table..."
+    >
       {/* Header with Title & Action */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-2">
@@ -120,7 +128,7 @@ export function TableSkeleton() {
       </div>
 
       {/* Table Container */}
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 shadow-sm">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         {/* Table Header */}
         <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-6 py-3.5">
           <Skeleton className="h-4 w-32 rounded" />
@@ -158,7 +166,13 @@ export function TableSkeleton() {
  */
 export function DetailSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse" aria-busy="true" aria-label="Loading details...">
+    <div
+      className="space-y-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading details..."
+    >
       {/* Breadcrumb & Navigation */}
       <div className="flex items-center gap-2">
         <Skeleton className="h-4 w-20 rounded" />
@@ -207,7 +221,13 @@ export function DetailSkeleton() {
  */
 export function CardGridSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse" aria-busy="true" aria-label="Loading items...">
+    <div
+      className="space-y-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading items..."
+    >
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <Skeleton className="h-7 w-48 rounded-lg" />
@@ -231,7 +251,9 @@ export function CardGridSkeleton() {
 export function FormSkeleton() {
   return (
     <div
-      className="space-y-6 max-w-3xl animate-pulse"
+      className="space-y-6 max-w-3xl"
+      role="status"
+      aria-live="polite"
       aria-busy="true"
       aria-label="Loading form..."
     >

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react';
 
 /**
@@ -48,13 +49,11 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
       ...d,
       type: 'deadline',
       date: new Date(d.dueDate || d.date),
-      color: 'bg-purple-500/10 text-purple-700 border-purple-300',
     })),
     ...defenseSchedules.map((s) => ({
       ...s,
       type: 'defense',
       date: new Date(s.scheduledAt || s.date),
-      color: 'bg-emerald-500/10 text-emerald-700 border-emerald-300',
     })),
   ];
 
@@ -82,20 +81,26 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
           </CardTitle>
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={handlePrevMonth}
-            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="text-muted-foreground"
             aria-label="Previous Month"
           >
             <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={handleNextMonth}
-            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="text-muted-foreground"
             aria-label="Next Month"
           >
             <ChevronRight className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </CardHeader>
 
@@ -129,36 +134,36 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
                 year === new Date().getFullYear();
 
               return (
-                <button
+                <Button
                   key={`day-${day}`}
+                  type="button"
+                  variant="outline"
                   onClick={() => {
                     setSelectedDay(day);
                     onSelectDate?.(new Date(year, month, day));
                   }}
-                  className={`h-12 p-1 rounded-md border flex flex-col items-center justify-between text-xs transition-all relative ${
+                  className={`h-12 w-full min-w-0 rounded-md p-1 flex flex-col items-center justify-between text-xs transition-all relative ${
                     isSelected
                       ? 'border-primary ring-2 ring-primary/20 bg-primary/5 font-bold'
                       : isToday
-                        ? 'border-emerald-500 bg-emerald-50/50 font-bold'
-                        : 'border-border/50 hover:bg-muted/20'
+                        ? 'border-success/40 bg-success/10 font-bold'
+                        : 'border-border/60 bg-card hover:bg-muted/50'
                   }`}
                 >
-                  <span className={`${isToday ? 'text-emerald-700' : 'text-foreground'}`}>
-                    {day}
-                  </span>
+                  <span className={`${isToday ? 'text-success' : 'text-foreground'}`}>{day}</span>
                   {dayEvents.length > 0 && (
                     <div className="flex gap-0.5 mt-0.5">
                       {dayEvents.slice(0, 3).map((e, idx) => (
                         <span
                           key={idx}
                           className={`h-1.5 w-1.5 rounded-full ${
-                            e.type === 'defense' ? 'bg-emerald-500' : 'bg-purple-500'
+                            e.type === 'defense' ? 'bg-success' : 'bg-warning'
                           }`}
                         />
                       ))}
                     </div>
                   )}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -184,7 +189,11 @@ export function CalendarScheduler({ deadlines = [], defenseSchedules = [], onSel
               selectedEvents.map((evt, idx) => (
                 <div
                   key={evt._id || idx}
-                  className={`p-2.5 rounded-md border text-xs space-y-1 ${evt.color}`}
+                  className={`space-y-1 rounded-md border p-2.5 text-xs ${
+                    evt.type === 'defense'
+                      ? 'border-success/30 bg-success/10 text-success-foreground'
+                      : 'border-warning/30 bg-warning/10 text-warning-foreground'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{evt.title || evt.projectTitle || 'Event'}</span>

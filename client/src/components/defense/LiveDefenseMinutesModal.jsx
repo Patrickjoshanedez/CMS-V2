@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
   X,
@@ -13,20 +12,26 @@ import {
   Lock,
   Clock,
   Printer,
-  Loader2,
   ShieldCheck,
   Award,
   Sparkles,
-  ChevronRight,
   User,
-  Radio,
-  Building,
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import { defenseMinutesService } from '@/services/defenseMinutesService';
 import { getSocket } from '@/services/socket';
@@ -47,17 +52,17 @@ const SEVERITIES = [
   {
     value: 'minor',
     label: 'Minor',
-    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    color: 'bg-chart-1/10 text-chart-1 border-chart-1/30',
   },
   {
     value: 'major',
     label: 'Major',
-    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    color: 'bg-warning/10 text-warning-foreground border-warning/30',
   },
   {
     value: 'critical',
     label: 'Critical',
-    color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30',
+    color: 'bg-destructive/10 text-destructive border-destructive/30',
   },
 ];
 
@@ -143,7 +148,10 @@ export default function LiveDefenseMinutesModal({
   projectTitle = '',
   project,
   panelists = EMPTY_PANELISTS,
-  user,
+  canWriteMinutes = false,
+  canFinalizeVerdict = false,
+  canAggregateScores = false,
+  canPublishMatrix = false,
   onPublished,
   onMinutesPublished,
 }) {
@@ -213,7 +221,7 @@ export default function LiveDefenseMinutesModal({
     return 'Antipuesto, Throylan; Canoy, Chijay; Anedez, Patrick Josh; Bautista, Steven Joe';
   }, [project]);
 
-  const entries = minutes?.entries || [];
+  const entries = Array.isArray(minutes?.entries) ? minutes.entries : EMPTY_PANELISTS;
 
   // Group entries by panelist
   const entriesByPanelist = useMemo(() => {
@@ -285,21 +293,10 @@ export default function LiveDefenseMinutesModal({
     };
   }, [projectId, isVisible, loadSession]);
 
-  // Close on Escape key press
-  useEffect(() => {
-    if (!isVisible) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, handleClose]);
-
   // Handle Add Entry (Panelist Comment)
   const handleAddEntry = async (e) => {
     if (e) e.preventDefault();
+    if (!canWriteMinutes) return;
     if (!panelistName.trim()) {
       toast.error('Please specify or select a panelist.');
       return;
@@ -338,6 +335,7 @@ export default function LiveDefenseMinutesModal({
 
   // Add Client Comment Bullet Point
   const handleAddClientComment = async () => {
+    if (!canWriteMinutes) return;
     if (!newClientComment.trim()) return;
     const updated = [...clientComments, newClientComment.trim()];
     setClientComments(updated);
@@ -356,6 +354,7 @@ export default function LiveDefenseMinutesModal({
 
   // Remove Client Comment Bullet Point
   const handleRemoveClientComment = async (index) => {
+    if (!canWriteMinutes) return;
     const updated = clientComments.filter((_, idx) => idx !== index);
     setClientComments(updated);
     try {
@@ -371,6 +370,7 @@ export default function LiveDefenseMinutesModal({
 
   // Handle Delete Entry
   const handleDeleteEntry = async (entryId) => {
+    if (!canWriteMinutes) return;
     try {
       const res = await defenseMinutesService.deleteEntry(projectId, defenseType, entryId);
       toast.success('Item removed from minutes.');
@@ -382,6 +382,7 @@ export default function LiveDefenseMinutesModal({
 
   // Save session details (venue, round, client, overall recommendations)
   const handleSaveSessionDetails = async () => {
+    if (!canWriteMinutes) return;
     setIsSavingSession(true);
     try {
       await defenseMinutesService.updateSessionDetails(projectId, defenseType, {
@@ -401,6 +402,7 @@ export default function LiveDefenseMinutesModal({
 
   // Handle Lock Scores
   const handleLockScores = async () => {
+    if (!canAggregateScores) return;
     setIsLockingScores(true);
     try {
       const res = await defenseMinutesService.lockCompositeScores(projectId, defenseType, {
@@ -418,6 +420,7 @@ export default function LiveDefenseMinutesModal({
 
   // Handle Finalize Verdict
   const handleFinalizeVerdict = async () => {
+    if (!canFinalizeVerdict) return;
     setIsFinalizingVerdict(true);
     try {
       const res = await defenseMinutesService.finalizeVerdict(projectId, defenseType, {
@@ -436,6 +439,7 @@ export default function LiveDefenseMinutesModal({
 
   // Handle Publish to Action Done Matrix
   const handlePublishToADM = async () => {
+    if (!canPublishMatrix) return;
     const totalItems = (minutes?.entries?.length || 0) + (clientComments?.length || 0);
     if (totalItems === 0) {
       toast.error(
@@ -471,6 +475,7 @@ export default function LiveDefenseMinutesModal({
 
   // Quick Load Institutional Reference Data from the BukSU sample
   const handleLoadInstitutionalSample = async () => {
+    if (!canWriteMinutes) return;
     setIsLoading(true);
     try {
       setVenue(INSTITUTIONAL_SAMPLE.venue);
@@ -541,8 +546,16 @@ export default function LiveDefenseMinutesModal({
   if (!isVisible) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <Dialog
+      open={isVisible}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) handleClose();
+      }}
+    >
+      <DialogContent
+        showClose={false}
+        className="flex max-h-[95vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden rounded-xl border-border bg-card p-0 shadow-lg sm:max-w-5xl"
+      >
         {/* Modal Top Header Bar */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-border bg-muted/30 no-print">
           <div className="flex items-center gap-3 min-w-0">
@@ -551,9 +564,9 @@ export default function LiveDefenseMinutesModal({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-foreground truncate">
+                <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
                   Secretary&apos;s Minutes Studio — OVPAA-F-INS-032
-                </h2>
+                </DialogTitle>
                 <Badge
                   variant="outline"
                   className="text-[10px] uppercase font-mono tracking-wider border-primary/40 bg-primary/10 text-primary"
@@ -563,7 +576,7 @@ export default function LiveDefenseMinutesModal({
                 {isLiveSyncing && (
                   <Badge
                     variant="outline"
-                    className="text-[10px] border-emerald-500/40 bg-emerald-500/10 text-emerald-600 animate-pulse flex items-center gap-1"
+                    className="flex items-center gap-1 border-success/40 bg-success/10 text-[10px] text-success-foreground animate-pulse"
                   >
                     <RefreshCw className="h-2.5 w-2.5 animate-spin" />
                     Live Synced
@@ -572,7 +585,7 @@ export default function LiveDefenseMinutesModal({
                 {isMatrixPublished && (
                   <Badge
                     variant="outline"
-                    className="text-[10px] border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
+                    className="border-success/40 bg-success/10 text-[10px] text-success-foreground"
                   >
                     ADM Published
                   </Badge>
@@ -610,70 +623,94 @@ export default function LiveDefenseMinutesModal({
         </div>
 
         {/* Tab Navigation Ribbon */}
-        <div className="flex items-center gap-1 px-6 pt-2 border-b border-border bg-card no-print overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('ovpaa_minutes')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
-              activeTab === 'ovpaa_minutes'
-                ? 'border-primary text-primary font-bold'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Official Minutes (OVPAA-F-INS-032)
-          </button>
+        <div
+          role="tablist"
+          aria-label="Defense minutes sections"
+          className="flex items-center gap-1 px-6 pt-2 border-b border-border bg-card no-print overflow-x-auto"
+        >
+          {canWriteMinutes && (
+            <Button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'ovpaa_minutes'}
+              onClick={() => setActiveTab('ovpaa_minutes')}
+              variant="ghost"
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
+                activeTab === 'ovpaa_minutes'
+                  ? 'border-primary text-primary font-bold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Official Minutes (OVPAA-F-INS-032)
+            </Button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('quick_entry')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
-              activeTab === 'quick_entry'
-                ? 'border-primary text-primary font-bold'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Quick-Log Remark ({entries.length})
-          </button>
+          {canWriteMinutes && (
+            <Button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'quick_entry'}
+              onClick={() => setActiveTab('quick_entry')}
+              variant="ghost"
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
+                activeTab === 'quick_entry'
+                  ? 'border-primary text-primary font-bold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Quick-Log Remark ({entries.length})
+            </Button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('scores')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
-              activeTab === 'scores'
-                ? 'border-primary text-primary font-bold'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Calculator className="h-3.5 w-3.5" />
-            Score Consolidator
-            {isScoreLocked && <Lock className="h-3 w-3 text-emerald-500" />}
-          </button>
+          {canAggregateScores && (
+            <Button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'scores'}
+              onClick={() => setActiveTab('scores')}
+              variant="ghost"
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
+                activeTab === 'scores'
+                  ? 'border-primary text-primary font-bold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Calculator className="h-3.5 w-3.5" />
+              Score Consolidator
+              {isScoreLocked && <Lock className="h-3 w-3 text-success-foreground" />}
+            </Button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('verdict')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
-              activeTab === 'verdict'
-                ? 'border-primary text-primary font-bold'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Gavel className="h-3.5 w-3.5" />
-            Consensus &amp; Publish ADM
-          </button>
+          {canFinalizeVerdict && (
+            <Button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'verdict'}
+              onClick={() => setActiveTab('verdict')}
+              variant="ghost"
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all whitespace-nowrap',
+                activeTab === 'verdict'
+                  ? 'border-primary text-primary font-bold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Gavel className="h-3.5 w-3.5" />
+              Consensus &amp; Publish ADM
+            </Button>
+          )}
         </div>
 
         {/* Modal Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Spinner className="size-8 text-primary" />
               <p className="text-sm font-medium">Synchronizing official defense records...</p>
             </div>
           ) : (
@@ -695,7 +732,7 @@ export default function LiveDefenseMinutesModal({
                         variant="outline"
                         size="sm"
                         onClick={handleLoadInstitutionalSample}
-                        className="text-xs h-7 gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                        className="h-7 gap-1 border-warning/30 text-xs text-warning-foreground hover:bg-warning/10"
                       >
                         <Sparkles className="h-3 w-3" />
                         Load Reference Sample
@@ -704,11 +741,16 @@ export default function LiveDefenseMinutesModal({
                         type="button"
                         size="sm"
                         onClick={handlePublishToADM}
-                        disabled={isPublishingADM}
+                        disabled={isPublishingADM || !canPublishMatrix}
+                        title={
+                          !canPublishMatrix
+                            ? 'Only the Course Instructor or appointed Secretary can publish to the ADM.'
+                            : undefined
+                        }
                         className="text-xs h-7 font-semibold gap-1 bg-primary text-primary-foreground shadow-xs"
                       >
                         {isPublishingADM ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Spinner className="h-3 w-3" />
                         ) : (
                           <CheckCircle2 className="h-3 w-3" />
                         )}
@@ -862,14 +904,17 @@ export default function LiveDefenseMinutesModal({
                                     {items.map((item) => (
                                       <li key={item._id} className="text-xs">
                                         <span>{item.critique}</span>
-                                        <button
+                                        <Button
                                           type="button"
                                           onClick={() => handleDeleteEntry(item._id)}
-                                          className="ml-2 text-muted-foreground hover:text-destructive no-print inline"
+                                          variant="ghost"
+                                          size="sm"
+                                          aria-label="Remove this bullet item"
+                                          className="ml-2 inline h-5 px-1 text-muted-foreground hover:text-destructive no-print"
                                           title="Remove this bullet item"
                                         >
                                           ×
-                                        </button>
+                                        </Button>
                                       </li>
                                     ))}
                                   </ul>
@@ -910,13 +955,16 @@ export default function LiveDefenseMinutesModal({
                                       className="text-xs flex items-start justify-between gap-2"
                                     >
                                       <span>{cc}</span>
-                                      <button
+                                      <Button
                                         type="button"
                                         onClick={() => handleRemoveClientComment(idx)}
-                                        className="text-muted-foreground hover:text-destructive no-print shrink-0"
+                                        variant="ghost"
+                                        size="sm"
+                                        aria-label="Remove client comment"
+                                        className="h-6 shrink-0 px-1 text-muted-foreground hover:text-destructive no-print"
                                       >
                                         <Trash2 className="h-3 w-3" />
-                                      </button>
+                                      </Button>
                                     </li>
                                   ))}
                                 </ul>
@@ -970,18 +1018,24 @@ export default function LiveDefenseMinutesModal({
                     {/* Panel Verdict */}
                     <div className="space-y-2 font-sans pt-2">
                       <Label className="text-xs font-bold text-foreground">Panel Verdict:</Label>
-                      <div className="flex flex-wrap gap-4 text-xs">
-                        {VERDICTS.map((v) => (
-                          <label key={v.value} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="doc_verdict"
+                      <RadioGroup
+                        aria-label="Panel verdict"
+                        value={selectedVerdict || undefined}
+                        onValueChange={setSelectedVerdict}
+                        className="flex flex-wrap gap-4 text-xs"
+                      >
+                        {VERDICTS.map((v, index) => (
+                          <div
+                            key={v.value}
+                            className="flex cursor-pointer items-center gap-2"
+                            onClick={() => setSelectedVerdict(v.value)}
+                          >
+                            <RadioGroupItem
                               value={v.value}
-                              checked={selectedVerdict === v.value}
-                              onChange={(e) => setSelectedVerdict(e.target.value)}
-                              className="text-primary focus:ring-primary h-4 w-4"
+                              aria-labelledby={`minutes-panel-verdict-${index}`}
                             />
                             <span
+                              id={`minutes-panel-verdict-${index}`}
                               className={
                                 selectedVerdict === v.value
                                   ? 'font-bold text-foreground'
@@ -990,9 +1044,9 @@ export default function LiveDefenseMinutesModal({
                             >
                               {v.label}
                             </span>
-                          </label>
+                          </div>
                         ))}
-                      </div>
+                      </RadioGroup>
                     </div>
 
                     {/* Secretary Signature Block */}
@@ -1026,21 +1080,26 @@ export default function LiveDefenseMinutesModal({
                       variant="outline"
                       size="sm"
                       onClick={handleSaveSessionDetails}
-                      disabled={isSavingSession}
+                      disabled={isSavingSession || !canWriteMinutes}
                       className="text-xs h-8 gap-1.5"
                     >
-                      {isSavingSession && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {isSavingSession && <Spinner className="h-3.5 w-3.5" />}
                       Save Minutes Draft
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       onClick={handlePublishToADM}
-                      disabled={isPublishingADM}
+                      disabled={isPublishingADM || !canPublishMatrix}
+                      title={
+                        !canPublishMatrix
+                          ? 'Only the Course Instructor or appointed Secretary can publish to the ADM.'
+                          : undefined
+                      }
                       className="text-xs h-8 font-semibold gap-1.5 shadow-xs"
                     >
                       {isPublishingADM ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Spinner className="h-3.5 w-3.5" />
                       ) : (
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       )}
@@ -1070,17 +1129,22 @@ export default function LiveDefenseMinutesModal({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs font-medium text-foreground">Category</Label>
-                        <select
-                          value={category}
-                          onChange={(e) => setCategory(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                        >
-                          {CATEGORIES.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
-                          ))}
-                        </select>
+                        <Select value={category} onValueChange={setCategory}>
+                          <SelectTrigger
+                            id="minutes-category"
+                            aria-label="Category"
+                            className="h-9 text-xs"
+                          >
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-1">
@@ -1088,17 +1152,22 @@ export default function LiveDefenseMinutesModal({
                           Panelist Attribution
                         </Label>
                         {candidatePanelists.length > 0 ? (
-                          <select
-                            value={panelistName}
-                            onChange={(e) => setPanelistName(e.target.value)}
-                            className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                          >
-                            {candidatePanelists.map((p) => (
-                              <option key={p.id} value={p.name}>
-                                {p.name} ({p.role})
-                              </option>
-                            ))}
-                          </select>
+                          <Select value={panelistName} onValueChange={setPanelistName}>
+                            <SelectTrigger
+                              id="minutes-panelist"
+                              aria-label="Panelist Attribution"
+                              className="h-9 text-xs"
+                            >
+                              <SelectValue placeholder="Select panelist" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {candidatePanelists.map((p) => (
+                                <SelectItem key={p.id} value={p.name}>
+                                  {p.name} ({p.role})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <Input
                             placeholder="e.g. Dr. Louie Jay Labastida"
@@ -1112,17 +1181,22 @@ export default function LiveDefenseMinutesModal({
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-foreground">Severity</Label>
-                          <select
-                            value={severity}
-                            onChange={(e) => setSeverity(e.target.value)}
-                            className="w-full h-9 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-                          >
-                            {SEVERITIES.map((s) => (
-                              <option key={s.value} value={s.value}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
+                          <Select value={severity} onValueChange={setSeverity}>
+                            <SelectTrigger
+                              id="minutes-severity"
+                              aria-label="Severity"
+                              className="h-9 text-xs"
+                            >
+                              <SelectValue placeholder="Select severity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SEVERITIES.map((s) => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium text-foreground">
@@ -1174,7 +1248,7 @@ export default function LiveDefenseMinutesModal({
                         className="gap-2 font-semibold shadow-xs"
                       >
                         {isSubmittingEntry ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <Plus className="h-3.5 w-3.5" />
                         )}
@@ -1229,10 +1303,10 @@ export default function LiveDefenseMinutesModal({
                                   className={cn(
                                     'text-[10px] capitalize',
                                     item.severity === 'critical'
-                                      ? 'border-rose-500/40 text-rose-600 bg-rose-500/10'
+                                      ? 'border-destructive/40 text-destructive bg-destructive/10'
                                       : item.severity === 'major'
-                                        ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
-                                        : 'border-blue-500/40 text-blue-600 bg-blue-500/10',
+                                        ? 'border-warning/40 text-warning-foreground bg-warning/10'
+                                        : 'border-chart-1/40 text-chart-1 bg-chart-1/10',
                                   )}
                                 >
                                   {item.severity}
@@ -1308,14 +1382,14 @@ export default function LiveDefenseMinutesModal({
                         {liveScores?.passingThresholdMet ? (
                           <Badge
                             variant="outline"
-                            className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 font-bold text-xs py-1"
+                            className="border-success/40 bg-success/10 py-1 text-xs font-bold text-success-foreground"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Passed (≥75%)
                           </Badge>
                         ) : liveScores?.submittedCount > 0 ? (
                           <Badge
                             variant="outline"
-                            className="border-rose-500/40 text-rose-600 bg-rose-500/10 font-bold text-xs py-1"
+                            className="border-destructive/40 bg-destructive/10 py-1 text-xs font-bold text-destructive"
                           >
                             <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Below 75%
                           </Badge>
@@ -1377,8 +1451,8 @@ export default function LiveDefenseMinutesModal({
                                     className={cn(
                                       'text-[10px] capitalize',
                                       row.status === 'submitted' || row.status === 'released'
-                                        ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
-                                        : 'border-amber-500/40 text-amber-600 bg-amber-500/10',
+                                        ? 'border-success/40 bg-success/10 text-success-foreground'
+                                        : 'border-warning/40 bg-warning/10 text-warning-foreground',
                                     )}
                                   >
                                     {row.status}
@@ -1397,13 +1471,13 @@ export default function LiveDefenseMinutesModal({
                                       className={cn(
                                         'text-[10px] capitalize',
                                         ['passed', 'approved'].includes(row.decision.toLowerCase())
-                                          ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
+                                          ? 'border-success/40 bg-success/10 text-success-foreground'
                                           : [
                                                 'passed_with_revisions',
                                                 'passed_with_revision',
                                               ].includes(row.decision.toLowerCase())
-                                            ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
-                                            : 'border-rose-500/40 text-rose-600 bg-rose-500/10',
+                                            ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                                            : 'border-destructive/40 bg-destructive/10 text-destructive',
                                       )}
                                     >
                                       {row.decision.replace(/_/g, ' ')}
@@ -1442,7 +1516,7 @@ export default function LiveDefenseMinutesModal({
                         {isScoreLocked && (
                           <Badge
                             variant="outline"
-                            className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-[10px]"
+                            className="border-success/40 bg-success/10 text-[10px] text-success-foreground"
                           >
                             Locked &amp; Confirmed
                           </Badge>
@@ -1456,11 +1530,11 @@ export default function LiveDefenseMinutesModal({
                     <Button
                       size="sm"
                       onClick={handleLockScores}
-                      disabled={isLockingScores || isScoreLocked}
+                      disabled={isLockingScores || isScoreLocked || !canAggregateScores}
                       className="gap-2 font-semibold shadow-xs"
                     >
                       {isLockingScores ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Spinner className="h-3.5 w-3.5" />
                       ) : (
                         <ShieldCheck className="h-3.5 w-3.5" />
                       )}
@@ -1485,29 +1559,34 @@ export default function LiveDefenseMinutesModal({
                       <Label className="text-xs font-medium text-foreground">
                         Consensus Decision
                       </Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {VERDICTS.map((v) => (
-                          <label
+                      <RadioGroup
+                        aria-label="Consensus decision"
+                        value={selectedVerdict || undefined}
+                        onValueChange={canFinalizeVerdict ? setSelectedVerdict : undefined}
+                        className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                      >
+                        {VERDICTS.map((v, index) => (
+                          <div
                             key={v.value}
+                            onClick={() => canFinalizeVerdict && setSelectedVerdict(v.value)}
                             className={cn(
-                              'flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all',
+                              'flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all',
                               selectedVerdict === v.value
-                                ? 'border-primary bg-primary/5 text-foreground font-semibold shadow-xs'
+                                ? 'border-primary bg-primary/5 font-semibold text-foreground shadow-xs'
                                 : 'border-border bg-muted/10 text-muted-foreground hover:bg-muted/20',
                             )}
                           >
-                            <input
-                              type="radio"
-                              name="verdict"
+                            <RadioGroupItem
                               value={v.value}
-                              checked={selectedVerdict === v.value}
-                              onChange={(e) => setSelectedVerdict(e.target.value)}
-                              className="text-primary focus:ring-primary h-4 w-4"
+                              aria-labelledby={`minutes-consensus-verdict-${index}`}
+                              disabled={!canFinalizeVerdict}
                             />
-                            <span className="text-xs">{v.label}</span>
-                          </label>
+                            <span id={`minutes-consensus-verdict-${index}`} className="text-xs">
+                              {v.label}
+                            </span>
+                          </div>
                         ))}
-                      </div>
+                      </RadioGroup>
                     </div>
 
                     <div className="space-y-1.5">
@@ -1517,8 +1596,9 @@ export default function LiveDefenseMinutesModal({
                       <AutoExpandingTextarea
                         placeholder="Provide consensus justification, key directions, and conditions required from the proponent team..."
                         value={verdictRemarks}
-                        onChange={(e) => setVerdictRemarks(e.target.value)}
+                        onChange={(e) => canFinalizeVerdict && setVerdictRemarks(e.target.value)}
                         rows={3}
+                        disabled={!canFinalizeVerdict}
                         className="text-xs"
                       />
                     </div>
@@ -1528,11 +1608,11 @@ export default function LiveDefenseMinutesModal({
                         size="sm"
                         variant="secondary"
                         onClick={handleFinalizeVerdict}
-                        disabled={isFinalizingVerdict}
+                        disabled={isFinalizingVerdict || !canFinalizeVerdict}
                         className="gap-1.5 font-semibold text-xs"
                       >
                         {isFinalizingVerdict ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="h-3.5 w-3.5" />
                         ) : (
                           <Gavel className="h-3.5 w-3.5" />
                         )}
@@ -1578,11 +1658,16 @@ export default function LiveDefenseMinutesModal({
                         <Button
                           size="sm"
                           onClick={handlePublishToADM}
-                          disabled={isPublishingADM}
+                          disabled={isPublishingADM || !canPublishMatrix}
+                          title={
+                            !canPublishMatrix
+                              ? 'Only the Course Instructor or appointed Secretary can publish to the ADM.'
+                              : undefined
+                          }
                           className="gap-2 font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                         >
                           {isPublishingADM ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Spinner className="h-3.5 w-3.5" />
                           ) : (
                             <CheckCircle2 className="h-3.5 w-3.5" />
                           )}
@@ -1596,11 +1681,11 @@ export default function LiveDefenseMinutesModal({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
+  return modalContent;
 }
 
 LiveDefenseMinutesModal.propTypes = {
@@ -1613,6 +1698,10 @@ LiveDefenseMinutesModal.propTypes = {
   projectTitle: PropTypes.string,
   project: PropTypes.object,
   panelists: PropTypes.array,
+  canWriteMinutes: PropTypes.bool,
+  canFinalizeVerdict: PropTypes.bool,
+  canAggregateScores: PropTypes.bool,
+  canPublishMatrix: PropTypes.bool,
   user: PropTypes.object,
   onPublished: PropTypes.func,
   onMinutesPublished: PropTypes.func,

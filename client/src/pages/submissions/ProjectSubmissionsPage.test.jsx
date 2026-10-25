@@ -179,9 +179,8 @@ describe('ProjectSubmissionsPage Suite', () => {
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Upload Chapter Manuscript');
     expect(dialog?.textContent).not.toContain('Revise Chapter 1');
-    expect(dialog?.querySelector('#upload-chapter-modal-title')?.parentElement?.textContent).not.toContain(
-      'Locked',
-    );
+    const modalTitle = dialog?.querySelector('h2')?.textContent;
+    expect(modalTitle).toBe('Upload Chapter Manuscript');
   });
 
   afterEach(() => {
@@ -212,10 +211,14 @@ describe('ProjectSubmissionsPage Suite', () => {
         container.querySelector('[data-testid="development-assets-form"]'),
     ).toBeTruthy();
     expect(
-      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only'),
+      container
+        .querySelector('[data-testid="prototype-showcase-and-demo"]')
+        ?.getAttribute('data-read-only'),
     ).toBe('true');
     expect(
-      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-can-add'),
+      container
+        .querySelector('[data-testid="prototype-showcase-and-demo"]')
+        ?.getAttribute('data-can-add'),
     ).toBe('false');
     expect(container.querySelector('[data-testid="chapter-card-4"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-5"]')).toBeTruthy();
@@ -251,7 +254,9 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
     expect(document.body.querySelector('[data-testid="interactive-gantt-chart"]')).toBeTruthy();
     expect(
-      document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+      document.body
+        .querySelector('[data-testid="interactive-gantt-chart"]')
+        ?.getAttribute('data-read-only'),
     ).toBe('true');
     expect(document.body.textContent).toContain('Capstone 2: Interactive Academic Gantt Chart');
 
@@ -282,7 +287,9 @@ describe('ProjectSubmissionsPage Suite', () => {
       'Capstone 2 development assets unlock after your Capstone 1 Action Done Matrix',
     );
     expect(
-      container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only'),
+      container
+        .querySelector('[data-testid="prototype-showcase-and-demo"]')
+        ?.getAttribute('data-read-only'),
     ).toBe('false');
     const ganttButton = Array.from(container.querySelectorAll('button')).find((button) =>
       button.textContent.includes('Academic Gantt'),
@@ -291,7 +298,9 @@ describe('ProjectSubmissionsPage Suite', () => {
       ganttButton.click();
     });
     expect(
-      document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+      document.body
+        .querySelector('[data-testid="interactive-gantt-chart"]')
+        ?.getAttribute('data-read-only'),
     ).toBe('false');
   });
 
@@ -317,11 +326,27 @@ describe('ProjectSubmissionsPage Suite', () => {
       });
 
       expect(container.querySelector('[data-testid="archived-project-readonly"]')).toBeTruthy();
-      expect(container.querySelector('[data-testid="chapter-card-1"]')?.getAttribute('data-can-upload')).toBe('false');
-      expect(container.querySelector('[data-testid="chapter-card-4"]')?.getAttribute('data-can-upload')).toBe('false');
-      expect(container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-read-only')).toBe('true');
-      expect(container.querySelector('[data-testid="prototype-showcase-and-demo"]')?.getAttribute('data-can-add')).toBe('false');
-      expect(Array.from(container.querySelectorAll('button')).some((button) => button.textContent.includes('Upload Chapter'))).toBe(false);
+      expect(
+        container.querySelector('[data-testid="chapter-card-1"]')?.getAttribute('data-can-upload'),
+      ).toBe('false');
+      expect(
+        container.querySelector('[data-testid="chapter-card-4"]')?.getAttribute('data-can-upload'),
+      ).toBe('false');
+      expect(
+        container
+          .querySelector('[data-testid="prototype-showcase-and-demo"]')
+          ?.getAttribute('data-read-only'),
+      ).toBe('true');
+      expect(
+        container
+          .querySelector('[data-testid="prototype-showcase-and-demo"]')
+          ?.getAttribute('data-can-add'),
+      ).toBe('false');
+      expect(
+        Array.from(container.querySelectorAll('button')).some((button) =>
+          button.textContent.includes('Upload Chapter'),
+        ),
+      ).toBe(false);
 
       const ganttButton = Array.from(container.querySelectorAll('button')).find((button) =>
         button.textContent.includes('Academic Gantt'),
@@ -330,7 +355,9 @@ describe('ProjectSubmissionsPage Suite', () => {
         ganttButton.click();
       });
       expect(
-        document.body.querySelector('[data-testid="interactive-gantt-chart"]')?.getAttribute('data-read-only'),
+        document.body
+          .querySelector('[data-testid="interactive-gantt-chart"]')
+          ?.getAttribute('data-read-only'),
       ).toBe('true');
     },
   );
@@ -413,7 +440,9 @@ describe('ProjectSubmissionsPage Suite', () => {
     });
 
     // Verify the first course ADM section.
-    const admCard = container.querySelector('[data-testid="adm-section-card"][data-milestone="CAPSTONE_1"]');
+    const admCard = container.querySelector(
+      '[data-testid="adm-section-card"][data-milestone="CAPSTONE_1"]',
+    );
     expect(admCard).toBeTruthy();
     expect(admCard.textContent).toContain('Action Done Matrix (ADM)');
     expect(admCard.textContent).toContain('Cap 1 (Proposal Defense · ADM v1)');
@@ -435,7 +464,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     });
 
     // Modal is now open and renders the Capstone 1 matrix.
-    const admModal = document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]');
+    const admModal = document.body.querySelector('[role="dialog"]');
     expect(admModal).toBeTruthy();
     expect(admModal.textContent).toContain('Capstone 1: Action Done Matrix (ADM)');
     const admTab = admModal.querySelector('[data-testid="action-done-matrix-tab"]');

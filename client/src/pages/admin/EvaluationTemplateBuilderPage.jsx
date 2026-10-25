@@ -4,9 +4,27 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Checkbox } from '@/components/ui/Checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/AlertDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { Skeleton } from '@/components/ui/Skeleton';
+import Spinner from '@/components/ui/Spinner';
 import {
   useEvaluationTemplates,
   useSaveEvaluationTemplate,
@@ -15,13 +33,9 @@ import {
 import {
   Plus,
   Trash2,
-  CheckCircle2,
-  Sparkles,
-  Loader2,
   FileSpreadsheet,
   Star,
   Layers,
-  ArrowUpDown,
   ChevronUp,
   ChevronDown,
   Copy,
@@ -32,6 +46,7 @@ import { toast } from 'sonner';
 export default function EvaluationTemplateBuilderPage() {
   const [selectedDefenseType, setSelectedDefenseType] = useState('proposal');
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [templateToArchive, setTemplateToArchive] = useState(null);
 
   // Form state for creating/editing template
   const [name, setName] = useState('');
@@ -208,7 +223,7 @@ export default function EvaluationTemplateBuilderPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-w-0 space-y-6 lg:space-y-8">
+      <div data-testid="evaluation-template-builder" className="min-w-0 space-y-6 lg:space-y-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-2">
             <FileSpreadsheet className="h-6 w-6 text-primary" />
@@ -220,10 +235,16 @@ export default function EvaluationTemplateBuilderPage() {
         </div>
 
         {/* Filter by defense type */}
-        <div className="flex flex-wrap gap-3 [&>button]:min-h-11 border-b border-border pb-3">
+        <div
+          role="group"
+          aria-label="Filter rubrics by defense phase"
+          className="flex flex-wrap gap-3 border-b border-border pb-3"
+        >
           <Button
             variant={selectedDefenseType === 'proposal' ? 'default' : 'outline'}
             size="sm"
+            className="min-h-[44px]"
+            aria-pressed={selectedDefenseType === 'proposal'}
             onClick={() => setSelectedDefenseType('proposal')}
           >
             Proposal Defense Rubrics
@@ -231,6 +252,8 @@ export default function EvaluationTemplateBuilderPage() {
           <Button
             variant={selectedDefenseType === 'final' ? 'default' : 'outline'}
             size="sm"
+            className="min-h-[44px]"
+            aria-pressed={selectedDefenseType === 'final'}
             onClick={() => setSelectedDefenseType('final')}
           >
             Final Defense Rubrics
@@ -244,13 +267,23 @@ export default function EvaluationTemplateBuilderPage() {
               Configured Templates ({templates.length})
             </h3>
             {isLoading ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="space-y-3" role="status" aria-label="Loading evaluation templates">
+                {[0, 1].map((item) => (
+                  <Card key={item}>
+                    <CardHeader className="space-y-3 p-4">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-4 w-full max-w-sm" />
+                    </CardHeader>
+                    <CardContent className="flex justify-end gap-2 p-4 pt-0">
+                      <Skeleton className="h-9 w-24" />
+                      <Skeleton className="h-9 w-16" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : templates.length === 0 ? (
               <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No templates configured for this defense type yet. Use the form to create a
-                rubric.
+                No templates configured for this defense type yet. Use the form to create a rubric.
               </div>
             ) : (
               templates.map((tmpl) => (
@@ -282,7 +315,7 @@ export default function EvaluationTemplateBuilderPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 pt-2 flex flex-wrap justify-end gap-2 [&>button]:min-h-11">
+                  <CardContent className="flex flex-wrap justify-end gap-2 p-4 pt-2 [&>button]:min-h-[44px]">
                     <Button
                       size="xs"
                       variant="outline"
@@ -298,10 +331,8 @@ export default function EvaluationTemplateBuilderPage() {
                       size="xs"
                       variant="ghost"
                       className="text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        if (window.confirm(`Archive "${tmpl.name}"?`))
-                          deleteMutation.mutate(tmpl._id);
-                      }}
+                      aria-label={`Archive ${tmpl.name}`}
+                      onClick={() => setTemplateToArchive(tmpl)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -325,7 +356,7 @@ export default function EvaluationTemplateBuilderPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 [&_input]:min-h-[44px]">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="templateName">Template Name *</Label>
@@ -338,16 +369,26 @@ export default function EvaluationTemplateBuilderPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="defenseTypeSelect">Defense Phase</Label>
-                      <select
-                        id="defenseTypeSelect"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                        value={defenseType}
-                        onChange={(e) => setDefenseType(e.target.value)}
-                      >
-                        <option value="proposal">Proposal Defense</option>
-                        <option value="final">Final Defense</option>
-                      </select>
+                      <Label htmlFor="defenseTypeSelect" id="defenseTypeLabel">
+                        Defense Phase
+                      </Label>
+                      <Select value={defenseType} onValueChange={setDefenseType}>
+                        <SelectTrigger
+                          id="defenseTypeSelect"
+                          aria-labelledby="defenseTypeLabel"
+                          className="min-h-[44px]"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="proposal" className="min-h-[44px]">
+                            Proposal Defense
+                          </SelectItem>
+                          <SelectItem value="final" className="min-h-[44px]">
+                            Final Defense
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -361,17 +402,17 @@ export default function EvaluationTemplateBuilderPage() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
+                  <div className="flex min-h-[44px] items-center gap-2 pt-1">
+                    <Checkbox
                       id="isDefaultCheckbox"
                       checked={isDefault}
-                      onChange={(e) => setIsDefault(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      onCheckedChange={(checked) => setIsDefault(checked === true)}
+                      aria-label="Set as active default template"
+                      className="size-5"
                     />
                     <Label
                       htmlFor="isDefaultCheckbox"
-                      className="text-sm font-medium cursor-pointer"
+                      className="flex min-h-[44px] cursor-pointer items-center text-sm font-medium"
                     >
                       Set as active default template for {defenseType} defenses
                     </Label>
@@ -389,8 +430,8 @@ export default function EvaluationTemplateBuilderPage() {
                           type="button"
                           size="xs"
                           variant="ghost"
+                          className="min-h-[44px] gap-1 text-xs text-primary hover:bg-primary/10"
                           onClick={handleDistributeEqually}
-                          className="text-xs gap-1 text-primary hover:bg-primary/10"
                         >
                           <Scale className="h-3.5 w-3.5" /> Equalize 100%
                         </Button>
@@ -398,6 +439,7 @@ export default function EvaluationTemplateBuilderPage() {
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="min-h-[44px]"
                           onClick={handleAddCriterion}
                         >
                           <Plus className="mr-1 h-3.5 w-3.5" /> Add Criterion
@@ -416,7 +458,7 @@ export default function EvaluationTemplateBuilderPage() {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                              className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground"
                               disabled={idx === 0}
                               onClick={() => handleMoveUp(idx)}
                               title="Move criterion up"
@@ -427,7 +469,7 @@ export default function EvaluationTemplateBuilderPage() {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                              className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground"
                               disabled={idx === criteria.length - 1}
                               onClick={() => handleMoveDown(idx)}
                               title="Move criterion down"
@@ -475,7 +517,8 @@ export default function EvaluationTemplateBuilderPage() {
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="col-start-2 row-start-1 h-11 w-11 text-destructive hover:bg-destructive/10 shrink-0" aria-label={`Remove criterion ${idx + 1}`}
+                            className="col-start-2 row-start-1 min-h-[44px] min-w-[44px] shrink-0 text-destructive hover:bg-destructive/10"
+                            aria-label={`Remove criterion ${idx + 1}`}
                             onClick={() => handleRemoveCriterion(idx)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -487,12 +530,21 @@ export default function EvaluationTemplateBuilderPage() {
 
                   <div className="flex flex-wrap justify-end gap-2 pt-3 border-t">
                     {editingTemplate && (
-                      <Button type="button" variant="outline" onClick={resetForm}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-[44px]"
+                        onClick={resetForm}
+                      >
                         Cancel Edit
                       </Button>
                     )}
-                    <Button type="submit" disabled={saveMutation.isPending}>
-                      {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button
+                      type="submit"
+                      className="min-h-[44px]"
+                      disabled={saveMutation.isPending}
+                    >
+                      {saveMutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
                       {editingTemplate ? 'Save Template Changes' : 'Create Evaluation Template'}
                     </Button>
                   </div>
@@ -502,6 +554,40 @@ export default function EvaluationTemplateBuilderPage() {
           </div>
         </div>
       </div>
+      <AlertDialog
+        open={Boolean(templateToArchive)}
+        onOpenChange={(open) => {
+          if (!open) setTemplateToArchive(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive evaluation rubric?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {templateToArchive
+                ? `“${templateToArchive.name}” will no longer be available for new evaluations.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-[44px]" disabled={deleteMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              className="min-h-[44px]"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (templateToArchive) deleteMutation.mutate(templateToArchive._id);
+                setTemplateToArchive(null);
+              }}
+            >
+              {deleteMutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
+              Archive Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

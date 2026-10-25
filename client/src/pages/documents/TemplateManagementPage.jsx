@@ -4,10 +4,19 @@ import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import {
   useProjectManuscripts,
   useUploadManuscript,
@@ -16,7 +25,7 @@ import {
   useSyncManuscriptPermissions,
 } from '@/hooks/useDocuments';
 import { DOCUMENT_TYPES, ROLES } from '@cms/shared';
-import { AlertCircle, ExternalLink, FileText, Loader2, RefreshCw, Save, Send } from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText, RefreshCw, Save, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DOC_TYPE_LABELS = {
@@ -76,18 +85,18 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="documentType">Document Type</Label>
-              <select
-                id="documentType"
-                value={documentType}
-                onChange={(event) => setDocumentType(event.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <Select value={documentType} onValueChange={setDocumentType}>
+                <SelectTrigger id="documentType" aria-label="Document Type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="title">Optional Title</Label>
@@ -103,15 +112,15 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
 
           <div className="space-y-2">
             <Label htmlFor="provider">Document Provider</Label>
-            <select
-              id="provider"
-              value={externalDocProvider}
-              onChange={(event) => setExternalDocProvider(event.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="google_docs">Google Docs</option>
-              <option value="other">Other</option>
-            </select>
+            <Select value={externalDocProvider} onValueChange={setExternalDocProvider}>
+              <SelectTrigger id="provider" aria-label="Document Provider">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="google_docs">Google Docs</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -131,7 +140,7 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
 
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Spinner className="mr-2 h-4 w-4" />
             ) : (
               <ExternalLink className="mr-2 h-4 w-4" />
             )}
@@ -249,7 +258,10 @@ export default function TemplateManagementPage() {
   );
 
   const canReview = useMemo(
-    () => user?.role === ROLES.ADVISER || user?.role === ROLES.INSTRUCTOR,
+    () =>
+      user?.role === ROLES.ADVISER ||
+      user?.role === ROLES.FACULTY ||
+      user?.role === ROLES.INSTRUCTOR,
     [user?.role],
   );
 
@@ -257,6 +269,7 @@ export default function TemplateManagementPage() {
     () =>
       user?.role === ROLES.STUDENT ||
       user?.role === ROLES.ADVISER ||
+      user?.role === ROLES.FACULTY ||
       user?.role === ROLES.INSTRUCTOR,
     [user?.role],
   );
@@ -338,11 +351,7 @@ export default function TemplateManagementPage() {
           </Alert>
         )}
 
-        {projectId && isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        )}
+        {projectId && isLoading && <PageSkeleton variant="detail" />}
 
         {projectId && listError && (
           <Alert variant="destructive">

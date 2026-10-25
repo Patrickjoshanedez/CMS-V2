@@ -37,7 +37,7 @@ describe('OptimizationEngine Component', () => {
     expect(container.textContent).toContain('Choose a committee role');
   });
 
-  it('triggers onGenerate with selected role scope', () => {
+  it('triggers onGenerate with the selected committee-role option', () => {
     const handleGenerate = vi.fn();
     act(() => {
       root.render(
@@ -45,14 +45,13 @@ describe('OptimizationEngine Component', () => {
       );
     });
 
-    const panelistTab = Array.from(container.querySelectorAll('button')).find((btn) =>
-      btn.textContent.includes('Panelists'),
-    );
-    expect(panelistTab).toBeTruthy();
+    const panelistOption = container.querySelector('#workload-scope-panelist');
+    expect(panelistOption?.getAttribute('role')).toBe('radio');
 
     act(() => {
-      panelistTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      panelistOption.click();
     });
+    expect(panelistOption.getAttribute('aria-checked')).toBe('true');
 
     const generateBtn = Array.from(container.querySelectorAll('button')).find((btn) =>
       btn.textContent.includes('Generate Suggestions'),

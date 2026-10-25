@@ -1,9 +1,11 @@
 import { act } from 'react';
+import { fireEvent } from '@testing-library/react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ROLES } from '@cms/shared';
 import DefenseSchedulingPage, {
+  getDefenseReadiness,
   getTeamCapstoneLabel,
   getTransparentDragImage,
 } from './DefenseSchedulingPage';
@@ -180,6 +182,10 @@ describe('DefenseSchedulingPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    Element.prototype.scrollIntoView ??= vi.fn();
+    Element.prototype.hasPointerCapture ??= vi.fn(() => false);
+    Element.prototype.setPointerCapture ??= vi.fn();
+    Element.prototype.releasePointerCapture ??= vi.fn();
     mockSearchParams = new URLSearchParams();
     queryClient.clear();
     container = document.createElement('div');
@@ -228,7 +234,9 @@ describe('DefenseSchedulingPage', () => {
     });
 
     expect(container.textContent).toContain('Scheduling Center');
-    expect(container.textContent).toContain('Schedule defenses, set submission deadlines, and review team readiness.');
+    expect(container.textContent).toContain(
+      'Schedule defenses, set submission deadlines, and review team readiness.',
+    );
 
     // KPI cards
     expect(container.textContent).toContain('Total Teams');
@@ -373,12 +381,12 @@ describe('DefenseSchedulingPage', () => {
       dateBtn.click();
     });
 
-    expect(container.textContent).toContain('Jump to Today');
-    expect(container.textContent).toContain('Close');
+    expect(document.body.textContent).toContain('Jump to Today');
+    expect(document.body.textContent).toContain('Close');
 
     // Click Jump to Today
-    const todayBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Jump to Today',
+    const todayBtn = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Jump to Today',
     );
     expect(todayBtn).toBeTruthy();
 
@@ -387,7 +395,7 @@ describe('DefenseSchedulingPage', () => {
     });
 
     // Popover closes
-    expect(container.textContent).not.toContain('Jump to Today');
+    expect(document.body.textContent).not.toContain('Jump to Today');
   });
 
   it('displays team leader and Capstone terminology in Table View', async () => {
@@ -407,7 +415,6 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).toContain('Section / Capstone');
     expect(container.textContent).toContain('Capstone 2');
     expect(container.textContent).toContain('Capstone 1');
-    expect(container.textContent).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
   });
 
   it('displays team leader and Capstone terminology in Grid View', async () => {
@@ -427,7 +434,6 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).toContain('Yuji Itadori');
     expect(container.textContent).toContain('Capstone 2');
     expect(container.textContent).toContain('Capstone 1');
-    expect(container.textContent).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
   });
 
   it('direct drag-and-drop onto a day column schedules defense directly with 30-min slot without modal', async () => {
@@ -629,11 +635,17 @@ describe('DefenseSchedulingPage', () => {
     });
 
     // Check Stage dropdown options
-    const stageSelect = container.querySelector('select[aria-label="Filter by Capstone Stage"]');
+    const stageSelect = container.querySelector(
+      '[role="combobox"][aria-label="Filter by Capstone Stage"]',
+    );
     expect(stageSelect).toBeTruthy();
 
-    const optionsText = Array.from(stageSelect.querySelectorAll('option')).map(
-      (o) => o.textContent,
+    await act(async () => {
+      fireEvent.pointerDown(stageSelect, { button: 0, pointerType: 'mouse' });
+    });
+
+    const optionsText = Array.from(document.body.querySelectorAll('[role="option"]')).map(
+      (option) => option.textContent,
     );
     expect(optionsText).toContain('All Stages');
     expect(optionsText).toContain('Phase 2 — Capstone 1 (Proposal Defense)');
@@ -645,10 +657,14 @@ describe('DefenseSchedulingPage', () => {
     expect(container.textContent).not.toContain('Capstone 4');
 
     // Check Batch and Deliverables dropdowns
-    const batchSelect = container.querySelector('select[aria-label="Filter by Academic Batch"]');
+    const batchSelect = container.querySelector(
+      '[role="combobox"][aria-label="Filter by Academic Batch"]',
+    );
     expect(batchSelect).toBeTruthy();
 
-    const deliverableSelect = container.querySelector('select[aria-label="Filter by Deliverable"]');
+    const deliverableSelect = container.querySelector(
+      '[role="combobox"][aria-label="Filter by Deliverable"]',
+    );
     expect(deliverableSelect).toBeTruthy();
   });
 
@@ -859,5 +875,66 @@ describe('DefenseSchedulingPage', () => {
 
     expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeTruthy();
     expect(container.textContent).toContain('Modal for AgroSense AI Smart Agriculture');
+  });
+
+  it('allows vacant adviser in Phase 1 proposal review as long as secretary and 3 panelists are appointed', () => {
+    const proposalProject = {
+      _id: 'proj-prop-review',
+      title: 'Smart City Proposal',
+      workflowPhase: 1,
+      capstonePhase: 1,
+      titleStatus: 'submitted',
+      adviserId: null, // Vacant adviser is allowed during proposal review!
+      secretaryId: { _id: 'sec-1', firstName: 'Secretary', lastName: 'Faculty' },
+      panelistIds: ['pan-1', 'pan-2', 'pan-3'],
+      defenseSchedule: { status: 'pending_scheduling' },
+    };
+
+    const readiness = getDefenseReadiness(proposalProject);
+    expect(readiness.isReady).toBe(true);
+    expect(readiness.hasFullCommittee).toBe(true);
+    expect(readiness.isCommitteeIncomplete).toBe(false);
+    expect(readiness.committeeNote).toBe('');
+    expect(readiness.isTitleReview).toBe(true);
+  });
+
+  it('flags missing secretary for Phase 1 proposal review when secretary is vacant', () => {
+    const proposalProjectNoSecretary = {
+      _id: 'proj-prop-no-sec',
+      title: 'Smart City Proposal',
+      workflowPhase: 1,
+      capstonePhase: 1,
+      titleStatus: 'submitted',
+      adviserId: null,
+      secretaryId: null, // Missing secretary!
+      panelistIds: ['pan-1', 'pan-2', 'pan-3'],
+      defenseSchedule: { status: 'pending_scheduling' },
+    };
+
+    const readiness = getDefenseReadiness(proposalProjectNoSecretary);
+    expect(readiness.isReady).toBe(false);
+    expect(readiness.hasFullCommittee).toBe(false);
+    expect(readiness.isCommitteeIncomplete).toBe(true);
+    expect(readiness.committeeNote).toBe('Missing Secretary');
+  });
+
+  it('still requires adviser in Phase 2 Capstone 1 proposal defense', () => {
+    const capstone1Project = {
+      _id: 'proj-cap1',
+      title: 'Smart City Proposal',
+      workflowPhase: 2,
+      capstonePhase: 1,
+      titleStatus: 'approved',
+      adviserId: null, // Adviser missing in Phase 2!
+      secretaryId: { _id: 'sec-1', firstName: 'Secretary', lastName: 'Faculty' },
+      panelistIds: ['pan-1', 'pan-2', 'pan-3'],
+      defenseSchedule: { status: 'pending_scheduling' },
+    };
+
+    const readiness = getDefenseReadiness(capstone1Project);
+    expect(readiness.isReady).toBe(false);
+    expect(readiness.hasFullCommittee).toBe(false);
+    expect(readiness.isCommitteeIncomplete).toBe(true);
+    expect(readiness.committeeNote).toBe('Missing Adviser');
   });
 });

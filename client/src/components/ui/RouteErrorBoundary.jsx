@@ -1,9 +1,11 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation } from 'react-router-dom';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { RefreshCw, Home } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './Alert';
 import { Button } from './Button';
-import { cn } from '@/lib/utils';
+import { Card, CardContent, CardFooter, CardHeader } from './Card';
+import { topProgress } from '@/lib/topProgress';
 
 /**
  * RouteErrorBoundaryInner — Class component catching unhandled render exceptions
@@ -23,16 +25,14 @@ export class RouteErrorBoundaryInner extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    topProgress.fail();
     if (process.env.NODE_ENV !== 'test') {
       console.error('RouteErrorBoundary caught an unhandled rendering error:', error, errorInfo);
     }
   }
 
   componentDidUpdate(prevProps) {
-    if (
-      this.state.hasError &&
-      prevProps.location?.pathname !== this.props.location?.pathname
-    ) {
+    if (this.state.hasError && prevProps.location?.pathname !== this.props.location?.pathname) {
       this.setState({ hasError: false, error: null });
     }
   }
@@ -54,57 +54,53 @@ export class RouteErrorBoundaryInner extends Component {
       }
 
       return (
-        <div
-          role="alert"
-          className="min-h-[50vh] flex items-center justify-center p-4 sm:p-6"
-        >
-          <div className="max-w-md w-full bg-card border border-border/60 rounded-xl p-6 sm:p-8 shadow-sm text-center">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-6 h-6" aria-hidden="true" />
-            </div>
+        <div className="flex min-h-[50vh] items-center justify-center p-4 sm:p-6">
+          <Card className="w-full max-w-md">
+            <CardHeader className="pb-4">
+              <Alert variant="destructive" className="text-left">
+                <AlertTitle className="text-base font-semibold">Something went wrong</AlertTitle>
+                <AlertDescription className="leading-relaxed">
+                  An unexpected error occurred while loading this page. You can try recovering this
+                  view or navigate to your dashboard.
+                </AlertDescription>
+              </Alert>
+            </CardHeader>
 
-            <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight mb-2">
-              Something went wrong
-            </h2>
+            <CardContent className="space-y-5">
+              <CardFooter className="flex-col justify-center gap-2 border-t border-border/60 pt-4 sm:flex-row sm:gap-3">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={this.handleReset}
+                  className="min-h-[44px] w-full gap-1.5 sm:min-h-9 sm:w-auto"
+                >
+                  <RefreshCw className="size-4" aria-hidden="true" />
+                  <span>Try Again</span>
+                </Button>
 
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              An unexpected error occurred while loading this page. You can try recovering this view
-              or navigate to your dashboard.
-            </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={this.handleGoDashboard}
+                  className="min-h-[44px] w-full gap-1.5 sm:min-h-9 sm:w-auto"
+                >
+                  <Home className="size-4" aria-hidden="true" />
+                  <span>Go to Dashboard</span>
+                </Button>
+              </CardFooter>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={this.handleReset}
-                className="w-full sm:w-auto inline-flex items-center gap-1.5"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Try Again</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={this.handleGoDashboard}
-                className="w-full sm:w-auto inline-flex items-center gap-1.5"
-              >
-                <Home className="w-4 h-4" />
-                <span>Go to Dashboard</span>
-              </Button>
-            </div>
-
-            {process.env.NODE_ENV !== 'production' && this.state.error?.message && (
-              <details className="mt-6 text-left border border-border/40 rounded-lg p-3 bg-muted/40">
-                <summary className="text-xs font-mono font-medium text-muted-foreground cursor-pointer select-none">
-                  Error Details
-                </summary>
-                <pre className="mt-2 text-xs font-mono text-destructive whitespace-pre-wrap break-words overflow-auto max-h-32">
-                  {this.state.error.message}
-                </pre>
-              </details>
-            )}
-          </div>
+              {process.env.NODE_ENV !== 'production' && this.state.error?.message && (
+                <details className="rounded-md border border-border/60 bg-muted/40 p-3 text-left">
+                  <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    Error Details
+                  </summary>
+                  <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-destructive-text">
+                    {this.state.error.message}
+                  </pre>
+                </details>
+              )}
+            </CardContent>
+          </Card>
         </div>
       );
     }

@@ -124,12 +124,13 @@ describe('AssignCommitteeDialog', () => {
     unmount();
   });
 
-  it('calls onOpenChange(false) when Escape key is pressed', () => {
+  it('calls onOpenChange(false) when Escape is pressed inside the dialog', () => {
     const onOpenChange = vi.fn();
     const { unmount } = renderDialog({ onOpenChange });
+    const dialog = document.body.querySelector('[role="dialog"]');
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -137,14 +138,37 @@ describe('AssignCommitteeDialog', () => {
     unmount();
   });
 
-  it('locks body scroll when open and restores it when unmounted or closed', () => {
-    const initialOverflow = document.body.style.overflow;
-    const { unmount } = renderDialog({ open: true });
+  it('prevents Escape and explicit close actions while assignments are saving', () => {
+    const onOpenChange = vi.fn();
+    mockUseAssignCommittee.mockReturnValue({ mutate: vi.fn(), isPending: true });
+    const { unmount } = renderDialog({ onOpenChange });
+    const dialog = document.body.querySelector('[role="dialog"]');
 
-    expect(document.body.style.overflow).toBe('hidden');
+    act(() => {
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(document.querySelector('button[aria-label="Close"]')).toBeDisabled();
+    const cancelButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent.trim() === 'Cancel',
+    );
+    expect(cancelButton).toBeDisabled();
+    expect(document.querySelector('button[type="submit"]')).toBeDisabled();
+    expect(document.querySelector('button[type="submit"]')).toHaveAttribute('aria-busy', 'true');
 
     unmount();
-    expect(document.body.style.overflow).toBe(initialOverflow);
+  });
+
+  it('exposes modal semantics while open and removes the dialog when unmounted', () => {
+    const { unmount } = renderDialog({ open: true });
+    const dialog = document.body.querySelector('[role="dialog"]');
+
+    expect(dialog).toHaveAttribute('data-state', 'open');
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy();
+
+    unmount();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('passes faculty roles filter and strictly excludes instructors from candidate options', () => {

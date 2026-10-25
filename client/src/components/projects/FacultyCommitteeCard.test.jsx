@@ -200,6 +200,7 @@ describe('FacultyCommitteeCard', () => {
 
     // Proponent Roster
     expect(container.textContent).toContain('Proponent Roster (FRAD2)');
+    expect(container.textContent).toContain('Team AgroSense');
     expect(container.textContent).toContain('Megumi Fushiguro');
     expect(container.textContent).toContain('Project Lead & Systems Analyst');
     expect(container.textContent).toContain('Yuji Itadori');
@@ -221,6 +222,27 @@ describe('FacultyCommitteeCard', () => {
     expect(container.textContent).toContain('Incomplete (1/3)');
     expect(container.textContent).toContain('Adviser appointment pending');
     expect(container.textContent).toContain('Secretary appointment pending');
+  });
+
+  it('maps workload thresholds to shared semantic badge variants', () => {
+    expect(getWorkloadStatus(2)).toMatchObject({ label: 'Optimal Workload', variant: 'success' });
+    expect(getWorkloadStatus(4)).toMatchObject({ label: 'Near Capacity', variant: 'warning' });
+    expect(getWorkloadStatus(6)).toMatchObject({ label: 'Overloaded', variant: 'destructive' });
+  });
+
+  it('normalizes an existing Team prefix and labels roster copy actions', async () => {
+    const prefixedProject = {
+      ...mockProject,
+      teamId: { ...mockProject.teamId, name: 'Team Team AgroSense' },
+    };
+
+    await act(async () => {
+      renderComponent(prefixedProject);
+    });
+
+    expect(container.textContent).toContain('Team AgroSense');
+    expect(container.textContent).not.toContain('Team Team AgroSense');
+    expect(container.querySelector('[aria-label="Copy Megumi Fushiguro\'s email"]')).toBeTruthy();
   });
 
   it('calculates workload status accurately', () => {

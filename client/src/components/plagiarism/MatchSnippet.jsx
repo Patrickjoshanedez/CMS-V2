@@ -1,4 +1,8 @@
 import { CornerDownRight } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { toPercent } from '@/utils/similarityColor';
 
 function trimSnippet(text) {
@@ -12,39 +16,62 @@ export default function MatchSnippet({ match, sourceColor, onJump }) {
   const similarity = toPercent(match?.similarity);
 
   return (
-    <article className="space-y-3 rounded-lg border border-[var(--color-border)] bg-white p-4 shadow-[0_8px_18px_-16px_rgba(13,27,42,0.55)]">
-      <div className="space-y-1 [font-family:var(--font-body)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+    <Card className="space-y-3 p-4 shadow-sm">
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Your text
         </p>
-        <p className="rounded-md bg-[color-mix(in_srgb,var(--color-bg)_85%,white)] p-2 text-sm text-[var(--color-text-primary)] [font-family:var(--font-mono)]">
+        <p className="break-words rounded-md bg-muted/60 p-2 font-mono text-sm text-foreground">
           {trimSnippet(match?.submittedText)}
         </p>
       </div>
 
-      <div className="space-y-1 [font-family:var(--font-body)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Source text
         </p>
-        <p className="rounded-md bg-[color-mix(in_srgb,var(--color-bg)_78%,white)] p-2 text-sm text-[var(--color-text-primary)] [font-family:var(--font-mono)]">
+        <p className="break-words rounded-md bg-muted/60 p-2 font-mono text-sm text-foreground">
           {trimSnippet(match?.matchedText)}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 [font-family:var(--font-body)]">
-        <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
-          Similarity: <span style={{ color: sourceColor }}>{Math.round(similarity)}%</span>
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <span>Similarity</span>
+          <Badge
+            variant="outline"
+            className="gap-1.5 border-[color:var(--source-color)] text-foreground"
+            style={{ '--source-color': sourceColor }}
+          >
+            <span
+              aria-hidden="true"
+              className="size-1.5 rounded-full bg-[color:var(--source-color)]"
+            />
+            {Math.round(similarity)}%
+          </Badge>
+        </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onJump}
-          className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg)]"
+          className="gap-1.5 text-xs font-medium"
         >
           <CornerDownRight className="h-3.5 w-3.5" />
           Jump to in document
-        </button>
+        </Button>
       </div>
-    </article>
+    </Card>
   );
 }
+
+MatchSnippet.propTypes = {
+  match: PropTypes.shape({
+    similarity: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    submittedText: PropTypes.string,
+    matchedText: PropTypes.string,
+  }),
+  sourceColor: PropTypes.string,
+  onJump: PropTypes.func,
+};

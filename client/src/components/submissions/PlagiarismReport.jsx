@@ -1,5 +1,17 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Progress } from '@/components/ui/Progress';
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
+import { Spinner } from '@/components/ui/Spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 import OriginalityBadge from './OriginalityBadge';
 import { buildTopSourceColorMap } from '../../hooks/useSubmissions';
@@ -26,17 +38,17 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
   /* ────── Loading skeleton ────── */
   if (isLoading) {
     return (
-      <Card className={className}>
+      <Card className={className} aria-busy="true">
         <CardHeader>
           <CardTitle className="text-base">Originality Report</CardTitle>
           <CardDescription>Loading plagiarism check results…</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 animate-pulse rounded-full bg-muted" />
+            <Skeleton className="h-16 w-16 rounded-full" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+              <SkeletonText className="h-4 w-1/3" />
+              <SkeletonText className="h-3 w-2/3" />
             </div>
           </div>
         </CardContent>
@@ -50,8 +62,15 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
       <Card className={className}>
         <CardHeader>
           <CardTitle className="text-base">Originality Report</CardTitle>
-          <CardDescription>No plagiarism check has been run for this submission.</CardDescription>
+          <CardDescription>No originality check has been run for this submission.</CardDescription>
         </CardHeader>
+        <CardContent>
+          <Alert variant="info">
+            <AlertDescription>
+              Results will appear here after the document has been checked.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
       </Card>
     );
   }
@@ -71,9 +90,11 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-500 dark:bg-blue-400" />
-            <span className="text-sm text-muted-foreground capitalize">{status}</span>
+          <div className="flex items-center gap-3" role="status" aria-live="polite">
+            <Spinner className="text-primary" />
+            <Badge variant="info" className="capitalize">
+              {status}
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -89,11 +110,12 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
           <CardDescription>The plagiarism check could not be completed.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Badge variant="destructive">Check Failed</Badge>
-          <p className="mt-2 text-sm text-muted-foreground">
-            The system was unable to process this document. Please try re-uploading or contact your
-            adviser.
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              The system could not process this document. Please try re-uploading or contact your
+              adviser.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
@@ -103,9 +125,24 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
   const scoreNum = typeof score === 'number' ? score : 0;
 
   // Ring colour based on score
-  let ringColor = 'text-destructive'; // < 60
-  if (scoreNum >= 80) ringColor = 'text-green-600 dark:text-green-400';
-  else if (scoreNum >= 60) ringColor = 'text-amber-600 dark:text-amber-400';
+  let scoreTone = {
+    text: 'text-destructive-text',
+    indicator: 'bg-destructive',
+    badge: 'destructive',
+  }; // < 60
+  if (scoreNum >= 80) {
+    scoreTone = {
+      text: 'text-success-foreground',
+      indicator: 'bg-success',
+      badge: 'success',
+    };
+  } else if (scoreNum >= 60) {
+    scoreTone = {
+      text: 'text-warning-foreground',
+      indicator: 'bg-warning',
+      badge: 'warning',
+    };
+  }
 
   const paletteInput = matchedSources.map((source, index) => ({
     id: source.sourceId || source.id || source.documentId || `source-${index}`,
@@ -126,7 +163,7 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
       ...source,
       sourceKey,
       sourceNumber: sourceStyle?.sourceNumber ?? index + 1,
-      badgeClass: sourceStyle?.badgeClass || 'border-slate-300 bg-slate-100 text-slate-700',
+      badgeClass: sourceStyle?.badgeClass || 'border-border bg-muted text-muted-foreground',
     };
   });
 
@@ -148,11 +185,11 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
         {/* ── Score ring ── */}
         <div className="flex items-center gap-4">
           <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 font-bold ${ringColor}`}
+            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 font-bold ${scoreTone.text}`}
             style={{ borderColor: 'currentColor' }}
             aria-label={`${scoreNum}% original`}
           >
-            {scoreNum}%
+            <Badge variant={scoreTone.badge}>{scoreNum}%</Badge>
           </div>
           <div>
             <p className="font-medium">
@@ -167,6 +204,11 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
             </p>
           </div>
         </div>
+        <Progress
+          value={scoreNum}
+          aria-label={`Originality score: ${scoreNum}%`}
+          indicatorClassName={scoreTone.indicator}
+        />
 
         {decoratedSources.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -198,39 +240,37 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
 
         {/* ── Matched sources table ── */}
         {decoratedSources.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Source #</th>
-                  <th className="pb-2 pr-4 font-medium">Source</th>
-                  <th className="pb-2 font-medium text-right">Match %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {decoratedSources.map((src, idx) => (
-                  <tr key={src.sourceId || src.sourceKey || idx} className="border-b last:border-0">
-                    <td className="py-2 pr-4">
-                      <span
-                        className={[
-                          'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[11px] font-semibold',
-                          src.badgeClass,
-                        ].join(' ')}
-                      >
-                        {src.sourceNumber}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4">{src.title || src.sourceId || 'Unknown'}</td>
-                    <td className="py-2 text-right font-mono">
-                      {typeof src.matchPercentage === 'number'
-                        ? `${src.matchPercentage.toFixed(1)}%`
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Source #</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead className="text-right">Match %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {decoratedSources.map((src, idx) => (
+                <TableRow key={src.sourceId || src.sourceKey || idx}>
+                  <TableCell>
+                    <span
+                      className={[
+                        'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[11px] font-semibold',
+                        src.badgeClass,
+                      ].join(' ')}
+                    >
+                      {src.sourceNumber}
+                    </span>
+                  </TableCell>
+                  <TableCell>{src.title || src.sourceId || 'Unknown'}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {typeof src.matchPercentage === 'number'
+                      ? `${src.matchPercentage.toFixed(1)}%`
+                      : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

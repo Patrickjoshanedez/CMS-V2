@@ -2,6 +2,7 @@ import React from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { screen } from '@testing-library/react';
 import ArchiveSearchPage from './ArchiveSearchPage';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -188,11 +189,11 @@ describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
     });
 
     // Citation modal appears with APA / IEEE / MLA / BibTeX options
-    expect(container.textContent).toContain('Cite Academic Manuscript');
-    expect(container.textContent).toContain('APA (7th Edition)');
-    expect(container.textContent).toContain('IEEE');
-    expect(container.textContent).toContain('MLA (9th Edition)');
-    expect(container.textContent).toContain('BibTeX');
+    expect(screen.getByRole('dialog', { name: 'Cite Academic Manuscript' })).toBeTruthy();
+    expect(screen.getByText('APA (7th Edition)')).toBeTruthy();
+    expect(screen.getByText('IEEE')).toBeTruthy();
+    expect(screen.getByText('MLA (9th Edition)')).toBeTruthy();
+    expect(screen.getByText('BibTeX')).toBeTruthy();
   });
 
   it('toggles Save/Bookmark to library with persistent storage and toast notification', () => {

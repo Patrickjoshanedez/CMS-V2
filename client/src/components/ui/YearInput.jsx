@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from './Button';
+import { Input } from './Input';
 
 /**
  * YearInput — Simple year input field for creating academic years.
  * Converts single year input (2024) to required format (2024-2025).
  */
-export function YearInput({ value, onChange, placeholder = '2025', required = false }) {
+export function YearInput({ id, value, onChange, placeholder = '2025', required = false }) {
   const [isFocused, setIsFocused] = useState(false);
 
   // Extract year from value if in YYYY-YYYY format
@@ -13,10 +15,10 @@ export function YearInput({ value, onChange, placeholder = '2025', required = fa
 
   const handleChange = (e) => {
     const inputValue = e.target.value;
-    
+
     // Only allow digits
     if (!/^\d*$/.test(inputValue)) return;
-    
+
     // Convert to YYYY-YYYY format once user has entered 4 digits
     if (inputValue.length === 4) {
       const year = parseInt(inputValue, 10);
@@ -43,18 +45,21 @@ export function YearInput({ value, onChange, placeholder = '2025', required = fa
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-md border border-input bg-background">
-      <button
-        type="button"
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={decrementYear}
         disabled={!displayValue || !/^\d{4}$/.test(displayValue)}
-        className="p-1 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        className="shrink-0"
         title="Decrease year"
+        aria-label="Decrease year"
       >
         <ChevronDown className="h-4 w-4" />
-      </button>
+      </Button>
 
-      <input
+      <Input
+        id={id}
         type="text"
         inputMode="numeric"
         value={displayValue}
@@ -64,18 +69,21 @@ export function YearInput({ value, onChange, placeholder = '2025', required = fa
         required={required}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className="flex-1 border-none bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none"
+        aria-label="Academic year"
+        className={`min-w-0 flex-1 text-center tabular-nums ${isFocused ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}`}
       />
 
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={incrementYear}
         disabled={!displayValue || !/^\d{4}$/.test(displayValue)}
-        className="p-1 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        className="shrink-0"
         title="Increase year"
+        aria-label="Increase year"
       >
         <ChevronUp className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
   );
 }

@@ -60,4 +60,17 @@ describe('NotFoundPage', () => {
     view.unmount();
     backSpy.mockRestore();
   });
+
+  it('explains the missing page and provides dashboard and sign-in destinations', () => {
+    const view = renderNotFoundPage();
+
+    expect(view.container.querySelector('main h1')?.textContent).toBe('Page not found');
+    expect(view.container.textContent).toContain('404 · Page unavailable');
+    expect(view.container.querySelector('a[href="/dashboard"]')?.textContent).toContain(
+      'Dashboard',
+    );
+    expect(view.container.querySelector('a[href="/login"]')?.textContent).toContain('Sign in');
+
+    view.unmount();
+  });
 });

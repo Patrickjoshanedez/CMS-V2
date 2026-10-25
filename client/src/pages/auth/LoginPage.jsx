@@ -11,6 +11,7 @@ import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
+import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
@@ -27,7 +28,7 @@ const getGoogleOriginMismatchMessage = () => {
 
 /**
  * LoginPage — split-screen login form with floating inputs,
- * gradient submit button, and stagger entry animation.
+ * accessible primary submit button, and stagger entry animation.
  */
 export default function LoginPage() {
   const recaptchaSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim();
@@ -128,57 +129,65 @@ export default function LoginPage() {
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
-      <form onSubmit={handleFormSubmit}>
-        {/* Email */}
-        <div className="auth-item mb-4">
-          <Controller
-            name="email"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Email"
-                type="email"
-                autoComplete="email"
-                error={errors.email?.message}
-              />
-            )}
-          />
-        </div>
+      <form onSubmit={handleFormSubmit} noValidate>
+        <fieldset className="space-y-4">
+          <legend className="sr-only">Sign in credentials</legend>
+          <p className="text-right text-xs text-muted-foreground">* Indicates a required field</p>
 
-        {/* Password */}
-        <div className="auth-item mb-2">
-          <Controller
-            name="password"
-            control={control}
-            render={({ field }) => (
-              <FloatingInput
-                {...field}
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                error={errors.password?.message}
-                trailing={
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                }
-              />
-            )}
-          />
-        </div>
+          {/* Email */}
+          <div className="auth-item">
+            <Controller
+              name="email"
+              control={control}
+              render={({ field }) => (
+                <FloatingInput
+                  {...field}
+                  label="Email *"
+                  type="email"
+                  autoComplete="email"
+                  aria-required="true"
+                  error={errors.email?.message}
+                />
+              )}
+            />
+          </div>
+
+          {/* Password */}
+          <div className="auth-item">
+            <Controller
+              name="password"
+              control={control}
+              render={({ field }) => (
+                <FloatingInput
+                  {...field}
+                  label="Password *"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  aria-required="true"
+                  error={errors.password?.message}
+                  trailing={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 min-h-8 min-w-8"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  }
+                />
+              )}
+            />
+          </div>
+        </fieldset>
 
         {/* Forgot password */}
-        <div className="auth-item mb-5 flex justify-end">
+        <div className="auth-item mt-2 mb-5 flex justify-end">
           <Link
             to="/forgot-password"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Forgot password?
           </Link>
@@ -195,14 +204,14 @@ export default function LoginPage() {
               />
             </div>
             {captchaError && (
-              <div className="auth-item mb-4">
-                <p className="text-sm text-destructive text-center">{captchaError}</p>
+              <div className="auth-item mb-4" role="alert" aria-live="polite">
+                <p className="text-xs text-destructive text-center">{captchaError}</p>
               </div>
             )}
           </>
         )}
 
-        {/* Submit — gradient button */}
+        {/* Submit — primary action button */}
         <div className="auth-item">
           <AuthSubmitButton loading={loading} loadingLabel="Signing in…" idleLabel="Sign in" />
         </div>

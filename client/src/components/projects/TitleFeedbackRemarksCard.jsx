@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Avatar, AvatarFallback } from '@/components/ui/Avatar';
 import { MessageSquareText, UserCheck, Calendar } from 'lucide-react';
 
 /**
@@ -33,7 +34,7 @@ export default function TitleFeedbackRemarksCard({ comments }) {
             {totalComments} {totalComments === 1 ? 'Remark' : 'Remarks'}
           </Badge>
         </div>
-        <p className="text-xs font-medium text-secondary mt-1">
+        <p className="text-xs font-medium text-muted-foreground mt-1">
           Institutional feedback and defense committee recommendations on your submitted title
           proposals.
         </p>
@@ -64,22 +65,25 @@ export default function TitleFeedbackRemarksCard({ comments }) {
                     : null;
 
                   return (
-                    <div
+                    <Card
                       key={comment._id || commentIdx}
-                      className="rounded-xl border border-border/60 bg-muted/15 p-4 space-y-2 transition-colors hover:border-border"
+                      className="space-y-2 bg-muted/15 p-4 shadow-none transition-colors hover:border-border"
+                      data-testid="title-feedback-remark"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
-                            <UserCheck className="h-3.5 w-3.5" />
-                          </div>
+                          <Avatar className="size-6 border border-primary/20 bg-primary/10 text-primary">
+                            <AvatarFallback className="bg-transparent text-primary">
+                              <UserCheck className="h-3.5 w-3.5" />
+                            </AvatarFallback>
+                          </Avatar>
                           <span className="text-xs font-semibold text-foreground">
                             {comment.name || comment.authorName || 'Committee Member'}
                           </span>
                           {comment.role && (
                             <Badge
                               variant="outline"
-                              className="text-[10px] py-0 px-1.5 text-secondary font-medium border-border/70"
+                              className="text-[10px] py-0 px-1.5 text-muted-foreground font-medium border-border/70"
                             >
                               {comment.role}
                             </Badge>
@@ -87,7 +91,7 @@ export default function TitleFeedbackRemarksCard({ comments }) {
                         </div>
 
                         {dateStr && (
-                          <div className="flex items-center gap-1 text-[11px] font-medium text-secondary">
+                          <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             <span>{dateStr}</span>
                           </div>
@@ -97,7 +101,7 @@ export default function TitleFeedbackRemarksCard({ comments }) {
                       <p className="text-xs sm:text-sm text-foreground whitespace-pre-wrap leading-relaxed pl-8">
                         {comment.text}
                       </p>
-                    </div>
+                    </Card>
                   );
                 })}
               </div>

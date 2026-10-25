@@ -1,7 +1,7 @@
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import SecretaryMinutesDocumentSheet, {
   buildDefault3Sheets,
   autoAllocateContinuationSheets,
@@ -41,6 +41,55 @@ describe('SecretaryMinutesDocumentSheet Component', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root?.unmount());
+    container?.remove();
+    document.body.style.overflow = '';
+  });
+
+  it('opens the shared signature dialog and dismisses it with Escape without signing', async () => {
+    await act(async () => {
+      root.render(<SecretaryMinutesDocumentSheet project={mockProject} />);
+    });
+
+    const signButton = container.querySelector('button[title="Apply Secretary digital signature"]');
+    expect(signButton).toBeTruthy();
+    await act(async () => signButton.click());
+
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Secretary Digital Signature');
+    expect(dialog.querySelector('#sec-legal-name')).toBeTruthy();
+    expect(
+      dialog.querySelector('[aria-label="Save this signature to my profile for future documents"]'),
+    ).toBeTruthy();
+    expect(dialog.textContent).toContain('Confirm & Sign Minutes');
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.textContent).not.toContain('Minutes Signed Successfully');
+  });
+
+  it('uses shared Input and Button controls for editable form fields and proponent actions', async () => {
+    await act(async () => {
+      root.render(<SecretaryMinutesDocumentSheet project={mockProject} />);
+    });
+
+    const titleInput = container.querySelector('[data-testid="minutes-title-input"]');
+    expect(titleInput.tagName).toBe('INPUT');
+    expect(titleInput.className).toContain('focus-visible:ring-ring');
+
+    const addProponentButton = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent.includes('Add Proponent'),
+    );
+    expect(addProponentButton).toBeTruthy();
+    await act(async () => addProponentButton.click());
+    expect(container.querySelector('[data-testid="minutes-proponent-3"]')).toBeTruthy();
+    expect(container.querySelectorAll('button[aria-pressed]').length).toBeGreaterThanOrEqual(6);
   });
 
   it('renders exactly 3 baseline sheets by default (Opening Sheet, Continuation Sheet, and Final Sign-off Sheet)', async () => {

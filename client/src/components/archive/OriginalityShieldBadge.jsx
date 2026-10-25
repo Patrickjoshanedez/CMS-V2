@@ -1,24 +1,23 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { ShieldCheck, ShieldAlert, Shield, Info } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/Tooltip';
 
 /**
  * OriginalityShieldBadge — Academic Google Scholar-style color-coded originality indicator.
  *
  * Tiering Specifications:
- * - High Originality (>95% unique): Green shield badge (#2e7d32 text, #e8f5e9 bg, border #c8e6c9)
- * - Moderate Originality (80%-95% unique): Amber shield badge (#f57c00 text, #fff3e0 bg, border #ffe0b2)
- * - High Similarity / Warning (<80% unique): Red shield badge (#c62828 text, #ffebee bg, border #ffcdd2)
+ * - High Originality (>95% unique): shared success status treatment
+ * - Moderate Originality (80%-95% unique): shared warning status treatment
+ * - High Similarity / Warning (<80% unique): shared destructive status treatment
  */
 export default function OriginalityShieldBadge({ score, className = '', onClick }) {
   const numericScore = Number.isFinite(Number(score)) ? Number(score) : 95.0;
   const roundedScore = Math.round(numericScore);
   const similarityScore = Math.max(0, Math.min(100, 100 - roundedScore));
-  const [showTooltip, setShowTooltip] = useState(false);
-
   let badgeConfig = {
-    colorClass:
-      'text-[#2e7d32] bg-[#e8f5e9] border-[#c8e6c9] dark:text-[#81c784] dark:bg-[#1b5e20]/30 dark:border-[#2e7d32]/40',
+    colorClass: 'border-success/30 bg-success/10 text-success-foreground',
     icon: ShieldCheck,
     label: `${roundedScore}% Original`,
     status: 'Verified Original',
@@ -27,8 +26,7 @@ export default function OriginalityShieldBadge({ score, className = '', onClick 
 
   if (numericScore < 80) {
     badgeConfig = {
-      colorClass:
-        'text-[#c62828] bg-[#ffebee] border-[#ffcdd2] dark:text-[#ef9a9a] dark:bg-[#b71c1c]/30 dark:border-[#c62828]/40',
+      colorClass: 'border-destructive/30 bg-destructive/10 text-destructive',
       icon: ShieldAlert,
       label: `Similarity Alert (${similarityScore}%)`,
       status: 'Similarity Warning',
@@ -36,8 +34,7 @@ export default function OriginalityShieldBadge({ score, className = '', onClick 
     };
   } else if (numericScore <= 95) {
     badgeConfig = {
-      colorClass:
-        'text-[#f57c00] bg-[#fff3e0] border-[#ffe0b2] dark:text-[#ffb74d] dark:bg-[#e65100]/30 dark:border-[#f57c00]/40',
+      colorClass: 'border-warning/30 bg-warning/10 text-warning-foreground',
       icon: Shield,
       label: `${roundedScore}% Original`,
       status: 'Moderate Originality',
@@ -48,39 +45,34 @@ export default function OriginalityShieldBadge({ score, className = '', onClick 
   const IconComponent = badgeConfig.icon;
 
   return (
-    <div
-      className="relative inline-flex items-center"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors cursor-pointer hover:opacity-90 ${badgeConfig.colorClass} ${className}`}
-        aria-label={`Originality score: ${badgeConfig.label}`}
-      >
-        <IconComponent className="w-3.5 h-3.5 shrink-0" />
-        <span className="font-semibold tracking-tight">{badgeConfig.label}</span>
-      </button>
-
-      {/* Floating detail popover */}
-      {showTooltip && (
-        <div
-          role="tooltip"
-          className="absolute bottom-full left-0 mb-2 z-50 w-64 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-lg text-xs animate-in fade-in-50 zoom-in-95 pointer-events-none"
-        >
-          <div className="flex items-center gap-1.5 font-semibold text-foreground mb-1">
-            <IconComponent className="w-4 h-4 text-primary" />
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClick}
+            className={`h-auto min-h-[44px] min-w-0 gap-1.5 rounded-full px-2 py-0.5 text-xs hover:opacity-90 ${badgeConfig.colorClass} ${className}`}
+            aria-label={`Originality score: ${badgeConfig.label}`}
+          >
+            <IconComponent className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="font-semibold tracking-tight">{badgeConfig.label}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start" className="w-64 p-3">
+          <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
+            <IconComponent className="size-4 text-primary" aria-hidden="true" />
             <span>{badgeConfig.status}</span>
           </div>
-          <p className="text-muted-foreground leading-relaxed">{badgeConfig.description}</p>
-          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-[11px] text-muted-foreground font-mono">
+          <p className="leading-relaxed text-muted-foreground">{badgeConfig.description}</p>
+          <div className="mt-2 flex justify-between border-t border-border/50 pt-2 font-mono text-[11px] text-muted-foreground">
             <span>Originality: {roundedScore}%</span>
             <span>Similarity: {similarityScore}%</span>
           </div>
-        </div>
-      )}
-    </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

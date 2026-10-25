@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { X, Copy, Check, Download, BookOpen, Quote } from 'lucide-react';
+import { Copy, Check, Download, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { toast } from 'sonner';
 
 export default function CitationExportModal({ open, onClose, project }) {
   const [copiedFormat, setCopiedFormat] = useState(null);
 
-  if (!open || !project) return null;
+  if (!project) return null;
 
   const title = project.title || 'Untitled Research Manuscript';
   const proponents = project.proponents || 'BukSU Capstone Proponents';
@@ -55,38 +63,25 @@ export default function CitationExportModal({ open, onClose, project }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in-50">
-      <div
-        className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cite-modal-title"
-      >
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent className="max-h-[90dvh] max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden bg-card p-0">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/30">
+        <DialogHeader className="flex-row items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Quote className="w-5 h-5" />
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <Quote className="size-5" aria-hidden="true" />
             </div>
-            <div>
-              <h2 id="cite-modal-title" className="text-base font-semibold text-foreground">
-                Cite Academic Manuscript
-              </h2>
-              <p className="text-xs text-muted-foreground line-clamp-1 max-w-md">{title}</p>
+            <div className="min-w-0">
+              <DialogTitle className="text-base">Cite Academic Manuscript</DialogTitle>
+              <DialogDescription className="line-clamp-1 max-w-md text-xs">
+                {title}
+              </DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Citations List */}
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-6">
           {/* APA 7 */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -96,12 +91,12 @@ export default function CitationExportModal({ open, onClose, project }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                className="min-h-[44px] gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handleCopy(apaCitation, 'apa')}
               >
                 {copiedFormat === 'apa' ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    <Check className="w-3.5 h-3.5 text-success-foreground" />
                     Copied
                   </>
                 ) : (
@@ -126,12 +121,12 @@ export default function CitationExportModal({ open, onClose, project }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                className="min-h-[44px] gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handleCopy(ieeeCitation, 'ieee')}
               >
                 {copiedFormat === 'ieee' ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    <Check className="w-3.5 h-3.5 text-success-foreground" />
                     Copied
                   </>
                 ) : (
@@ -156,12 +151,12 @@ export default function CitationExportModal({ open, onClose, project }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                className="min-h-[44px] gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handleCopy(mlaCitation, 'mla')}
               >
                 {copiedFormat === 'mla' ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    <Check className="w-3.5 h-3.5 text-success-foreground" />
                     Copied
                   </>
                 ) : (
@@ -187,12 +182,12 @@ export default function CitationExportModal({ open, onClose, project }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                  className="min-h-[44px] gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => handleCopy(bibtexCitation, 'bibtex')}
                 >
                   {copiedFormat === 'bibtex' ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      <Check className="w-3.5 h-3.5 text-success-foreground" />
                       Copied
                     </>
                   ) : (
@@ -205,7 +200,7 @@ export default function CitationExportModal({ open, onClose, project }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs gap-1.5"
+                  className="min-h-[44px] gap-1.5 text-xs"
                   onClick={handleDownloadBibtex}
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -220,13 +215,13 @@ export default function CitationExportModal({ open, onClose, project }) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-border px-6 py-3 bg-muted/20">
-          <Button variant="outline" size="sm" onClick={onClose}>
+        <DialogFooter className="border-t border-border bg-muted/20 px-4 py-3 sm:px-6">
+          <Button variant="outline" size="sm" className="min-h-[44px]" onClick={onClose}>
             Done
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

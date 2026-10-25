@@ -1,5 +1,8 @@
-import { Loader2, SearchCheck } from 'lucide-react';
+import { SearchCheck } from 'lucide-react';
+import PropTypes from 'prop-types';
 import { Button } from '@/components/ui/Button';
+import { Progress } from '@/components/ui/Progress';
+import { Spinner } from '@/components/ui/Spinner';
 
 function formatElapsed(seconds) {
   const safe = Math.max(0, Number(seconds) || 0);
@@ -17,11 +20,11 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
         disabled={disabled || scanning}
         aria-busy={scanning}
         size="lg"
-        className="w-full gap-2 font-semibold disabled:bg-muted disabled:text-muted-foreground disabled:border-border/60 disabled:opacity-100 disabled:cursor-not-allowed min-h-[44px]"
+        className="w-full gap-2 whitespace-normal text-center font-semibold disabled:bg-muted disabled:text-muted-foreground disabled:border-border/60 disabled:opacity-100 disabled:cursor-not-allowed min-h-[44px]"
       >
         {scanning ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Spinner className="h-4 w-4" />
             Analyzing document with BAAI/bge-m3 & Winnowing…
           </>
         ) : (
@@ -34,16 +37,11 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
 
       {scanning && (
         <div className="space-y-2 pt-1">
-          {/* Subtle compact progress track */}
-          <div
-            role="progressbar"
+          <Progress
+            indeterminate
             aria-label="Manuscript scan progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="h-1 w-full overflow-hidden rounded-full bg-muted/70"
-          >
-            <div className="archive-scan-progress h-full w-1/3 rounded-full bg-primary" />
-          </div>
+            className="h-1 bg-muted/70"
+          />
           <div
             role="status"
             aria-live="polite"
@@ -65,3 +63,10 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
     </div>
   );
 }
+
+ScanButton.propTypes = {
+  disabled: PropTypes.bool,
+  scanning: PropTypes.bool,
+  elapsedSeconds: PropTypes.number,
+  onClick: PropTypes.func.isRequired,
+};

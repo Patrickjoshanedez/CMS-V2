@@ -1,16 +1,21 @@
-import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import DefenseScheduleCalendar, {
-  SAMPLE_EVENTS,
-} from '@/components/calendar/DefenseScheduleCalendar';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import DefenseScheduleCalendar from '@/components/calendar/DefenseScheduleCalendar';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('DefenseScheduleCalendar Component', () => {
   let container;
   let root;
+
+  afterEach(() => {
+    if (root) {
+      act(() => root.unmount());
+      root = null;
+    }
+    container?.remove();
+  });
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -23,15 +28,7 @@ describe('DefenseScheduleCalendar Component', () => {
       root.render(<DefenseScheduleCalendar {...props} />);
     });
 
-    return {
-      container,
-      unmount: () => {
-        act(() => {
-          root.unmount();
-        });
-        container.remove();
-      },
-    };
+    return { container };
   };
 
   it('renders default Agenda view with empty state and zero ghost mock data leak', () => {
@@ -88,10 +85,16 @@ describe('DefenseScheduleCalendar Component', () => {
     expect(container.textContent).toContain('Agenda');
     expect(container.textContent).toContain('Month');
     expect(container.textContent).not.toContain('Sun');
+    const viewGroup = container.querySelector('[role="group"][aria-label="Schedule view"]');
+    const agendaToggle = Array.from(viewGroup.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Agenda'),
+    );
+    expect(agendaToggle?.getAttribute('aria-pressed')).toBe('true');
 
     // Find and click the "Month" button
-    const buttons = Array.from(container.querySelectorAll('button'));
-    const monthToggle = buttons.find((btn) => btn.textContent.includes('Month'));
+    const monthToggle = Array.from(viewGroup.querySelectorAll('button')).find((btn) =>
+      btn.textContent.includes('Month'),
+    );
     expect(monthToggle).toBeTruthy();
 
     act(() => {
@@ -103,6 +106,7 @@ describe('DefenseScheduleCalendar Component', () => {
     expect(container.textContent).toContain('Mon');
     expect(container.textContent).toContain('Wed');
     expect(container.textContent).toContain('Fri');
+    expect(monthToggle.getAttribute('aria-pressed')).toBe('true');
 
     // Month navigator buttons with aria-label should exist
     const prevMonthBtn = container.querySelector('button[aria-label="Previous Month"]');
@@ -126,7 +130,7 @@ describe('DefenseScheduleCalendar Component', () => {
     expect(firstDayBtn.getAttribute('aria-label')).toMatch(/\w+ 1, \d{4}: 0 events/);
   });
 
-  it('triggers onSelectEvent when an event card is clicked in agenda view', () => {
+  it('triggers onSelectEvent when the accessible event button is activated in agenda view', () => {
     const handleSelect = vi.fn();
     const mockEvents = [
       {
@@ -145,7 +149,9 @@ describe('DefenseScheduleCalendar Component', () => {
       onSelectEvent: handleSelect,
     });
 
-    const eventCard = container.querySelector('.cursor-pointer');
+    const eventCard = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Oral Presentation — Team Cyber'),
+    );
     expect(eventCard).toBeTruthy();
 
     act(() => {
@@ -154,5 +160,36 @@ describe('DefenseScheduleCalendar Component', () => {
 
     expect(handleSelect).toHaveBeenCalledTimes(1);
     expect(handleSelect).toHaveBeenCalledWith(mockEvents[0]);
+  });
+
+  it('shows and closes the selected day session details in month view', () => {
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const event = {
+      id: 'selected-day-event',
+      title: 'Defense session for today',
+      type: 'final',
+      date,
+      time: '10:00 AM - 11:00 AM',
+      venue: 'COT Conference Hall',
+      panel: ['Dr. Committee Chair'],
+    };
+    const { container } = renderComponent({ events: [event], defaultView: 'month' });
+    const monthName = today.toLocaleDateString('en-US', { month: 'long' });
+    const dayButton = container.querySelector(
+      `button[aria-label="${monthName} ${today.getDate()}, ${today.getFullYear()}: 1 event"]`,
+    );
+
+    act(() => dayButton.click());
+
+    expect(container.textContent).toContain('Scheduled Sessions on this Date');
+    expect(container.textContent).toContain('Defense session for today');
+    expect(container.textContent).toContain('Dr. Committee Chair');
+    const closeButton = container.querySelector('[aria-label="Close scheduled sessions"]');
+    expect(closeButton).toBeTruthy();
+
+    act(() => closeButton.click());
+
+    expect(container.textContent).not.toContain('Scheduled Sessions on this Date');
   });
 });

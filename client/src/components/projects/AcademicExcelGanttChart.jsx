@@ -7,19 +7,32 @@ import {
   Table as TableIcon,
   Maximize2,
   Minimize2,
-  Pencil,
   Check,
-  X,
   Save,
   Trash2,
   Paintbrush,
-  CheckCircle2,
   ShieldCheck,
   Lock,
-  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 import { downloadExcelGantt, normalizeProgress } from '@/utils/exportExcelGantt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -27,88 +40,64 @@ import { useAuthStore } from '@/stores/authStore';
 import { projectService } from '@/services/authService';
 
 /**
- * 8 Academic Color Themes for Gantt fill boxes
+ * 8 academic task categories use the shared, theme-aware chart tokens.
  */
 export const COLOR_OPTIONS = [
   {
     id: 'yellow',
     label: 'Planning',
-    hex: '#FACC15',
-    activeHex: '#EAB308',
-    bgClass: 'bg-amber-400',
-    borderClass: 'border-amber-500',
-    doneClass: 'bg-[#FACC15] border-y border-[#CA8A04]',
-    planClass: 'bg-[#FEF9C3] dark:bg-yellow-950/40 border-y border-[#EAB308]/40',
+    bgClass: 'bg-chart-3',
+    doneClass: 'bg-chart-3 border-y border-chart-3/80',
+    planClass: 'bg-chart-3/15 border-y border-chart-3/40',
   },
   {
     id: 'green',
     label: 'Backend & Infra',
-    hex: '#22C55E',
-    activeHex: '#16A34A',
-    bgClass: 'bg-emerald-500',
-    borderClass: 'border-emerald-600',
-    doneClass: 'bg-[#22C55E] border-y border-[#16A34A]',
-    planClass: 'bg-[#DCFCE7] dark:bg-emerald-950/40 border-y border-[#22C55E]/40',
+    bgClass: 'bg-chart-2',
+    doneClass: 'bg-chart-2 border-y border-chart-2/80',
+    planClass: 'bg-chart-2/15 border-y border-chart-2/40',
   },
   {
     id: 'blue',
     label: 'UI/UX & Integration',
-    hex: '#3B82F6',
-    activeHex: '#2563EB',
-    bgClass: 'bg-blue-500',
-    borderClass: 'border-blue-600',
-    doneClass: 'bg-[#3B82F6] border-y border-[#2563EB]',
-    planClass: 'bg-[#DBEAFE] dark:bg-blue-950/40 border-y border-[#3B82F6]/40',
+    bgClass: 'bg-chart-1',
+    doneClass: 'bg-chart-1 border-y border-chart-1/80',
+    planClass: 'bg-chart-1/15 border-y border-chart-1/40',
   },
   {
     id: 'orange',
     label: 'Testing & QA',
-    hex: '#F97316',
-    activeHex: '#EA580C',
-    bgClass: 'bg-orange-500',
-    borderClass: 'border-orange-600',
-    doneClass: 'bg-[#F97316] border-y border-[#EA580C]',
-    planClass: 'bg-[#FFEDD5] dark:bg-orange-950/40 border-y border-[#F97316]/40',
+    bgClass: 'bg-chart-6',
+    doneClass: 'bg-chart-6 border-y border-chart-6/80',
+    planClass: 'bg-chart-6/15 border-y border-chart-6/40',
   },
   {
     id: 'purple',
     label: 'Documentation',
-    hex: '#A855F7',
-    activeHex: '#9333EA',
-    bgClass: 'bg-purple-500',
-    borderClass: 'border-purple-600',
-    doneClass: 'bg-[#A855F7] border-y border-[#9333EA]',
-    planClass: 'bg-[#F3E8FF] dark:bg-purple-950/40 border-y border-[#A855F7]/40',
+    bgClass: 'bg-chart-4',
+    doneClass: 'bg-chart-4 border-y border-chart-4/80',
+    planClass: 'bg-chart-4/15 border-y border-chart-4/40',
   },
   {
     id: 'rose',
     label: 'Milestones',
-    hex: '#F43F5E',
-    activeHex: '#E11D48',
-    bgClass: 'bg-rose-500',
-    borderClass: 'border-rose-600',
-    doneClass: 'bg-[#F43F5E] border-y border-[#E11D48]',
-    planClass: 'bg-[#FFE4E6] dark:bg-rose-950/40 border-y border-[#F43F5E]/40',
+    bgClass: 'bg-chart-7',
+    doneClass: 'bg-chart-7 border-y border-chart-7/80',
+    planClass: 'bg-chart-7/15 border-y border-chart-7/40',
   },
   {
     id: 'teal',
     label: 'DevOps & Cloud',
-    hex: '#14B8A6',
-    activeHex: '#0D9488',
-    bgClass: 'bg-teal-500',
-    borderClass: 'border-teal-600',
-    doneClass: 'bg-[#14B8A6] border-y border-[#0D9488]',
-    planClass: 'bg-[#CCFBF1] dark:bg-teal-950/40 border-y border-[#14B8A6]/40',
+    bgClass: 'bg-chart-5',
+    doneClass: 'bg-chart-5 border-y border-chart-5/80',
+    planClass: 'bg-chart-5/15 border-y border-chart-5/40',
   },
   {
     id: 'indigo',
     label: 'Architecture',
-    hex: '#6366F1',
-    activeHex: '#4F46E5',
-    bgClass: 'bg-indigo-500',
-    borderClass: 'border-indigo-600',
-    doneClass: 'bg-[#6366F1] border-y border-[#4F46E5]',
-    planClass: 'bg-[#E0E7FF] dark:bg-indigo-950/40 border-y border-[#6366F1]/40',
+    bgClass: 'bg-chart-8',
+    doneClass: 'bg-chart-8 border-y border-chart-8/80',
+    planClass: 'bg-chart-8/15 border-y border-chart-8/40',
   },
 ];
 
@@ -135,38 +124,37 @@ const PHASES = [
     name: 'PHASE ONE',
     weeksSpan: 3,
     daySpan: 15,
-    headerBg: 'bg-[#1E293B]',
-    weekBg: 'bg-[#334155]',
-    colorText: 'text-white',
+    headerBg: 'bg-chart-1/15 border-b-2 border-chart-1',
+    weekBg: 'bg-chart-1/10',
+    colorText: 'text-foreground',
   },
   {
     name: 'PHASE TWO',
     weeksSpan: 3,
     daySpan: 15,
-    headerBg: 'bg-[#14532D]',
-    weekBg: 'bg-[#166534]',
-    colorText: 'text-white',
+    headerBg: 'bg-chart-2/15 border-b-2 border-chart-2',
+    weekBg: 'bg-chart-2/10',
+    colorText: 'text-foreground',
   },
   {
     name: 'PHASE THREE',
     weeksSpan: 3,
     daySpan: 15,
-    headerBg: 'bg-[#475569]',
-    weekBg: 'bg-[#64748B]',
-    colorText: 'text-white',
+    headerBg: 'bg-chart-4/15 border-b-2 border-chart-4',
+    weekBg: 'bg-chart-4/10',
+    colorText: 'text-foreground',
   },
   {
     name: 'PHASE FOUR',
     weeksSpan: 3,
     daySpan: 15,
-    headerBg: 'bg-[#854D0E]',
-    weekBg: 'bg-[#A16207]',
-    colorText: 'text-white',
+    headerBg: 'bg-chart-6/15 border-b-2 border-chart-6',
+    weekBg: 'bg-chart-6/10',
+    colorText: 'text-foreground',
   },
 ];
 
 /** Fixed left pane width so we can set the right panel's left offset */
-const LEFT_PANE_WIDTH = 510;
 
 /**
  * Calculate working days between two dates (Mon-Fri), inclusive.
@@ -871,7 +859,7 @@ function InlineEditCell({
 
   if (editing) {
     return multiLine ? (
-      <textarea
+      <Textarea
         ref={inputRef}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -879,12 +867,12 @@ function InlineEditCell({
         onKeyDown={handleKeyDown}
         rows={2}
         className={cn(
-          'w-full resize-none bg-transparent border border-primary/50 rounded px-1 py-0.5 text-inherit focus:outline-none focus:ring-1 focus:ring-primary/70',
+          'h-auto min-h-8 w-full resize-none rounded-sm bg-background px-1 py-0.5 text-[11px] text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70',
           inputClassName,
         )}
       />
     ) : (
-      <input
+      <Input
         ref={inputRef}
         type={type}
         value={draft}
@@ -892,7 +880,7 @@ function InlineEditCell({
         onBlur={commit}
         onKeyDown={handleKeyDown}
         className={cn(
-          'w-full bg-transparent border border-primary/50 rounded px-1 py-0.5 text-inherit focus:outline-none focus:ring-1 focus:ring-primary/70',
+          'h-7 min-h-0 w-full rounded-sm bg-background px-1 py-0 text-[11px] text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70',
           inputClassName,
         )}
       />
@@ -914,24 +902,25 @@ function InlineEditCell({
 }
 
 /**
- * InlineSelectCell — renders a <select> for owner field.
+ * InlineSelectCell — renders the shared Select for the task owner field.
  */
 function InlineSelectCell({ value, onChange, options, className = '' }) {
   return (
-    <select
+    <Select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(
-        'w-full bg-transparent border border-border/40 rounded px-1 py-0.5 text-inherit text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/70 cursor-pointer hover:border-primary/50',
-        className,
-      )}
+      onValueChange={onChange}
     >
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger aria-label="Task owner" className={cn('h-7 min-h-0 px-1 py-0 text-[11px] shadow-none', className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((opt) => (
+          <SelectItem key={opt} value={opt} className="text-xs">
+            {opt}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -960,7 +949,7 @@ function InlineProgressCell({ value, onChange }) {
 
   if (editing) {
     return (
-      <input
+      <Input
         ref={inputRef}
         type="number"
         min={0}
@@ -972,7 +961,7 @@ function InlineProgressCell({ value, onChange }) {
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') setEditing(false);
         }}
-        className="w-full bg-transparent border border-primary/50 rounded px-1 py-0.5 text-center text-inherit focus:outline-none focus:ring-1 focus:ring-primary/70"
+        className="h-7 min-h-0 w-full rounded-sm bg-background px-1 py-0 text-center text-[11px] text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70"
       />
     );
   }
@@ -1012,7 +1001,7 @@ function InlineDaysCell({ value, onChange }) {
 
   if (editing) {
     return (
-      <input
+      <Input
         ref={inputRef}
         type="number"
         min={0}
@@ -1024,7 +1013,7 @@ function InlineDaysCell({ value, onChange }) {
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') setEditing(false);
         }}
-        className="w-full bg-transparent border border-primary/50 rounded px-1 py-0.5 text-center text-inherit text-[11px] font-mono font-bold focus:outline-none focus:ring-1 focus:ring-primary/70"
+        className="h-7 min-h-0 w-full rounded-sm bg-background px-1 py-0 text-center text-[11px] font-mono font-bold text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70"
       />
     );
   }
@@ -1052,7 +1041,6 @@ export default function AcademicExcelGanttChart({
   onDeleteSection: propOnDeleteSection,
   selectedOwner: propOwner,
   onOwnerChange: propOnOwnerChange,
-  onAddTask = null,
   isReadOnly = false,
   onApproveGantt = null,
   onRejectGantt = null,
@@ -1120,7 +1108,7 @@ export default function AcademicExcelGanttChart({
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
     return [];
@@ -1130,7 +1118,7 @@ export default function AcademicExcelGanttChart({
     try {
       const saved = localStorage.getItem(sectionsStorageKey);
       if (saved) return JSON.parse(saved);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
     return [];
@@ -1160,7 +1148,7 @@ export default function AcademicExcelGanttChart({
             localStorage.setItem(storageKey, JSON.stringify(next));
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus('idle'), 2000);
-          } catch (_) {
+          } catch {
             setSaveStatus('idle');
           }
         }, 600);
@@ -1180,7 +1168,7 @@ export default function AcademicExcelGanttChart({
         const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
         try {
           localStorage.setItem(sectionsStorageKey, JSON.stringify(next));
-        } catch (_) {
+        } catch {
           // Ignore storage quota or private browsing errors
         }
         return next;
@@ -1214,7 +1202,7 @@ export default function AcademicExcelGanttChart({
     try {
       const saved = localStorage.getItem(headerStorageKey);
       if (saved) return JSON.parse(saved);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
     return null;
@@ -1226,7 +1214,7 @@ export default function AcademicExcelGanttChart({
         const next = typeof updater === 'function' ? updater(prev || {}) : updater;
         try {
           localStorage.setItem(headerStorageKey, JSON.stringify(next));
-        } catch (_) {
+        } catch {
           /* ignore */
         }
         return next;
@@ -1469,7 +1457,7 @@ export default function AcademicExcelGanttChart({
         }),
       );
     },
-    [isDragging, dragAction, isReadOnly, activeColor, setTasks],
+    [isDragging, dragAction, isReadOnly, project, isGanttApproved, canApproveGantt, activeColor, setTasks],
   );
 
   // ── Section & Row helpers ────────────────────────────────────────────────
@@ -1653,8 +1641,8 @@ export default function AcademicExcelGanttChart({
               className={cn(
                 'flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full border',
                 saveStatus === 'saving'
-                  ? 'text-amber-600 dark:text-amber-400 border-amber-400/40 bg-amber-50 dark:bg-amber-950/30'
-                  : 'text-emerald-600 dark:text-emerald-400 border-emerald-400/40 bg-emerald-50 dark:bg-emerald-950/30',
+                  ? 'text-warning-foreground border-warning/40 bg-warning/10'
+                  : 'text-success-foreground border-success/40 bg-success/10',
               )}
             >
               {saveStatus === 'saving' ? (
@@ -1677,13 +1665,17 @@ export default function AcademicExcelGanttChart({
               </span>
               <div className="flex items-center gap-1">
                 {COLOR_OPTIONS.map((c) => (
-                  <button
+                  <Button
                     key={c.id}
                     type="button"
                     onClick={() => setActiveColor(c.id)}
                     title={`Fill Color: ${c.label}`}
+                    aria-label={`Fill Color: ${c.label}`}
+                    aria-pressed={activeColor === c.id}
+                    variant="ghost"
+                    size="icon"
                     className={cn(
-                      'w-4 h-4 rounded-full transition-transform',
+                      '!size-8 !min-h-0 !min-w-0 rounded-full p-1 transition-transform',
                       c.bgClass,
                       activeColor === c.id
                         ? 'ring-2 ring-primary ring-offset-1 scale-110'
@@ -1698,19 +1690,25 @@ export default function AcademicExcelGanttChart({
           {/* Owner Filter — canonical proponents with true member count */}
           <div className="flex items-center gap-1.5 bg-background border border-border/70 rounded-md px-2.5 py-1 text-xs">
             <Filter className="h-3 w-3 text-muted-foreground" />
-            <select
-              aria-label="Filter by task owner"
+            <Select
               value={selectedOwner}
-              onChange={(e) => setSelectedOwner(e.target.value)}
-              className="bg-transparent border-0 text-xs text-foreground focus:outline-none cursor-pointer"
+              onValueChange={setSelectedOwner}
             >
-              <option value="ALL">All Members ({proponentList.length})</option>
+              <SelectTrigger
+                aria-label="Filter by task owner"
+                className="h-8 min-h-0 min-w-[11rem] border-0 bg-transparent px-1 py-0 text-xs shadow-none focus-visible:ring-0"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Members ({proponentList.length})</SelectItem>
               {proponentList.map((owner) => (
-                <option key={owner} value={owner}>
+                <SelectItem key={owner} value={owner}>
                   {owner}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Add Section Button (Separate Button) */}
@@ -1740,7 +1738,7 @@ export default function AcademicExcelGanttChart({
           <Button
             size="sm"
             onClick={handleExportExcel}
-            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+            className="h-8 text-xs bg-success text-success-foreground hover:bg-success/90 gap-1.5 shadow-xs"
           >
             <Download className="h-3.5 w-3.5" /> Export Excel
           </Button>
@@ -1769,8 +1767,8 @@ export default function AcademicExcelGanttChart({
           className={cn(
             'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all',
             isGanttApproved
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
-              : 'border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100',
+              ? 'border-success/30 bg-success/10 text-success-foreground'
+              : 'border-warning/30 bg-warning/10 text-warning-foreground',
           )}
         >
           <div className="flex items-center gap-3">
@@ -1778,8 +1776,8 @@ export default function AcademicExcelGanttChart({
               className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-lg shrink-0 font-bold',
                 isGanttApproved
-                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+                  ? 'bg-success/15 text-success-foreground'
+                  : 'bg-warning/15 text-warning-foreground',
               )}
             >
               {isGanttApproved ? <ShieldCheck className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
@@ -1796,8 +1794,8 @@ export default function AcademicExcelGanttChart({
                   className={cn(
                     'text-[10px] py-0 px-2 font-mono font-semibold',
                     isGanttApproved
-                      ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40'
-                      : 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40',
+                      ? 'border-success/40 text-success-foreground bg-success/10'
+                      : 'border-warning/40 text-warning-foreground bg-warning/10',
                   )}
                 >
                   {isGanttApproved ? 'Pre-Approved' : 'Awaiting Pre-Approval'}
@@ -1811,7 +1809,7 @@ export default function AcademicExcelGanttChart({
                     : 'Create at least one named deliverable in a milestone section before the schedule can be reviewed or approved.'}
               </p>
               {project?.ganttApproval?.remarks && (
-                <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mt-1">
+                <p className="text-[11px] font-medium text-warning-foreground mt-1">
                   Adviser Feedback: &ldquo;{project.ganttApproval.remarks}&rdquo;
                 </p>
               )}
@@ -1825,7 +1823,7 @@ export default function AcademicExcelGanttChart({
                   size="sm"
                   disabled={isUpdatingApproval || !hasReviewableSchedule}
                   onClick={() => handleApproveSchedule(true)}
-                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs cursor-pointer"
+                  className="h-8 text-xs bg-success text-success-foreground hover:bg-success/90 gap-1.5 shadow-xs cursor-pointer"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Approve Gantt Schedule
@@ -1838,7 +1836,7 @@ export default function AcademicExcelGanttChart({
                   onClick={() =>
                     handleApproveSchedule(false, 'Schedule updated — pending re-review')
                   }
-                  className="h-8 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1.5 cursor-pointer"
+                  className="h-8 text-xs border-warning/40 text-warning-foreground hover:bg-warning/10 gap-1.5 cursor-pointer"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   Request Schedule Revision
@@ -1850,7 +1848,7 @@ export default function AcademicExcelGanttChart({
       )}
 
       {/* Main Excel Sheet Canvas */}
-      <div className="rounded-xl border-2 border-slate-700 dark:border-slate-700 bg-white dark:bg-card shadow-sm overflow-hidden text-slate-900 dark:text-slate-100">
+      <div className="rounded-xl border-2 border-border bg-card shadow-sm overflow-hidden text-foreground">
         {/* 1. Editable Document Header Table */}
         <div className="m-4 mb-0 border-2 border-border">
           {/* Main Title Row */}
@@ -1926,7 +1924,7 @@ export default function AcademicExcelGanttChart({
               OVERALL ACCOMPLISHMENT
             </div>
             <div className="min-w-0 sm:col-span-9 p-2 px-3 grid grid-cols-3 gap-2 text-xs text-foreground font-bold items-center">
-              <div className="text-left font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+              <div className="text-left font-mono text-success-foreground font-bold text-sm">
                 {overallAccomplishment}
               </div>
               <div className="text-center font-normal text-muted-foreground italic text-[11px]">
@@ -1948,59 +1946,59 @@ export default function AcademicExcelGanttChart({
         </div>
 
         {/* 2. Scrollable Grid */}
-        <div className="relative overflow-x-auto border-2 border-slate-900 dark:border-slate-500 m-4 mt-4">
+        <div className="relative overflow-x-auto border-2 border-border m-4 mt-4">
           <table
             className="border-collapse text-[11px]"
             style={{ minWidth: `${STICKY_WIDTH + 60 * 19 + 350}px` }}
           >
             <thead>
               {/* TIER 1: 4 Phases — 8 header cols sticky/fixed + 4 phase headers */}
-              <tr className="border-b border-slate-900 dark:border-slate-400">
+              <tr className="border-b border-border">
                 <th
                   rowSpan={4}
-                  className="lg:sticky lg:left-0 z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[75px] min-w-[75px]"
+                  className="lg:sticky lg:left-0 z-30 bg-muted border-r border-b border-border p-2 text-center font-bold text-foreground w-[75px] min-w-[75px]"
                 >
                   TASK ID
                 </th>
                 <th
                   rowSpan={4}
-                  className="lg:sticky lg:left-[75px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[240px] min-w-[240px]"
+                  className="lg:sticky lg:left-[75px] z-30 bg-muted border-r border-b border-border p-2 text-left font-bold text-foreground w-[240px] min-w-[240px]"
                 >
                   TASK TITLE
                 </th>
                 <th
                   rowSpan={4}
-                  className="lg:sticky lg:left-[315px] z-30 bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-left font-bold text-slate-800 dark:text-slate-200 w-[130px] min-w-[130px]"
+                  className="lg:sticky lg:left-[315px] z-30 bg-muted border-r border-b border-border p-2 text-left font-bold text-foreground w-[130px] min-w-[130px]"
                 >
                   TASK OWNER
                 </th>
                 <th
                   rowSpan={4}
-                  className="bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[80px] min-w-[80px]"
+                  className="bg-muted border-r border-b border-border p-2 text-center font-bold text-foreground w-[80px] min-w-[80px]"
                 >
                   START DATE
                 </th>
                 <th
                   rowSpan={4}
-                  className="bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[80px] min-w-[80px]"
+                  className="bg-muted border-r border-b border-border p-2 text-center font-bold text-foreground w-[80px] min-w-[80px]"
                 >
                   DUE DATE
                 </th>
                 <th
                   rowSpan={4}
-                  className="bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[55px] min-w-[55px]"
+                  className="bg-muted border-r border-b border-border p-2 text-center font-bold text-foreground w-[55px] min-w-[55px]"
                 >
                   DAYS
                 </th>
                 <th
                   rowSpan={4}
-                  className="bg-[#E5E7EB] dark:bg-slate-800 border-r border-b border-slate-900 dark:border-slate-500 p-2 text-center font-bold text-slate-800 dark:text-slate-200 w-[65px] min-w-[65px]"
+                  className="bg-muted border-r border-b border-border p-2 text-center font-bold text-foreground w-[65px] min-w-[65px]"
                 >
                   % DONE
                 </th>
                 <th
                   rowSpan={4}
-                  className="bg-[#E5E7EB] dark:bg-slate-800 border-r-2 border-b border-slate-900 dark:border-slate-500 p-1 text-center font-bold text-slate-800 dark:text-slate-200 w-[40px] min-w-[40px]"
+                  className="bg-muted border-r-2 border-b border-border p-1 text-center font-bold text-foreground w-[40px] min-w-[40px]"
                 >
                   ACT
                 </th>
@@ -2009,7 +2007,7 @@ export default function AcademicExcelGanttChart({
                     key={p.name}
                     colSpan={p.daySpan}
                     className={cn(
-                      'p-1.5 text-center font-black tracking-wider text-[11px] border-r border-slate-900 dark:border-slate-400',
+                      'p-1.5 text-center font-black tracking-wider text-[11px] border-r border-border',
                       p.headerBg,
                       p.colorText,
                     )}
@@ -2020,7 +2018,7 @@ export default function AcademicExcelGanttChart({
               </tr>
 
               {/* TIER 2: 12 Weeks */}
-              <tr className="border-b border-slate-900 dark:border-slate-400">
+              <tr className="border-b border-border">
                 {WEEKS_METADATA.map((w) => {
                   const phase = PHASES[w.phaseIndex];
                   return (
@@ -2028,7 +2026,7 @@ export default function AcademicExcelGanttChart({
                       key={w.weekNum}
                       colSpan={5}
                       className={cn(
-                        'p-1 text-center font-bold text-[10px] text-white border-r border-slate-900 dark:border-slate-400',
+                        'p-1 text-center font-bold text-[10px] text-foreground border-r border-border',
                         phase.weekBg,
                       )}
                     >
@@ -2039,12 +2037,12 @@ export default function AcademicExcelGanttChart({
               </tr>
 
               {/* TIER 3: M T W R F per week */}
-              <tr className="border-b border-slate-400 dark:border-slate-600 bg-slate-100 dark:bg-muted/40">
+              <tr className="border-b border-border bg-muted/40">
                 {Array.from({ length: 12 }).flatMap((_, wIdx) =>
                   ['M', 'T', 'W', 'R', 'F'].map((day, dIdx) => (
                     <th
                       key={`w${wIdx}-d${dIdx}`}
-                      className="p-1 text-center font-semibold text-[9px] text-slate-700 dark:text-slate-300 w-[19px] min-w-[19px] max-w-[19px] border-r border-slate-300 dark:border-slate-700"
+                      className="p-1 text-center font-semibold text-[9px] text-muted-foreground w-[19px] min-w-[19px] max-w-[19px] border-r border-border"
                     >
                       {day}
                     </th>
@@ -2053,12 +2051,12 @@ export default function AcademicExcelGanttChart({
               </tr>
 
               {/* TIER 4: Sub-labels */}
-              <tr className="border-b-2 border-slate-900 dark:border-slate-400 bg-slate-200 dark:bg-muted/80">
+              <tr className="border-b-2 border-border bg-muted/80">
                 {WEEKS_METADATA.map((w) => (
                   <th
                     key={`sub-${w.weekNum}`}
                     colSpan={5}
-                    className="p-1 text-center font-medium italic text-[8px] text-slate-700 dark:text-slate-300 border-r border-slate-400 dark:border-slate-600 truncate"
+                    className="p-1 text-center font-medium italic text-[8px] text-muted-foreground border-r border-border truncate"
                     title={w.label}
                   >
                     {w.label}
@@ -2112,52 +2110,58 @@ export default function AcademicExcelGanttChart({
                 return (
                   <React.Fragment key={sec}>
                     {/* SECTION DIVIDER */}
-                    <tr className="border-y-2 border-slate-900 dark:border-slate-400">
-                      <td className="lg:sticky lg:left-0 z-20 bg-slate-300 dark:bg-slate-700 p-2 px-3 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase whitespace-nowrap border-r border-slate-400 dark:border-slate-500" />
-                      <td className="lg:sticky lg:left-[75px] z-20 bg-slate-300 dark:bg-slate-700 p-2 font-black text-[11px] text-slate-900 dark:text-slate-100 tracking-wide uppercase border-r border-slate-400 dark:border-slate-500">
+                    <tr className="border-y-2 border-border">
+                      <td className="lg:sticky lg:left-0 z-20 bg-muted p-2 px-3 font-black text-[11px] text-foreground tracking-wide uppercase whitespace-nowrap border-r border-border" />
+                      <td className="lg:sticky lg:left-[75px] z-20 bg-muted p-2 font-black text-[11px] text-foreground tracking-wide uppercase border-r border-border">
                         <div className="flex items-center justify-between pr-2">
                           <span>{sec}</span>
                           {!isReadOnly && (
                             <div className="flex items-center gap-1.5">
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleAddRow(sec)}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary-foreground hover:bg-primary px-1.5 py-0.5 rounded bg-background border border-primary/30 shadow-2xs transition-colors cursor-pointer"
+                                variant="outline"
+                                size="sm"
+                                className="h-6 min-h-0 min-w-0 gap-1 px-1.5 text-[10px] font-bold text-primary shadow-none hover:bg-primary hover:text-primary-foreground"
                                 title={`Add row under ${sec}`}
                               >
                                 <Plus className="h-3 w-3" /> Add
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
                                 onClick={() => handleDeleteSection(sec)}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-destructive hover:text-destructive-foreground hover:bg-destructive px-1.5 py-0.5 rounded bg-background border border-destructive/30 shadow-2xs transition-colors cursor-pointer"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Delete section ${sec}`}
+                                className="h-6 w-6 min-h-0 min-w-0 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                                 title={`Delete ${sec}`}
                               >
                                 <Trash2 className="h-3 w-3" />
-                              </button>
+                              </Button>
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="lg:sticky lg:left-[315px] z-20 bg-slate-300 dark:bg-slate-700 border-r border-slate-400 dark:border-slate-500" />
-                      <td colSpan={65} className="bg-slate-300 dark:bg-slate-700" />
+                      <td className="lg:sticky lg:left-[315px] z-20 bg-muted border-r border-border" />
+                      <td colSpan={65} className="bg-muted" />
                     </tr>
 
                     {secTasks.length === 0 && (
-                      <tr className="border-b border-slate-300 dark:border-slate-700 bg-muted/5">
+                      <tr className="border-b border-border bg-muted/5">
                         <td
                           colSpan={68}
                           className="p-4 text-center text-xs text-muted-foreground italic"
                         >
                           No tasks in {sec} yet.{' '}
                           {!isReadOnly && (
-                            <button
+                            <Button
                               type="button"
                               onClick={() => handleAddRow(sec)}
-                              className="text-primary font-semibold underline hover:text-primary/80 ml-1 cursor-pointer"
+                              variant="link"
+                              className="h-auto min-h-0 min-w-0 p-0 align-baseline text-primary"
                             >
                               + Add a deliverable row
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -2182,20 +2186,20 @@ export default function AcademicExcelGanttChart({
                       return (
                         <tr
                           key={task.id}
-                          className="border-b border-slate-300 dark:border-slate-700 hover:brightness-95 dark:hover:brightness-125 transition-all"
+                          className="border-b border-border hover:brightness-95 dark:hover:brightness-125 transition-all"
                         >
                           {/* 1. Task ID (Sticky) with color picker pill */}
                           <td
                             className={cn(
-                              'lg:sticky lg:left-0 z-20 border-r border-slate-300 dark:border-slate-700 p-1 font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap',
+                              'lg:sticky lg:left-0 z-20 border-r border-border p-1 font-mono font-bold text-foreground whitespace-nowrap',
                               isAlt
-                                ? 'bg-slate-50 dark:bg-slate-800'
-                                : 'bg-white dark:bg-[#111827]',
+                                ? 'bg-muted/30'
+                                : 'bg-background',
                             )}
                           >
                             <div className="flex items-center justify-between px-1">
                               {!isReadOnly && (
-                                <button
+                                <Button
                                   type="button"
                                   onClick={() => {
                                     const curIdx = COLOR_OPTIONS.findIndex(
@@ -2206,10 +2210,13 @@ export default function AcademicExcelGanttChart({
                                     updateTaskField(task.id, 'category', nextId);
                                   }}
                                   title={`Theme: ${category}. Click to change color.`}
+                                  aria-label={`Change task color: ${category}`}
+                                  variant="ghost"
+                                  size="icon"
                                   className={cn(
-                                    'w-2.5 h-2.5 rounded-full shrink-0 transition-transform hover:scale-125 cursor-pointer',
+                                    'h-6 w-6 min-h-0 min-w-0 rounded-full p-1 transition-transform hover:scale-110',
                                     COLOR_OPTIONS.find((c) => c.id === category)?.bgClass ||
-                                      'bg-amber-400',
+                                      'bg-chart-3',
                                   )}
                                 />
                               )}
@@ -2228,10 +2235,10 @@ export default function AcademicExcelGanttChart({
                           {/* 2. Task Title (Sticky) */}
                           <td
                             className={cn(
-                              'lg:sticky lg:left-[75px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 font-medium text-slate-900 dark:text-slate-100',
+                              'lg:sticky lg:left-[75px] z-20 border-r border-border p-1.5 font-medium text-foreground',
                               isAlt
-                                ? 'bg-slate-50 dark:bg-slate-800'
-                                : 'bg-white dark:bg-[#111827]',
+                                ? 'bg-muted/30'
+                                : 'bg-background',
                             )}
                           >
                             {!isReadOnly ? (
@@ -2248,10 +2255,10 @@ export default function AcademicExcelGanttChart({
                           {/* 3. Task Owner (Sticky) */}
                           <td
                             className={cn(
-                              'lg:sticky lg:left-[315px] z-20 border-r border-slate-300 dark:border-slate-700 p-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap',
+                              'lg:sticky lg:left-[315px] z-20 border-r border-border p-1.5 text-muted-foreground whitespace-nowrap',
                               isAlt
-                                ? 'bg-slate-50 dark:bg-slate-800'
-                                : 'bg-white dark:bg-[#111827]',
+                                ? 'bg-muted/30'
+                                : 'bg-background',
                             )}
                           >
                             {!isReadOnly ? (
@@ -2266,15 +2273,15 @@ export default function AcademicExcelGanttChart({
                           </td>
 
                           {/* 4. Start Date */}
-                          <td className="border-r border-slate-300 dark:border-slate-700 p-1 text-center text-slate-700 dark:text-slate-300">
+                          <td className="border-r border-border p-1 text-center text-muted-foreground">
                             {!isReadOnly ? (
-                              <input
+                              <Input
                                 type="date"
                                 value={task.startDate}
                                 onChange={(e) =>
                                   updateTaskField(task.id, 'startDate', e.target.value)
                                 }
-                                className="bg-transparent border border-border/40 rounded px-1 py-0.5 text-[11px] text-inherit focus:outline-none focus:ring-1 focus:ring-primary/70 w-full"
+                                className="h-7 min-h-0 w-full rounded-sm bg-background px-1 py-0 text-[11px] text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70"
                               />
                             ) : (
                               task.startDate
@@ -2282,15 +2289,15 @@ export default function AcademicExcelGanttChart({
                           </td>
 
                           {/* 5. Due Date */}
-                          <td className="border-r border-slate-300 dark:border-slate-700 p-1 text-center text-slate-700 dark:text-slate-300">
+                          <td className="border-r border-border p-1 text-center text-muted-foreground">
                             {!isReadOnly ? (
-                              <input
+                              <Input
                                 type="date"
                                 value={task.dueDate}
                                 onChange={(e) =>
                                   updateTaskField(task.id, 'dueDate', e.target.value)
                                 }
-                                className="bg-transparent border border-border/40 rounded px-1 py-0.5 text-[11px] text-inherit focus:outline-none focus:ring-1 focus:ring-primary/70 w-full"
+                                className="h-7 min-h-0 w-full rounded-sm bg-background px-1 py-0 text-[11px] text-inherit shadow-none focus-visible:ring-1 focus-visible:ring-primary/70"
                               />
                             ) : (
                               task.dueDate
@@ -2298,7 +2305,7 @@ export default function AcademicExcelGanttChart({
                           </td>
 
                           {/* 6. Duration — inline editable */}
-                          <td className="border-r border-slate-300 dark:border-slate-700 p-1 text-center font-mono text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          <td className="border-r border-border p-1 text-center font-mono text-foreground whitespace-nowrap">
                             {!isReadOnly ? (
                               <InlineDaysCell
                                 value={spanDays}
@@ -2310,7 +2317,7 @@ export default function AcademicExcelGanttChart({
                           </td>
 
                           {/* 7. % Complete — inline editable */}
-                          <td className="border-r border-slate-300 dark:border-slate-700 p-1 text-center font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          <td className="border-r border-border p-1 text-center font-bold text-foreground whitespace-nowrap">
                             {!isReadOnly ? (
                               <InlineProgressCell
                                 value={pct}
@@ -2322,16 +2329,19 @@ export default function AcademicExcelGanttChart({
                           </td>
 
                           {/* 8. Action: Delete Row */}
-                          <td className="border-r-2 border-slate-900 dark:border-slate-500 p-1 text-center whitespace-nowrap">
+                          <td className="border-r-2 border-border p-1 text-center whitespace-nowrap">
                             {!isReadOnly && (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleDeleteRow(task.id)}
                                 title={`Delete row ${task.id}`}
-                                className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                aria-label={`Delete row ${task.id}`}
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 min-h-0 min-w-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              </Button>
                             )}
                           </td>
 
@@ -2365,7 +2375,7 @@ export default function AcademicExcelGanttChart({
                                 onMouseEnter={() => handleCellMouseEnter(task.id, dIdx)}
                                 title={`Day ${dIdx + 1} (${isFilled ? (isDoneDay ? 'Completed' : 'Planned') : 'Empty'}) — Click/drag to toggle`}
                                 className={cn(
-                                  'p-0 h-7 border-r border-slate-200 dark:border-slate-800 transition-colors cursor-pointer select-none',
+                                  'p-0 h-7 border-r border-border/60 transition-colors cursor-pointer select-none',
                                   cellStyle,
                                   !isFilled && 'hover:bg-primary/20',
                                 )}
@@ -2383,21 +2393,21 @@ export default function AcademicExcelGanttChart({
         </div>
 
         {/* 3. Academic Signatures Block */}
-        <div className="mx-4 mb-4 pt-6 border-t-2 border-slate-900 dark:border-slate-400">
+        <div className="mx-4 mb-4 pt-6 border-t-2 border-border">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             {/* Column 1: Researchers 1 & 3 */}
             <div className="space-y-6">
               <div className="space-y-0.5">
-                <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-                <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                <div className="border-b border-border mb-1 pb-8" />
+                <p className="font-bold text-foreground text-xs">
                   {proponentList[0] || 'Pending'}
                 </p>
                 <p className="text-[11px] text-muted-foreground italic">Researcher</p>
               </div>
               {proponentList[2] && (
                 <div className="space-y-0.5">
-                  <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-                  <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                  <div className="border-b border-border mb-1 pb-8" />
+                  <p className="font-bold text-foreground text-xs">
                     {proponentList[2]}
                   </p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
@@ -2409,8 +2419,8 @@ export default function AcademicExcelGanttChart({
             <div className="space-y-6">
               {proponentList[1] && (
                 <div className="space-y-0.5">
-                  <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-                  <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                  <div className="border-b border-border mb-1 pb-8" />
+                  <p className="font-bold text-foreground text-xs">
                     {proponentList[1]}
                   </p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
@@ -2418,8 +2428,8 @@ export default function AcademicExcelGanttChart({
               )}
               {proponentList[3] && (
                 <div className="space-y-0.5">
-                  <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-                  <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                  <div className="border-b border-border mb-1 pb-8" />
+                  <p className="font-bold text-foreground text-xs">
                     {proponentList[3]}
                   </p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
@@ -2429,8 +2439,8 @@ export default function AcademicExcelGanttChart({
 
             {/* Column 3: Adviser */}
             <div className="space-y-0.5">
-              <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-              <p className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase">
+              <div className="border-b border-border mb-1 pb-8" />
+              <p className="font-bold text-foreground text-xs uppercase">
                 {adviser || 'Pending'}
               </p>
               <p className="text-[11px] text-muted-foreground italic">Adviser</p>
@@ -2438,8 +2448,8 @@ export default function AcademicExcelGanttChart({
 
             {/* Column 4: Instructor */}
             <div className="space-y-0.5">
-              <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
-              <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+              <div className="border-b border-border mb-1 pb-8" />
+              <p className="font-bold text-foreground text-xs">
                 {derivedInstructor || 'Pending'}
               </p>
               <p className="text-[11px] text-muted-foreground italic">Instructor</p>
@@ -2449,73 +2459,65 @@ export default function AcademicExcelGanttChart({
       </div>
 
       {/* Add Section Modal */}
-      {isAddSectionOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-section-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
-        >
-          <div className="relative w-full max-w-md rounded-xl border border-border/80 bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 id="add-section-modal-title" className="text-base font-bold text-foreground">
+      <Dialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen}>
+        <DialogContent aria-modal="true" className="space-y-4">
+          <DialogHeader>
+            <DialogTitle id="add-section-modal-title" className="text-base">
                 Create Milestone Section
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddSectionOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
+            </DialogTitle>
+            <DialogDescription>
+              Add a milestone section to the academic schedule. You can use a standard section name or enter a custom one.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 text-xs">
+            <div className="space-y-1.5">
+              <label htmlFor="new-section-input" className="font-semibold text-foreground">
+                Section Name *
+              </label>
+              <Input
+                id="new-section-input"
+                placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
+                value={newSectionTitle}
+                onChange={(e) => setNewSectionTitle(e.target.value)}
+                className="h-9 text-xs"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSection();
+                  }
+                }}
+              />
             </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div className="space-y-1.5">
-                <label htmlFor="new-section-input" className="font-semibold text-foreground">
-                  Section Name *
-                </label>
-                <input
-                  id="new-section-input"
-                  placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
-                  value={newSectionTitle}
-                  onChange={(e) => setNewSectionTitle(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/70"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSection();
-                    }
-                  }}
-                />
+            <div className="space-y-1.5 pt-1">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Standard Capstone Suggestions:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'SECTION 1 — PROJECT PLANNING & RESEARCH',
+                  'SECTION 2 — ARCHITECTURE & SYSTEM DESIGN',
+                  'SECTION 3 — DEVELOPMENT & SYSTEM INTEGRATION',
+                  'SECTION 4 — TESTING & QA',
+                  'SECTION 5 — DEPLOYMENT & DOCUMENTATION',
+                ].map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNewSectionTitle(preset)}
+                    className="h-auto min-h-8 whitespace-normal px-2 py-1 text-[10px]"
+                  >
+                    {preset.split('—')[1]?.trim() || preset}
+                  </Button>
+                ))}
               </div>
+            </div>
 
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Standard Capstone Suggestions:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'SECTION 1 — PROJECT PLANNING & RESEARCH',
-                    'SECTION 2 — ARCHITECTURE & SYSTEM DESIGN',
-                    'SECTION 3 — DEVELOPMENT & SYSTEM INTEGRATION',
-                    'SECTION 4 — TESTING & QA',
-                    'SECTION 5 — DEPLOYMENT & DOCUMENTATION',
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setNewSectionTitle(preset)}
-                      className="text-[10px] px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
-                    >
-                      {preset.split('—')[1]?.trim() || preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60">
+            <DialogFooter className="border-t border-border/60 pt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -2535,11 +2537,10 @@ export default function AcademicExcelGanttChart({
                 >
                   <Plus className="h-3.5 w-3.5" /> Create Section
                 </Button>
-              </div>
-            </div>
+            </DialogFooter>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

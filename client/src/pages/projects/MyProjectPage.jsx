@@ -44,6 +44,8 @@ const InteractiveGanttChart = lazy(() => import('@/components/projects/Interacti
 const ConsultationLogWidget = lazy(() => import('@/components/projects/ConsultationLogWidget'));
 
 // Hooks & constants
+import { useSocket } from '@/hooks/useSocket';
+import { getSocket } from '@/services/socket';
 import { useMyProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { WORKFLOW_TABS, resolveActiveWorkflowTab } from './myProjectTabs';
@@ -83,6 +85,7 @@ export default function MyProjectPage() {
   const [selectedProposalIndex, setSelectedProposalIndex] = useState(0);
   const { data: project, isLoading, error, refetch } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
+  const socket = useSocket();
 
   // Derived unlock conditions (memoized)
   const titleStatus = project?.titleStatus;
@@ -135,6 +138,46 @@ export default function MyProjectPage() {
       navigate('/project/approval', { replace: true });
     }
   }, [isLoading, project, isArchivedProject, navigate, searchParams]);
+
+  // Real-time synchronization via Socket.IO
+  useEffect(() => {
+    const activeSocket = socket || getSocket?.();
+    if (!activeSocket || !project?._id) return;
+
+    const projectId = project._id;
+    activeSocket.emit('join:project', projectId);
+
+    const handleProjectUpdate = () => {
+      refetch();
+    };
+
+    const handlePhaseAdvanced = (payload) => {
+      toast.success(payload?.message || 'Capstone phase advanced!');
+      refetch();
+    };
+
+    const handleScoresReleased = (payload) => {
+      toast.info(payload?.message || 'Defense evaluation scores have been released.');
+      refetch();
+    };
+
+    activeSocket.on('project:updated', handleProjectUpdate);
+    activeSocket.on('project:phase_advanced', handlePhaseAdvanced);
+    activeSocket.on('defense:scores_released', handleScoresReleased);
+    activeSocket.on('project:postApprovalUnlocked', handleProjectUpdate);
+    activeSocket.on('project:gantt_approval_updated', handleProjectUpdate);
+    activeSocket.on('project:defense_scheduled', handleProjectUpdate);
+
+    return () => {
+      activeSocket.emit('leave:project', projectId);
+      activeSocket.off('project:updated', handleProjectUpdate);
+      activeSocket.off('project:phase_advanced', handlePhaseAdvanced);
+      activeSocket.off('defense:scores_released', handleScoresReleased);
+      activeSocket.off('project:postApprovalUnlocked', handleProjectUpdate);
+      activeSocket.off('project:gantt_approval_updated', handleProjectUpdate);
+      activeSocket.off('project:defense_scheduled', handleProjectUpdate);
+    };
+  }, [socket, project?._id, refetch]);
 
   const unlockedTabs = useMemo(() => {
     const tabs = ['proposal'];
@@ -274,9 +317,7 @@ export default function MyProjectPage() {
   if (!user) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+        <PageSkeleton variant="dashboard" />
       </DashboardLayout>
     );
   }
@@ -405,7 +446,7 @@ export default function MyProjectPage() {
                       onClick={() => navigate(`/projects/${project._id}/certificate`)}
                       className="gap-2 text-xs"
                     >
-                      <Award className="h-4 w-4 text-emerald-500" />
+                      <Award className="h-4 w-4 text-success" />
                       View Certificate
                     </Button>
                   </div>
@@ -477,7 +518,7 @@ export default function MyProjectPage() {
               {/* Tabbed workflow */}
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <div className="w-full mb-6 p-0.5 no-print">
-                  <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
+                  <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-muted/50 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
                     {STUDENT_WORKFLOW_TABS.map((tab) => {
                       const isLocked = !unlockedTabs.includes(tab.value);
                       return (
@@ -537,9 +578,9 @@ export default function MyProjectPage() {
                   className="mt-0 focus-visible:outline-none space-y-6"
                 >
                   {/* Contextual Submissions Link Callout */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl border border-primary/30 bg-primary/5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500 shrink-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
                         <Send className="h-4.5 w-4.5" />
                       </div>
                       <div>
@@ -556,7 +597,7 @@ export default function MyProjectPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => navigate('/project/submissions')}
-                      className="gap-1.5 text-xs shrink-0 border-violet-500/40 hover:bg-violet-500/10 font-medium"
+                      className="gap-1.5 text-xs shrink-0 border-primary/40 hover:bg-primary/10 font-medium"
                     >
                       <span>Go to Submissions</span>
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -570,7 +611,7 @@ export default function MyProjectPage() {
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
-                              className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
+                              className="border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase font-semibold"
                             >
                               Phase 4
                             </Badge>

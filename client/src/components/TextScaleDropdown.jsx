@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSettingsStore, ZOOM_OPTIONS } from '@/stores/settingsStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 
 /**
  * TextScaleDropdown
@@ -24,29 +25,19 @@ export function TextScaleDropdown() {
   }, [setZoomLevel]);
 
   return (
-    <div className="relative inline-flex items-center">
-      <div className="flex h-9 items-center rounded-lg border border-slate-700 bg-white px-2.5 py-1.5 shadow-xs dark:border-slate-700 dark:bg-[#0c1424] transition-colors">
-        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1.5 select-none">
-          T
-        </span>
-        <select
-          value={zoomLevel}
-          onChange={(e) => setZoomLevel(e.target.value)}
-          className="bg-transparent text-xs font-medium text-slate-700 dark:text-slate-200 outline-none cursor-pointer pr-1"
-          aria-label="Adjust text scaling"
-        >
-          {ZOOM_OPTIONS.map((opt) => (
-            <option
-              key={opt.value}
-              value={opt.value}
-              className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-200"
-            >
-              {opt.scale}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
+    <Select value={zoomLevel} onValueChange={setZoomLevel}>
+      <SelectTrigger className="h-9 w-[5.5rem] gap-1 px-2.5" aria-label="Adjust text scaling">
+        <span aria-hidden="true" className="text-xs font-semibold text-muted-foreground">T</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {ZOOM_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.scale}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

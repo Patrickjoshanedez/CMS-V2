@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { Toaster } from 'sonner';
 import { ROLES } from '@cms/shared';
@@ -55,6 +55,7 @@ const SecretaryReviewPage = lazy(() => import('./pages/projects/SecretaryReviewP
 const DefenseSchedulingPage = lazy(() => import('./pages/instructor/DefenseSchedulingPage'));
 const CommitteeAssignmentsPage = lazy(() => import('./pages/instructor/CommitteeAssignmentsPage'));
 const PdfWorkspaceTestPage = lazy(() => import('./pages/dev/PdfWorkspaceTestPage'));
+const ShadcnComponentShowcase = lazy(() => import('./pages/dev/ShadcnComponentShowcase'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -75,12 +76,14 @@ import { topProgress } from './lib/topProgress';
  * while lazy page chunks are downloading and surges to 100% when ready.
  */
 function SuspenseProgressBridge() {
+  const location = useLocation();
+
   useLayoutEffect(() => {
-    topProgress.setSuspended(true);
+    const generation = topProgress.setSuspended(true);
     return () => {
-      topProgress.setSuspended(false);
+      topProgress.setSuspended(false, generation);
     };
-  }, []);
+  }, [location.pathname, location.search]);
 
   return <PageSkeleton />;
 }
@@ -198,7 +201,9 @@ const PROTECTED_ROUTES = [
     allowedRoles: [ROLES.INSTRUCTOR],
   },
   { path: '/projects/:projectId/certificate', Component: CertificatePage },
-  { path: '/dev/pdf-workspace-test', Component: PdfWorkspaceTestPage },
+  ...(import.meta.env.DEV
+    ? [{ path: '/dev/pdf-workspace-test', Component: PdfWorkspaceTestPage }]
+    : []),
   { path: '/reports', Component: ReportsPage, allowedRoles: [ROLES.INSTRUCTOR] },
   {
     path: '/reports/bulk-upload',
@@ -252,7 +257,11 @@ const PROTECTED_ROUTES = [
   },
   // Documents
   { path: '/documents/manuscripts', Component: TemplateManagementPage },
-  { path: '/documents/templates', Component: TemplateManagementPage },
+  {
+    path: '/documents/templates',
+    Component: TemplateManagementPage,
+    allowedRoles: [ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER],
+  },
   { path: '/projects/:projectId/documents/:docIdOrType', Component: DocumentEditorPage },
   {
     path: '/adviser/team-review',
@@ -292,8 +301,13 @@ const PROTECTED_ROUTES = [
   { path: '/submissions/:submissionId/plagiarism', Component: PlagiarismReportPage },
 ];
 
+const DEV_ROUTES = import.meta.env.DEV
+  ? [{ path: '/dev/ui-showcase', Component: ShadcnComponentShowcase }]
+  : [];
+
 export default function App() {
   const { sessionLoading, fetchUser } = useAuthStore();
+  const theme = useThemeStore((state) => state.theme);
   const hasFetchedSession = useRef(false);
 
   // Restore session on every hard refresh / first load.
@@ -326,56 +340,60 @@ export default function App() {
       <RouteErrorBoundary>
         <Suspense fallback={<SuspenseProgressBridge />}>
           <Routes>
-          {/* Guest routes — redirect to dashboard if already authenticated */}
-          {GUEST_ROUTES.map(({ path, Component }) => (
+            {/* Guest routes — redirect to dashboard if already authenticated */}
+            {GUEST_ROUTES.map(({ path, Component }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <GuestRoute>
+                    <Component />
+                  </GuestRoute>
+                }
+              />
+            ))}
+
+            {DEV_ROUTES.map(({ path, Component }) => (
+              <Route key={path} path={path} element={<Component />} />
+            ))}
+
+            {/* Auth route — accessible without guard */}
+            <Route path="/verify-otp" element={<VerifyOtpPage />} />
+
+            {/* Protected routes — redirect to login if not authenticated */}
+            {PROTECTED_ROUTES.map(({ path, Component, allowedRoles }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <ProtectedRoute>
+                    {allowedRoles ? (
+                      <RoleRoute allowedRoles={allowedRoles}>
+                        <Component />
+                      </RoleRoute>
+                    ) : (
+                      <Component />
+                    )}
+                  </ProtectedRoute>
+                }
+              />
+            ))}
+
+            {/* Public routes */}
+            <Route path="/forbidden" element={<ForbiddenPage />} />
             <Route
-              key={path}
-              path={path}
+              path="/"
               element={
                 <GuestRoute>
-                  <Component />
+                  <LandingPage />
                 </GuestRoute>
               }
             />
-          ))}
-
-          {/* Auth route — accessible without guard */}
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
-
-          {/* Protected routes — redirect to login if not authenticated */}
-          {PROTECTED_ROUTES.map(({ path, Component, allowedRoles }) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <ProtectedRoute>
-                  {allowedRoles ? (
-                    <RoleRoute allowedRoles={allowedRoles}>
-                      <Component />
-                    </RoleRoute>
-                  ) : (
-                    <Component />
-                  )}
-                </ProtectedRoute>
-              }
-            />
-          ))}
-
-          {/* Public routes */}
-          <Route path="/forbidden" element={<ForbiddenPage />} />
-          <Route
-            path="/"
-            element={
-              <GuestRoute>
-                <LandingPage />
-              </GuestRoute>
-            }
-          />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
-    </RouteErrorBoundary>
-    <Toaster richColors position="top-right" style={{ zIndex: 999999 }} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
+      <Toaster theme={theme} richColors position="top-right" />
       <PlagiarismProgressModal />
     </>
   );

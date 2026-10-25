@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import PageSkeleton from '@/components/ui/PageSkeleton';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { useMyTeam } from '@/hooks/useTeams';
 import EmptyTeamState from './EmptyTeamState';
@@ -33,7 +32,6 @@ export default function StudentTeamView({ user }) {
   if (isError && error?.response?.status !== 404) {
     return (
       <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
           {error?.response?.data?.error?.message || 'Failed to load your team.'}
         </AlertDescription>
@@ -46,12 +44,12 @@ export default function StudentTeamView({ user }) {
     if (showCreateForm) {
       if (!isProfileComplete) {
         return (
-          <div className="rounded-lg border border-warning/30 bg-warning/10 p-6">
-            <p className="font-semibold text-warning">Complete your profile first</p>
-            <p className="mt-1 text-sm text-warning/80">
-              You need to set your section and instructor before creating a team.
-            </p>
-            <div className="mt-4 flex gap-2">
+          <Alert variant="warning" className="p-6">
+            <AlertTitle>Complete your profile first</AlertTitle>
+            <AlertDescription>
+              <p>You need to set your section and instructor before creating a team.</p>
+            </AlertDescription>
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => navigate('/profile')}>
                 Go to Profile
               </Button>
@@ -59,7 +57,7 @@ export default function StudentTeamView({ user }) {
                 Cancel
               </Button>
             </div>
-          </div>
+          </Alert>
         );
       }
       return <CreateTeamForm onCancel={() => setShowCreateForm(false)} />;

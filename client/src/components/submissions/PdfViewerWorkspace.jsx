@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import '@/utils/pdfWorker';
 import PropTypes from 'prop-types';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import {
@@ -10,13 +11,13 @@ import {
 import 'react-pdf-highlighter-plus/style/style.css';
 import 'react-pdf-highlighter-plus/style/pdf_viewer.css';
 import TurnitinHighlightOverlay from './TurnitinHighlightOverlay';
-
-// Ensure PDF.js worker is registered locally
-import '@/utils/pdfWorker';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Spinner } from '@/components/ui/Spinner';
 
 import {
   MessageSquare,
-  AlertTriangle,
   Send,
   Plus,
   FileSpreadsheet,
@@ -93,38 +94,29 @@ export function HighlightPopupContent({
   };
 
   return (
-    <div
+    <Card
       role="dialog"
       aria-label="Annotation details"
-      className="bg-popover text-popover-foreground border border-border/80 shadow-2xl rounded-xl p-3.5 w-80 sm:w-96 max-w-full break-words text-xs space-y-3 z-50 animate-in fade-in-50 zoom-in-95 pointer-events-auto [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0"
+      className="relative z-50 w-80 max-w-full space-y-3 break-words rounded-lg border-border/80 bg-popover p-3.5 text-xs text-popover-foreground shadow-lg animate-in fade-in-50 zoom-in-95 pointer-events-auto [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:w-96 sm:[&_button]:min-h-0 sm:[&_button]:min-w-0"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Popover Header */}
       <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/60">
         <div className="flex items-center gap-1.5 flex-wrap">
           {isOverlap ? (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 px-1.5 bg-purple-500/10 text-purple-400 border-purple-500/30 flex items-center gap-1 font-semibold"
-            >
+            <Badge variant="info" className="gap-1 px-1.5 py-0 text-[10px] font-semibold">
               <Sparkles className="h-3 w-3" />
               Cross-Layer Overlap
             </Badge>
           ) : isComment ? (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 px-1.5 bg-indigo-500/10 text-indigo-400 border-indigo-500/30 flex items-center gap-1"
-            >
+            <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[10px]">
               <MessageSquare className="h-3 w-3" />
               {highlight.meta?.authorRole
                 ? highlight.meta.authorRole.replace('_', ' ').toUpperCase()
                 : 'COMMENT'}
             </Badge>
           ) : (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 px-1.5 bg-rose-500/10 text-rose-400 border-rose-500/30 flex items-center gap-1"
-            >
+            <Badge variant="destructive" className="gap-1 px-1.5 py-0 text-[10px]">
               <ShieldAlert className="h-3 w-3" />
               {isArchiveMode ? 'SIMILARITY' : 'PLAGIARISM'}{' '}
               {highlight.meta?.similarityScore ? `(${highlight.meta.similarityScore}%)` : ''}
@@ -145,44 +137,42 @@ export function HighlightPopupContent({
           </span>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors"
+          className="size-8 min-h-[44px] min-w-[44px] text-muted-foreground sm:min-h-0 sm:min-w-0"
           aria-label="Close popover"
         >
           <X className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
 
       {/* Segmented Switcher for Overlapping Matches */}
       {isOverlap && (
         <div className="flex border-b border-border/40 text-[11px] font-medium">
-          <button
+          <Button
             type="button"
-            className={`flex-1 py-1 text-center transition-colors border-b-2 flex items-center justify-center gap-1 ${
-              activeTab === 'comment'
-                ? 'border-indigo-500 text-indigo-400 font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+            variant={activeTab === 'comment' ? 'secondary' : 'ghost'}
+            aria-pressed={activeTab === 'comment'}
+            className="h-9 min-h-[44px] flex-1 gap-1 rounded-none px-2 text-center text-[11px] sm:min-h-0"
             onClick={() => setActiveTab('comment')}
           >
-            <MessageSquare className="h-3 w-3 text-indigo-400" />
+            <MessageSquare className="h-3 w-3 text-info" />
             Comment
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={`flex-1 py-1 text-center transition-colors border-b-2 flex items-center justify-center gap-1 ${
-              activeTab === 'plagiarism'
-                ? 'border-rose-500 text-rose-400 font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+            variant={activeTab === 'plagiarism' ? 'destructiveOutline' : 'ghost'}
+            aria-pressed={activeTab === 'plagiarism'}
+            className="h-9 min-h-[44px] flex-1 gap-1 rounded-none px-2 text-center text-[11px] sm:min-h-0"
             onClick={() => setActiveTab('plagiarism')}
           >
-            <ShieldAlert className="h-3 w-3 text-rose-400" />
+            <ShieldAlert className="h-3 w-3 text-destructive" />
             {isArchiveMode ? 'Similarity' : 'Plagiarism'} (
             {plagiarismItem?.meta?.similarityScore || 0}%)
-          </button>
+          </Button>
         </div>
       )}
 
@@ -192,7 +182,7 @@ export function HighlightPopupContent({
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-1 font-semibold text-foreground text-[11px]">
-                <div className="h-5 w-5 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-[10px]">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-info/10 text-info font-bold text-[10px]">
                   {commentItem.meta?.authorName?.[0]?.toUpperCase() || <User className="h-3 w-3" />}
                 </div>
                 <span>{commentItem.meta?.authorName || 'Faculty Member'}</span>
@@ -202,12 +192,8 @@ export function HighlightPopupContent({
                 <span>Page {commentItem.position?.pageNumber || 1}</span>
                 {commentItem.meta?.status && (
                   <Badge
-                    variant="outline"
-                    className={`text-[9px] py-0 px-1 uppercase ${
-                      commentItem.meta.status === 'resolved'
-                        ? 'border-emerald-500/40 text-emerald-400'
-                        : 'border-amber-500/40 text-amber-400'
-                    }`}
+                    variant={commentItem.meta.status === 'resolved' ? 'success' : 'warning'}
+                    className="px-1 py-0 text-[9px] uppercase"
                   >
                     {commentItem.meta.status}
                   </Badge>
@@ -256,18 +242,20 @@ export function HighlightPopupContent({
           {/* Reply Form */}
           {canReply && (
             <form onSubmit={handleSendReply} className="flex gap-1.5 pt-1">
-              <input
+              <Input
                 type="text"
                 placeholder="Write a reply..."
+                aria-label="Write a reply"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                className="flex-1 bg-background border border-border/80 rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="min-h-[44px] flex-1 px-2 py-1 text-xs sm:min-h-0"
               />
               <Button
                 type="submit"
-                size="sm"
+                size="icon"
                 disabled={!replyText.trim() || submittingReply}
-                className="h-7 px-2 text-xs"
+                aria-label="Send reply"
+                className="size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
               >
                 <Send className="h-3 w-3" />
               </Button>
@@ -277,8 +265,9 @@ export function HighlightPopupContent({
           {/* Comment Actions */}
           <div className="flex items-center justify-between pt-1 text-[10px]">
             {onAddToAdm && (
-              <button
+              <Button
                 type="button"
+                variant="link"
                 onClick={() => {
                   const directive = {
                     pageNumbers: String(
@@ -294,10 +283,10 @@ export function HighlightPopupContent({
                   onAddToAdm(directive);
                   onClose?.();
                 }}
-                className="text-primary hover:underline flex items-center gap-1 ml-auto font-medium"
+                className="min-h-[44px] gap-1 px-2 ml-auto font-medium sm:min-h-0"
               >
                 <Plus className="h-3 w-3" />+ Add to ADM Directive
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -307,7 +296,7 @@ export function HighlightPopupContent({
       {(activeTab === 'plagiarism' || (!isOverlap && isPlagiarism)) && plagiarismItem && (
         <div className="space-y-2">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
               Matched Repository Record
             </span>
             <p className="font-semibold text-foreground text-[11px] mt-0.5 leading-snug">
@@ -315,11 +304,11 @@ export function HighlightPopupContent({
             </p>
           </div>
 
-          <div className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px]">
+          <div className="flex items-center justify-between rounded-md border border-destructive/20 bg-destructive/10 p-2 text-[11px]">
             <span className="text-muted-foreground">
               {isArchiveMode ? 'Content Similarity:' : 'Originality Similarity:'}
             </span>
-            <span className="font-bold text-rose-500">
+            <span className="font-bold text-destructive">
               {plagiarismItem.meta?.similarityScore || 0}% Match
             </span>
           </div>
@@ -372,7 +361,7 @@ export function HighlightPopupContent({
           {!isArchiveMode && onAddToAdm && (
             <Button
               type="button"
-              variant="outline"
+              variant="destructiveOutline"
               size="sm"
               onClick={() => {
                 const directive = {
@@ -390,14 +379,14 @@ export function HighlightPopupContent({
                 onAddToAdm(directive);
                 onClose?.();
               }}
-              className="w-full text-xs gap-1.5 border-rose-500/40 text-rose-400 hover:bg-rose-500/10 mt-1 font-semibold"
+              className="mt-1 min-h-[44px] w-full gap-1.5 text-xs font-semibold sm:min-h-0"
             >
               <FileSpreadsheet className="h-3 w-3" />+ Add to ADM Directive
             </Button>
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -456,15 +445,15 @@ function CustomHighlightRenderer({
   const resolvedColor = isPlagiarism
     ? highlight.meta?.palette?.color ||
       (highlight.meta?.similarityScore >= 90
-        ? 'rgba(185, 28, 28, 0.85)'
+        ? 'hsl(var(--destructive))'
         : highlight.meta?.similarityScore >= 70
-          ? 'rgba(244, 63, 94, 0.85)'
+          ? 'hsl(var(--chart-7))'
           : highlight.meta?.similarityScore >= 50
-            ? 'rgba(249, 115, 22, 0.85)'
-            : 'rgba(234, 179, 8, 0.85)')
+            ? 'hsl(var(--chart-6))'
+            : 'hsl(var(--warning))')
     : isComment
-      ? 'rgba(59, 130, 246, 0.85)'
-      : 'rgba(168, 85, 247, 0.85)';
+      ? 'hsl(var(--info))'
+      : 'hsl(var(--chart-4))';
 
   const partStyle = {
     borderBottom: `2px solid ${resolvedColor}`,
@@ -804,8 +793,10 @@ export function PdfViewerWorkspace({
         disableAutoFetch={false}
         beforeLoad={(progress) => (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-20 gap-3 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm font-medium text-foreground">Loading manuscript stream...</p>
+            <Spinner className="size-8 text-primary" />
+            <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">
+              Loading manuscript stream...
+            </p>
             <p className="text-xs text-muted-foreground">
               {progress
                 ? `Retrieving vector-indexed PDF (${Math.round((progress.loaded / (progress.total || 1)) * 100)}%)...`
@@ -815,14 +806,15 @@ export function PdfViewerWorkspace({
         )}
         errorMessage={(error) => (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 z-20 gap-3 p-6 text-center">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
-            <p className="text-sm font-semibold text-foreground">
-              Failed to render PDF manuscript.
-            </p>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              {error?.message ||
-                'The file could not be parsed by the PDF engine. Verify that the file is an authentic PDF.'}
-            </p>
+            <Alert variant="destructive" className="max-w-lg text-left">
+              <AlertDescription>
+                <p className="font-semibold">Failed to render PDF manuscript.</p>
+                <p className="mt-1 text-sm">
+                  {error?.message ||
+                    'The file could not be parsed by the PDF engine. Verify that the file is an authentic PDF.'}
+                </p>
+              </AlertDescription>
+            </Alert>
           </div>
         )}
       >

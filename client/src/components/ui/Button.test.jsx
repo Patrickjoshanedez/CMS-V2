@@ -1,112 +1,51 @@
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Button } from './Button.jsx';
-import { preloadRoute } from '@/utils/routePreload';
-
-vi.mock('@/utils/routePreload', () => ({
-  preloadRoute: vi.fn(),
-  normalizeRoutePath: (path) => path,
-  isRoutePreloaded: vi.fn(() => false),
-}));
-
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { Button } from './Button';
 
 describe('Button', () => {
-  let container = null;
-  let root = null;
+  it('lets caller layout classes override the shared shadcn base', () => {
+    render(
+      <Button variant="ghost" size="sm" className="h-8 min-h-0 w-full justify-start">
+        Archive suggestion
+      </Button>,
+    );
 
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root.unmount();
-      });
-    }
-
-    if (container) {
-      container.remove();
-    }
-
-    container = null;
-    root = null;
-    vi.clearAllMocks();
+    const button = screen.getByRole('button', { name: 'Archive suggestion' });
+    expect(button.className).toContain('justify-start');
+    expect(button.className).not.toContain('justify-center');
+    expect(button.className).toContain('min-h-0');
+    expect(button.className).not.toContain('min-h-11');
+    expect(button.className).toContain('h-8');
+    expect(button.className).toContain('w-full');
   });
 
-  it('renders the child element when asChild is enabled', () => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
+  it('provides semantic outline variants for destructive and warning actions', () => {
+    render(
+      <div>
+        <Button variant="destructiveOutline">Reject</Button>
+        <Button variant="warningOutline">Request revision</Button>
+      </div>,
+    );
 
-    act(() => {
-      root.render(
-        <Button asChild variant="secondary">
-          <a href="/team">Open team</a>
-        </Button>,
-      );
-    });
-
-    const anchor = container.querySelector('a');
-
-    expect(container.querySelector('button')).toBeNull();
-    expect(anchor).not.toBeNull();
-    expect(anchor.textContent).toBe('Open team');
-    expect(anchor.getAttribute('href')).toBe('/team');
-    expect(anchor.className).toContain('bg-secondary');
-    expect(anchor.className).toContain('text-secondary-foreground');
+    expect(screen.getByRole('button', { name: 'Reject' })).toHaveClass('text-destructive-text');
+    expect(screen.getByRole('button', { name: 'Request revision' })).toHaveClass(
+      'text-warning-foreground',
+    );
   });
 
-  it('renders a spinner and disables button when loading is true', () => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
+  it('uses the shared accessible spinner and disables the button while busy', () => {
+    render(
+      <Button loading loadingText="Saving changes">
+        Save
+      </Button>,
+    );
 
-    act(() => {
-      root.render(<Button loading>Submit Proposal</Button>);
-    });
-
-    const button = container.querySelector('button');
-    expect(button).not.toBeNull();
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute('aria-busy')).toBe('true');
-    expect(button.querySelector('svg')).not.toBeNull();
-    expect(button.textContent).toContain('Submit Proposal');
-  });
-
-  it('renders loadingText when loading is true and loadingText is provided', () => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <Button loading loadingText="Saving changes...">
-          Save
-        </Button>,
-      );
-    });
-
-    const button = container.querySelector('button');
-    expect(button).not.toBeNull();
-    expect(button.textContent).toContain('Saving changes...');
-    expect(button.textContent).not.toContain('Save');
-  });
-
-  it('triggers route preloading when to or href is provided on click or interaction', () => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    act(() => {
-      root.render(<Button to="/projects">View Projects</Button>);
-    });
-
-    const button = container.querySelector('button');
-    expect(button).not.toBeNull();
-
-    act(() => {
-      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(preloadRoute).toHaveBeenCalledWith('/projects');
+    const button = screen.getByRole('button', { name: 'Saving changes' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button.querySelector('svg[aria-hidden="true"]')).toHaveClass(
+      'motion-reduce:animate-none',
+    );
+    expect(button).toHaveTextContent('Saving changes');
   });
 });

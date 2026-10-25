@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -8,6 +8,7 @@ import { useNavigationSkeleton } from '@/hooks/useNavigationSkeleton';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/Sheet';
 
 const SIDEBAR_STATE_KEY = 'cms.sidebar.open';
 
@@ -25,8 +26,6 @@ export default function DashboardLayout({ children }) {
   const hasPortalSpacing = useAuthStore((state) =>
     [ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR].includes(state.user?.role),
   );
-  const layoutRef = useRef(null);
-  const mainAreaRef = useRef(null);
   const [mobileView, setMobileView] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 1024,
   );
@@ -61,98 +60,73 @@ export default function DashboardLayout({ children }) {
     if (window.innerWidth < 1024) setSidebarOpen(false);
   }, [pathname, search]);
 
-  useEffect(() => {
-    if (!sidebarOpen || !mobileView) return;
-    const sidebar = layoutRef.current?.querySelector('aside');
-    const mainArea = mainAreaRef.current;
-    if (!sidebar || !mainArea) return;
-    const focusable = () =>
-      Array.from(
-        sidebar.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"]'),
-      ).filter((element) => element.getClientRects().length > 0);
-    const previouslyFocused = document.activeElement;
-    const wasInert = mainArea.inert;
-    mainArea.inert = true;
-    focusable()[0]?.focus();
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setSidebarOpen(false);
-      }
-      if (event.key === 'Tab') {
-        const items = focusable();
-        const first = items[0];
-        const last = items.at(-1);
-        if (
-          event.shiftKey &&
-          (document.activeElement === first || !sidebar.contains(document.activeElement))
-        ) {
-          event.preventDefault();
-          last?.focus();
-        } else if (
-          !event.shiftKey &&
-          (document.activeElement === last || !sidebar.contains(document.activeElement))
-        ) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      mainArea.inert = wasInert;
-      const menuButton = mainArea.querySelector('[aria-label="Open sidebar"]');
-      if (menuButton) menuButton.focus();
-      else if (previouslyFocused?.isConnected) previouslyFocused.focus();
-    };
-  }, [sidebarOpen, mobileView]);
-
   return (
-    <div ref={layoutRef} className="flex h-dvh overflow-hidden bg-background">
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close navigation"
-          tabIndex={-1}
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-foreground/40 lg:hidden"
-        />
-      )}
-      {/* Sidebar — passes collapsed state for icon-rail mode */}
-      <Sidebar
-        open={sidebarOpen}
-        mobileView={mobileView}
-        onToggle={() => setSidebarOpen((prev) => !prev)}
-      />
-
-      {/* Main area */}
-      <div ref={mainAreaRef} className="flex flex-1 flex-col min-w-0 overflow-hidden min-h-0">
-        <Header sidebarOpen={sidebarOpen} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
-        {/* Announcement banner — only rendered when there is content */}
-        <AnnouncementBanner />
-
-        <main
-          className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto bg-background ${
-            hasPortalSpacing ? 'p-4 sm:p-6 xl:p-8' : 'p-3 sm:p-6'
-          }`}
+    <Sheet open={mobileView && sidebarOpen} onOpenChange={setSidebarOpen}>
+      <div className="flex h-dvh overflow-hidden bg-background">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          {/* Page content — skeleton on navigation, real content otherwise */}
-          {isSkeleton ? (
-            <PageSkeleton key={`skeleton-${pathname}`} />
-          ) : (
-            <div
-              key={pathname}
-              className={`cms-route-enter min-w-0 ${
-                hasPortalSpacing ? 'mx-auto w-full max-w-7xl' : ''
-              }`}
-            >
-              {children || <Outlet />}
-            </div>
-          )}
-        </main>
+          Skip to content
+        </a>
+        {!mobileView && (
+          <Sidebar
+            open={sidebarOpen}
+            mobileView={false}
+            onToggle={() => setSidebarOpen((prev) => !prev)}
+          />
+        )}
+        {mobileView && (
+          <SheetContent
+            side="left"
+            className="w-72 max-w-[85vw] p-0"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              document.querySelector('[aria-label="Open sidebar"]')?.focus();
+            }}
+          >
+            <SheetTitle className="sr-only">Main navigation</SheetTitle>
+            <SheetDescription className="sr-only">
+              Navigate between your capstone workspace, tools, and account pages.
+            </SheetDescription>
+            <Sidebar
+              open
+              mobileView
+              onToggle={() => setSidebarOpen((prev) => !prev)}
+            />
+          </SheetContent>
+        )}
+
+        {/* Main area */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <Header sidebarOpen={sidebarOpen} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+
+          {/* Announcement banner — only rendered when there is content */}
+          <AnnouncementBanner />
+
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto bg-background ${
+              hasPortalSpacing ? 'p-4 sm:p-6 xl:p-8' : 'p-3 sm:p-6'
+            }`}
+          >
+            {/* Page content — skeleton on navigation, real content otherwise */}
+            {isSkeleton ? (
+              <PageSkeleton key={`skeleton-${pathname}`} />
+            ) : (
+              <div
+                key={pathname}
+                className={`cms-route-enter min-w-0 ${
+                  hasPortalSpacing ? 'mx-auto w-full max-w-7xl' : ''
+                }`}
+              >
+                {children || <Outlet />}
+              </div>
+            )}
+          </main>
+        </div>
       </div>
-    </div>
+    </Sheet>
   );
 }

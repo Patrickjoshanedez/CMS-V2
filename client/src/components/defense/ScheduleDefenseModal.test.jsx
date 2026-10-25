@@ -354,9 +354,10 @@ describe('ScheduleDefenseModal', () => {
       initialTime: '10:00 AM - 10:30 AM',
     });
 
-    expect(document.getElementById('schedule-defense-title')).toHaveTextContent(
-      'Schedule Title Hearing',
-    );
+    const titleDialog = document.querySelector('[role="dialog"]');
+    const titleId = titleDialog?.getAttribute('aria-labelledby');
+    expect(titleId).toBeTruthy();
+    expect(document.getElementById(titleId)).toHaveTextContent('Schedule Title Hearing');
     expect(document.getElementById('defense-type')).not.toBeInTheDocument();
     expect(document.querySelector('label[for="defense-date"]')).toHaveTextContent('Hearing Date');
 
@@ -381,5 +382,83 @@ describe('ScheduleDefenseModal', () => {
     expect(toast.success).toHaveBeenCalledWith(
       'Title hearing scheduled for Synthetic title review project on 2026-10-26 at 10:00 AM - 10:30 AM.',
     );
+  });
+
+  it('allows scheduling title proposal hearing with vacant adviser when secretary and 3 panelists are appointed', async () => {
+    projectService.scheduleDefense.mockResolvedValueOnce({ success: true });
+    const project = {
+      _id: 'proj-title-review-no-adviser',
+      title: 'Vacant Adviser Proposal Review Project',
+      titleStatus: 'submitted',
+      workflowPhase: 1,
+      capstonePhase: 1,
+      stage: 'proposal',
+      adviserId: null, // Vacant adviser!
+      secretaryId: { firstName: 'Arnel', lastName: 'Dela Cruz' },
+      panelistIds: [
+        { firstName: 'Grace', lastName: 'Villanueva' },
+        { firstName: 'Jonathan', lastName: 'Bautista' },
+        { firstName: 'Catherine', lastName: 'Mendoza' },
+      ],
+    };
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project,
+      initialDate: '2026-10-26',
+      initialTime: '10:00 AM - 10:30 AM',
+    });
+
+    expect(document.body.textContent).toContain('Committee Complete');
+    expect(document.body.textContent).toContain('To be chosen after approval based on field');
+    expect(document.body.textContent).not.toContain('Institutional Notice: Committee Incomplete');
+
+    const submitButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent.includes('Confirm & Notify Title Review Committee'),
+    );
+    expect(submitButton).toBeDefined();
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    expect(projectService.scheduleDefense).toHaveBeenCalledWith(
+      'proj-title-review-no-adviser',
+      expect.objectContaining({
+        date: '2026-10-26',
+        time: '10:00 AM - 10:30 AM',
+        defenseType: 'proposal',
+        status: 'scheduled',
+      }),
+    );
+  });
+
+  it('warns when secretary is missing for title proposal hearing even if adviser is vacant', () => {
+    const project = {
+      _id: 'proj-title-review-no-sec',
+      title: 'Missing Secretary Proposal Review Project',
+      titleStatus: 'submitted',
+      workflowPhase: 1,
+      capstonePhase: 1,
+      stage: 'proposal',
+      adviserId: null,
+      secretaryId: null, // Missing secretary!
+      panelistIds: [
+        { firstName: 'Grace', lastName: 'Villanueva' },
+        { firstName: 'Jonathan', lastName: 'Bautista' },
+        { firstName: 'Catherine', lastName: 'Mendoza' },
+      ],
+    };
+    renderModal({
+      isOpen: true,
+      onClose: vi.fn(),
+      project,
+      initialDate: '2026-10-26',
+      initialTime: '10:00 AM - 10:30 AM',
+    });
+
+    expect(document.body.textContent).toContain('Institutional Notice: Committee Incomplete');
+    expect(document.body.textContent).toContain('Committee Secretary is unassigned');
+    expect(document.body.textContent).toContain('Missing Secretary');
   });
 });

@@ -1,7 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Search, X, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { cn } from '@/lib/utils';
 
 export const SUGGESTIONS = [
   'Deep Learning Agricultural Yield Prediction',
@@ -14,7 +24,7 @@ export const SUGGESTIONS = [
 ];
 
 /**
- * ArchiveSearchBar / GoogleScholarSearchBar
+ * GoogleScholarSearchBar
  *
  * Minimalist, high-density academic search bar featuring:
  * - Normalized browser input eliminating native double "X" clear buttons.
@@ -91,6 +101,12 @@ export default function GoogleScholarSearchBar({
     }
   };
 
+  const handleScopeChange = (value) => {
+    onScopeChange(value);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       setShowSuggestions(false);
@@ -114,97 +130,108 @@ export default function GoogleScholarSearchBar({
 
   return (
     <div ref={containerRef} className="relative w-full max-w-4xl mx-auto">
-      <form
-        onSubmit={handleSubmit}
-        className={`grid grid-cols-2 items-center gap-2 rounded-lg border bg-card p-2 shadow-xs transition-all sm:flex sm:gap-0 sm:p-0 ${
+      <Card
+        className={cn(
+          'p-2 transition-all sm:p-0',
           isFocused
             ? 'border-primary ring-1 ring-primary shadow-md'
-            : 'border-border/80 hover:border-border'
-        }`}
+            : 'border-border/80 hover:border-border',
+        )}
       >
-        {/* Main Search Input with Browser Normalization */}
-        <div className="relative col-span-2 flex min-w-0 items-center sm:order-2 sm:flex-1">
-          <Search className="absolute left-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            ref={inputRef}
-            id="archive-search-input"
-            type="search"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={Boolean(showSuggestions && filteredSuggestions.length > 0)}
-            aria-controls="archive-search-suggestions"
-            aria-activedescendant={
-              activeIndex >= 0 ? `archive-suggestion-${activeIndex}` : undefined
-            }
-            aria-label="Search BukSU research archive"
-            value={query}
-            onChange={(e) => {
-              onQueryChange(e.target.value);
-              setShowSuggestions(true);
-              setActiveIndex(-1);
-            }}
-            onFocus={() => {
-              setIsFocused(true);
-              setShowSuggestions(true);
-            }}
-            onBlur={() => setIsFocused(false)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              scope === 'doi'
-                ? 'Enter DOI (e.g. 10.1234/buksu.2025.042)...'
-                : scope === 'title'
-                  ? 'Search article title...'
-                  : 'Search title, author, abstract, or DOI...'
-            }
-            className="w-full min-w-0 h-11 pl-10 pr-9 bg-transparent text-base sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden appearance-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden"
-          />
-
-          {/* Single Unified Clear Action Button */}
-          {Boolean(query && query.length > 0) && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="absolute right-2.5 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-              aria-label="Clear search query"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Scope Selector Dropdown */}
-        <div className="relative min-w-0 rounded-md border border-border sm:order-1 sm:shrink-0 sm:rounded-none sm:border-0 sm:border-r">
-          <select
-            value={scope}
-            onChange={(e) => onScopeChange(e.target.value)}
-            className="h-11 w-full pl-3 pr-8 text-xs font-medium bg-transparent text-foreground rounded-l-lg appearance-none cursor-pointer focus:outline-hidden hover:bg-muted/40 transition-colors sm:w-auto"
-            aria-label="Search scope"
-          >
-            <option value="all" className="bg-card text-foreground">
-              Full-Text
-            </option>
-            <option value="title" className="bg-card text-foreground">
-              Title Only
-            </option>
-            <option value="metadata" className="bg-card text-foreground">
-              Authors & Meta
-            </option>
-            <option value="doi" className="bg-card text-foreground">
-              DOI Match
-            </option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-
-        {/* Single Subtle Submit Trigger */}
-        <Button
-          type="submit"
-          className="h-11 w-full px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium text-xs tracking-wide transition-colors sm:order-3 sm:mr-1.5 sm:h-9 sm:w-auto sm:shrink-0"
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-2 items-center gap-2 sm:flex sm:gap-0"
         >
-          <Search className="mr-1.5 h-3.5 w-3.5" />
-          Search
-        </Button>
-      </form>
+          {/* Scope Selector Dropdown */}
+          <div className="min-w-0 sm:order-1 sm:shrink-0 sm:border-r sm:border-border/70">
+            <Select
+              value={scope}
+              onValueChange={handleScopeChange}
+              onOpenChange={(open) => {
+                if (open) {
+                  setShowSuggestions(false);
+                  setActiveIndex(-1);
+                }
+              }}
+            >
+              <SelectTrigger
+                aria-label="Search scope"
+                className="h-11 min-h-[44px] w-full border-0 bg-transparent px-3 text-xs font-medium shadow-none hover:bg-muted/40 focus-visible:ring-0 focus-visible:ring-offset-0 sm:w-auto sm:min-w-32"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start" className="w-52">
+                <SelectItem value="all">Full-Text</SelectItem>
+                <SelectItem value="title">Title Only</SelectItem>
+                <SelectItem value="metadata">Authors &amp; Meta</SelectItem>
+                <SelectItem value="doi">DOI Match</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Main Search Input with Browser Normalization */}
+          <div className="relative col-span-2 flex min-w-0 items-center sm:order-2 sm:flex-1">
+            <Search
+              className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              ref={inputRef}
+              id="archive-search-input"
+              type="search"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={Boolean(showSuggestions && filteredSuggestions.length > 0)}
+              aria-controls="archive-search-suggestions"
+              aria-activedescendant={
+                activeIndex >= 0 ? `archive-suggestion-${activeIndex}` : undefined
+              }
+              aria-label="Search BukSU research archive"
+              value={query}
+              onChange={(e) => {
+                onQueryChange(e.target.value);
+                setShowSuggestions(true);
+                setActiveIndex(-1);
+              }}
+              onFocus={() => {
+                setIsFocused(true);
+                setShowSuggestions(true);
+              }}
+              onBlur={() => setIsFocused(false)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                scope === 'doi'
+                  ? 'Enter DOI (e.g. 10.1234/buksu.2025.042)...'
+                  : scope === 'title'
+                    ? 'Search article title...'
+                    : 'Search title, author, abstract, or DOI...'
+              }
+              className="h-11 min-h-[44px] min-w-0 appearance-none border-0 bg-transparent pl-10 pr-10 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden"
+            />
+
+            {Boolean(query && query.length > 0) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleClear}
+                className="absolute right-1 size-[44px] min-h-[44px] min-w-[44px] text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
+                aria-label="Clear search query"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            className="h-11 min-h-[44px] w-full text-xs tracking-wide sm:order-3 sm:mr-1.5 sm:h-9 sm:w-auto sm:shrink-0"
+          >
+            <Search className="size-3.5" aria-hidden="true" />
+            Search
+          </Button>
+        </form>
+      </Card>
 
       {/* Screen Reader Live Region for Dynamic Suggestion and Result Announcements */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -221,33 +248,36 @@ export default function GoogleScholarSearchBar({
           id="archive-search-suggestions"
           role="listbox"
           aria-label="Suggested research topics"
-          className="absolute top-full left-0 right-0 mt-1.5 z-40 bg-popover border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95"
+          className="absolute left-0 right-0 top-full z-40 mt-1.5 overflow-hidden rounded-lg border border-border bg-popover p-0 shadow-lg animate-in fade-in-50 zoom-in-95"
         >
           <div className="p-1.5 space-y-0.5">
-            <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-amber-500" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Sparkles className="size-3 text-primary" aria-hidden="true" />
               Suggested Research Topics
             </div>
             {filteredSuggestions.map((item, idx) => {
               const isSelected = activeIndex === idx;
               return (
-                <button
+                <Button
                   key={item}
                   id={`archive-suggestion-${idx}`}
                   role="option"
                   aria-selected={isSelected}
-                  type="button"
+                  tabIndex={-1}
+                  variant="ghost"
+                  size="sm"
                   onPointerDown={(e) => {
                     e.preventDefault();
                     handleSelectSuggestion(item);
                   }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left text-xs text-foreground transition-colors ${
-                    isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/80'
-                  }`}
+                  className={cn(
+                    'h-9 min-h-[44px] w-full justify-start gap-2.5 rounded-md px-3 text-left text-xs',
+                    isSelected && 'bg-primary/10 font-medium text-primary hover:bg-primary/10',
+                  )}
                 >
-                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <span className="truncate">{item}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -256,8 +286,6 @@ export default function GoogleScholarSearchBar({
     </div>
   );
 }
-
-export { GoogleScholarSearchBar as ArchiveSearchBar };
 
 GoogleScholarSearchBar.propTypes = {
   query: PropTypes.string.isRequired,

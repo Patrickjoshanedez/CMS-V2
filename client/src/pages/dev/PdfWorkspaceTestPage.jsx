@@ -119,7 +119,7 @@ export default function PdfWorkspaceTestPage() {
   ];
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
+    <div className="h-dvh min-h-0 w-full overflow-hidden bg-background text-foreground">
       <EvaluationWorkspace
         submission={{
           _id: 'sub-test-demo',

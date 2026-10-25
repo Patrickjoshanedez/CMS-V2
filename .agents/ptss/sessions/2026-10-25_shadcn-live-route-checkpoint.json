@@ -1,0 +1,11 @@
+{
+  "session_id": "2026-10-25_shadcn-live-route-checkpoint",
+  "date": "2026-10-25",
+  "task_category": "shadcn_ui_refactor",
+  "status": "in_progress",
+  "completed": ["Isolated live Vite visual audit output with source/audit fingerprints and bounded cleanup", "Eight batches captured 192 states across 48 route inputs", "Automated batches 1,2,3,5,7,8 passed; top contact sheets 1-3 inspected", "Current product code unchanged; existing full client/server test fingerprints remain valid"],
+  "findings": ["Batches 4 and 6 remain flagged for Socket.IO HTTP 400", "Desktop dashboard captures include skeletons; generic body readiness is insufficient for loaded-state acceptance"],
+  "remaining": ["Route batches 9-11", "Route-specific loaded-state assertions and realtime diagnosis", "Exhaustive interactions, appointments and workflow phases", "Exact pre-refactor working-tree performance baseline retained by user"],
+  "evidence": "scratch/qa-evidence/shadcn-live-route-audit/cbcea4ffd6afaf90/checkpoint.json",
+  "skill_patch": ".agents/skills/verification-loop/SKILL.md: route-specific loaded-state readiness and visible transport failures"
+}

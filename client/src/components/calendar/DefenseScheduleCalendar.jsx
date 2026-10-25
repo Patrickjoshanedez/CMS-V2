@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
 import {
   Calendar as CalendarIcon,
   CalendarDays,
@@ -13,64 +15,26 @@ import {
   Users,
 } from 'lucide-react';
 
-export const SAMPLE_EVENTS = [
-  {
-    id: 'evt-1',
-    title: 'Title Proposal Defense — Team Alpha (HealthAI)',
-    type: 'proposal',
-    date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-    time: '09:00 AM - 10:30 AM',
-    venue: 'Room 304 / Google Meet',
-    panel: ['Dr. Louie Jay Labastida', 'Prof. Raul Lecaros', 'Prof. Joseph Abella'],
-    status: 'scheduled',
-  },
-  {
-    id: 'evt-2',
-    title: 'Midterm Prototype Review — Team ByteCraft',
-    type: 'midterm',
-    date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-    time: '01:30 PM - 03:00 PM',
-    venue: 'COT Lab 2',
-    panel: ['Dr. Sales G. Aribe Jr.', 'Prof. Glaiza Mae Libe'],
-    status: 'scheduled',
-  },
-  {
-    id: 'evt-3',
-    title: 'Final Manuscript Defense — Team DataPulse',
-    type: 'final',
-    date: new Date(Date.now() + 86400000 * 9).toISOString().split('T')[0],
-    time: '10:00 AM - 12:00 PM',
-    venue: 'COT Conference Hall',
-    panel: ['Dr. Marilou Espina', 'Dr. Louie Jay Labastida', 'Prof. Raul Lecaros'],
-    status: 'confirmed',
-  },
-];
-
 const TYPE_CONFIG = {
   proposal: {
     label: 'Proposal Defense',
-    color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30',
-    dot: 'bg-blue-500',
+    variant: 'info',
   },
   midterm: {
     label: 'Midterm Review',
-    color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-    dot: 'bg-amber-500',
+    variant: 'secondary',
   },
   progress: {
     label: 'Progress Defense',
-    color: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/30',
-    dot: 'bg-indigo-500',
+    variant: 'warning',
   },
   final: {
     label: 'Final Defense',
-    color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-    dot: 'bg-emerald-500',
+    variant: 'success',
   },
   deadline: {
     label: 'Submission Deadline',
-    color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30',
-    dot: 'bg-purple-500',
+    variant: 'warning',
   },
 };
 
@@ -79,7 +43,6 @@ const getEventConfig = (type) => TYPE_CONFIG[type] || TYPE_CONFIG.proposal;
 export default function DefenseScheduleCalendar({
   events = [],
   onSelectEvent,
-  canSchedule = false,
   defaultView = 'agenda',
 }) {
   const [viewMode, setViewMode] = useState(defaultView);
@@ -132,7 +95,7 @@ export default function DefenseScheduleCalendar({
   }, [events]);
 
   return (
-    <Card className="rounded-2xl border-border bg-card shadow-sm">
+    <Card className="border-border/60 shadow-sm">
       <CardHeader className="border-b border-border pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -141,31 +104,29 @@ export default function DefenseScheduleCalendar({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* View Mode Toggle */}
-            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
-              <button
+            <div role="group" aria-label="Schedule view" className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 p-1">
+              <Button
+                aria-pressed={viewMode === 'agenda'}
                 type="button"
+                variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => setViewMode('agenda')}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
-                  viewMode === 'agenda'
-                    ? 'bg-card text-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="min-h-11 gap-1.5 px-2.5 text-xs font-semibold"
               >
                 <List className="h-3.5 w-3.5" />
                 <span>Agenda</span>
-              </button>
-              <button
+              </Button>
+              <Button
+                aria-pressed={viewMode === 'month'}
                 type="button"
+                variant={viewMode === 'month' ? 'secondary' : 'ghost'}
+                size="sm"
                 onClick={() => setViewMode('month')}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
-                  viewMode === 'month'
-                    ? 'bg-card text-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className="min-h-11 gap-1.5 px-2.5 text-xs font-semibold"
               >
                 <CalendarDays className="h-3.5 w-3.5" />
                 <span>Month</span>
-              </button>
+              </Button>
             </div>
 
             {/* Month Navigator (visible in month view) */}
@@ -202,24 +163,19 @@ export default function DefenseScheduleCalendar({
         {viewMode === 'agenda' ? (
           /* Agenda View: Compact Timeline */
           sortedEvents.length === 0 ? (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-center sm:text-left">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <CalendarIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground">
-                    No Scheduled Defense Hearings
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Oral defense hearings and submission deadlines will appear here once scheduled
-                    by your instructor or committee.
-                  </p>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-xs text-muted-foreground shrink-0">
+            <div className="space-y-3">
+              <EmptyState
+                icon={CalendarIcon}
+                iconVariant="square"
+                title="No Scheduled Defense Hearings"
+                description="Oral defense hearings and submission deadlines will appear here once scheduled by your instructor or committee."
+                compact
+              />
+              <div className="flex justify-center">
+                <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">
                 Phase 0–4 Timeline
-              </Badge>
+                </Badge>
+              </div>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -231,17 +187,12 @@ export default function DefenseScheduleCalendar({
                   ? eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
                   : 'DATE';
                 const dayNumber = isValidDate ? eventDate.getDate() : '';
-
-                return (
-                  <div
-                    key={evt.id}
-                    onClick={() => onSelectEvent?.(evt)}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3.5 shadow-2xs transition-all hover:border-primary/40 hover:bg-muted/20 ${
-                      onSelectEvent ? 'cursor-pointer' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border border-border bg-muted/40 font-mono text-center">
+                const eventCardClassName =
+                  'flex w-full min-w-0 h-auto flex-col justify-between gap-3 rounded-xl border border-border/80 bg-card p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-muted/20 sm:flex-row sm:items-center whitespace-normal';
+                const eventDetails = (
+                  <>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border border-border bg-muted/40 text-center font-mono">
                         <span className="text-[10px] font-bold uppercase text-muted-foreground">
                           {monthShort}
                         </span>
@@ -249,15 +200,14 @@ export default function DefenseScheduleCalendar({
                           {dayNumber}
                         </span>
                       </div>
-                      <div className="space-y-1">
+                      <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-semibold ${cfg.color}`}
-                          >
+                          <Badge variant={cfg.variant} className="shrink-0 text-[10px] font-semibold">
                             {cfg.label}
                           </Badge>
-                          <h5 className="text-sm font-semibold text-foreground">{evt.title}</h5>
+                          <h5 className="text-left text-sm font-semibold text-foreground">
+                            {evt.title}
+                          </h5>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                           {evt.time && (
@@ -278,7 +228,23 @@ export default function DefenseScheduleCalendar({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </>
+                );
+
+                return onSelectEvent ? (
+                  <Button
+                    key={evt.id}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onSelectEvent(evt)}
+                    className={`${eventCardClassName} cursor-pointer shadow-sm`}
+                  >
+                    {eventDetails}
+                  </Button>
+                ) : (
+                  <article key={evt.id} className={`${eventCardClassName} shadow-sm`}>
+                    {eventDetails}
+                  </article>
                 );
               })}
             </div>
@@ -308,20 +274,16 @@ export default function DefenseScheduleCalendar({
                   new Date().getDate() === day &&
                   new Date().getMonth() === month &&
                   new Date().getFullYear() === year;
+                const eventCountLabel = `${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}`;
 
                 return (
-                  <button
+                  <Button
                     type="button"
                     key={`day-${day}`}
+                    variant="ghost"
                     onClick={() => setSelectedDayEvents(dayEvents.length > 0 ? dayEvents : null)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setSelectedDayEvents(dayEvents.length > 0 ? dayEvents : null);
-                      }
-                    }}
-                    aria-label={`${monthNames[month]} ${day}, ${year}: ${dayEvents.length} events`}
-                    className={`group min-h-[5.5rem] w-full rounded-xl border p-2 text-left transition-all hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    aria-label={`${monthNames[month]} ${day}, ${year}: ${eventCountLabel}`}
+                    className={`group h-auto min-h-[5.5rem] w-full flex-col items-stretch justify-start whitespace-normal rounded-xl border p-2 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 ${
                       isToday
                         ? 'border-primary bg-primary/10 font-bold'
                         : 'border-border/70 bg-card'
@@ -338,9 +300,9 @@ export default function DefenseScheduleCalendar({
                         {day}
                       </span>
                       {dayEvents.length > 0 && (
-                        <span className="text-[10px] font-bold text-primary">
+                        <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] font-bold tabular-nums">
                           {dayEvents.length}
-                        </span>
+                        </Badge>
                       )}
                     </div>
 
@@ -348,13 +310,14 @@ export default function DefenseScheduleCalendar({
                       {dayEvents.slice(0, 2).map((evt) => {
                         const cfg = getEventConfig(evt.type);
                         return (
-                          <div
+                          <Badge
                             key={evt.id}
-                            className={`truncate rounded px-1.5 py-0.5 text-[10px] font-medium border ${cfg.color}`}
+                            variant={cfg.variant}
+                            className="max-w-full truncate px-1.5 py-0.5 text-[10px] font-medium"
                             title={evt.title}
                           >
                             {evt.title}
-                          </div>
+                          </Badge>
                         );
                       })}
                       {dayEvents.length > 2 && (
@@ -363,21 +326,29 @@ export default function DefenseScheduleCalendar({
                         </span>
                       )}
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
 
             {/* Selected Day Event Drawer */}
             {selectedDayEvents && (
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div
+                role="region"
+                aria-label="Scheduled sessions on selected date"
+                aria-live="polite"
+                aria-atomic="true"
+                className="space-y-3 rounded-xl border border-info/30 bg-info/5 p-4"
+              >
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Clock className="h-4 w-4 text-primary" /> Scheduled Sessions on this Date
                   </h4>
                   <Button
+                    type="button"
                     variant="ghost"
-                    size="xs"
+                    size="sm"
+                    aria-label="Close scheduled sessions"
                     onClick={() => setSelectedDayEvents(null)}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
@@ -390,11 +361,11 @@ export default function DefenseScheduleCalendar({
                     return (
                       <div
                         key={evt.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border bg-card p-3 shadow-sm gap-2"
+                        className="flex flex-col justify-between gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm sm:flex-row sm:items-center"
                       >
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>
+                            <Badge variant={cfg.variant} className="text-[10px]">
                               {cfg.label}
                             </Badge>
                             <span className="text-xs font-semibold text-foreground">
@@ -427,3 +398,20 @@ export default function DefenseScheduleCalendar({
     </Card>
   );
 }
+
+DefenseScheduleCalendar.propTypes = {
+  events: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      title: PropTypes.string,
+      type: PropTypes.oneOf(['proposal', 'midterm', 'progress', 'final', 'deadline']),
+      date: PropTypes.string.isRequired,
+      time: PropTypes.string,
+      venue: PropTypes.string,
+      panel: PropTypes.arrayOf(PropTypes.string),
+      status: PropTypes.string,
+    }),
+  ),
+  onSelectEvent: PropTypes.func,
+  defaultView: PropTypes.oneOf(['agenda', 'month']),
+};

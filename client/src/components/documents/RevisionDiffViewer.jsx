@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useId } from 'react';
 import PropTypes from 'prop-types';
 import { diffWordsWithSpace, diffSentences, diffLines } from 'diff';
 import {
@@ -12,18 +12,28 @@ import {
   Search,
   RotateCcw,
   CheckCircle2,
-  AlertCircle,
   Eye,
   EyeOff,
-  Filter,
   X,
   FileText,
   Clock,
   Sparkles,
-  ArrowUpDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
+import { Spinner } from '@/components/ui/Spinner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { format } from 'date-fns';
 
 /**
@@ -150,6 +160,7 @@ export default function RevisionDiffViewer({
   const [showDeletionMarkers, setShowDeletionMarkers] = useState(true);
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'revisions' | 'comments'
   const [currentRevIndex, setCurrentRevIndex] = useState(0);
+  const controlsId = useId();
 
   const containerRef = useRef(null);
   const revisionRefs = useRef({});
@@ -280,8 +291,12 @@ export default function RevisionDiffViewer({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 h-full gap-3 text-muted-foreground">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div
+        className="flex h-full flex-col items-center justify-center gap-3 p-12 text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        <Spinner className="size-8 text-primary" />
         <p className="text-sm font-medium">
           Extracting manuscript text and calculating revision diff...
         </p>
@@ -295,11 +310,12 @@ export default function RevisionDiffViewer({
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-8 h-full gap-3 text-center">
-        <AlertCircle className="h-10 w-10 text-destructive/80" />
-        <h4 className="text-base font-semibold text-foreground">Failed to Load Revision Diff</h4>
-        <p className="text-xs text-muted-foreground max-w-md">
-          {error.message || 'Unable to retrieve document revision data. Please try again.'}
-        </p>
+        <Alert variant="destructive" className="max-w-md text-left">
+          <AlertTitle>Failed to Load Revision Diff</AlertTitle>
+          <AlertDescription>
+            {error.message || 'Unable to retrieve document revision data. Please try again.'}
+          </AlertDescription>
+        </Alert>
         <Button variant="outline" size="sm" onClick={onRefresh} className="text-xs gap-1.5 mt-2">
           <RotateCcw className="h-3.5 w-3.5" />
           Retry
@@ -347,19 +363,21 @@ export default function RevisionDiffViewer({
 
   if (!current?.extractedText && !previous?.extractedText) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 h-full text-center max-w-md mx-auto gap-3">
-        <FileText className="h-10 w-10 text-muted-foreground/60" />
-        <h4 className="text-sm font-semibold text-foreground">No Extractable Text Found</h4>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          The document text could not be automatically extracted for diffing. Please make sure the
-          uploaded document contains selectable text (DOCX or searchable PDF).
-        </p>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="No Extractable Text Found"
+        description="The document text could not be automatically extracted for diffing. Please make sure the uploaded document contains selectable text (DOCX or searchable PDF)."
+        compact
+        className="mx-auto max-w-md"
+      />
     );
   }
 
   return (
-    <div className="flex min-w-0 flex-col h-full bg-background select-text" ref={containerRef}>
+    <div
+      className="flex h-full min-h-0 min-w-0 flex-col bg-background select-text"
+      ref={containerRef}
+    >
       {/* ── Top Bar: Comparison Metadata & Granularity Selector ── */}
       <div className="shrink-0 border-b border-border/60 bg-muted/20 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
         {/* Left: Versions & Comparison Selector */}
@@ -371,74 +389,73 @@ export default function RevisionDiffViewer({
               ({current?.fileName})
             </span>
             <ArrowRight className="h-3 w-3 text-muted-foreground" />
-            <select
-              value={previous?.id || ''}
-              onChange={(e) => onSelectCompareVersion?.(e.target.value)}
-              className="min-w-0 max-w-full min-h-[44px] sm:min-h-0 bg-transparent font-semibold text-primary cursor-pointer focus:outline-none border-b border-primary/40 hover:border-primary pb-0.5 text-xs"
-              aria-label="Select previous version to compare with"
+            <Select
+              value={previous?.id || undefined}
+              onValueChange={(versionId) => onSelectCompareVersion?.(versionId)}
             >
-              {availableVersions.map((v) => (
-                <option key={v.id} value={v.id} className="bg-popover text-popover-foreground">
-                  v{v.version} — {v.fileName}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Select previous version to compare with"
+                className="h-9 min-h-9 w-auto min-w-0 max-w-[min(14rem,45vw)] border-0 bg-transparent px-1 text-xs font-semibold text-primary shadow-none"
+              >
+                <SelectValue className="truncate" />
+              </SelectTrigger>
+              <SelectContent className="max-w-[calc(100vw-2rem)]">
+                {availableVersions.map((version) => (
+                  <SelectItem key={version.id} value={version.id}>
+                    v{version.version} — {version.fileName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Granularity Toggle */}
-          <div className="flex flex-wrap items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setGranularity('words')}
-              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                granularity === 'words'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Word Diff
-            </button>
-            <button
-              type="button"
-              onClick={() => setGranularity('sentences')}
-              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                granularity === 'sentences'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Sentence Diff
-            </button>
-            <button
-              type="button"
-              onClick={() => setGranularity('lines')}
-              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                granularity === 'lines'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Line Diff
-            </button>
-          </div>
+          <RadioGroup
+            value={granularity}
+            onValueChange={setGranularity}
+            className="inline-flex min-w-0 flex-wrap items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-[11px]"
+            aria-label="Diff granularity"
+          >
+            {[
+              ['words', 'Word Diff'],
+              ['sentences', 'Sentence Diff'],
+              ['lines', 'Line Diff'],
+            ].map(([value, label]) => (
+              <label
+                key={value}
+                htmlFor={`${controlsId}-granularity-${value}`}
+                className={`cursor-pointer rounded-md px-2 py-1 font-medium transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+                  granularity === value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <RadioGroupItem
+                  id={`${controlsId}-granularity-${value}`}
+                  value={value}
+                  aria-label={label}
+                  className="sr-only"
+                />
+                {label}
+              </label>
+            ))}
+          </RadioGroup>
         </div>
 
         {/* Right: Stats Badges & Navigation */}
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1.5 text-[11px]">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-500/20">
-              <PlusCircle className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />+
-              {stats.wordsAdded} words
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-300 font-semibold border border-rose-500/20">
-              <MinusCircle className="h-3 w-3 text-rose-600 dark:text-rose-400" />-
-              {stats.wordsRemoved} words
-            </span>
+            <Badge variant="success" className="gap-1 rounded-full font-semibold">
+              <PlusCircle className="h-3 w-3" aria-hidden="true" />+{stats.wordsAdded} words
+            </Badge>
+            <Badge variant="destructive" className="gap-1 rounded-full font-semibold">
+              <MinusCircle className="h-3 w-3" aria-hidden="true" />−{stats.wordsRemoved} words
+            </Badge>
             {stats.totalComments > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold border border-blue-500/20">
-                <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+              <Badge variant="info" className="gap-1 rounded-full font-semibold">
+                <MessageSquare className="h-3 w-3" aria-hidden="true" />
                 {stats.totalComments} comments
-              </span>
+              </Badge>
             )}
           </div>
 
@@ -478,33 +495,39 @@ export default function RevisionDiffViewer({
         <div className="flex min-w-0 items-center gap-2 flex-1 max-w-sm">
           <div className="relative w-full">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search in revisions..."
+              aria-label="Search in revisions"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full min-h-[44px] sm:min-h-0 pl-7 pr-7 py-1 text-xs rounded-md border border-border/60 bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary"
+              className="min-h-[44px] h-10 w-full rounded-md border-border/60 bg-background py-1 pl-8 pr-8 text-xs sm:min-h-0 sm:h-8"
             />
             {searchQuery && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 size-7 min-h-7 min-w-7 -translate-y-1/2 p-0 text-muted-foreground hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Toggle show/hide deletion tags */}
-          <button
+          <Button
             type="button"
+            variant={showDeletionMarkers ? 'secondary' : 'outline'}
+            size="sm"
             onClick={() => setShowDeletionMarkers((prev) => !prev)}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded border border-border/40"
+            className="h-8 gap-1 px-2 text-[11px]"
             title="Toggle inline deletion markers"
+            aria-pressed={showDeletionMarkers}
           >
             {showDeletionMarkers ? (
               <Eye className="h-3 w-3 text-primary" />
@@ -512,36 +535,47 @@ export default function RevisionDiffViewer({
               <EyeOff className="h-3 w-3" />
             )}
             <span className="hidden sm:inline">Deletion markers</span>
-          </button>
+          </Button>
 
           {/* Filter Mode */}
-          <div className="flex items-center rounded-md border border-border/50 bg-background text-[11px] p-0.5">
-            <button
-              type="button"
-              onClick={() => setFilterMode('all')}
-              className={`px-2 py-0.5 rounded font-medium transition-colors ${
-                filterMode === 'all' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              All Text
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterMode('comments')}
-              className={`px-2 py-0.5 rounded font-medium transition-colors flex items-center gap-1 ${
-                filterMode === 'comments' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              <MessageSquare className="h-2.5 w-2.5 text-blue-500" />
-              With Comments
-            </button>
-          </div>
+          <RadioGroup
+            value={filterMode}
+            onValueChange={setFilterMode}
+            className="inline-flex min-w-0 items-center rounded-md border border-border/50 bg-background p-0.5 text-[11px]"
+            aria-label="Revision content filter"
+          >
+            {[
+              ['all', 'All Text'],
+              ['comments', 'With Comments'],
+            ].map(([value, label]) => (
+              <label
+                key={value}
+                htmlFor={`${controlsId}-filter-${value}`}
+                className={`flex min-h-8 cursor-pointer items-center gap-1 rounded px-2 py-0.5 font-medium transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+                  filterMode === value
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <RadioGroupItem
+                  id={`${controlsId}-filter-${value}`}
+                  value={value}
+                  aria-label={label}
+                  className="sr-only"
+                />
+                {value === 'comments' && (
+                  <MessageSquare className="h-3 w-3 text-info" aria-hidden="true" />
+                )}
+                {label}
+              </label>
+            ))}
+          </RadioGroup>
         </div>
       </div>
 
       {/* ── Main Document Reading Surface ── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 font-sans leading-relaxed text-sm bg-[#fafafa] dark:bg-neutral-900 overscroll-contain">
-        <div className="max-w-4xl mx-auto bg-card text-card-foreground p-6 sm:p-10 rounded-xl shadow-sm border border-border/70 min-h-[600px] whitespace-pre-wrap font-serif text-[15px] sm:text-[16px] leading-[1.85] content-visibility-section">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-muted/30 p-4 font-sans text-sm leading-relaxed overscroll-contain sm:p-6 lg:p-8">
+        <Card className="mx-auto min-h-[600px] max-w-4xl whitespace-pre-wrap rounded-xl border-border/70 bg-card p-6 font-serif text-[15px] leading-[1.85] text-card-foreground shadow-sm content-visibility-section sm:p-10 sm:text-base">
           {filteredChunks.map((chunk) => {
             if (chunk.isHidden) return null;
 
@@ -563,16 +597,14 @@ export default function RevisionDiffViewer({
                   onClick={() => setActivePopover(chunk)}
                   className={`inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded text-[11px] font-sans font-medium cursor-pointer transition-all border ${
                     isSelected
-                      ? 'bg-rose-500/25 text-rose-950 dark:text-rose-200 border-rose-500 ring-2 ring-rose-500/30'
-                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+                      ? 'bg-destructive/20 text-destructive border-destructive ring-2 ring-destructive/30'
+                      : 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/15'
                   }`}
                   title="Click to reveal deleted text"
                 >
-                  <MinusCircle className="h-3 w-3 text-rose-500" />
+                  <MinusCircle className="h-3 w-3 text-destructive" />
                   <span>Deleted</span>
-                  {hasComments && (
-                    <MessageSquare className="h-2.5 w-2.5 text-blue-500 fill-blue-500" />
-                  )}
+                  {hasComments && <MessageSquare className="h-2.5 w-2.5 fill-info text-info" />}
                 </span>
               );
             }
@@ -590,11 +622,11 @@ export default function RevisionDiffViewer({
                 className={`inline rounded-sm px-1 py-0.5 cursor-pointer transition-all duration-150 border-b-2 ${
                   isReplacement
                     ? isSelected
-                      ? 'bg-emerald-500/30 text-emerald-950 dark:text-emerald-100 border-emerald-600 ring-2 ring-emerald-500/40 shadow-sm'
-                      : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-950 dark:text-emerald-200 border-emerald-500/60'
+                      ? 'bg-success/20 text-success-foreground border-success ring-2 ring-success/40 shadow-sm'
+                      : 'bg-success/10 hover:bg-success/15 text-success-foreground border-success/60'
                     : isSelected
-                      ? 'bg-emerald-500/30 text-emerald-950 dark:text-emerald-100 border-emerald-600 ring-2 ring-emerald-500/40 shadow-sm'
-                      : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-950 dark:text-emerald-200 border-emerald-500/60'
+                      ? 'bg-success/20 text-success-foreground border-success ring-2 ring-success/40 shadow-sm'
+                      : 'bg-success/10 hover:bg-success/15 text-success-foreground border-success/60'
                 }`}
                 title={
                   isReplacement
@@ -604,15 +636,18 @@ export default function RevisionDiffViewer({
               >
                 {chunk.value}
                 {hasComments && (
-                  <span className="inline-flex items-center gap-0.5 align-middle mx-1 px-1 py-0.2 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-sans font-semibold border border-blue-500/30">
-                    <MessageSquare className="h-2.5 w-2.5 fill-blue-500 text-blue-500" />
+                  <Badge
+                    variant="info"
+                    className="mx-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 py-0 font-sans text-[10px] align-middle"
+                  >
+                    <MessageSquare className="h-2.5 w-2.5 fill-info text-info" aria-hidden="true" />
                     <span>{chunk.annotations.length}</span>
-                  </span>
+                  </Badge>
                 )}
               </span>
             );
           })}
-        </div>
+        </Card>
       </div>
 
       {/* ── Click-to-Reveal Popover Modal / Inspection Drawer ── */}
@@ -627,13 +662,13 @@ export default function RevisionDiffViewer({
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
               <div className="flex items-center gap-2">
                 <Badge
-                  variant="outline"
+                  variant={activePopover.type === 'deletion' ? 'destructive' : 'success'}
                   className={`text-xs px-2 py-0.5 font-sans font-semibold ${
                     activePopover.type === 'replacement'
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                      ? 'bg-success/10 text-success-foreground border-success/30'
                       : activePopover.type === 'deletion'
-                        ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30'
-                        : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                        ? ''
+                        : 'bg-success/10 text-success-foreground border-success/30'
                   }`}
                 >
                   {activePopover.type === 'replacement'
@@ -681,17 +716,17 @@ export default function RevisionDiffViewer({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Old text if removed or replaced */}
               {(activePopover.oldValue || activePopover.type === 'deletion') && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-rose-700 dark:text-rose-300 font-semibold">
+                <div className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-destructive">
                     <span className="flex items-center gap-1">
                       <MinusCircle className="h-3.5 w-3.5" />
                       Original Text (v{previous?.version || '1'})
                     </span>
-                    <span className="text-[10px] text-rose-600/70 font-mono">
+                    <span className="font-mono text-[10px] text-destructive/80">
                       Deleted / Replaced
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-rose-950 dark:text-rose-200 line-through leading-relaxed whitespace-pre-wrap font-serif">
+                  <p className="whitespace-pre-wrap font-serif text-xs leading-relaxed text-destructive line-through sm:text-sm">
                     {activePopover.oldValue}
                   </p>
                 </div>
@@ -700,20 +735,20 @@ export default function RevisionDiffViewer({
               {/* New text if added or replaced */}
               {(activePopover.newValue || activePopover.type === 'addition') && (
                 <div
-                  className={`rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1.5 ${
+                  className={`space-y-1.5 rounded-lg border border-success/30 bg-success/5 p-3 ${
                     !activePopover.oldValue ? 'md:col-span-2' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-success-foreground">
                     <span className="flex items-center gap-1">
                       <PlusCircle className="h-3.5 w-3.5" />
                       Current Revised Text (v{current?.version || '2'})
                     </span>
-                    <span className="text-[10px] text-emerald-600/70 font-mono">
+                    <span className="font-mono text-[10px] text-success-foreground/80">
                       Active Version
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 font-medium leading-relaxed whitespace-pre-wrap font-serif">
+                  <p className="whitespace-pre-wrap font-serif text-xs font-medium leading-relaxed text-success-foreground sm:text-sm">
                     {activePopover.newValue}
                   </p>
                 </div>
@@ -722,8 +757,8 @@ export default function RevisionDiffViewer({
 
             {/* Anchored Committee Comments */}
             {activePopover.annotations?.length > 0 && (
-              <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+              <div className="space-y-2.5 rounded-lg border border-info/30 bg-info/5 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-info">
                   <MessageSquare className="h-3.5 w-3.5" />
                   <span>
                     Committee Review Remarks Anchored to this Section (
@@ -757,12 +792,12 @@ export default function RevisionDiffViewer({
                           </div>
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                             {ann.resolved ? (
-                              <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                              <span className="inline-flex items-center gap-0.5 font-semibold text-success">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Resolved
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
+                              <span className="inline-flex items-center gap-0.5 font-semibold text-warning">
                                 <Clock className="h-3 w-3" />
                                 Open
                               </span>

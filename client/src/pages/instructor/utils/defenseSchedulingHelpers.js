@@ -1,8 +1,4 @@
-import {
-  CAPSTONE_PHASES,
-  DELIVERABLE_CATEGORY_MAP,
-  resolveWorkflowPhase,
-} from '@cms/shared';
+import { CAPSTONE_PHASES, DELIVERABLE_CATEGORY_MAP, resolveWorkflowPhase } from '@cms/shared';
 
 export const TIMELINE_START_HOUR = 8; // 08:00 AM
 export const TIMELINE_END_HOUR = 17; // 05:00 PM
@@ -123,38 +119,65 @@ export function toLocalDateKey(d) {
  * Evaluates defense readiness including committee composition requirements.
  * A team is ready for defense scheduling if:
  * 1. Adviser has endorsed (defenseSchedule.status === 'pending_scheduling')
- * 2. An Adviser is appointed (adviserId exists)
- * 3. At least 3 defense panelists are appointed (panelistIds.length >= 3)
+ * 2. Committee requirements are satisfied:
+ *    - For Phase 1 (Title Proposal Review): Secretary is appointed and at least 3 panelists are appointed
+ *      (Adviser can remain vacant and will be chosen after proposal approval based on the capstone field).
+ *    - For Phases 2–4: Adviser is appointed and at least 3 defense panelists are appointed.
  */
 export function getDefenseReadiness(project) {
   const defStatus = project?.defenseSchedule?.status;
   const isScheduled = defStatus === 'scheduled';
+  const phase = resolveWorkflowPhase(project);
+  const isTitleReview =
+    phase === CAPSTONE_PHASES.PHASE_1 ||
+    (Number(project?.capstonePhase) === 1 &&
+      project?.titleStatus !== 'approved' &&
+      project?.titleStatus !== 'title_approved');
+
   const hasAdviser = Boolean(project?.adviserId);
+  const hasSecretary = Boolean(project?.secretaryId);
   const panelistCount = project?.panelistIds?.length || 0;
-  const hasFullCommittee = hasAdviser && panelistCount >= 3;
+
+  // For Phase 1 Title Proposal Review: Adviser can be vacant, Secretary and 3 panelists required.
+  // For subsequent phases: Adviser and at least 3 panelists required.
+  const hasFullCommittee = isTitleReview
+    ? hasSecretary && panelistCount >= 3
+    : hasAdviser && panelistCount >= 3;
   const isEndorsed = defStatus === 'pending_scheduling';
 
   const isReady = isEndorsed && hasFullCommittee;
   const isCommitteeIncomplete = (isEndorsed || isScheduled) && !hasFullCommittee;
 
   let committeeNote = '';
-  if (!hasAdviser && panelistCount < 3) {
-    committeeNote = `Missing Adviser & ${3 - panelistCount} Panelists`;
-  } else if (!hasAdviser) {
-    committeeNote = 'Missing Adviser';
-  } else if (panelistCount < 3) {
-    committeeNote = `${3 - panelistCount} more panelist${3 - panelistCount > 1 ? 's' : ''} needed`;
+  if (isTitleReview) {
+    if (!hasSecretary && panelistCount < 3) {
+      committeeNote = `Missing Secretary & ${3 - panelistCount} Panelists`;
+    } else if (!hasSecretary) {
+      committeeNote = 'Missing Secretary';
+    } else if (panelistCount < 3) {
+      committeeNote = `${3 - panelistCount} more panelist${3 - panelistCount > 1 ? 's' : ''} needed`;
+    }
+  } else {
+    if (!hasAdviser && panelistCount < 3) {
+      committeeNote = `Missing Adviser & ${3 - panelistCount} Panelists`;
+    } else if (!hasAdviser) {
+      committeeNote = 'Missing Adviser';
+    } else if (panelistCount < 3) {
+      committeeNote = `${3 - panelistCount} more panelist${3 - panelistCount > 1 ? 's' : ''} needed`;
+    }
   }
 
   return {
     isScheduled,
     isEndorsed,
     hasAdviser,
+    hasSecretary,
     panelistCount,
     hasFullCommittee,
     isReady,
     isCommitteeIncomplete,
     committeeNote,
+    isTitleReview,
   };
 }
 
@@ -166,26 +189,26 @@ export function getDeliverableBadgeTheme(deliverableId) {
   switch (category) {
     case 'manuscript':
       return {
-        bg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20',
-        dot: 'bg-blue-500',
+        bg: 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20',
+        dot: 'bg-primary',
         label: 'Manuscript',
       };
     case 'matrix':
       return {
-        bg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20',
-        dot: 'bg-purple-500',
+        bg: 'bg-accent text-accent-foreground border-accent/60 hover:bg-accent/80',
+        dot: 'bg-accent-foreground',
         label: 'ADM Review',
       };
     case 'prototype':
       return {
-        bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
-        dot: 'bg-amber-500',
+        bg: 'bg-warning/10 text-warning border-warning/30 hover:bg-warning/20',
+        dot: 'bg-warning',
         label: 'Prototype / Plan',
       };
     case 'final_paper':
       return {
-        bg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
-        dot: 'bg-emerald-500',
+        bg: 'bg-success/10 text-success border-success/30 hover:bg-success/20',
+        dot: 'bg-success',
         label: 'Final Approved Paper',
       };
     default:

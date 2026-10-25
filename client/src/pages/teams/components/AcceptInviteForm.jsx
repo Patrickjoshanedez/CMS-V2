@@ -4,8 +4,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAcceptInvite } from '@/hooks/useTeams';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Ticket, AlertTriangle, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 
 export default function AcceptInviteForm({ onCancel, initialToken = '' }) {
@@ -107,74 +107,80 @@ export default function AcceptInviteForm({ onCancel, initialToken = '' }) {
   };
 
   return (
-    <Card className="mx-auto max-w-lg">
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Ticket className="h-7 w-7" />
-        </div>
-        <CardTitle className="text-xl">Join a Team</CardTitle>
-        <CardDescription className="text-sm">
-          Enter the 6-character invite code shared by your team leader.
+    <Card className="mx-auto max-w-lg border border-border">
+      <CardHeader className="border-b border-border bg-muted/50">
+        <CardTitle className="text-lg font-semibold text-foreground">Join a Team</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">
+          Enter the 6-character invite code shared by your team leader. * Required
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-5">
         {acceptInvite.error && (
-          <Alert variant="destructive" className="mb-5">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {acceptInvite.error?.response?.data?.error?.message ||
-                'Invalid or expired invite code.'}
-            </AlertDescription>
-          </Alert>
+          <div role="alert" aria-live="polite" aria-atomic="true">
+            <Alert variant="destructive" className="mb-5">
+              <AlertDescription>
+                {acceptInvite.error?.response?.data?.error?.message ||
+                  'Invalid or expired invite code.'}
+              </AlertDescription>
+            </Alert>
+          </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           {!isTokenLike && (
-            <div className="flex flex-col items-center gap-4">
+            <fieldset className="flex flex-col items-center gap-3">
+              <legend className="text-sm font-medium text-foreground">
+                6-Character Team Invite Code *
+              </legend>
               <div className="flex gap-2" onPaste={handlePaste}>
                 {digits.map((digit, i) => (
-                  <input
+                  <Input
                     key={i}
                     id={`invite-digit-${i}`}
                     type="text"
                     inputMode="text"
                     maxLength={1}
                     value={digit}
+                    aria-label={`Invite code character ${i + 1} of ${CODE_LENGTH}`}
+                    aria-required="true"
+                    aria-describedby="invite-code-helper"
                     onChange={(e) => handleDigitChange(i, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(i, e)}
                     disabled={acceptInvite.isPending}
-                    className="h-14 w-12 rounded-lg border-2 bg-muted/30 text-center text-xl font-bold uppercase tracking-widest transition-colors focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    className="h-12 w-10 rounded-lg px-0 text-center text-lg font-semibold uppercase tracking-widest sm:h-14 sm:w-12"
                     autoComplete="off"
                     autoFocus={i === 0}
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p id="invite-code-helper" className="text-xs text-muted-foreground">
                 Letters and numbers only &mdash; paste support included
               </p>
-            </div>
+            </fieldset>
           )}
 
           {isTokenLike && (
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <p className="text-sm font-medium">Invite link detected</p>
-              <p className="mt-1 break-all text-xs text-muted-foreground">{longToken}</p>
-            </div>
+            <Alert variant="info" aria-live="polite">
+              <AlertTitle>Invite link detected</AlertTitle>
+              <AlertDescription className="break-all">{longToken}</AlertDescription>
+            </Alert>
           )}
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={onCancel}
               disabled={acceptInvite.isPending}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={acceptInvite.isPending || (!isCodeComplete && !isTokenLike)}
-              className="min-w-[140px]"
+              className="w-full sm:w-auto sm:min-w-[140px]"
+              loading={acceptInvite.isPending}
+              loadingText="Joining team"
             >
-              {acceptInvite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Join Team
             </Button>
           </div>

@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import PropTypes from 'prop-types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import {
@@ -30,34 +31,34 @@ function getPhaseBadgeConfig(numericPhase, isProposalPhase) {
     return {
       label: 'Phase 1: Topic Proposals',
       icon: Sparkles,
-      className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+      variant: 'warning',
     };
   }
   if (numericPhase === 1) {
     return {
       label: 'Capstone 1: Proposal Manuscript',
       icon: BookOpen,
-      className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+      variant: 'info',
     };
   }
   if (numericPhase === 2) {
     return {
       label: 'Capstone 2: System Development',
       icon: Layers,
-      className: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
+      variant: 'info',
     };
   }
   if (numericPhase >= 3) {
     return {
       label: 'Capstone 3: Final Manuscript & Defense',
       icon: GraduationCap,
-      className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+      variant: 'success',
     };
   }
   return {
     label: 'Capstone 1: Proposal Manuscript',
     icon: BookOpen,
-    className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    variant: 'info',
   };
 }
 
@@ -93,7 +94,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
 
   // Defensive Entity Prefix Normalization (AGENTS.md Rule 14)
   const rawTeamName = project.teamId?.name || 'Team';
-  const cleanTeamName = rawTeamName.replace(/^Team\s+/i, '').trim();
+  const cleanTeamName = rawTeamName.replace(/^(?:Team\s+)+/i, '').trim();
   const proposalCount = Array.isArray(project.titleProposals) ? project.titleProposals.length : 0;
 
   const displayTitle = isArchived
@@ -124,7 +125,11 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
   let calloutBanner = null;
   if (project.titleStatus === TITLE_STATUSES.SUBMITTED) {
     calloutBanner = (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 text-xs">
+      <Badge
+        variant="warning"
+        role="status"
+        className="w-fit max-w-full items-start gap-1.5 whitespace-normal rounded-md border px-2.5 py-1 text-left text-xs leading-5"
+      >
         <Sparkles className="h-3.5 w-3.5 shrink-0" />
         <span>
           <strong>
@@ -132,32 +137,48 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
           </strong>{' '}
           — Awaiting instructor deliberation & rubric evaluation.
         </span>
-      </div>
+      </Badge>
     );
   } else if (project.titleStatus === TITLE_STATUSES.REVISION_REQUIRED) {
     calloutBanner = (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25 text-xs">
+      <Badge
+        variant="destructive"
+        role="status"
+        className="w-fit max-w-full items-start gap-1.5 whitespace-normal rounded-md border px-2.5 py-1 text-left text-xs leading-5"
+      >
         <AlertCircle className="h-3.5 w-3.5 shrink-0" />
         <span>
           <strong>Title Revision Required</strong> — Awaiting updated title submission from
           proponents.
         </span>
-      </div>
+      </Badge>
     );
   } else if (project.titleStatus === TITLE_STATUSES.APPROVED) {
     calloutBanner = (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 text-xs">
+      <Badge
+        variant="success"
+        role="status"
+        className="w-fit max-w-full items-start gap-1.5 whitespace-normal rounded-md border px-2.5 py-1 text-left text-xs leading-5"
+      >
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         <span>
           <strong>Title Approved</strong> — Project unlocked for manuscript, prototype, and defense
           workflow.
         </span>
-      </div>
+      </Badge>
     );
   }
 
   const handleCardClick = () => {
     onNavigate?.(project._id);
+  };
+
+  const handleCardKeyDown = (event) => {
+    if (event.target.closest('button')) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleCardClick();
+    }
   };
 
   const handleWarmup = () => {
@@ -168,13 +189,16 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
   return (
     <Card
       ref={isHighlighted ? highlightedRef : undefined}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open project: ${displayTitle}`}
       onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
       onMouseEnter={handleWarmup}
       onFocus={handleWarmup}
       className={cn(
-        'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 cursor-pointer',
-        isActionNeeded &&
-          'border-amber-500/60 dark:border-amber-400/60 ring-1 ring-amber-500/20 bg-amber-500/[0.02]',
+        'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background cursor-pointer',
+        isActionNeeded && 'border-warning/60 ring-1 ring-warning/20 bg-warning/5',
         isHighlighted && 'ring-2 ring-primary/40 bg-primary/5',
       )}
     >
@@ -183,28 +207,32 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
             {/* Phase Pill */}
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shadow-2xs',
-                phaseConfig.className,
-              )}
+            <Badge
+              variant={phaseConfig.variant}
+              className="gap-1 rounded-full border px-2.5 py-0.5 text-[11px] shadow-2xs"
             >
               <PhaseIcon className="h-3 w-3 shrink-0" />
               <span>{phaseConfig.label}</span>
-            </span>
+            </Badge>
 
             {/* Academic Year & Section */}
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-mono">
+            <Badge
+              variant="outline"
+              className="gap-1 rounded-full border-border/60 bg-muted/80 px-2 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
+            >
               <Calendar className="h-3 w-3 shrink-0" />
               <span>{project.academicYear || '2024-2025'}</span>
               {project.sectionId?.name && <span>• {project.sectionId.name}</span>}
-            </span>
+            </Badge>
 
             {/* Team Name */}
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-medium">
+            <Badge
+              variant="outline"
+              className="min-w-0 max-w-full gap-1 rounded-full border-border/60 bg-muted/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+            >
               <Users className="h-3 w-3 shrink-0" />
               <span className="min-w-0 break-all">Team {cleanTeamName}</span>
-            </span>
+            </Badge>
           </div>
 
           {/* Right: Status Badges */}
@@ -217,7 +245,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
         {/* 2. Main Title & Review Banner */}
         <div className="space-y-2">
           <div>
-            <h3 className="break-all text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+            <h3 className="break-words text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
               {displayTitle}
             </h3>
             {isProposalPhase && project.title && project.title !== displayTitle && (
@@ -261,7 +289,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
                   Adviser: <strong className="text-foreground">{adviserName}</strong>
                 </span>
               ) : (
-                <span className="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                <span className="text-warning-foreground font-medium flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" /> Adviser Unassigned
                 </span>
               )}
@@ -270,16 +298,18 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
 
           {/* Action Trigger Button */}
           <Button
+            asChild
             variant="ghost"
             size="sm"
             className="min-h-11 h-auto max-w-full whitespace-normal px-3 py-2 text-sm font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigate?.(project._id);
-            }}
           >
-            <span>{actionLabel}</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            <span data-slot="project-card-cta">
+              <span>{actionLabel}</span>
+              <ArrowRight
+                aria-hidden="true"
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+              />
+            </span>
           </Button>
         </div>
       </CardContent>

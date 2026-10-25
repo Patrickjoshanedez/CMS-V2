@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useQuery } from '@tanstack/react-query';
 import { userService } from '@/services/authService';
@@ -16,15 +16,12 @@ import { Button } from '@/components/ui/Button';
 import FacultySearchCombobox from '@/components/teams/FacultySearchCombobox';
 import {
   Users,
-  Search,
-  UserPlus,
   ShieldCheck,
   AlertTriangle,
   Mail,
   Copy,
   Trash2,
   Crown,
-  FileCheck,
   CheckCircle2,
   Briefcase,
   UserCheck,
@@ -51,23 +48,18 @@ export function getWorkloadStatus(advisedCount = 2) {
   if (advisedCount < 3) {
     return {
       label: 'Optimal Workload',
-      variant: 'outline',
-      className:
-        'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold',
+      variant: 'success',
     };
   }
   if (advisedCount <= 5) {
     return {
       label: 'Near Capacity',
-      variant: 'outline',
-      className:
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold',
+      variant: 'warning',
     };
   }
   return {
     label: 'Overloaded',
-    variant: 'outline',
-    className: 'bg-destructive/10 text-destructive border-destructive/30 text-[10px] font-semibold',
+    variant: 'destructive',
   };
 }
 
@@ -140,7 +132,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
   const secretaryName = hasSecretary ? getFullName(secretaryObj) : 'Unassigned';
   const secretaryEmail = secretaryObj?.email || '';
 
-  const currentPanelists = project.panelistIds || [];
+  const currentPanelists = useMemo(() => project.panelistIds || [], [project.panelistIds]);
   const panelistCount = currentPanelists.length;
 
   // Institutional Rule 3: Defense committee consists of 1 Adviser, 1 Secretary, and 3 Panelists
@@ -202,18 +194,12 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
 
         {/* Committee Completeness Badge */}
         {isCommitteeComplete ? (
-          <Badge
-            variant="outline"
-            className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold gap-1 shrink-0"
-          >
+          <Badge variant="success" className="gap-1 shrink-0">
             <ShieldCheck className="h-3 w-3" />
             Complete
           </Badge>
         ) : (
-          <Badge
-            variant="outline"
-            className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold gap-1 shrink-0"
-          >
+          <Badge variant="warning" className="gap-1 shrink-0">
             <AlertTriangle className="h-3 w-3" />
             Incomplete ({panelistCount}/3)
           </Badge>
@@ -228,11 +214,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
               <UserCheck className="h-3.5 w-3.5 text-primary" />
               Faculty Adviser
             </span>
-            {hasAdviser && (
-              <Badge variant={adviserWorkload.variant} className={adviserWorkload.className}>
-                {adviserWorkload.label}
-              </Badge>
-            )}
+            {hasAdviser && <Badge variant={adviserWorkload.variant}>{adviserWorkload.label}</Badge>}
           </div>
 
           <div className="p-3 rounded-xl border border-border/70 bg-background shadow-2xs flex items-start justify-between gap-2">
@@ -257,6 +239,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                 className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
                 onClick={() => copyToClipboard(adviserEmail, 'Adviser email')}
                 title="Copy Adviser Email"
+                aria-label="Copy Adviser email"
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
@@ -293,9 +276,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
               Committee Secretary
             </span>
             {hasSecretary && (
-              <Badge variant={secretaryWorkload.variant} className={secretaryWorkload.className}>
-                {secretaryWorkload.label}
-              </Badge>
+              <Badge variant={secretaryWorkload.variant}>{secretaryWorkload.label}</Badge>
             )}
           </div>
 
@@ -322,6 +303,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                   className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
                   onClick={() => copyToClipboard(secretaryEmail, 'Secretary email')}
                   title="Copy Secretary Email"
+                  aria-label="Copy Secretary email"
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
@@ -332,10 +314,11 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+                  className="h-7 w-7 shrink-0 text-muted-foreground transition-opacity hover:text-destructive focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   onClick={() => removeSecretary.mutate({ projectId: project._id })}
                   disabled={removeSecretary.isPending}
                   title="Unassign Secretary"
+                  aria-label="Unassign Secretary"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -396,9 +379,9 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {isChair ? (
-                        <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <Crown className="h-3.5 w-3.5 text-warning shrink-0" />
                       ) : (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
                       )}
                       <div className="min-w-0">
                         <span className="font-semibold text-foreground truncate block">
@@ -412,10 +395,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       {isChair ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30 text-[9px] font-bold px-1.5 py-0 h-4"
-                        >
+                        <Badge variant="info" className="text-[9px] font-bold px-1.5 py-0 h-4">
                           Chair
                         </Badge>
                       ) : (
@@ -432,7 +412,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          className="h-6 w-6 text-muted-foreground transition-opacity hover:text-destructive focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={() =>
                             removePanelist.mutate({
                               projectId: project._id,
@@ -441,6 +421,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                           }
                           disabled={removePanelist.isPending}
                           title="Unassign Panelist"
+                          aria-label={`Unassign ${getFullName(p)}`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -451,7 +432,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
               })
             ) : (
               <div className="p-3 rounded-xl border border-dashed border-border/80 bg-muted/10 text-center text-muted-foreground">
-                <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                <AlertTriangle className="h-4 w-4 mx-auto mb-1 text-warning" />
                 <p className="font-semibold text-foreground">No panelists appointed</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   Defense committee formation required prior to scheduling.
@@ -488,7 +469,9 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
               Proponent Roster (FRAD2)
             </span>
             <span className="text-[10px] text-muted-foreground">
-              {project.teamId?.name || 'Capstone Team'}
+              {project.teamId?.name
+                ? `Team ${project.teamId.name.replace(/^(?:Team\s+)+/i, '').trim()}`
+                : 'Capstone Team'}
             </span>
           </div>
 
@@ -527,10 +510,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
 
                     <div className="flex items-center gap-1 shrink-0">
                       {isLeader ? (
-                        <Badge
-                          variant="default"
-                          className="h-4 px-1.5 text-[9px] font-bold bg-primary text-primary-foreground"
-                        >
+                        <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
                           Lead
                         </Badge>
                       ) : (
@@ -543,14 +523,17 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
                       )}
 
                       {memberEmail && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon"
                           onClick={() => copyToClipboard(memberEmail, `${memberName}'s email`)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                          className="h-7 w-7"
+                          aria-label={`Copy ${memberName}'s email`}
                           title="Copy Email"
                         >
                           <Copy className="h-3 w-3" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>

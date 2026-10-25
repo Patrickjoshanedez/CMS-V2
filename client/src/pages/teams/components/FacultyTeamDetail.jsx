@@ -23,18 +23,15 @@ export default function FacultyTeamDetail({ team, canAssignCommittee, onInspectR
   const panelists = useMemo(() => assignment.panelists || [], [assignment.panelists]);
   const projectId = assignment.projectId || null;
 
-  const { data: adviserData, isLoading: isAdvisersLoading } = useUsers(
-    { role: ROLES.ADVISER, isActive: true, page: 1, limit: 200 },
+  const { data: facultyUsersData, isLoading: isFacultyLoading } = useUsers(
+    { role: ROLES.FACULTY, isActive: true, page: 1, limit: 200 },
     { enabled: canAssignCommittee },
   );
 
-  const { data: panelistData, isLoading: isPanelistsLoading } = useUsers(
-    { role: ROLES.PANELIST, isActive: true, page: 1, limit: 200 },
-    { enabled: canAssignCommittee },
-  );
-
-  const adviserOptions = useMemo(() => adviserData?.users || [], [adviserData?.users]);
-  const panelistOptions = useMemo(() => panelistData?.users || [], [panelistData?.users]);
+  const adviserOptions = useMemo(() => facultyUsersData?.users || [], [facultyUsersData?.users]);
+  const panelistOptions = useMemo(() => facultyUsersData?.users || [], [facultyUsersData?.users]);
+  const isAdvisersLoading = isFacultyLoading;
+  const isPanelistsLoading = isFacultyLoading;
 
   const adviserSuggestions = useMemo(
     () =>
@@ -169,9 +166,11 @@ export default function FacultyTeamDetail({ team, canAssignCommittee, onInspectR
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle className="text-lg">{team.name || 'Untitled Team'}</CardTitle>
+      <CardHeader className="flex flex-col items-stretch justify-between gap-3 space-y-0 pb-4 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <CardTitle className="break-words text-lg [overflow-wrap:anywhere]">
+            {team.name || 'Untitled Team'}
+          </CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>
               {members.length} member{members.length !== 1 ? 's' : ''}
@@ -184,7 +183,7 @@ export default function FacultyTeamDetail({ team, canAssignCommittee, onInspectR
             )}
           </CardDescription>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
           {onInspectRoster && (
             <Button
               type="button"
@@ -215,8 +214,12 @@ export default function FacultyTeamDetail({ team, canAssignCommittee, onInspectR
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Team Leader
           </p>
-          <p className="mt-1 text-sm font-medium">{formatName(leader)}</p>
-          <p className="text-xs text-muted-foreground">{leader?.email || 'No email provided'}</p>
+          <p className="mt-1 break-words text-sm font-medium [overflow-wrap:anywhere]">
+            {formatName(leader)}
+          </p>
+          <p className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+            {leader?.email || 'No email provided'}
+          </p>
         </div>
 
         <div>
@@ -291,8 +294,12 @@ export default function FacultyTeamDetail({ team, canAssignCommittee, onInspectR
                       className="flex items-center justify-between gap-3 text-sm"
                     >
                       <div>
-                        <p className="font-medium">{formatName(panelist)}</p>
-                        <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                        <p className="break-words font-medium [overflow-wrap:anywhere]">
+                          {formatName(panelist)}
+                        </p>
+                        <p className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                          {panelist.email}
+                        </p>
                       </div>
                       {canAssignCommittee && (
                         <Button
