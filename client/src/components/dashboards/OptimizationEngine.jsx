@@ -42,9 +42,7 @@ const OptimizationEngine = ({
       <CardHeader className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-xl font-bold tracking-tight">
-              Workload Suggestions
-            </CardTitle>
+            <CardTitle className="text-xl font-bold tracking-tight">Workload Suggestions</CardTitle>
             <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider">
               {currentScope === 'all' ? 'Multi-Role' : currentScope}
             </Badge>
@@ -102,8 +100,7 @@ const OptimizationEngine = ({
         {!optimization ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-5">
             <p className="text-sm text-muted-foreground">
-              Choose a committee role, then generate suggestions to review workload
-              distribution.
+              Choose a committee role, then generate suggestions to review workload distribution.
             </p>
           </div>
         ) : (
@@ -121,8 +118,8 @@ const OptimizationEngine = ({
 
                   return (
                     <article
-                    key={`${s.fromAdviserId || s.fromFacultyId}-${s.toAdviserId || s.toFacultyId}-${index}`}
-                    className="rounded-xl border border-warning/30 bg-warning/10 p-4 shadow-sm"
+                      key={`${s.fromAdviserId || s.fromFacultyId}-${s.toAdviserId || s.toFacultyId}-${index}`}
+                      className="rounded-xl border border-warning/30 bg-warning/10 p-4 shadow-sm"
                     >
                       <div className="mb-1 flex items-center justify-between gap-2">
                         <p className="font-semibold text-warning-foreground">{s.action}</p>

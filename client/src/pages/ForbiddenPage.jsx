@@ -2,13 +2,7 @@ import { ShieldAlert, ArrowLeft, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/Card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/Card';
 
 /**
  * ForbiddenPage — Displayed when a user attempts to access a

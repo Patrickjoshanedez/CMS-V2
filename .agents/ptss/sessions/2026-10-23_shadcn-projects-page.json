@@ -1,0 +1,14 @@
+{
+  "session_id": "2026-10-23_shadcn-projects-page",
+  "date": "2026-10-23T12:15:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "ProjectsPage now uses shared Button, Select, Badge, and Spinner primitives with semantic category colors and accessible filters. Existing project queries and card workflow are preserved. Focused tests pass 5/5; scoped ESLint is clean; four light/dark desktop/mobile captures plus two mobile status-menu captures were inspected, with 44px controls and no viewport overflow or browser errors. Inventory: 173/278 source-updated, 9 reviewed-no-ui, 96 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "ProjectsPage.test.jsx passes 5/5, including status and academic-year Select interactions.",
+    "Scoped ESLint passes without warnings; Prettier passes.",
+    "Six inspected Playwright captures cover light/dark desktop/mobile and open mobile status menus; all mobile controls meet 44px, with no overflow or browser errors. Non-GET API requests were blocked.",
+    "Inventory: 173/278 source-updated, 9 reviewed-no-ui, 96 pending; full refactor remains active."
+  ]
+}

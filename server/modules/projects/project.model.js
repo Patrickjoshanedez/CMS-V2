@@ -531,7 +531,11 @@ const weeklyCheckInSchema = new mongoose.Schema(
     isLate: { type: Boolean, default: false },
     submittedAt: { type: Date, default: null },
     adviserReview: {
-      decision: { type: String, enum: ['pending', 'approved', 'revision_requested'], default: 'pending' },
+      decision: {
+        type: String,
+        enum: ['pending', 'approved', 'revision_requested'],
+        default: 'pending',
+      },
       remarks: { type: String, trim: true, maxlength: 1500, default: '' },
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       reviewedAt: { type: Date, default: null },
@@ -1101,7 +1105,9 @@ projectSchema.pre('validate', function () {
   }
 
   // Backfill the canonical overall phase during normal service-layer saves.
-  if (this.workflowPhase == null) this.workflowPhase = resolveWorkflowPhase(this);
+  if (this.workflowPhase === null || this.workflowPhase === undefined) {
+    this.workflowPhase = resolveWorkflowPhase(this);
+  }
 });
 
 // Synchronize stage with capstonePhase if not explicitly set

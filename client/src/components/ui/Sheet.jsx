@@ -10,9 +10,11 @@ const SheetPortal = DialogPrimitive.Portal;
 
 const sideClasses = {
   top: 'inset-x-0 top-0 h-auto max-h-[85vh] w-full border-b data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top',
-  bottom: 'inset-x-0 bottom-0 h-auto max-h-[85vh] w-full border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+  bottom:
+    'inset-x-0 bottom-0 h-auto max-h-[85vh] w-full border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
   left: 'inset-y-0 left-0 h-dvh w-[min(21rem,85vw)] border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left',
-  right: 'inset-y-0 right-0 h-dvh w-[min(21rem,85vw)] border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
+  right:
+    'inset-y-0 right-0 h-dvh w-[min(21rem,85vw)] border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
 };
 
 const SheetContent = forwardRef(({ side = 'right', className, ...props }, ref) => (
@@ -62,12 +64,4 @@ SheetDescription.propTypes = {
   children: PropTypes.node,
 };
 
-export {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetPortal,
-  SheetTitle,
-  SheetTrigger,
-};
+export { Sheet, SheetClose, SheetContent, SheetDescription, SheetPortal, SheetTitle, SheetTrigger };

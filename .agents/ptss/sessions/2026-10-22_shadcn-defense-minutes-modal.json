@@ -1,0 +1,29 @@
+{
+  "session_id": "2026-10-22_shadcn-defense-minutes-modal",
+  "timestamp": "2026-10-22T23:44:24+08:00",
+  "status": "completed",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Migrate the live defense minutes modal to the shared shadcn UI system while preserving official minutes, committee verdict, and ADM behavior.",
+  "changes": [
+    "Replaced the custom portal and overlay with the shared Radix Dialog, including an accessible title, focus management, and controlled Escape dismissal.",
+    "Used shared Button, Select, RadioGroup, Input, Label, and Badge primitives with semantic theme tokens for tab and form controls.",
+    "Prevented mobile tab label overlap by retaining natural tab width inside the horizontally scrollable tablist.",
+    "Stabilized the empty entries fallback and removed unused imports/props from the component implementation."
+  ],
+  "verification": {
+    "focused_tests": "LiveDefenseMinutesModal.test.jsx: 2/2 passed; assertions cover no preselected verdict, radio selection, dialog naming, and Escape callbacks.",
+    "eslint": "Scoped ESLint passed with zero warnings and errors.",
+    "prettier": "Passed for the component, test, audit script, and inventory.",
+    "build": "Client production build passed with 4,853 modules transformed; existing Tailwind ambiguity, chunk-size, and plugin timing warnings remain.",
+    "playwright": "12 synthetic screenshots captured for minutes, quick-entry, and consensus across light/dark at 1440x900 and 390x844. Select changes and radio choice were exercised; no horizontal overflow, Vite overlay, or application errors.",
+    "visual_evidence": "scratch/qa-evidence/live-defense-minutes/"
+  },
+  "workflow_safety": "The Playwright audit used synthetic, read-only API fixtures and did not invoke add-entry, verdict-submit, score-lock, or ADM-publish mutations.",
+  "inventory": {
+    "source_updated": 113,
+    "pending": 165,
+    "total": 278
+  },
+  "known_blocker": "ProjectDetailPage renders the modal conditionally but has no current call site that sets isLiveMinutesOpen to true; route reachability requires separate investigation.",
+  "full_refactor_status": "in_progress"
+}

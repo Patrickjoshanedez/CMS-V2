@@ -135,7 +135,7 @@ describe('projectService - Defense Schedule Clearing & Deadline Persistence', ()
       expect.arrayContaining([
         expect.objectContaining({
           type: 'defense_scheduled',
-          title: 'Capstone 2 Defense Scheduled',
+          title: 'Capstone 2 System Defense Scheduled',
           metadata: expect.objectContaining({
             projectId: mockProject._id,
           }),
@@ -144,12 +144,12 @@ describe('projectService - Defense Schedule Clearing & Deadline Persistence', ()
     );
   });
 
-  it('schedules a Phase 1 title hearing without requiring an approved Capstone 1 manuscript', async () => {
+  it('schedules a Phase 1 title hearing without requiring an approved Capstone 1 manuscript and with vacant adviser', async () => {
     mockProject.titleStatus = 'submitted';
     mockProject.workflowPhase = 1;
     mockProject.capstonePhase = 1;
     mockProject.stage = 'proposal';
-    mockProject.adviserId = '65e000000000000000000020';
+    mockProject.adviserId = null; // Vacant adviser during Phase 1 Title Review is permitted
     mockProject.secretaryId = '65e000000000000000000030';
     mockProject.panelistIds = [
       '65e000000000000000000040',
@@ -179,6 +179,37 @@ describe('projectService - Defense Schedule Clearing & Deadline Persistence', ()
         }),
       ]),
     );
+  });
+
+  it('fails to schedule a Phase 1 title hearing if secretary is missing', async () => {
+    mockProject.titleStatus = 'submitted';
+    mockProject.workflowPhase = 1;
+    mockProject.capstonePhase = 1;
+    mockProject.stage = 'proposal';
+    mockProject.adviserId = null;
+    mockProject.secretaryId = null;
+    mockProject.panelistIds = [
+      '65e000000000000000000040',
+      '65e000000000000000000041',
+      '65e000000000000000000042',
+    ];
+    Team.findById.mockResolvedValue({ isLocked: true, members: ['65e000000000000000000099'] });
+
+    await expect(
+      projectService.scheduleDefense(
+        projectId,
+        {
+          status: 'scheduled',
+          date: '2026-10-26T00:00:00.000Z',
+          time: '10:00 AM - 10:30 AM',
+          defenseType: 'proposal',
+        },
+        mockInstructor,
+      ),
+    ).rejects.toMatchObject({
+      code: 'TITLE_HEARING_COMMITTEE_INCOMPLETE',
+    });
+    expect(Project.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('does not schedule a Phase 1 title hearing for an unlocked team', async () => {

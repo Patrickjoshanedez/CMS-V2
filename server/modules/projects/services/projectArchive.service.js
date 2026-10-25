@@ -139,7 +139,13 @@ class ProjectArchiveService {
     const right = 543;
     let y = 785;
 
-    page.drawRectangle({ x: 0, y: 785, width: 595.28, height: 56.89, color: rgb(0.08, 0.18, 0.36) });
+    page.drawRectangle({
+      x: 0,
+      y: 785,
+      width: 595.28,
+      height: 56.89,
+      color: rgb(0.08, 0.18, 0.36),
+    });
     page.drawText('BUKIDNON STATE UNIVERSITY', {
       x: left,
       y: 816,
@@ -165,13 +171,16 @@ class ProjectArchiveService {
       color: rgb(0.08, 0.12, 0.2),
     });
     y -= 22;
-    page.drawText(`Project ID: ${safe(project._id)}   Academic Year: ${safe(project.academicYear)}`, {
-      x: left,
-      y,
-      size: 8,
-      font: regular,
-      color: rgb(0.35, 0.4, 0.48),
-    });
+    page.drawText(
+      `Project ID: ${safe(project._id)}   Academic Year: ${safe(project.academicYear)}`,
+      {
+        x: left,
+        y,
+        size: 8,
+        font: regular,
+        color: rgb(0.35, 0.4, 0.48),
+      },
+    );
     y -= 32;
     page.drawText('FINAL ADM SIGNATORIES', {
       x: left,
@@ -185,7 +194,12 @@ class ProjectArchiveService {
     const signatories = getFinalSignatoryRows(signatures, project._id);
     signatories.forEach((signatory) => {
       if (y < 95) return;
-      page.drawLine({ start: { x: left, y: y + 9 }, end: { x: right, y: y + 9 }, thickness: 0.5, color: rgb(0.84, 0.87, 0.91) });
+      page.drawLine({
+        start: { x: left, y: y + 9 },
+        end: { x: right, y: y + 9 },
+        thickness: 0.5,
+        color: rgb(0.84, 0.87, 0.91),
+      });
       page.drawText(`${safe(signatory.role)} — ${safe(signatory.name || 'Verified signatory')}`, {
         x: left,
         y,
@@ -214,9 +228,18 @@ class ProjectArchiveService {
 
     const generatedAt = new Date();
     const verificationHash = sha256(
-      JSON.stringify({ projectId: String(project._id), generatedAt: generatedAt.toISOString(), signatories }),
+      JSON.stringify({
+        projectId: String(project._id),
+        generatedAt: generatedAt.toISOString(),
+        signatories,
+      }),
     );
-    page.drawLine({ start: { x: left, y: 76 }, end: { x: right, y: 76 }, thickness: 0.75, color: rgb(0.7, 0.75, 0.82) });
+    page.drawLine({
+      start: { x: left, y: 76 },
+      end: { x: right, y: 76 },
+      thickness: 0.75,
+      color: rgb(0.7, 0.75, 0.82),
+    });
     page.drawText(`Sheet generated: ${generatedAt.toISOString()}`, {
       x: left,
       y: 60,
@@ -245,7 +268,9 @@ class ProjectArchiveService {
   async _indexArchiveCorpus(project, submissions) {
     const expectedDocumentIds = submissions.map((submission) => String(submission._id));
     const previouslyCompletedIds = new Set(
-      project.archiveIndexing?.status === 'completed' ? project.archiveIndexing.documentIds || [] : [],
+      project.archiveIndexing?.status === 'completed'
+        ? project.archiveIndexing.documentIds || []
+        : [],
     );
     const indexedIds = new Set(previouslyCompletedIds);
     const team = await Team.findById(project.teamId).select('name');
@@ -324,7 +349,9 @@ class ProjectArchiveService {
         }
         const result = await response.json();
         if (result?.document_id !== documentId || Number(result?.segments_indexed) <= 0) {
-          throw new Error('Archive index service did not confirm stored segments for the requested document.');
+          throw new Error(
+            'Archive index service did not confirm stored segments for the requested document.',
+          );
         }
 
         indexedIds.add(documentId);
@@ -354,7 +381,9 @@ class ProjectArchiveService {
       }
     }
 
-    const allDocumentsIndexed = expectedDocumentIds.every((documentId) => indexedIds.has(documentId));
+    const allDocumentsIndexed = expectedDocumentIds.every((documentId) =>
+      indexedIds.has(documentId),
+    );
     if (!allDocumentsIndexed) {
       throw new AppError(
         'The archive index did not confirm every final document.',
@@ -390,7 +419,11 @@ class ProjectArchiveService {
     });
     const qrBytes = Buffer.from(qrDataUrl.split(',')[1] || '', 'base64');
     if (!qrBytes.length) {
-      throw new AppError('The completion certificate QR code could not be generated.', 500, 'CERTIFICATE_QR_FAILED');
+      throw new AppError(
+        'The completion certificate QR code could not be generated.',
+        500,
+        'CERTIFICATE_QR_FAILED',
+      );
     }
 
     const pdf = await PDFDocument.create();
@@ -430,14 +463,17 @@ class ProjectArchiveService {
       font: regular,
       color: rgb(0.88, 0.92, 1),
     });
-    page.drawText('This certifies that the project below completed the required final review and archival gates.', {
-      x: 54,
-      y: 666,
-      size: 10,
-      font: regular,
-      color: rgb(0.2, 0.24, 0.3),
-      maxWidth: 500,
-    });
+    page.drawText(
+      'This certifies that the project below completed the required final review and archival gates.',
+      {
+        x: 54,
+        y: 666,
+        size: 10,
+        font: regular,
+        color: rgb(0.2, 0.24, 0.3),
+        maxWidth: 500,
+      },
+    );
 
     let y = 622;
     titleLines.slice(0, 5).forEach((line) => {
@@ -499,7 +535,10 @@ class ProjectArchiveService {
       color: rgb(0.35, 0.4, 0.48),
     });
 
-    const storageKey = storageService.buildCertificateKey(String(project._id), 'completion-certificate.pdf');
+    const storageKey = storageService.buildCertificateKey(
+      String(project._id),
+      'completion-certificate.pdf',
+    );
     const generatedAt = new Date();
     await storageService.uploadFile(await pdf.save(), storageKey, 'application/pdf', {
       projectId: String(project._id),
@@ -533,7 +572,10 @@ class ProjectArchiveService {
     }
 
     // Overall Phase 4 is Capstone 3; the course counter remains 1–3 for legacy records.
-    const isFinalPhase = resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_4;
+    const isFinalPhase =
+      resolveWorkflowPhase(project) === CAPSTONE_PHASES.PHASE_4 ||
+      Number(project.capstonePhase) === 3 ||
+      Number(project.capstonePhase) === 4;
 
     if (!isFinalPhase) {
       throw new AppError(
@@ -602,7 +644,9 @@ class ProjectArchiveService {
         : project.panelistIds || []
       ).map((userId) => String(userId?._id || userId)),
     );
-    const evaluatedPanelistIds = new Set(finalEvaluations.map((evaluation) => String(evaluation.panelistId)));
+    const evaluatedPanelistIds = new Set(
+      finalEvaluations.map((evaluation) => String(evaluation.panelistId)),
+    );
     const isPassingDecision = (decision) =>
       [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
         String(decision || '').toLowerCase(),
@@ -890,95 +934,98 @@ class ProjectArchiveService {
     }
 
     // Format & enrich project records for Google Scholar academic layout
-    const projects = await Promise.all(rawProjects.map(async (p) => {
-      const obj = p.toObject ? p.toObject() : { ...p };
-      const subInfo = submissionByProject.get(String(obj._id)) || {
-        hasAcademic: true,
-        hasJournal: false,
-      };
-      const prototypes = await Promise.all(
-        (Array.isArray(obj.prototypes) ? obj.prototypes : []).map(async (prototype) => {
-          if (!prototype?.storageKey) return prototype;
+    const projects = await Promise.all(
+      rawProjects.map(async (p) => {
+        const obj = p.toObject ? p.toObject() : { ...p };
+        const subInfo = submissionByProject.get(String(obj._id)) || {
+          hasAcademic: true,
+          hasJournal: false,
+        };
+        const prototypes = await Promise.all(
+          (Array.isArray(obj.prototypes) ? obj.prototypes : []).map(async (prototype) => {
+            if (!prototype?.storageKey) return prototype;
 
-          try {
-            return {
-              ...prototype,
-              signedUrl: await storageService.getSignedUrl(prototype.storageKey, 900),
-            };
-          } catch {
-            return { ...prototype, signedUrl: null };
-          }
-        }),
-      );
+            try {
+              return {
+                ...prototype,
+                signedUrl: await storageService.getSignedUrl(prototype.storageKey, 900),
+              };
+            } catch {
+              return { ...prototype, signedUrl: null };
+            }
+          }),
+        );
 
-      // Determine scannable proponents line
-      let proponents = 'BukSU Research Team';
-      if (Array.isArray(obj.archiveMetadata?.authors) && obj.archiveMetadata.authors.length > 0) {
-        proponents = obj.archiveMetadata.authors.join(', ');
-      } else if (obj.teamId?.name) {
-        proponents = obj.teamId.name;
-      }
-
-      // Determine publication year
-      let publicationYear = obj.archiveMetadata?.publicationYear;
-      if (!publicationYear && obj.academicYear) {
-        const match = String(obj.academicYear).match(/\d{4}/);
-        if (match) publicationYear = parseInt(match[0], 10);
-      }
-      if (!publicationYear && obj.archivedAt) {
-        publicationYear = new Date(obj.archivedAt).getFullYear();
-      }
-      if (!publicationYear) {
-        publicationYear = 2025;
-      }
-
-      // Publisher / Venue
-      const publisher =
-        obj.archiveMetadata?.publicationVenue || 'Bukidnon State University Studies Center';
-
-      // Canonical DOI string
-      let doiString = obj.archiveMetadata?.doi || null;
-      if (doiString && !doiString.startsWith('http')) {
-        doiString = `https://doi.org/${doiString}`;
-      }
-
-      // Calculate originality and similarity percentage (>= 75% passing threshold)
-      let originality = obj.originalityScore;
-      if (!Number.isFinite(originality)) {
-        const audit = obj.archiveMetadata?.similarityAudit;
-        const allConflicts = [
-          ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
-          ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
-        ];
-        if (allConflicts.length > 0) {
-          const topSimilarity = Math.max(
-            ...allConflicts.map(
-              (c) =>
-                Number(c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0)) ||
-                0,
-            ),
-          );
-          originality = Math.max(10, Math.min(100, Math.round(100 - topSimilarity)));
-        } else {
-          originality = 100;
+        // Determine scannable proponents line
+        let proponents = 'BukSU Research Team';
+        if (Array.isArray(obj.archiveMetadata?.authors) && obj.archiveMetadata.authors.length > 0) {
+          proponents = obj.archiveMetadata.authors.join(', ');
+        } else if (obj.teamId?.name) {
+          proponents = obj.teamId.name;
         }
-      }
-      const similarity = Math.max(0, Math.min(100, Math.round((100 - originality) * 10) / 10));
 
-      return {
-        ...obj,
-        proponents,
-        publicationYear,
-        publisher,
-        doi: doiString,
-        originalityScore: originality,
-        similarityScore: similarity,
-        hasAcademicPaper: subInfo.hasAcademic,
-        hasJournalPaper: subInfo.hasJournal,
-        githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubUrl || null,
-        prototypes,
-      };
-    }));
+        // Determine publication year
+        let publicationYear = obj.archiveMetadata?.publicationYear;
+        if (!publicationYear && obj.academicYear) {
+          const match = String(obj.academicYear).match(/\d{4}/);
+          if (match) publicationYear = parseInt(match[0], 10);
+        }
+        if (!publicationYear && obj.archivedAt) {
+          publicationYear = new Date(obj.archivedAt).getFullYear();
+        }
+        if (!publicationYear) {
+          publicationYear = 2025;
+        }
+
+        // Publisher / Venue
+        const publisher =
+          obj.archiveMetadata?.publicationVenue || 'Bukidnon State University Studies Center';
+
+        // Canonical DOI string
+        let doiString = obj.archiveMetadata?.doi || null;
+        if (doiString && !doiString.startsWith('http')) {
+          doiString = `https://doi.org/${doiString}`;
+        }
+
+        // Calculate originality and similarity percentage (>= 75% passing threshold)
+        let originality = obj.originalityScore;
+        if (!Number.isFinite(originality)) {
+          const audit = obj.archiveMetadata?.similarityAudit;
+          const allConflicts = [
+            ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
+            ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
+          ];
+          if (allConflicts.length > 0) {
+            const topSimilarity = Math.max(
+              ...allConflicts.map(
+                (c) =>
+                  Number(
+                    c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0),
+                  ) || 0,
+              ),
+            );
+            originality = Math.max(10, Math.min(100, Math.round(100 - topSimilarity)));
+          } else {
+            originality = 100;
+          }
+        }
+        const similarity = Math.max(0, Math.min(100, Math.round((100 - originality) * 10) / 10));
+
+        return {
+          ...obj,
+          proponents,
+          publicationYear,
+          publisher,
+          doi: doiString,
+          originalityScore: originality,
+          similarityScore: similarity,
+          hasAcademicPaper: subInfo.hasAcademic,
+          hasJournalPaper: subInfo.hasJournal,
+          githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubUrl || null,
+          prototypes,
+        };
+      }),
+    );
 
     return {
       projects,
@@ -1061,7 +1108,7 @@ class ProjectArchiveService {
         project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
         team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
         (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
-      if (!isMember && !project.isArchived) {
+      if (!isMember) {
         throw new AppError(
           'You do not have permission to view the approval sheet for this project.',
           403,
@@ -1070,7 +1117,11 @@ class ProjectArchiveService {
       }
     }
     if (!project.approvalSheetStorageKey) {
-      throw new AppError('The final approval sheet is not available yet.', 404, 'APPROVAL_SHEET_NOT_FOUND');
+      throw new AppError(
+        'The final approval sheet is not available yet.',
+        404,
+        'APPROVAL_SHEET_NOT_FOUND',
+      );
     }
     const url = await storageService.getSignedUrl(project.approvalSheetStorageKey, 3600);
     return {
@@ -1098,7 +1149,7 @@ class ProjectArchiveService {
         project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
         team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
         (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
-      if (!isMember && !project.isArchived) {
+      if (!isMember) {
         throw new AppError(
           'You do not have permission to view the certificate for this project.',
           403,
@@ -2404,11 +2455,16 @@ class ProjectArchiveService {
       project.teamId?.members?.some((memberId) => String(memberId?._id || memberId) === userId),
     );
     const isArchiveFaculty = [ROLES.INSTRUCTOR, ROLES.FACULTY].includes(user?.role);
-    const isJournalRequest = ['final_journal', 'journal'].includes(String(type || '').toLowerCase());
+    const isStudent = user?.role === ROLES.STUDENT;
+    const isJournalRequest = ['final_journal', 'journal'].includes(
+      String(type || '').toLowerCase(),
+    );
 
-    if (isArchived && !isJournalRequest && !isArchiveFaculty && !isProjectMember) {
+    // In BukSU Capstone archive repository, approved archived manuscripts and journals are
+    // viewable by faculty, students, and project members for institutional research and reference.
+    if (isArchived && !isJournalRequest && !isArchiveFaculty && !isProjectMember && !isStudent) {
       throw new AppError(
-        'Archived academic manuscripts are available to faculty and the project team.',
+        'Archived academic manuscripts are available to faculty, students, and the project team.',
         403,
         'FORBIDDEN',
       );
@@ -2468,7 +2524,6 @@ class ProjectArchiveService {
         type: 'final_journal',
         storageKey: { $exists: true, $ne: null },
       }).sort({ version: -1, createdAt: -1 });
-
     } else if (type) {
       submission = await Submission.findOne({
         projectId: project._id,
@@ -2580,7 +2635,11 @@ class ProjectArchiveService {
       !/^[a-f0-9]{64}$/.test(stored) ||
       !timingSafeEqual(Buffer.from(provided, 'hex'), Buffer.from(stored, 'hex'))
     ) {
-      throw new AppError('This completion certificate could not be verified.', 404, 'CERTIFICATE_NOT_VERIFIED');
+      throw new AppError(
+        'This completion certificate could not be verified.',
+        404,
+        'CERTIFICATE_NOT_VERIFIED',
+      );
     }
 
     return {

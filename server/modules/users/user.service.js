@@ -2,7 +2,10 @@ import crypto from 'crypto';
 import User from './user.model.js';
 import AppError from '../../utils/AppError.js';
 import Section from '../academics/section.model.js';
-import { ROLES } from '@cms/shared';
+import Team from '../teams/team.model.js';
+import Project from '../projects/project.model.js';
+import cacheService from '../../services/cache.service.js';
+import { ROLES, inferCapstoneCourseFromSection } from '@cms/shared';
 import storageService from '../../services/storage.index.js';
 
 const IMPORT_PASSWORD_CHARS = {
@@ -60,10 +63,10 @@ class UserService {
   async getMe(userId) {
     const userDoc = await User.findById(userId)
       .select('+schoolId')
-      .populate('teamId', 'name isLocked members')
+      .populate('teamId', 'name isLocked members memberRoles capstoneEnrollments projectId')
       .populate({
         path: 'sectionId',
-        select: 'name academicYear code',
+        select: 'name academicYear academicTerm capstoneCourse code',
         populate: { path: 'courseId', select: 'name code' },
       })
       .populate('instructorId', 'firstName middleName lastName email');
@@ -109,7 +112,42 @@ class UserService {
     const updateData = {};
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
+        if (
+          field === 'profilePicture' &&
+          data[field] !== null &&
+          data[field] !== '' &&
+          !String(data[field]).startsWith(`avatars/${userId.toString()}/`)
+        ) {
+          throw new AppError('Invalid profile picture storage key.', 403, 'INVALID_AVATAR_KEY');
+        }
         updateData[field] = field === 'studentId' ? String(data[field] || '').trim() : data[field];
+      }
+    }
+
+    if (updateData.studentId) {
+      const existingUserWithStudentId = await User.findOne({
+        _id: { $ne: userId },
+        $or: [{ studentId: updateData.studentId }, { schoolId: updateData.studentId }],
+      })
+        .select('_id')
+        .lean();
+      if (existingUserWithStudentId) {
+        throw new AppError(
+          'This Student ID number is already registered to another account.',
+          409,
+          'STUDENT_ID_ALREADY_EXISTS',
+        );
+      }
+      updateData.schoolId = updateData.studentId;
+    }
+
+    let selectedSectionDoc = null;
+    if (updateData.sectionId) {
+      selectedSectionDoc = await Section.findById(updateData.sectionId)
+        .select('name code academicYear academicTerm capstoneCourse courseId')
+        .lean();
+      if (selectedSectionDoc && !updateData.academicTerm && selectedSectionDoc.academicTerm) {
+        updateData.academicTerm = selectedSectionDoc.academicTerm;
       }
     }
 
@@ -120,6 +158,76 @@ class UserService {
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Smoothly synchronize multi-semester Capstone 1-3 enrollment on the student's active Team
+    if (selectedSectionDoc && user.teamId) {
+      const resolvedTerm = user.academicTerm || selectedSectionDoc.academicTerm || '1st Semester';
+      const resolvedCapstoneCourse =
+        selectedSectionDoc.capstoneCourse ??
+        inferCapstoneCourseFromSection(selectedSectionDoc.name, resolvedTerm) ??
+        1;
+
+      const teamDoc = await Team.findById(user.teamId);
+      const isLeader = teamDoc && teamDoc.leaderId?.toString() === userId.toString();
+      if (teamDoc && isLeader) {
+        teamDoc.sectionId = selectedSectionDoc._id;
+        teamDoc.academicYear = selectedSectionDoc.academicYear || teamDoc.academicYear;
+        teamDoc.academicTerm = resolvedTerm;
+        if (selectedSectionDoc.courseId) {
+          teamDoc.courseId = selectedSectionDoc.courseId;
+        }
+
+        const enrollments = Array.isArray(teamDoc.capstoneEnrollments)
+          ? [...teamDoc.capstoneEnrollments]
+          : [];
+        const existingIdx = enrollments.findIndex(
+          (entry) => Number(entry.capstoneCourse) === Number(resolvedCapstoneCourse),
+        );
+        const enrollmentEntry = {
+          capstoneCourse: resolvedCapstoneCourse,
+          sectionId: selectedSectionDoc._id,
+          sectionName: selectedSectionDoc.name,
+          sectionCode: selectedSectionDoc.code,
+          academicYear: selectedSectionDoc.academicYear,
+          academicTerm: resolvedTerm,
+          enrolledAt: new Date(),
+        };
+        if (existingIdx >= 0) {
+          enrollments[existingIdx] = enrollmentEntry;
+        } else {
+          enrollments.push(enrollmentEntry);
+        }
+        enrollments.sort((a, b) => Number(a.capstoneCourse) - Number(b.capstoneCourse));
+        teamDoc.capstoneEnrollments = enrollments;
+        await teamDoc.save();
+
+        // Team-wide semester synchronization: keep all teammates and active project aligned
+        await User.updateMany(
+          { _id: { $in: teamDoc.members }, role: ROLES.STUDENT },
+          { $set: { sectionId: selectedSectionDoc._id, academicTerm: resolvedTerm } },
+        );
+
+        const activeProject = await Project.findOneAndUpdate(
+          { teamId: teamDoc._id, projectStatus: { $ne: 'rejected' } },
+          {
+            $set: {
+              sectionId: selectedSectionDoc._id,
+              academicYear: selectedSectionDoc.academicYear,
+              academicTerm: resolvedTerm,
+            },
+          },
+          { new: true },
+        );
+
+        if (activeProject?._id) {
+          try {
+            await cacheService.del(`project:meta:${activeProject._id}`);
+          } catch {
+            // Non-blocking cache eviction
+          }
+        }
+      }
     }
 
     return { user };
@@ -173,7 +281,7 @@ class UserService {
       ];
     }
 
-    const [users, total] = await Promise.all([
+    const [rawUsers, total] = await Promise.all([
       User.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -182,6 +290,11 @@ class UserService {
         .lean(),
       User.countDocuments(filter),
     ]);
+
+    const users = rawUsers.map(({ schoolId, ...u }) => ({
+      ...u,
+      studentId: u.studentId || schoolId || null,
+    }));
 
     return {
       users,
@@ -319,6 +432,14 @@ class UserService {
   async getAvatar(userId) {
     const user = await User.findById(userId).select('profilePicture updatedAt');
     if (!user || !user.profilePicture) {
+      throw new AppError('Avatar not found.', 404, 'AVATAR_NOT_FOUND');
+    }
+
+    const expectedPrefix = `avatars/${user._id.toString()}/`;
+    if (
+      !String(user.profilePicture).startsWith(expectedPrefix) ||
+      String(user.profilePicture).includes('..')
+    ) {
       throw new AppError('Avatar not found.', 404, 'AVATAR_NOT_FOUND');
     }
 

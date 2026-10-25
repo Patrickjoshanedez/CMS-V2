@@ -11,7 +11,7 @@ import { sendTeamInviteEmail } from '../notifications/email.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ROLES, TITLE_STATUSES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES, inferCapstoneCourseFromSection } from '@cms/shared';
 import { withOptionalTransaction } from '../../utils/dbTransaction.js';
 import teamTemplateService from './services/teamTemplate.service.js';
 
@@ -61,6 +61,7 @@ class TeamService {
   _isValidGoogleDocUrl(url) {
     try {
       const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== 'https:') return false;
       const host = parsedUrl.hostname.toLowerCase();
       const isGoogleDocsHost = host === 'docs.google.com';
       const isGoogleDriveHost = host === 'drive.google.com';
@@ -263,12 +264,31 @@ class TeamService {
     let sectionId = null;
     let courseId = null;
     let academicYear = typeof data.academicYear === 'string' ? data.academicYear.trim() : '';
+    let initialEnrollments = [];
 
     if (user.sectionId) {
-      const section = await Section.findById(user.sectionId).select('courseId academicYear').lean();
+      const section = await Section.findById(user.sectionId)
+        .select('name code courseId academicYear academicTerm capstoneCourse')
+        .lean();
       sectionId = user.sectionId;
       courseId = section?.courseId || null;
       academicYear = section?.academicYear || academicYear;
+      if (section) {
+        const resolvedTerm = user.academicTerm || section.academicTerm || '1st Semester';
+        const resolvedCapstoneCourse =
+          section.capstoneCourse ?? inferCapstoneCourseFromSection(section.name, resolvedTerm) ?? 1;
+        initialEnrollments = [
+          {
+            capstoneCourse: resolvedCapstoneCourse,
+            sectionId: section._id,
+            sectionName: section.name || '',
+            sectionCode: section.code || '',
+            academicYear: section.academicYear || academicYear,
+            academicTerm: resolvedTerm,
+            enrolledAt: new Date(),
+          },
+        ];
+      }
     }
 
     if (!academicYear) {
@@ -287,6 +307,7 @@ class TeamService {
       members: [userId],
       sectionId,
       courseId,
+      capstoneEnrollments: initialEnrollments,
     });
 
     // Link the user to the team
@@ -648,6 +669,11 @@ class TeamService {
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
         .populate('secretaryId', 'firstName middleName lastName email profilePicture')
         .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .populate({
+          path: 'sectionId',
+          select: 'name code academicYear academicTerm capstoneCourse courseId',
+          populate: { path: 'courseId', select: 'name code' },
+        })
         .lean({ virtuals: true, getters: true });
     }
 
@@ -667,6 +693,11 @@ class TeamService {
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
         .populate('secretaryId', 'firstName middleName lastName email profilePicture')
         .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .populate({
+          path: 'sectionId',
+          select: 'name code academicYear academicTerm capstoneCourse courseId',
+          populate: { path: 'courseId', select: 'name code' },
+        })
         .lean({ virtuals: true, getters: true });
 
       if (!team) {
@@ -1064,11 +1095,14 @@ class TeamService {
 
     if (search) {
       // Scope of search is NOT limited to section
+      const escapedSearch = String(search)
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { middleName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: escapedSearch, $options: 'i' } },
+        { middleName: { $regex: escapedSearch, $options: 'i' } },
+        { lastName: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } },
       ];
     } else {
       // Default panel listing: ONLY show unassigned students in the same section
@@ -1178,11 +1212,12 @@ class TeamService {
     };
 
     if (search) {
+      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { middleName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: escapedSearch, $options: 'i' } },
+        { middleName: { $regex: escapedSearch, $options: 'i' } },
+        { lastName: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
@@ -1468,8 +1503,23 @@ class TeamService {
       throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
     }
 
+    if (team.isLocked) {
+      throw new AppError('Cannot modify member roles on a locked team.', 400, 'TEAM_LOCKED');
+    }
+
     if (team.leaderId?._id?.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can assign team member roles.', 403, 'FORBIDDEN');
+    }
+
+    const isTeamMember = team.members?.some(
+      (m) => (m?._id || m)?.toString() === memberId.toString(),
+    );
+    if (!isTeamMember) {
+      throw new AppError(
+        'The specified user is not a member of this team.',
+        400,
+        'MEMBER_NOT_IN_TEAM',
+      );
     }
 
     await this._getWritableProjectForTeam(team._id);
@@ -1755,7 +1805,10 @@ class TeamService {
     if (academicYear) filter.academicYear = academicYear;
     if (sectionId) filter.sectionId = sectionId;
     if (search) {
-      filter.name = { $regex: search, $options: 'i' };
+      const escapedSearch = String(search)
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.name = { $regex: escapedSearch, $options: 'i' };
     }
 
     const [teams, total] = await Promise.all([

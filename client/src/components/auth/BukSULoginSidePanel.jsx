@@ -3,14 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import {
-  Compass,
-  ShieldCheck,
-  Cpu,
-  GitBranch,
-  Layers,
-  Database,
-} from 'lucide-react';
+import { Compass, ShieldCheck, Cpu, GitBranch, Layers, Database } from 'lucide-react';
 import buksuLogo from '@/assets/buksu-logo.png';
 
 /**
@@ -113,9 +106,7 @@ export function BukSULoginSidePanel() {
         </p>
 
         {/* Capstone lifecycle overview */}
-        <Card
-          className="relative overflow-hidden rounded-xl border border-primary-foreground/20 bg-primary/80 p-4 text-primary-foreground shadow-lg"
-        >
+        <Card className="relative overflow-hidden rounded-xl border border-primary-foreground/20 bg-primary/80 p-4 text-primary-foreground shadow-lg">
           <div className="mb-3.5 flex items-center justify-between border-b border-primary-foreground/20 pb-3">
             <div className="flex items-center gap-2.5">
               <span className="h-2 w-2 animate-pulse rounded-full bg-success shadow-xs shadow-success/50" />

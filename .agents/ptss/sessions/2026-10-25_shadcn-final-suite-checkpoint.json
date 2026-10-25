@@ -1,0 +1,45 @@
+{
+  "session_id": "2026-10-25_shadcn-final-suite-checkpoint",
+  "timestamp": "2026-10-25T11:45:27.831Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "Final current-source client shards 1-4 pass 44 files/267 tests; server comprehensive workflow passes 13/13. Reconciled the visual manifest to a unique-file catalog and added production Settings evidence.",
+  "client": {
+    "fingerprint": "cbcea4ffd6afaf90ab01d681cd81cc73cbd6eda4a89cf2cd73d647bb9f529c73",
+    "sourceFilesHashed": 483,
+    "completedShards": [1, 2, 3, 4],
+    "remainingShards": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    "passedFiles": 44,
+    "expectedFiles": 174,
+    "passedTests": 267,
+    "aggregate": "scratch/qa-evidence/shadcn-final-test-gates/client/cbcea4ffd6afaf90/aggregate.json",
+    "result": "partial; do not claim full suite passed"
+  },
+  "server": {
+    "fingerprint": "d9056528d902f329012b5e624cfc82a370c03a2e32829857b1b69ab18f2212b7",
+    "sourceFilesHashed": 299,
+    "tests": "13/13",
+    "durationMs": 51957,
+    "nodeVersion": "v24.19.0",
+    "summary": "scratch/qa-evidence/shadcn-final-test-gates/server/d9056528d902f329/comprehensive-workflow-diagnostic.summary.json",
+    "earlierAttempt": "Bundled-Node attempt timed out before producing a complete report; own process tree was terminated before 110 seconds. Not counted as a pass."
+  },
+  "visual": {
+    "catalog": "scratch/responsive-layout/inventory-visual-manifest.json",
+    "uniqueExistingPngs": 536,
+    "route": 364,
+    "supplemental": 172,
+    "corrections": [
+      "The previous componentShowcase count of 80 is corrected to 76 existing PNGs.",
+      "Four appearance captures now have actual current production-route files.",
+      "Four new Notifications Settings captures resolve the older inconclusive overflow note.",
+      "Counts now derive from the file catalog and are deduplicated across source-module references."
+    ]
+  },
+  "remaining": [
+    "Run client shards 5-16 against the same source fingerprint, then verify complete file-set parity.",
+    "Complete exhaustive interaction/role/phase coverage; file counts alone do not prove it.",
+    "Exact pre-edit working-tree performance baseline remains required by the user and unavailable.",
+    "Desktop live preview/backend-session access remains unavailable; synthetic production-route captures are labelled accordingly."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "session_id": "2026-10-23_shadcn-chapter-card",
+  "date": "2026-10-23T08:23:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "ChapterCard now maps deadline and status treatments to shared Badge variants and semantic theme tokens. Focused tests pass 5/5, scoped ESLint/Prettier pass, and sixteen Playwright captures verify approved, new, revision-required, and late-closed states across light/dark desktop/mobile. Route navigation and upload/revision callbacks remain intact. Inventory: 151/278 source-updated, 5 reviewed-no-ui, 122 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "ChapterCard.test.jsx passed 5/5, covering chapter identity, status/version, late-submission closure, submission navigation, and upload/revision callbacks.",
+    "Scoped ESLint and Prettier passed; the previously unused projectId parameter was removed.",
+    "Playwright visual audit passed sixteen captures for approved/new/revision/late-closed states at light/dark 1440x900 and 390x844; interactions remained correct and there was no overflow, legacy palette, Vite overlay, or browser error.",
+    "Representative captures were inspected for approved desktop, new dark mobile, revision light mobile, and late-closed dark desktop states.",
+    "Migration inventory validated at 151 source-updated, 5 reviewed-no-ui, and 122 pending out of 278; full repository gates remain outstanding."
+  ]
+}

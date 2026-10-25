@@ -84,6 +84,7 @@ describe('DefenseMinutes Service & ADM Secretary Endorsement Workflow', () => {
     vi.spyOn(DefenseMinutes, 'findOne').mockImplementation(() => createQueryMock(mockMinutes));
     vi.spyOn(DefenseMinutes, 'findById').mockImplementation(() => createQueryMock(mockMinutes));
     vi.spyOn(DefenseMinutes, 'create').mockResolvedValue(mockMinutes);
+    vi.spyOn(Evaluation, 'find').mockImplementation(() => createQueryMock([]));
     vi.spyOn(Notification, 'insertMany').mockResolvedValue([
       { userId: teamMemberId, _id: 'notif-1' },
     ]);

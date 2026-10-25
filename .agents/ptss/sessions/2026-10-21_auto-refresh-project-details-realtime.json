@@ -1,0 +1,26 @@
+{
+  "session_id": "2026-10-21_auto-refresh-project-details-realtime",
+  "timestamp": "2026-10-21T22:05:00+08:00",
+  "status": "completed",
+  "role": "Principal Systems Architect & Lead Security Engineer (Gemini 3.8)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "task_summary": "Implemented automatic real-time query invalidation and synchronization across instructor/faculty/student clients when proposal titles or capstone details are updated without manual browser refresh.",
+  "root_cause": "1. Redis cache keys ('project:meta:<id>', 'project:detail:<id>') had a 120s TTL and were never evicted by projectTitle.service.js upon saving or updating proposals.\n2. No Socket.IO 'project:updated' events were emitted by projectTitle.service.js.\n3. useSocket.js had no listener for 'project:updated' to invalidate React Query caches across open tabs.\n4. CreateProjectPage.jsx handleSaveProposalDraft called updateTitle without invalidating client queries.\n5. ProjectDetailPage.jsx did not join the project defense room.",
+  "modifications": [
+    "server/modules/projects/services/projectTitle.service.js: Added _invalidateProjectCache and _broadcastProjectUpdate emitting 'project:updated' to room and all clients across updateTitle, submitTitle, approveTitle, rejectTitle, addTitleComment, reviseAndResubmit, requestTitleModification, resolveTitleModification, evaluatePostApprovalUnlocks.",
+    "server/modules/projects/services/projectCore.service.js: Enhanced _invalidateProjectCache to emit 'project:updated' to room and all clients.",
+    "server/modules/projects/services/projectCommittee.service.js: Enhanced _invalidateProjectCache to emit 'project:updated' to room and all clients on adviser/panelist/secretary assignment and removal.",
+    "client/src/hooks/useSocket.js: Added handleProjectUpdated listener for 'project:updated' to invalidate projectKeys.detail, projectKeys.lists, projectKeys.my, and projectKeys.all in real-time.",
+    "client/src/pages/projects/ProjectDetailPage.jsx: Joined 'project:<projectId>' room on mount and left on unmount via getSocket().",
+    "client/src/pages/projects/CreateProjectPage.jsx: Injected QueryClientContext and safely invalidated project query caches upon proposal draft save.",
+    "client/src/hooks/useSocket.test.jsx: Added unit test verifying real-time project query invalidation and cleanup.",
+    "server/tests/unit/projectTitleRealtimeUpdates.test.js: Added unit test verifying Redis cache eviction and socket broadcast."
+  ],
+  "verification": {
+    "client_targeted_tests": "CreateProjectPage.test.jsx (19/19 passed), ProjectDetailPage.back-nav.test.jsx (2/2 passed), useSocket.test.jsx (2/2 passed)",
+    "server_targeted_tests": "projectTitleFinalApprovalGate.test.js (3/3 passed), projectTitleRealtimeUpdates.test.js (2/2 passed)",
+    "check_endpoints": "UNMATCHED_COUNT=0 (229 Server / 209 Client)",
+    "validate_agentic": "62/62 passed",
+    "validate_governance": "passed"
+  }
+}

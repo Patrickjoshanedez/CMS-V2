@@ -3,6 +3,7 @@ import Team from '../../teams/team.model.js';
 import Notification from '../../notifications/notification.model.js';
 import Submission from '../../submissions/submission.model.js';
 import AppError from '../../../utils/AppError.js';
+import cacheService from '../../../services/cache.service.js';
 import { emitToRoom, emitToUser } from '../../../services/socket.service.js';
 import { CAPSTONE_PHASES, DEFENSE_TYPES, resolveWorkflowPhase, TITLE_STATUSES } from '@cms/shared';
 import { assertProjectWritable, ganttScheduleHash } from './projectCore.service.js';
@@ -38,7 +39,11 @@ class ProjectDefenseService {
     if (isTitleReviewHearing) {
       const team = await Team.findById(project.teamId);
       if (!team?.isLocked) {
-        throw new AppError('The team roster must be locked before scheduling its title hearing.', 400, 'TEAM_ROSTER_NOT_LOCKED');
+        throw new AppError(
+          'The team roster must be locked before scheduling its title hearing.',
+          400,
+          'TEAM_ROSTER_NOT_LOCKED',
+        );
       }
 
       const panelistIds = (project.panelistIds || []).map((id) => String(id?._id || id));
@@ -46,16 +51,17 @@ class ProjectDefenseService {
         project.adviserId?._id || project.adviserId,
         project.secretaryId?._id || project.secretaryId,
         ...panelistIds,
-      ].filter(Boolean).map(String);
+      ]
+        .filter(Boolean)
+        .map(String);
       if (
-        !project.adviserId ||
         !project.secretaryId ||
         panelistIds.length !== 3 ||
         new Set(panelistIds).size !== 3 ||
         new Set(committeeIds).size !== committeeIds.length
       ) {
         throw new AppError(
-          'A complete title hearing committee requires one adviser, one secretary, and three distinct panelists.',
+          'A complete title hearing committee requires one secretary and three distinct panelists (adviser is appointed after title approval based on the capstone field).',
           400,
           'TITLE_HEARING_COMMITTEE_INCOMPLETE',
         );
@@ -65,12 +71,20 @@ class ProjectDefenseService {
     }
 
     if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
-      throw new AppError('The project title must be approved before defense scheduling.', 400, 'TITLE_NOT_APPROVED');
+      throw new AppError(
+        'The project title must be approved before defense scheduling.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
     }
 
     if (defenseType === DEFENSE_TYPES.PROPOSAL) {
       if (Number(project.capstonePhase) !== 1) {
-        throw new AppError('Capstone 1 proposal defense can only be scheduled during Capstone 1.', 400, 'WRONG_PHASE');
+        throw new AppError(
+          'Capstone 1 proposal defense can only be scheduled during Capstone 1.',
+          400,
+          'WRONG_PHASE',
+        );
       }
       await this._requireApprovedSubmission(project._id, 'proposal');
       return false;
@@ -78,24 +92,40 @@ class ProjectDefenseService {
 
     if (defenseType === DEFENSE_TYPES.PROGRESS) {
       if (Number(project.capstonePhase) !== 2) {
-        throw new AppError('Capstone 2 system defense can only be scheduled during Capstone 2.', 400, 'WRONG_PHASE');
+        throw new AppError(
+          'Capstone 2 system defense can only be scheduled during Capstone 2.',
+          400,
+          'WRONG_PHASE',
+        );
       }
       if (
         !project.ganttApproval?.approved ||
         project.ganttApproval.scheduleHash !== ganttScheduleHash(project.ganttPlan || {}) ||
         !(project.ganttPlan?.tasks || []).length
       ) {
-        throw new AppError('The Capstone 2 Gantt plan needs adviser approval before scheduling.', 400, 'GANTT_APPROVAL_REQUIRED');
+        throw new AppError(
+          'The Capstone 2 Gantt plan needs adviser approval before scheduling.',
+          400,
+          'GANTT_APPROVAL_REQUIRED',
+        );
       }
       if (!project.systemDefenseApproval?.approved) {
-        throw new AppError('The adviser must clear the working system before scheduling its defense.', 400, 'SYSTEM_DEFENSE_CLEARANCE_REQUIRED');
+        throw new AppError(
+          'The adviser must clear the working system before scheduling its defense.',
+          400,
+          'SYSTEM_DEFENSE_CLEARANCE_REQUIRED',
+        );
       }
       return false;
     }
 
     if (defenseType === DEFENSE_TYPES.FINAL) {
       if (Number(project.capstonePhase) !== 3) {
-        throw new AppError('The final defense can only be scheduled during Capstone 3.', 400, 'WRONG_PHASE');
+        throw new AppError(
+          'The final defense can only be scheduled during Capstone 3.',
+          400,
+          'WRONG_PHASE',
+        );
       }
       for (const chapter of [1, 2, 3, 4, 5]) {
         await this._requireApprovedSubmission(project._id, 'chapter', chapter);
@@ -129,7 +159,9 @@ class ProjectDefenseService {
     } = data;
 
     const isClearingRequest =
-      ['pending_scheduling', 'unscheduled', 'cancelled'].includes(status) || date === null || date === '';
+      ['pending_scheduling', 'unscheduled', 'cancelled'].includes(status) ||
+      date === null ||
+      date === '';
     const isTitleReviewHearing = !isClearingRequest
       ? await this._assertDefenseReadiness(project, defenseType)
       : false;
@@ -273,14 +305,27 @@ class ProjectDefenseService {
         }
       } else {
         const dateStr = scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'TBA';
+        const phaseNum = Number(project.capstonePhase ?? 1);
+        const defensePhaseLabel =
+          defenseType === 'proposal'
+            ? 'Capstone 1 Proposal Defense'
+            : defenseType === 'final'
+              ? 'Capstone 3 Final Defense'
+              : phaseNum === 1
+                ? 'Capstone 1 Proposal Defense'
+                : phaseNum === 3
+                  ? 'Capstone 3 Final Defense'
+                  : 'Capstone 2 System Defense';
 
         const notifs = uniqueRecipients.map((uid) => ({
           userId: uid,
           type: isTitleReviewHearing ? 'title_hearing_scheduled' : 'defense_scheduled',
-          title: isTitleReviewHearing ? 'Title Proposal Hearing Scheduled' : 'Capstone 2 Defense Scheduled',
+          title: isTitleReviewHearing
+            ? 'Title Proposal Hearing Scheduled'
+            : `${defensePhaseLabel} Scheduled`,
           message: isTitleReviewHearing
             ? `The title proposal hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`
-            : `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
+            : `${defensePhaseLabel} hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
           metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
         }));
 
@@ -301,6 +346,13 @@ class ProjectDefenseService {
       }
     } catch {
       // Non-blocking
+    }
+
+    try {
+      await cacheService.del(`project:meta:${projectId}`);
+      await cacheService.del(`project:detail:${projectId}`);
+    } catch {
+      // Non-blocking cache eviction
     }
 
     return {

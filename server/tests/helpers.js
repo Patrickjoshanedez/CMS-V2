@@ -33,6 +33,7 @@ export async function createVerifiedUser(overrides = {}) {
     email: buildUniqueEmail('test-user'),
     password: 'Password123',
     confirmPassword: 'Password123',
+    academicTerm: '1st Semester',
     isVerified: true,
     ...overrides,
   };
@@ -45,6 +46,7 @@ export async function createVerifiedUser(overrides = {}) {
     password: userData.password,
     authProvider: userData.authProvider,
     role: userData.role,
+    academicTerm: userData.academicTerm,
     isVerified: userData.isVerified,
     isActive: userData.isActive,
     teamId: userData.teamId,
@@ -148,6 +150,11 @@ export function createValidProjectPayload(teamId, courseId, sectionId, members =
     description: `Detailed description for proposal ${index + 1} focusing on scope, objectives, and implementation approach.`,
     capstoneType: ['Web Application'],
     sdgTags: ['SDG 4: Quality Education'],
+    pitchDeck: {
+      problemStatement: `Problem statement addressing gaps in proposal ${index + 1}.`,
+      objectives: `Core objectives to achieve in proposal ${index + 1}.`,
+      technicalStack: 'Node.js, Express, React, MongoDB',
+    },
   });
 
   const proposalTitles = [

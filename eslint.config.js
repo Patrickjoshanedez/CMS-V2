@@ -9,6 +9,7 @@ module.exports = [
     ignores: [
       'server/**/*.ts',
       'client/dist/**',
+      'client/public/pdf.worker.min.mjs',
       '.agents/**',
       '.claude/**',
       '.gemini/**',

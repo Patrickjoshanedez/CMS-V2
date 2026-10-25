@@ -421,7 +421,8 @@ router.patch(
   authorize(ROLES.STUDENT),
   validate(updateWeeklyCheckInSchema),
   auditLog('project.weekly_checkin_submitted', 'Project', {
-    getDescription: (req) => `Updated weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
+    getDescription: (req) =>
+      `Updated weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
   }),
   projectController.updateWeeklyCheckIn,
 );
@@ -431,7 +432,8 @@ router.patch(
   authorize(ROLES.FACULTY, ROLES.ADVISER),
   validate(reviewWeeklyCheckInSchema),
   auditLog('project.weekly_checkin_reviewed', 'Project', {
-    getDescription: (req) => `Reviewed weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
+    getDescription: (req) =>
+      `Reviewed weekly check-in ${req.params.checkInId} for project ${req.params.id}`,
   }),
   projectController.reviewWeeklyCheckIn,
 );
@@ -441,7 +443,8 @@ router.patch(
   authorize(ROLES.INSTRUCTOR),
   validate(reviewWeeklyCheckInWaiverSchema),
   auditLog('project.weekly_checkin_waiver_reviewed', 'Project', {
-    getDescription: (req) => `Reviewed late waiver for check-in ${req.params.checkInId} on project ${req.params.id}`,
+    getDescription: (req) =>
+      `Reviewed late waiver for check-in ${req.params.checkInId} on project ${req.params.id}`,
   }),
   projectController.reviewWeeklyCheckInWaiver,
 );
@@ -600,7 +603,7 @@ router.post(
 // Seed institutional ADM template from official document
 router.post(
   '/:projectId/action-done-matrix/seed-institutional',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.seedInstitutionalADM,
 );
 

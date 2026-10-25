@@ -1,0 +1,50 @@
+{
+  "session_id": "2026-10-23_shadcn-project-cohort-card",
+  "date": "2026-10-23T05:18:27.270+08:00",
+  "task_summary": "Migrated and visually verified ProjectCohortCard with semantic Badge variants, accessible keyboard navigation, and repeated team-prefix normalization. Focused tests pass 5/5, scoped ESLint/Prettier pass, and 16 Playwright captures cover four data states in light/dark desktop/mobile. Inventory: 134/278 source-updated, 1 reviewed-no-ui, 143 pending; the full refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/projects/ProjectCohortCard.jsx",
+    "client/src/components/projects/ProjectCohortCard.test.jsx",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "scratch/ProjectCohortCardAudit.jsx",
+    "scratch/project-cohort-card-audit.html",
+    "scratch/project_cohort_card_visual_audit.mjs",
+    "scratch/qa-evidence/project-cohort-card/"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance",
+    "ptss"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Mapped project phase, academic metadata, title review callouts, and action-needed styling to shared Badge variants and semantic tokens.",
+    "Kept the card route callback and focus/hover route prefetch; exposed keyboard Enter/Space activation with a visible focus ring and kept the CTA as a non-interactive Button-styled child to avoid nested controls.",
+    "Normalized repeated Team prefixes on presenter labels without changing the stored team name."
+  ],
+  "lessons_learned": [
+    "Synthetic project card fixtures should use the shared project and title status constants so visual review exercises the same badges as persisted values.",
+    "The local Playwright package can run the required visual matrix using the installed Chrome executable and narrowly approved loopback access; no browser installation or live data mutation is needed."
+  ],
+  "open_threads": [
+    "Continue the remaining 143 pending source modules, then complete the final plan gates."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "ProjectCohortCard.test.jsx passes 5/5. Scoped ESLint and Prettier pass. Playwright captured all 16 combinations of submitted, revision-required, approved, and archived states with light/dark themes and 1440x900/390x844 viewports; overflow, theme, Vite overlay, and browser page errors passed. Full client build and final governance/quality gates remain outstanding.",
+  "status": "complete",
+  "inventory": {
+    "source_updated": 134,
+    "reviewed_no_ui": 1,
+    "pending": 143,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

@@ -338,8 +338,7 @@ export function canEditGanttSchedule(project, user) {
   }
 
   if (role === 'faculty' || role === 'adviser') {
-    const adviserId =
-      project?.adviserId || team?.adviserId;
+    const adviserId = project?.adviserId || team?.adviserId;
     return getAssignedUserId(adviserId) === userId;
   }
 
@@ -906,11 +905,11 @@ function InlineEditCell({
  */
 function InlineSelectCell({ value, onChange, options, className = '' }) {
   return (
-    <Select
-      value={value}
-      onValueChange={onChange}
-    >
-      <SelectTrigger aria-label="Task owner" className={cn('h-7 min-h-0 px-1 py-0 text-[11px] shadow-none', className)}>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger
+        aria-label="Task owner"
+        className={cn('h-7 min-h-0 px-1 py-0 text-[11px] shadow-none', className)}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -1052,11 +1051,11 @@ export default function AcademicExcelGanttChart({
   const currentUserId = user?._id || user?.id;
   const canApproveGantt = Boolean(
     !isReadOnly &&
-      project?.isArchived !== true &&
-      project?.projectStatus !== 'archived' &&
-      assignedAdviserId &&
-      currentUserId &&
-      String(assignedAdviserId) === String(currentUserId),
+    project?.isArchived !== true &&
+    project?.projectStatus !== 'archived' &&
+    assignedAdviserId &&
+    currentUserId &&
+    String(assignedAdviserId) === String(currentUserId),
   );
   const [isUpdatingApproval, setIsUpdatingApproval] = useState(false);
 
@@ -1295,9 +1294,7 @@ export default function AcademicExcelGanttChart({
     return allSections.filter((sec) => filteredTasks.some((t) => t.section === sec));
   }, [allSections, filteredTasks, selectedOwner]);
 
-  const hasReviewableSchedule = tasks.some(
-    (task) => task?.title?.trim() && task?.section?.trim(),
-  );
+  const hasReviewableSchedule = tasks.some((task) => task?.title?.trim() && task?.section?.trim());
   const isGanttApproved = Boolean(project?.ganttApproval?.approved && hasReviewableSchedule);
 
   // ── Overall accomplishment ─────────────────────────────────────────────
@@ -1317,7 +1314,9 @@ export default function AcademicExcelGanttChart({
     (taskId, field, value) => {
       if (isReadOnly) return;
       if (field === 'progress' && project && !isGanttApproved && !canApproveGantt) {
-        toast.warning('Daily progress stays locked until the assigned Adviser approves the Gantt schedule.');
+        toast.warning(
+          'Daily progress stays locked until the assigned Adviser approves the Gantt schedule.',
+        );
         return;
       }
       setTasks((prev) =>
@@ -1457,7 +1456,16 @@ export default function AcademicExcelGanttChart({
         }),
       );
     },
-    [isDragging, dragAction, isReadOnly, project, isGanttApproved, canApproveGantt, activeColor, setTasks],
+    [
+      isDragging,
+      dragAction,
+      isReadOnly,
+      project,
+      isGanttApproved,
+      canApproveGantt,
+      activeColor,
+      setTasks,
+    ],
   );
 
   // ── Section & Row helpers ────────────────────────────────────────────────
@@ -1690,10 +1698,7 @@ export default function AcademicExcelGanttChart({
           {/* Owner Filter — canonical proponents with true member count */}
           <div className="flex items-center gap-1.5 bg-background border border-border/70 rounded-md px-2.5 py-1 text-xs">
             <Filter className="h-3 w-3 text-muted-foreground" />
-            <Select
-              value={selectedOwner}
-              onValueChange={setSelectedOwner}
-            >
+            <Select value={selectedOwner} onValueChange={setSelectedOwner}>
               <SelectTrigger
                 aria-label="Filter by task owner"
                 className="h-8 min-h-0 min-w-[11rem] border-0 bg-transparent px-1 py-0 text-xs shadow-none focus-visible:ring-0"
@@ -1702,11 +1707,11 @@ export default function AcademicExcelGanttChart({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Members ({proponentList.length})</SelectItem>
-              {proponentList.map((owner) => (
-                <SelectItem key={owner} value={owner}>
-                  {owner}
-                </SelectItem>
-              ))}
+                {proponentList.map((owner) => (
+                  <SelectItem key={owner} value={owner}>
+                    {owner}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -1785,7 +1790,7 @@ export default function AcademicExcelGanttChart({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs sm:text-sm font-bold tracking-tight">
-                {isGanttApproved
+                  {isGanttApproved
                     ? 'Gantt Schedule Pre-Approved by Adviser'
                     : 'Gantt Sprints Locked — Pending Adviser Pre-Approval'}
                 </h4>
@@ -1802,7 +1807,7 @@ export default function AcademicExcelGanttChart({
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {isGanttApproved
+                {isGanttApproved
                   ? 'The proposed sprint allocation and timeline have been pre-approved by the Capstone Adviser. Daily accomplishment logging is active.'
                   : hasReviewableSchedule
                     ? 'Under BukSU Capstone guidelines, the proposed milestone schedule and sprint allocation must be reviewed and pre-approved by the assigned Capstone Adviser before students can log daily accomplishments.'
@@ -2192,9 +2197,7 @@ export default function AcademicExcelGanttChart({
                           <td
                             className={cn(
                               'lg:sticky lg:left-0 z-20 border-r border-border p-1 font-mono font-bold text-foreground whitespace-nowrap',
-                              isAlt
-                                ? 'bg-muted/30'
-                                : 'bg-background',
+                              isAlt ? 'bg-muted/30' : 'bg-background',
                             )}
                           >
                             <div className="flex items-center justify-between px-1">
@@ -2236,9 +2239,7 @@ export default function AcademicExcelGanttChart({
                           <td
                             className={cn(
                               'lg:sticky lg:left-[75px] z-20 border-r border-border p-1.5 font-medium text-foreground',
-                              isAlt
-                                ? 'bg-muted/30'
-                                : 'bg-background',
+                              isAlt ? 'bg-muted/30' : 'bg-background',
                             )}
                           >
                             {!isReadOnly ? (
@@ -2256,9 +2257,7 @@ export default function AcademicExcelGanttChart({
                           <td
                             className={cn(
                               'lg:sticky lg:left-[315px] z-20 border-r border-border p-1.5 text-muted-foreground whitespace-nowrap',
-                              isAlt
-                                ? 'bg-muted/30'
-                                : 'bg-background',
+                              isAlt ? 'bg-muted/30' : 'bg-background',
                             )}
                           >
                             {!isReadOnly ? (
@@ -2399,17 +2398,13 @@ export default function AcademicExcelGanttChart({
             <div className="space-y-6">
               <div className="space-y-0.5">
                 <div className="border-b border-border mb-1 pb-8" />
-                <p className="font-bold text-foreground text-xs">
-                  {proponentList[0] || 'Pending'}
-                </p>
+                <p className="font-bold text-foreground text-xs">{proponentList[0] || 'Pending'}</p>
                 <p className="text-[11px] text-muted-foreground italic">Researcher</p>
               </div>
               {proponentList[2] && (
                 <div className="space-y-0.5">
                   <div className="border-b border-border mb-1 pb-8" />
-                  <p className="font-bold text-foreground text-xs">
-                    {proponentList[2]}
-                  </p>
+                  <p className="font-bold text-foreground text-xs">{proponentList[2]}</p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
                 </div>
               )}
@@ -2420,18 +2415,14 @@ export default function AcademicExcelGanttChart({
               {proponentList[1] && (
                 <div className="space-y-0.5">
                   <div className="border-b border-border mb-1 pb-8" />
-                  <p className="font-bold text-foreground text-xs">
-                    {proponentList[1]}
-                  </p>
+                  <p className="font-bold text-foreground text-xs">{proponentList[1]}</p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
                 </div>
               )}
               {proponentList[3] && (
                 <div className="space-y-0.5">
                   <div className="border-b border-border mb-1 pb-8" />
-                  <p className="font-bold text-foreground text-xs">
-                    {proponentList[3]}
-                  </p>
+                  <p className="font-bold text-foreground text-xs">{proponentList[3]}</p>
                   <p className="text-[11px] text-muted-foreground italic">Researcher</p>
                 </div>
               )}
@@ -2440,18 +2431,14 @@ export default function AcademicExcelGanttChart({
             {/* Column 3: Adviser */}
             <div className="space-y-0.5">
               <div className="border-b border-border mb-1 pb-8" />
-              <p className="font-bold text-foreground text-xs uppercase">
-                {adviser || 'Pending'}
-              </p>
+              <p className="font-bold text-foreground text-xs uppercase">{adviser || 'Pending'}</p>
               <p className="text-[11px] text-muted-foreground italic">Adviser</p>
             </div>
 
             {/* Column 4: Instructor */}
             <div className="space-y-0.5">
               <div className="border-b border-border mb-1 pb-8" />
-              <p className="font-bold text-foreground text-xs">
-                {derivedInstructor || 'Pending'}
-              </p>
+              <p className="font-bold text-foreground text-xs">{derivedInstructor || 'Pending'}</p>
               <p className="text-[11px] text-muted-foreground italic">Instructor</p>
             </div>
           </div>
@@ -2463,10 +2450,11 @@ export default function AcademicExcelGanttChart({
         <DialogContent aria-modal="true" className="space-y-4">
           <DialogHeader>
             <DialogTitle id="add-section-modal-title" className="text-base">
-                Create Milestone Section
+              Create Milestone Section
             </DialogTitle>
             <DialogDescription>
-              Add a milestone section to the academic schedule. You can use a standard section name or enter a custom one.
+              Add a milestone section to the academic schedule. You can use a standard section name
+              or enter a custom one.
             </DialogDescription>
           </DialogHeader>
 
@@ -2518,25 +2506,25 @@ export default function AcademicExcelGanttChart({
             </div>
 
             <DialogFooter className="border-t border-border/60 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsAddSectionOpen(false);
-                    setNewSectionTitle('');
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleAddSection()}
-                  className="bg-primary text-primary-foreground gap-1.5 shadow-xs"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Create Section
-                </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsAddSectionOpen(false);
+                  setNewSectionTitle('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleAddSection()}
+                className="bg-primary text-primary-foreground gap-1.5 shadow-xs"
+              >
+                <Plus className="h-3.5 w-3.5" /> Create Section
+              </Button>
             </DialogFooter>
           </div>
         </DialogContent>

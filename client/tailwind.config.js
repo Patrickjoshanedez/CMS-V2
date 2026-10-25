@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+import tailwindcssAnimate from 'tailwindcss-animate';
+
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
@@ -10,6 +12,7 @@ export default {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        overlay: 'hsl(var(--overlay))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
@@ -22,10 +25,12 @@ export default {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        'destructive-text': 'hsl(var(--destructive-text))',
         muted: {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
         },
+        'paper-muted': 'hsl(var(--paper-muted-foreground))',
         accent: {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
@@ -50,11 +55,41 @@ export default {
           DEFAULT: 'hsl(var(--info))',
           foreground: 'hsl(var(--info-foreground))',
         },
+        chart: {
+          1: 'hsl(var(--chart-1))',
+          2: 'hsl(var(--chart-2))',
+          3: 'hsl(var(--chart-3))',
+          4: 'hsl(var(--chart-4))',
+          5: 'hsl(var(--chart-5))',
+          6: 'hsl(var(--chart-6))',
+          7: 'hsl(var(--chart-7))',
+          8: 'hsl(var(--chart-8))',
+          9: 'hsl(var(--chart-9))',
+          10: 'hsl(var(--chart-10))',
+        },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-background))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
+        },
         brand: {
           orange: 'hsl(var(--brand-orange))',
           pink: 'hsl(var(--brand-pink))',
           purple: 'hsl(var(--brand-purple))',
           'deep-purple': 'hsl(var(--brand-deep-purple))',
+        },
+        'slide-brand': {
+          navy: 'hsl(var(--slide-brand-navy))',
+          gold: 'hsl(var(--slide-brand-gold))',
+          orange: 'hsl(var(--slide-brand-orange))',
+          ink: 'hsl(var(--slide-brand-ink))',
+          slate: 'hsl(var(--slide-brand-slate))',
+          green: 'hsl(var(--slide-brand-green))',
         },
         buksu: {
           navy: {
@@ -104,5 +139,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 };

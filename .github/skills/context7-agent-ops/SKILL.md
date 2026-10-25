@@ -1,6 +1,10 @@
 ---
 name: context7-agent-ops
-description: Use when applying Context7 documentation workflows to agent planning, tool selection, and implementation quality. Triggers on: context7, context 7, resolve-library-id, get-library-docs, library grounding, API signature validation, planning consistency, tool argument precision, evaluator optimizer checks.
+description: >
+  Use when applying Context7 documentation workflows to agent planning, tool selection,
+  and implementation quality. Triggers on: "context7", "context 7", "resolve-library-id",
+  "get-library-docs", "library grounding", "API signature validation", "planning consistency",
+  "tool argument precision", "evaluator optimizer checks".
 ---
 
 # Context7 Agent Operations

@@ -3,13 +3,18 @@ import PropTypes from 'prop-types';
 import { Users, GraduationCap, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/Table';
 
 const heatClass = (score) => {
-  if (score >= 18)
-    return 'border-destructive/30 bg-destructive/10 text-destructive';
-  if (score >= 10)
-    return 'border-warning/30 bg-warning/10 text-warning-foreground';
+  if (score >= 18) return 'border-destructive/30 bg-destructive/10 text-destructive';
+  if (score >= 10) return 'border-warning/30 bg-warning/10 text-warning-foreground';
   return 'border-success/30 bg-success/10 text-success-foreground';
 };
 
@@ -48,12 +53,9 @@ const WorkloadHeatmap = ({ workload }) => {
     <section className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
       <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Faculty Workload
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Faculty Workload</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Assignments and pending reviews across advisers, panelists, and
-            committees.
+            Assignments and pending reviews across advisers, panelists, and committees.
           </p>
         </div>
         <div className="inline-flex flex-wrap items-center gap-2 self-start rounded-lg bg-muted/30 border border-border/60 px-3 py-1.5 shrink-0">
@@ -75,7 +77,11 @@ const WorkloadHeatmap = ({ workload }) => {
 
       {/* View Switcher Tabs & Legend */}
       <div className="flex flex-col gap-3">
-        <div role="group" aria-label="Faculty workload views" className="flex flex-wrap gap-1 rounded-md border border-border/60 bg-muted/40 p-1">
+        <div
+          role="group"
+          aria-label="Faculty workload views"
+          className="flex flex-wrap gap-1 rounded-md border border-border/60 bg-muted/40 p-1"
+        >
           {VIEW_TABS.map(({ id, label, icon: Icon }) => (
             <Button
               key={id}
@@ -99,7 +105,9 @@ const WorkloadHeatmap = ({ workload }) => {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground sm:hidden">Scroll the table horizontally to see all workload details.</p>
+      <p className="text-xs text-muted-foreground sm:hidden">
+        Scroll the table horizontally to see all workload details.
+      </p>
       <div className="max-w-full overflow-x-auto">
         <Table className="min-w-[560px]">
           <TableHeader>
@@ -113,47 +121,25 @@ const WorkloadHeatmap = ({ workload }) => {
               </TableHead>
               {activeTab === 'faculty' ? (
                 <>
-                  <TableHead>
-                    Advisory
-                  </TableHead>
-                  <TableHead>
-                    Panelist
-                  </TableHead>
-                  <TableHead>
-                    Total Projects
-                  </TableHead>
-                  <TableHead>
-                    Pending
-                  </TableHead>
+                  <TableHead>Advisory</TableHead>
+                  <TableHead>Panelist</TableHead>
+                  <TableHead>Total Projects</TableHead>
+                  <TableHead>Pending</TableHead>
                 </>
               ) : activeTab === 'panelists' ? (
                 <>
-                  <TableHead>
-                    Panel Projects
-                  </TableHead>
-                  <TableHead>
-                    Pending Reviews
-                  </TableHead>
+                  <TableHead>Panel Projects</TableHead>
+                  <TableHead>Pending Reviews</TableHead>
                 </>
               ) : (
                 <>
-                  <TableHead>
-                    Projects
-                  </TableHead>
-                  <TableHead>
-                    Pending
-                  </TableHead>
-                  <TableHead>
-                    Revisions
-                  </TableHead>
-                  <TableHead>
-                    Overdue
-                  </TableHead>
+                  <TableHead>Projects</TableHead>
+                  <TableHead>Pending</TableHead>
+                  <TableHead>Revisions</TableHead>
+                  <TableHead>Overdue</TableHead>
                 </>
               )}
-              <TableHead>
-                Workload Score
-              </TableHead>
+              <TableHead>Workload Score</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -170,9 +156,7 @@ const WorkloadHeatmap = ({ workload }) => {
               const key = row.facultyId || row.panelistId || row.adviserId || name;
 
               return (
-                <TableRow
-                  key={key}
-                >
+                <TableRow key={key}>
                   <TableCell className="font-medium text-foreground">{name}</TableCell>
                   {activeTab === 'faculty' ? (
                     <>
@@ -189,12 +173,16 @@ const WorkloadHeatmap = ({ workload }) => {
                     </>
                   ) : activeTab === 'panelists' ? (
                     <>
-                      <TableCell className="font-mono tabular-nums">{row.projectCount ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">
+                        {row.projectCount ?? 0}
+                      </TableCell>
                       <TableCell className="font-mono tabular-nums">{row.pending ?? 0}</TableCell>
                     </>
                   ) : (
                     <>
-                      <TableCell className="font-mono tabular-nums">{row.projectCount ?? 0}</TableCell>
+                      <TableCell className="font-mono tabular-nums">
+                        {row.projectCount ?? 0}
+                      </TableCell>
                       <TableCell className="font-mono tabular-nums">{row.pending ?? 0}</TableCell>
                       <TableCell className="font-mono tabular-nums">{row.revisions ?? 0}</TableCell>
                       <TableCell className="font-mono tabular-nums">{row.overdue ?? 0}</TableCell>

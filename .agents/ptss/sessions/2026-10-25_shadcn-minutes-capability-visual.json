@@ -1,0 +1,23 @@
+{
+  "session_id": "2026-10-25_shadcn-minutes-capability-visual",
+  "timestamp": "2026-10-25T06:30:00Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Continue the CMS-wide shadcn UI refactor with the user-selected clear, professional, reassuring tone while preserving institutional behavior.",
+  "completed_this_turn": [
+    "Added chair and panelist appointment boundary coverage; the focused modal and project-entry suites pass 9/9.",
+    "Built the production client successfully with 4,859 modules.",
+    "Created 20 offline Playwright captures of the actual LiveDefenseMinutesModal across instructor, secretary, chair, panelist, and unassigned states in light/dark desktop/mobile; no browser errors or document-level horizontal overflow.",
+    "Updated migration verification and evidence records."
+  ],
+  "verification": {
+    "targeted_test": "npm exec --workspace=client -- vitest run src/components/defense/LiveDefenseMinutesModal.test.jsx src/pages/projects/ProjectDetailPage.schedule-nav.test.jsx --pool=threads --maxWorkers=1 --no-isolate",
+    "targeted_test_result": "passed: 2 files, 9 tests",
+    "production_build": "passed: 4,859 modules",
+    "offline_visual_audit": "passed: 20 actual-component captures; no browser errors/document-level horizontal overflow",
+    "evidence_validation": "passed: 34/34",
+    "workflow_mutations": "none"
+  },
+  "next_action": "Continue the full route interaction matrix, verify localhost route/session in an authorized browser, and complete outstanding final-source acceptance gates.",
+  "full_refactor_status": "in_progress"
+}

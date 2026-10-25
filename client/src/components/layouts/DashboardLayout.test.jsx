@@ -15,14 +15,18 @@ vi.mock('@/stores/authStore', () => ({
 vi.mock('./Sidebar', () => ({
   default: ({ onToggle }) => (
     <nav aria-label="Mock sidebar">
-      <button type="button" onClick={onToggle}>Close mobile navigation</button>
+      <button type="button" onClick={onToggle}>
+        Close mobile navigation
+      </button>
     </nav>
   ),
 }));
 vi.mock('./Header', () => ({
   default: ({ onMenuClick }) => (
     <header>
-      <button type="button" aria-label="Open sidebar" onClick={onMenuClick}>Menu</button>
+      <button type="button" aria-label="Open sidebar" onClick={onMenuClick}>
+        Menu
+      </button>
     </header>
   ),
 }));

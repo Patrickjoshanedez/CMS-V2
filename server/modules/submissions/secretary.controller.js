@@ -8,6 +8,7 @@ import {
   consolidateInstitutionalADMRows,
   invalidateProjectCache,
 } from '../projects/project.controller.js';
+import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 import AppError from '../../utils/AppError.js';
 import env from '../../config/env.js';
 
@@ -185,6 +186,7 @@ export const extractMinutesToADM = async (req, res, next) => {
     if (!existingProject) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
+    assertProjectWritable(existingProject);
 
     // 3. Update only the target milestone's ADM rows
     existingProject.actionDoneMatrix = mergeMilestoneAdmRows(
@@ -304,6 +306,8 @@ export const saveSecretaryMinutes = async (req, res, next) => {
         message: 'Students are not authorized to modify official defense minutes.',
       });
     }
+
+    assertProjectWritable(project);
 
     const milestoneMap = {
       proposal: 'CAPSTONE_1',

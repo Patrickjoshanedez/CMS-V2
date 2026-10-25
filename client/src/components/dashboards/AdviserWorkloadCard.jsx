@@ -111,26 +111,30 @@ const AdviserWorkloadCard = ({ workload }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="space-y-1 p-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">To Review</p>
-          <p className="text-3xl font-bold text-foreground">{summary.totalToReview}</p>
-        </CardContent></Card>
-        <Card><CardContent className="space-y-1 p-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">In Review</p>
-          <p className="text-3xl font-bold text-primary">{summary.currentlyReviewing}</p>
-        </CardContent></Card>
-        <Card className="border-destructive/25 bg-destructive/5"><CardContent className="space-y-1 p-4">
-          <p className="text-xs font-semibold uppercase text-destructive">Overdue</p>
-          <p className="text-3xl font-bold text-destructive">{summary.overdue}</p>
-        </CardContent></Card>
-        <Card className="border-warning/25 bg-warning/5"><CardContent className="space-y-1 p-4">
-          <p className="text-xs font-semibold uppercase text-warning-foreground">
-            Upcoming
-          </p>
-          <p className="text-3xl font-bold text-warning-foreground">
-            {summary.upcomingDeadline}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="space-y-1 p-4">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">To Review</p>
+            <p className="text-3xl font-bold text-foreground">{summary.totalToReview}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-1 p-4">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">In Review</p>
+            <p className="text-3xl font-bold text-primary">{summary.currentlyReviewing}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-destructive/25 bg-destructive/5">
+          <CardContent className="space-y-1 p-4">
+            <p className="text-xs font-semibold uppercase text-destructive">Overdue</p>
+            <p className="text-3xl font-bold text-destructive">{summary.overdue}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-warning/25 bg-warning/5">
+          <CardContent className="space-y-1 p-4">
+            <p className="text-xs font-semibold uppercase text-warning-foreground">Upcoming</p>
+            <p className="text-3xl font-bold text-warning-foreground">{summary.upcomingDeadline}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {sections.map((section) => {
@@ -138,18 +142,18 @@ const AdviserWorkloadCard = ({ workload }) => {
 
         return (
           <Card key={section.key}>
-          <CardContent className="p-5">
-            <h3 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h3>
-            <div className="space-y-3">
-              {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{section.empty}</p>
-              ) : (
-                items.map((item) => (
-                  <SubmissionRow key={item._id} item={item} mode={section.mode} />
-                ))
-              )}
-            </div>
-          </CardContent>
+            <CardContent className="p-5">
+              <h3 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h3>
+              <div className="space-y-3">
+                {items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{section.empty}</p>
+                ) : (
+                  items.map((item) => (
+                    <SubmissionRow key={item._id} item={item} mode={section.mode} />
+                  ))
+                )}
+              </div>
+            </CardContent>
           </Card>
         );
       })}

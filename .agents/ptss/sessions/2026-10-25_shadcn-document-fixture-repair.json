@@ -3,8 +3,18 @@
   "date": "2026-10-25",
   "status": "in_progress",
   "previous_turn_classification": "progress",
-  "completed": ["Corrected manuscript open-link fixture and generated valid PDF bytes; PDF.js validates one page and expected text", "Batch 9 passes 24 captures; batch 10 completes 24 with realtime failure retained", "Focused editor fixture passes all four modes; inspected dark mobile image, batch 9 contact sheet and submission review screenshot"],
-  "remaining": ["Canonical viewer boundary for read-only Google document presentations", "Fully rendered reader/PDF metadata readiness", "Realtime session lifecycle; cms-server is exited, proxy targets server:43210", "Full visual interaction matrix", "Exact baseline retained by user"],
+  "completed": [
+    "Corrected manuscript open-link fixture and generated valid PDF bytes; PDF.js validates one page and expected text",
+    "Batch 9 passes 24 captures; batch 10 completes 24 with realtime failure retained",
+    "Focused editor fixture passes all four modes; inspected dark mobile image, batch 9 contact sheet and submission review screenshot"
+  ],
+  "remaining": [
+    "Canonical viewer boundary for read-only Google document presentations",
+    "Fully rendered reader/PDF metadata readiness",
+    "Realtime session lifecycle; cms-server is exited, proxy targets server:43210",
+    "Full visual interaction matrix",
+    "Exact baseline retained by user"
+  ],
   "evidence": "scratch/qa-evidence/shadcn-live-route-audit/cbcea4ffd6afaf90/fixture-repair-checkpoint.json",
   "product_sources_changed": false
 }

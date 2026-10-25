@@ -85,9 +85,7 @@ export default function ChangePasswordForm() {
       <div className="space-y-3">
         {success && (
           <Alert variant="success">
-            <AlertDescription>
-              Password changed successfully.
-            </AlertDescription>
+            <AlertDescription>Password changed successfully.</AlertDescription>
           </Alert>
         )}
         <SettingRow label="Change Password" description="Update your account password.">
@@ -213,7 +211,7 @@ export default function ChangePasswordForm() {
               Update Password
             </Button>
           </div>
-          </fieldset>
+        </fieldset>
       </form>
     </Card>
   );

@@ -35,4 +35,28 @@ describe('student registration domain enforcement', () => {
   it('rejects non-institutional domains', () => {
     expect(registerSchema.safeParse(registration('alex@gmail.com')).success).toBe(false);
   });
+
+  it('accepts and trims studentId when provided', () => {
+    const result = registerSchema.safeParse({
+      ...registration('alex@student.buksu.edu.ph'),
+      studentId: '  2021-12345  ',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.studentId).toBe('2021-12345');
+  });
+
+  it('defaults studentId to empty string when omitted', () => {
+    const result = registerSchema.safeParse(registration('alex@student.buksu.edu.ph'));
+    expect(result.success).toBe(true);
+    expect(result.data.studentId).toBe('');
+  });
+
+  it('rejects studentId longer than 32 characters', () => {
+    const result = registerSchema.safeParse({
+      ...registration('alex@student.buksu.edu.ph'),
+      studentId: 'A'.repeat(33),
+    });
+    expect(result.success).toBe(false);
+    expect(result.error.issues[0].message).toBe('Student ID must not exceed 32 characters');
+  });
 });

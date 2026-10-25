@@ -26,13 +26,7 @@
       "path": "client/src/App.jsx",
       "area": "App.jsx:core",
       "status": "source-updated",
-      "routes": [
-        "/",
-        "/login",
-        "/dashboard",
-        "/settings",
-        "/dev/ui-showcase (development only)"
-      ],
+      "routes": ["/", "/login", "/dashboard", "/settings", "/dev/ui-showcase (development only)"],
       "visualEvidence": [
         "scratch/loading-feedback/: actual lazy route fallback and progress bar captured in light/dark at desktop/mobile; all four states had zero errors and overflow.",
         "scratch/qa-evidence/loading-states/: four inspected actual-app session-initialization captures cover light/dark at 1440x900 and 390x844; delayed synthetic API responses are GET-only, and each state has zero page errors and overflow."
@@ -45,10 +39,7 @@
       "path": "client/src/components/archive/CanonicalDocumentViewer.jsx",
       "area": "component:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive/document/:projectId",
-        "/projects/:projectId (archived project reader)"
-      ],
+      "routes": ["/archive/document/:projectId", "/projects/:projectId (archived project reader)"],
       "visualEvidence": [
         "scratch/qa-evidence/canonical-document-viewer/: nine current Playwright captures include light/dark desktop and mobile reader states, light desktop similarity drawer, and archive search context; overflow and Vite overlays are asserted before capture"
       ],
@@ -61,9 +52,7 @@
       "path": "client/src/components/archive/CitationExportModal.jsx",
       "area": "component:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [
         "scratch/qa-evidence/archive-citation/light-desktop-citation-dialog.png",
         "scratch/qa-evidence/archive-citation/dark-desktop-citation-dialog.png",
@@ -79,9 +68,7 @@
       "path": "client/src/components/archive/GoogleScholarSearchBar.jsx",
       "area": "component:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [
         "scratch/qa-evidence/archive-search-bar/ (8 captures of suggestions and scope menu across light/dark at 1440x900 and 390x844)"
       ],
@@ -97,9 +84,7 @@
       "path": "client/src/components/archive/GoogleScholarSidebar.jsx",
       "area": "component:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [
         "Playwright covered desktop sidebar and mobile Sheet in light/dark at 1440x900 and 390x844; all four states had no overflow or Vite overlay. The visual pass exercised sort selection, citation checkbox toggle, custom year range, and mobile close behavior; representative mobile themes were inspected."
       ],
@@ -113,9 +98,7 @@
       "path": "client/src/components/archive/OriginalityShieldBadge.jsx",
       "area": "component:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [
         "scratch/qa-evidence/archive-citation/light-desktop-statuses.png",
         "scratch/qa-evidence/archive-citation/dark-desktop-statuses.png",
@@ -135,10 +118,7 @@
       "path": "client/src/components/auth/AuthStatusAlert.jsx",
       "area": "component:auth",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/register"
-      ],
+      "routes": ["/login", "/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /login, /register for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -150,10 +130,7 @@
       "path": "client/src/components/auth/AuthSubmitButton.jsx",
       "area": "component:auth",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/register"
-      ],
+      "routes": ["/login", "/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /login, /register for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -179,9 +156,7 @@
       "path": "client/src/components/calendar/DefenseScheduleCalendar.jsx",
       "area": "component:calendar",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/defense-schedule-calendar/ (16 screenshots: empty/populated agenda, month grid, selected-day details; light/dark; desktop/mobile)"
       ],
@@ -194,9 +169,7 @@
       "path": "client/src/components/common/SaveStatusIndicator.jsx",
       "area": "component:common",
       "status": "source-updated",
-      "routes": [
-        "/projects/:projectId/documents/:docIdOrType"
-      ],
+      "routes": ["/projects/:projectId/documents/:docIdOrType"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 7 matching screenshots under scratch/responsive-layout/ cover /projects/660000000000000000000002/documents/chapter-1 for instructor, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -208,9 +181,7 @@
       "path": "client/src/components/dashboards/AdviserAnalytics.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -222,9 +193,7 @@
       "path": "client/src/components/dashboards/AdviserWorkloadCard.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -236,9 +205,7 @@
       "path": "client/src/components/dashboards/CalendarScheduler.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/calendar-scheduler (8 light/dark desktop/mobile captures covering populated and empty agenda states)"
       ],
@@ -250,9 +217,7 @@
       "path": "client/src/components/dashboards/FacultyDashboard.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -279,9 +244,7 @@
       "path": "client/src/components/dashboards/KPICards.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -293,9 +256,7 @@
       "path": "client/src/components/dashboards/OptimizationEngine.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/optimization-engine (16 light/dark desktop/mobile captures covering empty, suggestion, balanced, and loading states)"
       ],
@@ -307,9 +268,7 @@
       "path": "client/src/components/dashboards/PanelistTopicCard.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -321,9 +280,7 @@
       "path": "client/src/components/dashboards/WorkloadHeatmap.jsx",
       "area": "component:dashboards",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -353,15 +310,8 @@
       "routes": [
         "/projects/:projectId (ProjectDetailPage defense-minutes entry point for instructors and assigned secretary/chair/panelist appointments)"
       ],
-      "roles": [
-        "secretary",
-        "faculty committee"
-      ],
-      "workflowPhases": [
-        "Phase 2",
-        "Phase 3",
-        "Phase 4"
-      ],
+      "roles": ["secretary", "faculty committee"],
+      "workflowPhases": ["Phase 2", "Phase 3", "Phase 4"],
       "scenarios": [
         "official minutes",
         "quick-log revision",
@@ -394,19 +344,9 @@
       "path": "client/src/components/defense/ScheduleDefenseModal.jsx",
       "area": "component:defense",
       "status": "source-updated",
-      "routes": [
-        "/instructor/defense-scheduling",
-        "project course workspaces (Capstone 1–3)"
-      ],
-      "roles": [
-        "instructor"
-      ],
-      "workflowPhases": [
-        "Phase 1",
-        "Phase 2",
-        "Phase 3",
-        "Phase 4"
-      ],
+      "routes": ["/instructor/defense-scheduling", "project course workspaces (Capstone 1–3)"],
+      "roles": ["instructor"],
+      "workflowPhases": ["Phase 1", "Phase 2", "Phase 3", "Phase 4"],
       "scenarios": [
         "schedule defense",
         "schedule title hearing",
@@ -436,9 +376,7 @@
       "path": "client/src/components/documents/GoogleDocViewer.jsx",
       "area": "component:documents",
       "status": "source-updated",
-      "routes": [
-        "/projects/:projectId/documents/:docIdOrType"
-      ],
+      "routes": ["/projects/:projectId/documents/:docIdOrType"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-document-editor/results.json records eight inspected Playwright states of the embedded and fullscreen viewer across light/dark at 1440x900 and 390x844, using synthetic read-only user/manuscript/iframe fixtures; zero page errors or overflow."
       ],
@@ -489,9 +427,7 @@
       "path": "client/src/components/instructor/MilestoneDeadlinesModal.jsx",
       "area": "component:instructor",
       "status": "source-updated",
-      "routes": [
-        "/defense-scheduling"
-      ],
+      "routes": ["/defense-scheduling"],
       "visualEvidence": [
         "scratch/qa-evidence/milestone-deadlines/: 16 Playwright captures across light/dark and 1440x900/390x844 covering default, section scope, active milestone list, and delete confirmation; dialogs fit, mobile cards are reachable by scrolling, cancellation works, and no overflow or browser/Vite errors occurred."
       ],
@@ -504,9 +440,7 @@
       "path": "client/src/components/layouts/AnnouncementBanner.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/announcement-banner/ (light/dark at 1440x900 and 390x844)"
       ],
@@ -519,10 +453,7 @@
       "path": "client/src/components/layouts/AuthLayout.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/register"
-      ],
+      "routes": ["/login", "/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /login, /register for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -534,9 +465,7 @@
       "path": "client/src/components/layouts/DashboardLayout.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/dashboard-layout/ (light/dark desktop/mobile shell; mobile Sheet open states)",
         "Route-integrated /my-project Playwright states cover no-team and locked-team-with-draft in light/dark at 1440x900 and 390x844 (8 captures under scratch/qa-evidence/my-project-empty-state/). Synthetic GET-only fixtures; zero page errors, zero overflow, no workflow writes.",
@@ -551,9 +480,7 @@
       "path": "client/src/components/layouts/Header.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -565,9 +492,7 @@
       "path": "client/src/components/layouts/NotificationBellPopover.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/notification-popover/ (12 populated, unread-filtered, and empty-state captures across light/dark at 1440x900 and 390x844)"
       ],
@@ -581,9 +506,7 @@
       "path": "client/src/components/layouts/Sidebar.jsx",
       "area": "component:layouts",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/dashboard-layout/ (read-only synthetic instructor shell; inspected focus captures cover expanded desktop, collapsed desktop, and mobile Sheet navigation in light/dark; all six focus states have visible theme-aware rings, zero browser errors, and no overflow)",
         "Actual file-only viewer modal, metadata Sheet, fullscreen and Sidebar components captured alongside shared Dialog/Popover compositions in 26 light/dark desktop/mobile screenshots; no browser errors or document overflow. scratch/qa-evidence/shadcn-overlay-refactor/results.json. These are isolated component fixtures, not authenticated workflow-route evidence."
@@ -596,11 +519,7 @@
       "path": "client/src/components/plagiarism/DropZone.jsx",
       "area": "component:plagiarism",
       "status": "source-updated",
-      "routes": [
-        "/plagiarism-checker",
-        "/plagiarism",
-        "/archive/plagiarism"
-      ],
+      "routes": ["/plagiarism-checker", "/plagiarism", "/archive/plagiarism"],
       "visualEvidence": [
         "Playwright-backed in-app browser review: empty, selected-file, and rejected-file states across light/dark at 1440x900 and 390x844; all 12 viewport measurements have no horizontal overflow."
       ],
@@ -643,11 +562,7 @@
       "path": "client/src/components/plagiarism/ScanButton.jsx",
       "area": "component:plagiarism",
       "status": "source-updated",
-      "routes": [
-        "/plagiarism-checker",
-        "/plagiarism",
-        "/archive/plagiarism"
-      ],
+      "routes": ["/plagiarism-checker", "/plagiarism", "/archive/plagiarism"],
       "visualEvidence": [
         "Playwright component review covered ready/scanning states in light/dark at 1440x900 and 390x844; the production checker page matrix additionally verified scanning at mobile width with no overflow after allowing the long busy label to wrap. The only component-harness console 404 was the dev server automatic /favicon.ico request."
       ],
@@ -661,11 +576,7 @@
       "path": "client/src/components/plagiarism/ScanHero.jsx",
       "area": "component:plagiarism",
       "status": "source-updated",
-      "routes": [
-        "/plagiarism-checker",
-        "/plagiarism",
-        "/archive/plagiarism"
-      ],
+      "routes": ["/plagiarism-checker", "/plagiarism", "/archive/plagiarism"],
       "visualEvidence": [
         "Playwright review of the institutional status Badge and scan heading in light/dark at 1440x900 and 390x844; all four states had no horizontal overflow or Vite overlay, and representative screenshots were inspected."
       ],
@@ -691,9 +602,7 @@
       "path": "client/src/components/projects/AcademicExcelGanttChart.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Capstone 2 schedule workspace)"
-      ],
+      "routes": ["/projects/:id (Capstone 2 schedule workspace)"],
       "visualEvidence": [
         "In-app Playwright review: light/dark × desktop 1440x900/mobile 390x844; editable schedule, adviser pre-approval lock and milestone dialog reviewed. Document width was 1430/1440 desktop and 381/390 mobile; dialog bounds stayed inside each viewport. No schedule, approval, export, or milestone mutation submitted."
       ],
@@ -713,9 +622,7 @@
       "path": "client/src/components/projects/ActionDoneMatrixSection.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions"
-      ],
+      "routes": ["/project/submissions"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: workflow-surface preview captures for workflow-adm-entry across light/dark at 1440x900 and 390x844; inert local fixtures, no submit actions, no page errors, and no horizontal overflow."
       ],
@@ -749,9 +656,7 @@
       "path": "client/src/components/projects/adm/ADMRemarkRow.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/secretary-review?projectId=:projectId&tab=adm"
-      ],
+      "routes": ["/secretary-review?projectId=:projectId&tab=adm"],
       "visualEvidence": [
         "Light/dark desktop/mobile synthetic ADM row captures: scratch/qa-evidence/adm-remark-row/adm-row-{light,dark}-{desktop,mobile}.png"
       ],
@@ -764,9 +669,7 @@
       "path": "client/src/components/projects/adm/ADMTableView.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/secretary-review"
-      ],
+      "routes": ["/secretary-review"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: workflow-surface preview captures for workflow-adm-table across light/dark at 1440x900 and 390x844; inert local fixtures, no submit actions, no page errors, and no horizontal overflow. The latest screen-only helper token change postdates these captures.",
         "scratch/qa-evidence/adm-paper-token/: four inert built-CSS captures verify the paper-muted hint color and contrast in light/dark at 1440x900 and 390x844.",
@@ -809,9 +712,7 @@
       "path": "client/src/components/projects/AlignmentSelectorDialog.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create"
-      ],
+      "routes": ["/project/create"],
       "visualEvidence": [
         "scratch/qa-evidence/alignment-selector/desktop_light_disciplines.png",
         "scratch/qa-evidence/alignment-selector/desktop_dark_disciplines.png",
@@ -862,9 +763,7 @@
       "path": "client/src/components/projects/Capstone2CollapsibleSections.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Capstone 2 Gantt, ADM, prototype, and evaluation sections)"
-      ],
+      "routes": ["/projects/:id (Capstone 2 Gantt, ADM, prototype, and evaluation sections)"],
       "visualEvidence": [
         "In-app Playwright review: light/dark × desktop 1440x900/mobile 390x844; Gantt, adviser pre-approval lock, prototype showcase, and Secretary Endorsed ADM status. Document width stayed within viewport; no schedule, prototype, or ADM mutation submitted."
       ],
@@ -876,9 +775,7 @@
       "path": "client/src/components/projects/Capstone3CollapsibleSections.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Capstone 3 chapters, publications, ADM, and final evaluation)"
-      ],
+      "routes": ["/projects/:id (Capstone 3 chapters, publications, ADM, and final evaluation)"],
       "visualEvidence": [
         "In-app Playwright review: light/dark × desktop 1440x900/mobile 390x844; chapter review empty state, publications cards, and Secretary Endorsed ADM status. Document width stayed within viewport; no publication, document, ADM, or evaluation mutation submitted."
       ],
@@ -890,9 +787,7 @@
       "path": "client/src/components/projects/CapstoneWorkflowStepper.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (cross-course milestone overview)"
-      ],
+      "routes": ["/projects/:id (cross-course milestone overview)"],
       "visualEvidence": [
         "In-app Playwright review: light/dark × desktop 1440x900/mobile 390x844; committee, academic reports, and external-links dialogs fit the viewport.",
         "Four fresh captures verify milestone nodes, proposal buttons, KPI Card/Button surfaces, and success Alert across light/dark desktop/mobile with no overflow or page errors.",
@@ -907,11 +802,7 @@
       "path": "client/src/components/projects/ConsultationLogWidget.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/my-project",
-        "/projects/:id"
-      ],
+      "routes": ["/project", "/my-project", "/projects/:id"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: workflow-surface preview captures for workflow-consultation-history, workflow-consultation-form across light/dark at 1440x900 and 390x844; inert local fixtures, no submit actions, no page errors, and no horizontal overflow."
       ],
@@ -925,10 +816,7 @@
       "path": "client/src/components/projects/DeadlineWarning.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project",
-        "/project/submissions"
-      ],
+      "routes": ["/my-project", "/project/submissions"],
       "visualEvidence": [
         "Temporary in-app Vite harness rendered overdue, critical, warning, safe, distant, moved, removed, and to-be-announced deadline states in full and compact modes. Light/dark review at 1440x900 and 390x844 confirmed document width matched viewport in all four combinations."
       ],
@@ -942,10 +830,7 @@
       "path": "client/src/components/projects/EmptyProjectState.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project",
-        "/project/approval"
-      ],
+      "routes": ["/my-project", "/project/approval"],
       "visualEvidence": [
         "Route-integrated /project/approval captures display the no-team EmptyProjectState in light/dark at 1440x900 and 390x844 (scratch/responsive-layout/1440-light-student-_project_approval.png, 1440-dark-student-_project_approval.png, 390-light-student-_project_approval.png, 390-dark-student-_project_approval.png). The component harness and route audit cover the locked-team draft state; all eight direct /my-project captures pass in the full theme/viewport matrix.",
         "Route-integrated /my-project Playwright states cover no-team and locked-team-with-draft in light/dark at 1440x900 and 390x844 (8 captures under scratch/qa-evidence/my-project-empty-state/). Synthetic GET-only fixtures; zero page errors, zero overflow, no workflow writes."
@@ -981,9 +866,7 @@
       "path": "client/src/components/projects/FacultyCommitteeCard.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Faculty Committee & Proponent Roster dialog)"
-      ],
+      "routes": ["/projects/:id (Faculty Committee & Proponent Roster dialog)"],
       "visualEvidence": [
         "scratch/qa-evidence/faculty-committee/: light/dark at 1440x900 and 390x844; no horizontal overflow, Vite overlay, or page errors."
       ],
@@ -995,9 +878,7 @@
       "path": "client/src/components/projects/InteractiveGanttChart.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Capstone 2 schedule workspace)"
-      ],
+      "routes": ["/projects/:id (Capstone 2 schedule workspace)"],
       "visualEvidence": [
         "Playwright audit captured 12 light/dark desktop (1440x900) and mobile (390x844) screenshots for the schedule and both dialogs; dialogs fit their viewport, document width stays within viewport, and no Vite/browser errors occurred. Captures are under scratch/qa-evidence/interactive-gantt_*.png."
       ],
@@ -1009,9 +890,7 @@
       "path": "client/src/components/projects/ModificationReviewCard.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (instructor title-modification review)"
-      ],
+      "routes": ["/projects/:id (instructor title-modification review)"],
       "visualEvidence": [
         "Playwright audit captured and visually reviewed light/dark desktop (1440x900) and mobile (390x844) states. Warning surface, review copy, actions, and textarea remain legible; no document overflow or browser/Vite errors. Captures are under scratch/qa-evidence/modification-review_*.png."
       ],
@@ -1023,10 +902,7 @@
       "path": "client/src/components/projects/presentation/FullscreenToolbar.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create",
-        "/project/approval"
-      ],
+      "routes": ["/project/create", "/project/approval"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: workflow-surface preview captures for workflow-presentation-toolbar across light/dark at 1440x900 and 390x844; inert local fixtures, no submit actions, no page errors, and no horizontal overflow."
       ],
@@ -1040,9 +916,7 @@
       "path": "client/src/components/projects/ProjectAuditTrail.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (Audit Trail tab)"
-      ],
+      "routes": ["/projects/:id (Audit Trail tab)"],
       "visualEvidence": [
         "scratch/qa-evidence/project-audit-trail/: light/dark at 1440x900 and 390x844; submission category filter verified in all four states without overflow or page errors."
       ],
@@ -1054,9 +928,7 @@
       "path": "client/src/components/projects/ProjectCohortCard.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects"
-      ],
+      "routes": ["/projects"],
       "visualEvidence": [
         "scratch/qa-evidence/project-cohort-card/: 16 Playwright captures cover submitted, revision, approved, and archived states in light/dark at 1440x900 and 390x844; no horizontal overflow, Vite overlay, or page exceptions."
       ],
@@ -1081,9 +953,7 @@
       "path": "client/src/components/projects/ProjectDetailsModal.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project"
-      ],
+      "routes": ["/my-project"],
       "visualEvidence": [
         "scratch/qa-evidence/project-details-modal/: 12 approved, revision, and pending states across light/dark and 1440x900/390x844; no overflow, viewport escape, theme mismatch, missing dialog focus/description/close control, Vite overlay, or page/console errors. Escape dismissal verified in every state."
       ],
@@ -1095,9 +965,7 @@
       "path": "client/src/components/projects/ProjectSidebarInfo.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project"
-      ],
+      "routes": ["/my-project"],
       "visualEvidence": [
         "scratch/qa-evidence/project-sidebar-info/: 8 proposal and approved states across light/dark and 1440x900/390x844; semantic theme, shared Card, proposal/revision states, safe external link attributes, team-prefix normalization, and no horizontal overflow or browser errors."
       ],
@@ -1109,12 +977,7 @@
       "path": "client/src/components/projects/ProjectStatusBadge.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project",
-        "/projects",
-        "/projects/:id",
-        "/project/proposal"
-      ],
+      "routes": ["/my-project", "/projects", "/projects/:id", "/project/proposal"],
       "visualEvidence": [
         "All project-status enum badges were reviewed in light/dark at 1440x900 and 390x844 through the in-app Vite harness; document width matched the viewport in all four cases."
       ],
@@ -1126,12 +989,7 @@
       "path": "client/src/components/projects/ProposalRehearsalModal.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create",
-        "/project/approval",
-        "/project",
-        "/my-project"
-      ],
+      "routes": ["/project/create", "/project/approval", "/project", "/my-project"],
       "visualEvidence": [
         "scratch/qa-evidence/proposal-rehearsal/: 16 review/edit states across light/dark at 1440x900 and 390x844; verified viewport bounds, no document overflow, 16:9 canvas ratio, theme, Radix scroll-lock, accessible dialog name/description, slide selection, Escape edit behavior, and close/reopen without browser errors."
       ],
@@ -1143,11 +1001,7 @@
       "path": "client/src/components/projects/ProposalSlideCanvas.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create",
-        "/project/approval",
-        "/project (Capstone 1 workspace)"
-      ],
+      "routes": ["/project/create", "/project/approval", "/project (Capstone 1 workspace)"],
       "visualEvidence": [
         "scratch/qa-evidence/proposal-slide-canvas/: eight Playwright SSR captures cover cover/content slides in light/dark at 1440x900 and 390x844; two additional mobile captures verify scroll-to-end for long content.",
         "The audit rendered the actual React component with production CSS and embedded institutional logos because the isolated browser could not reach the workspace Vite preview; route-integrated browser evidence remains a final-gate requirement.",
@@ -1162,15 +1016,8 @@
         "ProposalSlideCanvas.test.jsx now asserts long-title wrapping/clamping hooks; CreateProjectPage and ProposalSlideCanvas focused suites pass 25/25."
       ],
       "id": "C-PROPOSAL-SLIDE-CANVAS",
-      "roles": [
-        "student",
-        "instructor",
-        "faculty committee"
-      ],
-      "workflowPhases": [
-        "Phase 1",
-        "Phase 2"
-      ],
+      "roles": ["student", "instructor", "faculty committee"],
+      "workflowPhases": ["Phase 1", "Phase 2"],
       "scenarios": [
         "cover slide",
         "content slide",
@@ -1194,10 +1041,7 @@
       "path": "client/src/components/projects/ProposalTab.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/my-project"
-      ],
+      "routes": ["/project", "/my-project"],
       "visualEvidence": [
         "scratch/qa-evidence/proposal-tab/: 16 captures cover review, approved-locked, revision-required, and empty states in light/dark at 1440x900 and 390x844. Actual component SSR with the production stylesheet verifies proposal tab/field counts, approved field lock, and no horizontal overflow."
       ],
@@ -1243,9 +1087,7 @@
       "path": "client/src/components/projects/RejectedProjectState.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project"
-      ],
+      "routes": ["/my-project"],
       "visualEvidence": [
         "The rejection reason Alert and recovery Card/action were reviewed in light/dark at 1440x900 and 390x844; document width matched the viewport in all four cases. The recovery action was not activated."
       ],
@@ -1271,9 +1113,7 @@
       "path": "client/src/components/projects/TitleFeedbackRemarksCard.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project"
-      ],
+      "routes": ["/my-project"],
       "visualEvidence": [
         "Four Playwright captures cover populated committee remarks at 1440x900 and 390x844 in light and dark themes. Two remark Cards, the section heading, and date metadata were verified; document width matched the viewport with no browser errors. Captures are under scratch/qa-evidence/title-feedback-remarks/."
       ],
@@ -1286,9 +1126,7 @@
       "path": "client/src/components/projects/TitleSimilarityChecker.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create"
-      ],
+      "routes": ["/project/create"],
       "visualEvidence": [
         "Eight Playwright captures cover conflict and clear result states at 1440x900 and 390x844 in light and dark themes. The match preview opens and dismisses with Escape; all states fit the viewport with no browser errors. Captures are under scratch/qa-evidence/title-similarity-checker/.",
         "Four delayed-request Playwright captures in scratch/responsive-layout/{1440,390}-{light,dark}-title-similarity-loading.png verify the shared Spinner during similarity checks and no overflow or browser errors."
@@ -1302,12 +1140,7 @@
       "path": "client/src/components/projects/TitleStatusBadge.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project",
-        "/projects",
-        "/projects/:id",
-        "/project/proposal"
-      ],
+      "routes": ["/my-project", "/projects", "/projects/:id", "/project/proposal"],
       "visualEvidence": [
         "All title-status enum badges, including Approved with Revision, were reviewed in light/dark at 1440x900 and 390x844; document width matched the viewport in all four cases."
       ],
@@ -1319,9 +1152,7 @@
       "path": "client/src/components/projects/TitleWorkflowCards.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/my-project"
-      ],
+      "routes": ["/my-project"],
       "visualEvidence": [
         "Submitted, revision-required, prerequisite, and approved title states were inspected in light/dark at 1440x900 and 390x844; all four captures fit the viewport with no browser or Vite errors."
       ],
@@ -1333,9 +1164,7 @@
       "path": "client/src/components/projects/WeeklyProgressCheckIns.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id"
-      ],
+      "routes": ["/projects/:id"],
       "visualEvidence": [
         "scratch/qa-evidence/weekly-progress-check-ins/ (light/dark desktop/mobile)"
       ],
@@ -1347,11 +1176,7 @@
       "path": "client/src/components/projects/WorkflowPhaseTracker.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/my-project",
-        "/projects/:id"
-      ],
+      "routes": ["/project", "/my-project", "/projects/:id"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /projects/660000000000000000000002 for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -1363,11 +1188,7 @@
       "path": "client/src/components/projects/WorkflowTabTrigger.jsx",
       "area": "component:projects",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/my-project",
-        "/projects/:id"
-      ],
+      "routes": ["/project", "/my-project", "/projects/:id"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /projects/660000000000000000000002 for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -1379,9 +1200,7 @@
       "path": "client/src/components/reports/CohortKPIRibbon.jsx",
       "area": "component:reports",
       "status": "source-updated",
-      "routes": [
-        "/reports"
-      ],
+      "routes": ["/reports"],
       "visualEvidence": [
         "scratch/qa-evidence/cohort-kpi-ribbon/ (loaded/loading states at 1440x900 and 390x844 in light/dark)"
       ],
@@ -1393,9 +1212,7 @@
       "path": "client/src/components/reports/DynamicChartWidget.jsx",
       "area": "component:reports",
       "status": "source-updated",
-      "routes": [
-        "/reports"
-      ],
+      "routes": ["/reports"],
       "visualEvidence": [
         "scratch/qa-evidence/dynamic-chart-widget/ (bar, table, empty and fullscreen states at 1440x900 and 390x844 in light/dark)"
       ],
@@ -1407,9 +1224,7 @@
       "path": "client/src/components/reports/ReportsFilterDrawer.jsx",
       "area": "component:reports",
       "status": "source-updated",
-      "routes": [
-        "/reports"
-      ],
+      "routes": ["/reports"],
       "visualEvidence": [
         "scratch/qa-evidence/reports-filter-drawer/ (open/closed Sheet at 1440x900 and 390x844 in light/dark)"
       ],
@@ -1421,10 +1236,7 @@
       "path": "client/src/components/secretary/SecretaryMinutesDocumentSheet.jsx",
       "area": "component:secretary",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/projects/:id"
-      ],
+      "routes": ["/project", "/projects/:id"],
       "visualEvidence": [
         "scratch/qa-evidence/secretary-minutes-dialog/ (signature dialog at 1440x900 and 390x844 in light/dark)",
         "scratch/qa-evidence/secretary-minutes-editor/ (full editor at 1440x900 and 390x844 in light/dark, plus light/dark print-media captures)"
@@ -1437,9 +1249,7 @@
       "path": "client/src/components/settings/AboutSection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=about"
-      ],
+      "routes": ["/settings?tab=about"],
       "visualEvidence": [
         "The About section uses shared Card components for account and environment metadata. Light/dark review at 1440x900 and 390x844 confirmed a two-column desktop grid, single-column mobile layout, and no horizontal overflow."
       ],
@@ -1451,9 +1261,7 @@
       "path": "client/src/components/settings/AdministrationSection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=administration"
-      ],
+      "routes": ["/settings?tab=administration"],
       "visualEvidence": [
         "Instructor administration settings inspected in light and dark at 1440x900 and 390x844. Threshold sliders, file-size input, milestone panel, template fields, and save controls stay within the viewport."
       ],
@@ -1468,9 +1276,7 @@
       "path": "client/src/components/settings/AppearanceSection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=appearance"
-      ],
+      "routes": ["/settings?tab=appearance"],
       "visualEvidence": [
         "Live Appearance Settings reviewed in light/dark at 1440x900 and 390x844. Read-only viewport measurements confirmed document scroll width matched the viewport in all four states; the existing high-contrast preference was left unchanged.",
         "Production Settings route: eight read-only appearance/notifications captures in light/dark at 1440x900 and 390x844. No page errors or horizontal overflow; no API writes. See scratch/qa-evidence/shadcn-production-workflow-routes/settings/results.json. These current captures supersede the older inconclusive notification overflow note."
@@ -1484,9 +1290,7 @@
       "path": "client/src/components/settings/ChangePasswordForm.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=security"
-      ],
+      "routes": ["/settings?tab=security"],
       "visualEvidence": [
         "Live seeded-instructor Settings review covered light/dark at 1440x900 and 390x844 with the password form expanded; form submission was not attempted. The in-app desktop capture cropped the right edge, so desktop overflow remains unclaimed."
       ],
@@ -1500,9 +1304,7 @@
       "path": "client/src/components/settings/DigitalSignatureSection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=signature"
-      ],
+      "routes": ["/settings?tab=signature"],
       "visualEvidence": [
         "Saved-signature and creation panels now use shared Card primitives. Confirmation and creation states reviewed in light/dark at 1440x900 and 390x844; dialog actions stack on mobile, document width matches the viewport, and no saved-signature mutation was submitted."
       ],
@@ -1516,9 +1318,7 @@
       "path": "client/src/components/settings/NotificationsSection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=notifications"
-      ],
+      "routes": ["/settings?tab=notifications"],
       "visualEvidence": [
         "Live Notifications section was inspected in light/dark at 1440x900 and 390x844; desktop screenshot cropping makes overflow inconclusive.",
         "Production Settings route: eight read-only appearance/notifications captures in light/dark at 1440x900 and 390x844. No page errors or horizontal overflow; no API writes. See scratch/qa-evidence/shadcn-production-workflow-routes/settings/results.json. These current captures supersede the older inconclusive notification overflow note."
@@ -1531,9 +1331,7 @@
       "path": "client/src/components/settings/SecuritySection.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=security"
-      ],
+      "routes": ["/settings?tab=security"],
       "visualEvidence": [
         "Live seeded-instructor Security section and expanded password form were inspected in light/dark at 1440x900 and 390x844. Password form was not submitted; desktop screenshot cropping makes overflow inconclusive."
       ],
@@ -1545,9 +1343,7 @@
       "path": "client/src/components/settings/SettingsShared.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings?tab=security"
-      ],
+      "routes": ["/settings?tab=security"],
       "visualEvidence": [
         "Live seeded-instructor Settings review covered light/dark at 1440x900 and 390x844 with the password form expanded; form submission was not attempted. The in-app desktop capture cropped the right edge, so desktop overflow remains unclaimed."
       ],
@@ -1560,10 +1356,7 @@
       "path": "client/src/components/settings/ThemeSelector.jsx",
       "area": "component:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings",
-        "/settings?tab=appearance"
-      ],
+      "routes": ["/settings", "/settings?tab=appearance"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/settings/: Appearance tab screenshots cover the theme choices and shared theme/text-scale header controls at light/dark, 1440x900 and 390x844; audit verified no horizontal overflow or page errors."
       ],
@@ -1588,9 +1381,7 @@
       "path": "client/src/components/submissions/ChapterCard.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions"
-      ],
+      "routes": ["/project/submissions"],
       "visualEvidence": [
         "scratch/qa-evidence/chapter-card/: sixteen captures cover approved, new, revision, and late-closed states across light/dark at 1440x900 and 390x844; no overflow, legacy status palette, Vite overlay, or browser errors"
       ],
@@ -1620,9 +1411,7 @@
       "path": "client/src/components/submissions/CompileProposalModal.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id (ProjectDetailPage proposal submission workflow)"
-      ],
+      "routes": ["/projects/:id (ProjectDetailPage proposal submission workflow)"],
       "visualEvidence": [
         "scratch/qa-evidence/compile-proposal-modal/: sixteen captures cover compile/revision empty and selected-file states at light/dark 1440x900 and 390x844; all dialogs fit, mobile controls meet 44px, and no overflow or browser errors occurred"
       ],
@@ -1650,9 +1439,7 @@
       "path": "client/src/components/submissions/FinalPaperUpload.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions (ProjectSubmissionsPage final-paper workflow)"
-      ],
+      "routes": ["/project/submissions (ProjectSubmissionsPage final-paper workflow)"],
       "visualEvidence": [
         "scratch/qa-evidence/final-paper-upload/: synthetic due, overdue, locked, and late-closed states across light/dark 1440x900 and 390x844; selected-file desktop states; 44px upload controls; no overflow or browser errors"
       ],
@@ -1700,9 +1487,7 @@
       "path": "client/src/components/submissions/PlagiarismChecker.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions/:submissionId"
-      ],
+      "routes": ["/project/submissions/:submissionId"],
       "visualEvidence": [
         "scratch/qa-evidence/plagiarism-checker/: four inspected captures at light/dark and 1440x900/390x844; deterministic Playwright check asserts 44px tabs, no horizontal scroll/overflow, and no browser errors."
       ],
@@ -1730,10 +1515,7 @@
       "path": "client/src/components/submissions/SubmissionStatusBadge.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions",
-        "/adviser/team-review"
-      ],
+      "routes": ["/project/submissions", "/adviser/team-review"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /project/submissions for student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -1761,9 +1543,7 @@
       "path": "client/src/components/submissions/UploadChapterModal.jsx",
       "area": "component:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions"
-      ],
+      "routes": ["/project/submissions"],
       "visualEvidence": [
         "scratch/qa-evidence/upload-chapter-modal/: four inspected captures at light/dark and 1440x900/390x844; synthetic manuscript/justification files, late gate, and document viewport bounds were checked; no API mutation was made."
       ],
@@ -1805,10 +1585,7 @@
       "path": "client/src/components/teams/AssignCommitteeDialog.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/notifications",
-        "/teams"
-      ],
+      "routes": ["/notifications", "/teams"],
       "visualEvidence": [
         "Live browser inspection in light and dark at 1440x900 and 390x844; dialog bounds remained inside the viewport and document width matched viewport width",
         "Faculty option list inspected in light theme at desktop and mobile viewport sizes; duplicate role assignments remained visibly disabled"
@@ -1824,9 +1601,7 @@
       "path": "client/src/components/teams/BulkInviteModal.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /teams for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -1840,12 +1615,7 @@
       "path": "client/src/components/teams/FacultySearchCombobox.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/notifications",
-        "/teams",
-        "/users",
-        "/projects"
-      ],
+      "routes": ["/notifications", "/teams", "/users", "/projects"],
       "visualEvidence": [
         "Live browser inspection in light and dark at 1440x900 and 390x844; picker width followed its trigger and stayed within the committee dialog",
         "Instructor committee picker checked with an active roster: conflict assignments were disabled, search filtered candidates, Escape closed only the popover, and no assignment was submitted"
@@ -1860,10 +1630,7 @@
       "path": "client/src/components/teams/InspectRosterDialog.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams",
-        "/notifications"
-      ],
+      "routes": ["/teams", "/notifications"],
       "visualEvidence": [
         "Live instructor roster dialog inspected in light and dark at 1440x900 and 390x844; modal remains viewport-bounded and scrolls internally on mobile"
       ],
@@ -1878,9 +1645,7 @@
       "path": "client/src/components/teams/InstructorTemplateConfigModal.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "Live instructor dialog inspected after final composition change in light/dark at 1440x900 and 390x844. Both Google Docs and direct-upload tabs were reviewed; the dialog stays within the viewport."
       ],
@@ -1895,9 +1660,7 @@
       "path": "client/src/components/teams/ManuscriptTemplateWidget.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "In-app Playwright-backed review of locked, approved Google Docs, approved downloadable, and unconfigured-template states in light/dark at 1440x900 and 390x844; no horizontal viewport overflow."
       ],
@@ -1909,9 +1672,7 @@
       "path": "client/src/components/teams/TeamFormationNotificationItem.jsx",
       "area": "component:teams",
       "status": "source-updated",
-      "routes": [
-        "/notifications"
-      ],
+      "routes": ["/notifications"],
       "visualEvidence": [
         "In-app Playwright-backed review of pending and assigned committee states in light/dark at 1440x900 and 390x844; action controls wrap on mobile and the viewport has no horizontal overflow."
       ],
@@ -1923,10 +1684,7 @@
       "path": "client/src/components/TextScaleDropdown.jsx",
       "area": "component:TextScaleDropdown.jsx",
       "status": "source-updated",
-      "routes": [
-        "/settings",
-        "/settings?tab=appearance"
-      ],
+      "routes": ["/settings", "/settings?tab=appearance"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/settings/: Appearance tab screenshots cover the theme choices and shared theme/text-scale header controls at light/dark, 1440x900 and 390x844; audit verified no horizontal overflow or page errors."
       ],
@@ -1938,10 +1696,7 @@
       "path": "client/src/components/ThemeToggle.jsx",
       "area": "component:ThemeToggle.jsx",
       "status": "source-updated",
-      "routes": [
-        "/settings",
-        "/settings?tab=appearance"
-      ],
+      "routes": ["/settings", "/settings?tab=appearance"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/settings/: Appearance tab screenshots cover the theme choices and shared theme/text-scale header controls at light/dark, 1440x900 and 390x844; audit verified no horizontal overflow or page errors."
       ],
@@ -1953,9 +1708,7 @@
       "path": "client/src/components/ui/Alert.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/notifications"
-      ],
+      "routes": ["/notifications"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/notifications/notifications-error-desktop-light.png",
         "scratch/shadcn-ui-captures/notifications/notifications-error-desktop-dark.png",
@@ -1970,9 +1723,7 @@
       "path": "client/src/components/ui/AlertDialog.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "Leave, finalize, and unlock confirmations reviewed in light/dark at desktop/mobile viewports; no horizontal overflow"
       ],
@@ -1984,10 +1735,7 @@
       "path": "client/src/components/ui/Badge.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/dashboard",
-        "/projects"
-      ],
+      "routes": ["/dashboard", "/projects"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 16 matching screenshots under scratch/responsive-layout/ cover /dashboard, /projects for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -1999,10 +1747,7 @@
       "path": "client/src/components/ui/Button.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/dashboard"
-      ],
+      "routes": ["/login", "/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 16 matching screenshots under scratch/responsive-layout/ cover /login, /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow.",
         "Playwright component state captures: Keyboard traversal visibly focuses the next action with a clear focus ring across light/dark at 1440x900 and 390x844; screenshots are under scratch/qa-evidence/shadcn-component-showcase/ and have no page errors or horizontal overflow."
@@ -2016,9 +1761,7 @@
       "path": "client/src/components/ui/Card.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2030,9 +1773,7 @@
       "path": "client/src/components/ui/Dialog.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/notifications"
-      ],
+      "routes": ["/notifications"],
       "visualEvidence": [
         "scratch/qa-evidence/live-minutes-capabilities/: 20 captures of the actual DialogContent consumer in light/dark at desktop/mobile. Bounding rectangles remain within each viewport while the zoom animation is active; no page errors or document overflow.",
         "scratch/shadcn-ui-captures/notifications/notifications-clear-dialog-desktop-light.png",
@@ -2050,10 +1791,7 @@
       "path": "client/src/components/ui/EmptyState.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/notifications",
-        "/teams"
-      ],
+      "routes": ["/notifications", "/teams"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/notifications/notifications-empty-desktop-light.png",
         "scratch/shadcn-ui-captures/notifications/notifications-empty-desktop-dark.png",
@@ -2069,10 +1807,7 @@
       "path": "client/src/components/ui/FloatingInput.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/register"
-      ],
+      "routes": ["/login", "/register"],
       "visualEvidence": [
         "scratch/qa-evidence/auth-interaction-states/: twelve Playwright screenshots capture login hover, focus, and invalid fields in light/dark at 1440x900 and 390x844; results.json confirms changed button hover styling, 6.96:1 light and 6.61:1 dark validation text contrast, accessible invalid-field association, password reveal, zero overflow, and zero page errors."
       ],
@@ -2085,10 +1820,7 @@
       "path": "client/src/components/ui/Input.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/users"
-      ],
+      "routes": ["/login", "/users"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /login, /users for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2100,9 +1832,7 @@
       "path": "client/src/components/ui/Label.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "Shared form fields across the application"
-      ],
+      "routes": ["Shared form fields across the application"],
       "visualEvidence": [
         "scratch/qa-evidence/label/light-desktop.png",
         "scratch/qa-evidence/label/dark-desktop.png",
@@ -2132,10 +1862,7 @@
       "path": "client/src/components/ui/PageSkeleton.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/dashboard",
-        "/settings"
-      ],
+      "routes": ["/dashboard", "/settings"],
       "visualEvidence": [
         "scratch/loading-feedback/: actual form skeleton captured in light/dark at desktop/mobile, with zero page errors or horizontal overflow."
       ],
@@ -2147,9 +1874,7 @@
       "path": "client/src/components/ui/Progress.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2161,9 +1886,7 @@
       "path": "client/src/components/ui/RouteErrorBoundary.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "All routed page hierarchies through the App.jsx RouteErrorBoundary wrapper"
-      ],
+      "routes": ["All routed page hierarchies through the App.jsx RouteErrorBoundary wrapper"],
       "visualEvidence": [
         "scratch/qa-evidence/route-error-boundary/: eight inspected captures cover default and expanded development details in light/dark at 1440x900 and 390x844; recovery buttons meet 44px on mobile, with no viewport overflow or local browser errors."
       ],
@@ -2176,10 +1899,7 @@
       "path": "client/src/components/ui/Select.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/users",
-        "/settings"
-      ],
+      "routes": ["/users", "/settings"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /users, /settings for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow.",
         "Playwright component state captures: Open option list including disabled choice is visible and responsive across light/dark at 1440x900 and 390x844; screenshots are under scratch/qa-evidence/shadcn-component-showcase/ and have no page errors or horizontal overflow."
@@ -2192,11 +1912,7 @@
       "path": "client/src/components/ui/SignaturePad.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/settings",
-        "Project detail/ADM",
-        "Secretary minutes"
-      ],
+      "routes": ["/settings", "Project detail/ADM", "Secretary minutes"],
       "visualEvidence": [
         "scratch/qa-evidence/signature-pad/light-desktop-typed.png",
         "scratch/qa-evidence/signature-pad/dark-desktop-typed.png",
@@ -2230,9 +1946,7 @@
       "path": "client/src/components/ui/Tabs.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/settings"
-      ],
+      "routes": ["/settings"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /settings for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2244,10 +1958,7 @@
       "path": "client/src/components/ui/TagInput.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/teams",
-        "/team"
-      ],
+      "routes": ["/teams", "/team"],
       "visualEvidence": [
         "scratch/qa-evidence/tag-input/: eight inspected captures cover suggestion and selected-tag states in light/dark at 1440x900 and 390x844; no overflow or browser errors, and mobile suggestion/removal hit targets measure at least 44px."
       ],
@@ -2260,10 +1971,7 @@
       "path": "client/src/components/ui/Textarea.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/login",
-        "/register"
-      ],
+      "routes": ["/login", "/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 8 matching screenshots under scratch/responsive-layout/ cover /login, /register for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2275,9 +1983,7 @@
       "path": "client/src/components/ui/TopProgressBar.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/settings"
-      ],
+      "routes": ["/settings"],
       "visualEvidence": [
         "scratch/loading-feedback/1440-light-route-loading.png",
         "scratch/loading-feedback/1440-dark-route-loading.png",
@@ -2296,9 +2002,7 @@
       "path": "client/src/components/ui/YearInput.jsx",
       "area": "component:ui",
       "status": "source-updated",
-      "routes": [
-        "/register"
-      ],
+      "routes": ["/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /register for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2310,10 +2014,7 @@
       "path": "client/src/components/users/CreateAcademicNodeDialog.jsx",
       "area": "component:users",
       "status": "source-updated",
-      "routes": [
-        "/users",
-        "/admin/users"
-      ],
+      "routes": ["/users", "/admin/users"],
       "visualEvidence": [
         "scratch/qa-evidence/create-academic-node/: four inspected Playwright captures cover the selected section form and canonical preview in light/dark at 1440x900 and 390x844; tabs and Radix course/year selects were exercised, viewport bounds passed, and no browser errors or mutations occurred."
       ],
@@ -2326,10 +2027,7 @@
       "path": "client/src/components/users/TeamCommitteeAssignmentsView.jsx",
       "area": "component:users",
       "status": "source-updated",
-      "routes": [
-        "/committee-assignments",
-        "/committee"
-      ],
+      "routes": ["/committee-assignments", "/committee"],
       "visualEvidence": [
         "scratch/qa-evidence/committee-assignments/: 16 Playwright captures across light/dark and 1440x900/390x844 covering an approved team, eligible faculty choices, an unapproved-team gate, and an empty filtered result; no horizontal overflow, browser/Vite errors, or workflow mutations."
       ],
@@ -2342,10 +2040,7 @@
       "path": "client/src/hooks/useAcademics.js",
       "area": "hooks:core",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/users",
-        "Academic selectors across forms"
-      ],
+      "routes": ["/users", "Academic selectors across forms"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Query and mutation hooks only; renders no UI and contains no presentation styles. Its consumers compose shared Select and form primitives."
@@ -2355,9 +2050,7 @@
       "path": "client/src/hooks/useArchiveSearchState.js",
       "area": "hooks:core",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [],
       "functionalEvidence": [
         "URL-synced search/filter and scroll restoration state hook only; renders no UI and contains no presentation styles. ArchiveSearchPage owns the shared shadcn controls."
@@ -2367,10 +2060,7 @@
       "path": "client/src/hooks/useAuditLogs.js",
       "area": "hooks:core",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/admin/audit-logs",
-        "Project audit trail"
-      ],
+      "routes": ["/admin/audit-logs", "Project audit trail"],
       "visualEvidence": [],
       "functionalEvidence": [
         "React Query data-fetching hooks only; renders no UI and contains no presentation styles. Audit views own the table and shared state components."
@@ -2380,9 +2070,7 @@
       "path": "client/src/hooks/useAutosave.js",
       "area": "hooks:core",
       "status": "reviewed-no-ui",
-      "routes": [
-        "Project creation and editing forms"
-      ],
+      "routes": ["Project creation and editing forms"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Draft persistence, debounce, and beforeunload behavior hook only; renders no UI and contains no presentation styles. Consuming forms present status with shared components."
@@ -2616,10 +2304,7 @@
       "path": "client/src/pages/admin/AuditLogPage.jsx",
       "area": "page:admin",
       "status": "source-updated",
-      "routes": [
-        "/admin/audit",
-        "/admin/audit-log"
-      ],
+      "routes": ["/admin/audit", "/admin/audit-log"],
       "visualEvidence": [
         "scratch/qa-evidence/audit-log-page-shadcn/light-desktop-loaded.png",
         "scratch/qa-evidence/audit-log-page-shadcn/light-mobile-loaded.png",
@@ -2642,9 +2327,7 @@
       "path": "client/src/pages/admin/EvaluationTemplateBuilderPage.jsx",
       "area": "page:admin",
       "status": "source-updated",
-      "routes": [
-        "/admin/evaluation-templates"
-      ],
+      "routes": ["/admin/evaluation-templates"],
       "visualEvidence": [
         "scratch/qa-evidence/evaluation-template-builder-shadcn/light-desktop-loaded.png",
         "scratch/qa-evidence/evaluation-template-builder-shadcn/light-mobile-loaded.png",
@@ -2667,9 +2350,7 @@
       "path": "client/src/pages/adviser/TeamReviewWorkflowPage.jsx",
       "area": "page:adviser",
       "status": "source-updated",
-      "routes": [
-        "/adviser/team-review"
-      ],
+      "routes": ["/adviser/team-review"],
       "visualEvidence": [
         "scratch/qa-evidence/team-review-workflow-shadcn/light-desktop-loading.png",
         "scratch/qa-evidence/team-review-workflow-shadcn/light-desktop-loaded.png",
@@ -2694,9 +2375,7 @@
       "path": "client/src/pages/archive/AcademicJournalArchiveUploadPage.jsx",
       "area": "page:archive",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/archive/upload/academic-journal"
-      ],
+      "routes": ["/archive/upload/academic-journal"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Reviewed as a route-only wrapper that redirects with replacement to /archive/upload/capstone; it contains no presentation markup or styles.",
@@ -2707,9 +2386,7 @@
       "path": "client/src/pages/archive/AcademicPaperArchiveUploadPage.jsx",
       "area": "page:archive",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/archive/upload/academic-paper"
-      ],
+      "routes": ["/archive/upload/academic-paper"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Reviewed as a route-only wrapper that redirects with replacement to /archive/upload/capstone; it contains no presentation markup or styles.",
@@ -2720,9 +2397,7 @@
       "path": "client/src/pages/archive/ArchiveDocumentViewerPage.jsx",
       "area": "page:archive",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/archive/document/:projectId"
-      ],
+      "routes": ["/archive/document/:projectId"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Reviewed as a routing/data adapter that reads projectId, calls useProject, and delegates all presentation to the canonical CanonicalDocumentViewer component.",
@@ -2733,9 +2408,7 @@
       "path": "client/src/pages/archive/ArchiveSearchPage.jsx",
       "area": "page:archive",
       "status": "source-updated",
-      "routes": [
-        "/archive"
-      ],
+      "routes": ["/archive"],
       "visualEvidence": [
         "scratch/qa-evidence/archive-search-page-shadcn/: 24 inspected light/dark desktop/mobile captures cover loaded, loading, empty, error, citation dialog, filter sheet, and custom range states; no overflow or Vite overlay."
       ],
@@ -2764,9 +2437,7 @@
       "path": "client/src/pages/auth/ForgotPasswordPage.jsx",
       "area": "page:auth",
       "status": "source-updated",
-      "routes": [
-        "/forgot-password"
-      ],
+      "routes": ["/forgot-password"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /forgot-password for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2778,9 +2449,7 @@
       "path": "client/src/pages/auth/LoginPage.jsx",
       "area": "page:auth",
       "status": "source-updated",
-      "routes": [
-        "/login"
-      ],
+      "routes": ["/login"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/login-{desktop,mobile}-{light,dark}.png",
         "scratch/qa-evidence/shadcn-login-live/: eight actual production /login screenshots include light/dark desktop/mobile ready and invalid-credentials states. Local API interception allowed only GET session-checks and one synthetic login POST; no workflow or account mutations were sent."
@@ -2793,9 +2462,7 @@
       "path": "client/src/pages/auth/RegisterPage.jsx",
       "area": "page:auth",
       "status": "source-updated",
-      "routes": [
-        "/register"
-      ],
+      "routes": ["/register"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /register for instructor across light/dark at 1440x900/390x844. Four additional inspected captures under scratch/qa-evidence/register-step-focus/ cover the focused Account Credentials step in light/dark at desktop/mobile; every state reports no browser/page errors or horizontal overflow."
       ],
@@ -2807,9 +2474,7 @@
       "path": "client/src/pages/auth/registerSchema.js",
       "area": "page:auth",
       "status": "reviewed-no-ui",
-      "routes": [
-        "/register"
-      ],
+      "routes": ["/register"],
       "visualEvidence": [],
       "functionalEvidence": [
         "Registration validation schema only; authentication screens compose and render its validation behavior through shared form primitives."
@@ -2819,9 +2484,7 @@
       "path": "client/src/pages/auth/ResetPasswordPage.jsx",
       "area": "page:auth",
       "status": "source-updated",
-      "routes": [
-        "/reset-password"
-      ],
+      "routes": ["/reset-password"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /reset-password for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2833,9 +2496,7 @@
       "path": "client/src/pages/auth/VerifyOtpPage.jsx",
       "area": "page:auth",
       "status": "source-updated",
-      "routes": [
-        "/verify-otp"
-      ],
+      "routes": ["/verify-otp"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /verify-otp for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2847,9 +2508,7 @@
       "path": "client/src/pages/dashboard/DashboardPage.jsx",
       "area": "page:dashboard",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /dashboard for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2861,9 +2520,7 @@
       "path": "client/src/pages/dev/PdfWorkspaceTestPage.jsx",
       "area": "page:dev",
       "status": "source-updated",
-      "routes": [
-        "/dev/pdf-workspace-test"
-      ],
+      "routes": ["/dev/pdf-workspace-test"],
       "visualEvidence": [
         "scratch/responsive-layout/1440-light-_dev_pdf-workspace-test-pdf-workspace-dev.png",
         "scratch/responsive-layout/1440-dark-_dev_pdf-workspace-test-pdf-workspace-dev.png",
@@ -2878,9 +2535,7 @@
       "path": "client/src/pages/dev/ShadcnComponentShowcase.jsx",
       "area": "page:dev",
       "status": "source-updated",
-      "routes": [
-        "/dev/ui-showcase (development only)"
-      ],
+      "routes": ["/dev/ui-showcase (development only)"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/results.json records 28 inspected Playwright states across 1440x900 and 390x844, light/dark themes, and Foundations, Forms, Dialog, Sheet, Popover, Tooltip, and Accordion; zero page errors or horizontal overflow.",
         "Playwright component state captures: Keyboard focus and open-select component states are captured across light/dark at 1440x900 and 390x844; screenshots are under scratch/qa-evidence/shadcn-component-showcase/ and have no page errors or horizontal overflow.",
@@ -2895,9 +2550,7 @@
       "path": "client/src/pages/documents/DocumentEditorPage.jsx",
       "area": "page:documents",
       "status": "source-updated",
-      "routes": [
-        "/projects/:projectId/documents/:docIdOrType"
-      ],
+      "routes": ["/projects/:projectId/documents/:docIdOrType"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-document-editor/results.json records eight route-integrated Playwright states at 1440x900 and 390x844 in light/dark; synthetic read-only fixtures verified the editor shell and viewer, with zero page errors or overflow."
       ],
@@ -2927,10 +2580,7 @@
       "path": "client/src/pages/ForbiddenPage.jsx",
       "area": "page:ForbiddenPage.jsx",
       "status": "source-updated",
-      "routes": [
-        "/forbidden",
-        "role-denied route fallback"
-      ],
+      "routes": ["/forbidden", "role-denied route fallback"],
       "visualEvidence": [
         "scratch/qa-evidence/public-error-pages/ (light/dark at 1440x900 and 390x844)"
       ],
@@ -2943,9 +2593,7 @@
       "path": "client/src/pages/instructor/CommitteeAssignmentsPage.jsx",
       "area": "page:instructor",
       "status": "source-updated",
-      "routes": [
-        "/committee-assignments"
-      ],
+      "routes": ["/committee-assignments"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected Playwright captures at 1440x900 and 390x844 in light/dark using the instructor role and synthetic committee data; long team heading and selected-team label fit, with no overflow or browser errors."
       ],
@@ -2975,9 +2623,7 @@
       "path": "client/src/pages/instructor/utils/defenseSchedulingHelpers.js",
       "area": "page:instructor",
       "status": "source-updated",
-      "routes": [
-        "/scheduling-center"
-      ],
+      "routes": ["/scheduling-center"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /scheduling-center for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -2989,9 +2635,7 @@
       "path": "client/src/pages/LandingPage.jsx",
       "area": "page:LandingPage.jsx",
       "status": "source-updated",
-      "routes": [
-        "/"
-      ],
+      "routes": ["/"],
       "visualEvidence": [
         "scratch/qa-evidence/landing-page/ (10 light/dark desktop/mobile captures: default, mobile navigation, expanded FAQ)"
       ],
@@ -3005,9 +2649,7 @@
       "path": "client/src/pages/NotFoundPage.jsx",
       "area": "page:NotFoundPage.jsx",
       "status": "source-updated",
-      "routes": [
-        "* (unmatched route)"
-      ],
+      "routes": ["* (unmatched route)"],
       "visualEvidence": [
         "scratch/qa-evidence/public-error-pages/ (light/dark at 1440x900 and 390x844)"
       ],
@@ -3020,9 +2662,7 @@
       "path": "client/src/pages/notifications/NotificationsPage.jsx",
       "area": "page:notifications",
       "status": "source-updated",
-      "routes": [
-        "/notifications"
-      ],
+      "routes": ["/notifications"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/notifications/notifications-inbox-desktop-light.png",
         "scratch/shadcn-ui-captures/notifications/notifications-inbox-desktop-dark.png",
@@ -3046,11 +2686,7 @@
       "path": "client/src/pages/plagiarism/ArchivePlagiarismCheckerPage.jsx",
       "area": "page:plagiarism",
       "status": "source-updated",
-      "routes": [
-        "/plagiarism-checker",
-        "/plagiarism",
-        "/archive/plagiarism"
-      ],
+      "routes": ["/plagiarism-checker", "/plagiarism", "/archive/plagiarism"],
       "visualEvidence": [
         "Playwright covered empty, selected-file, server-error, and scanning states in light/dark at 1440x900 and 390x844; all 16 viewport checks reported no horizontal overflow or Vite overlay. The How It Works guide was visible in each state; representative mobile light and dark scans were inspected."
       ],
@@ -3064,9 +2700,7 @@
       "path": "client/src/pages/profile/ProfilePage.jsx",
       "area": "page:profile",
       "status": "source-updated",
-      "routes": [
-        "/profile"
-      ],
+      "routes": ["/profile"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /profile for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -3078,9 +2712,7 @@
       "path": "client/src/pages/projects/CertificatePage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:projectId/certificate"
-      ],
+      "routes": ["/projects/:projectId/certificate"],
       "visualEvidence": [
         "scratch/qa-evidence/certificate-page-shadcn/light-desktop-loading.png",
         "scratch/qa-evidence/certificate-page-shadcn/light-desktop-loaded.png",
@@ -3101,9 +2733,7 @@
       "path": "client/src/pages/projects/CreateProjectPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/create"
-      ],
+      "routes": ["/project/create"],
       "visualEvidence": [
         "Eight inspected Playwright captures cover the proposal editor and pitch-deck states in light/dark at 1440x900 and 390x844, using synthetic student/team data with blocked writes; no overflow or browser errors."
       ],
@@ -3115,10 +2745,7 @@
       "path": "client/src/pages/projects/MyProjectPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/project",
-        "/my-project"
-      ],
+      "routes": ["/project", "/my-project"],
       "visualEvidence": [
         "Four inspected Playwright captures cover the synthetic student capstone workspace in light/dark desktop/mobile; no viewport overflow or browser errors.",
         "Route-integrated /my-project Playwright states cover no-team and locked-team-with-draft in light/dark at 1440x900 and 390x844 (8 captures under scratch/qa-evidence/my-project-empty-state/). Synthetic GET-only fixtures; zero page errors, zero overflow, no workflow writes."
@@ -3141,9 +2768,7 @@
       "path": "client/src/pages/projects/ProjectDetailPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects/:id"
-      ],
+      "routes": ["/projects/:id"],
       "visualEvidence": [
         "Four inspected Playwright captures cover the active in-progress project detail route in light/dark desktop/mobile with pathological long synthetic project/team/adviser values; no overflow or browser errors.",
         "Capability-aware defense-minutes opener: focused tests verify appointed-panelist visibility and unassigned-adviser exclusion. Fresh visual capture attempt was blocked before rendering by ERR_NETWORK_ACCESS_DENIED.",
@@ -3167,9 +2792,7 @@
       "path": "client/src/pages/projects/ProjectsPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/projects"
-      ],
+      "routes": ["/projects"],
       "visualEvidence": [
         "scratch/qa-evidence/projects-page-shadcn/light-desktop-projects.png",
         "scratch/qa-evidence/projects-page-shadcn/light-mobile-projects.png",
@@ -3188,18 +2811,9 @@
       "path": "client/src/pages/projects/SecretaryReviewPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/secretary-review",
-        "/secretary/review"
-      ],
-      "roles": [
-        "faculty with Secretary committee appointment"
-      ],
-      "workflowPhases": [
-        "Phase 2",
-        "Phase 3",
-        "Phase 4"
-      ],
+      "routes": ["/secretary-review", "/secretary/review"],
+      "roles": ["faculty with Secretary committee appointment"],
+      "workflowPhases": ["Phase 2", "Phase 3", "Phase 4"],
       "scenarios": [
         "search assigned teams",
         "filter by minutes and endorsement status",
@@ -3209,10 +2823,7 @@
       ],
       "oldPattern": "Native filter/team action buttons, literal status colors, text-only loading, and bespoke empty compositions",
       "targetComposition": "Shared Button with pressed state, semantic Badge variants, Skeleton/SkeletonCard, EmptyState, Card, and Input",
-      "dependencies": [
-        "DashboardLayout",
-        "ActionDoneMatrixTab"
-      ],
+      "dependencies": ["DashboardLayout", "ActionDoneMatrixTab"],
       "visualEvidence": [
         "scratch/qa-evidence/secretary-review/secretary-review-light-desktop.png",
         "scratch/qa-evidence/secretary-review/secretary-review-dark-desktop.png",
@@ -3231,9 +2842,7 @@
       "path": "client/src/pages/projects/TitleApprovalPage.jsx",
       "area": "page:projects",
       "status": "source-updated",
-      "routes": [
-        "/project/approval"
-      ],
+      "routes": ["/project/approval"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected light/dark desktop/mobile captures cover title progress, proposal cards, approval state, and long team-name wrapping with no overflow."
       ],
@@ -3245,9 +2854,7 @@
       "path": "client/src/pages/reports/ReportsPage.jsx",
       "area": "page:reports",
       "status": "source-updated",
-      "routes": [
-        "/reports"
-      ],
+      "routes": ["/reports"],
       "visualEvidence": [
         "scratch/qa-evidence/reports-page-shadcn/light-desktop-table.png",
         "scratch/qa-evidence/reports-page-shadcn/dark-desktop-table.png",
@@ -3265,9 +2872,7 @@
       "path": "client/src/pages/settings/SettingsPage.jsx",
       "area": "page:settings",
       "status": "source-updated",
-      "routes": [
-        "/settings"
-      ],
+      "routes": ["/settings"],
       "visualEvidence": [
         "Instructor Settings route inspected in light/dark at 1440x900 and 390x844; all six instructor tabs render without horizontal overflow, and the Appearance/Administration views were reviewed in the required matrix.",
         "Production Settings route: eight read-only appearance/notifications captures in light/dark at 1440x900 and 390x844. No page errors or horizontal overflow; no API writes. See scratch/qa-evidence/shadcn-production-workflow-routes/settings/results.json. These current captures supersede the older inconclusive notification overflow note."
@@ -3283,9 +2888,7 @@
       "path": "client/src/pages/submissions/ChapterUploadPage.jsx",
       "area": "page:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions/upload"
-      ],
+      "routes": ["/project/submissions/upload"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected Playwright captures cover the chapter manuscript form in light/dark desktop/mobile, with synthetic long-title wrapping and no horizontal overflow."
       ],
@@ -3317,9 +2920,7 @@
       "path": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
       "area": "page:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions"
-      ],
+      "routes": ["/project/submissions"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected light/dark desktop/mobile captures cover empty submission state, chapter progress, Capstone 1/2/3 workflow sections, and responsive toolbar actions."
       ],
@@ -3331,9 +2932,7 @@
       "path": "client/src/pages/submissions/ProposalCompilationPage.jsx",
       "area": "page:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/proposal"
-      ],
+      "routes": ["/project/proposal"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected light/dark desktop/mobile captures cover compilation eligibility, proposal summary, file selection and responsive title wrapping; no viewport overflow."
       ],
@@ -3345,10 +2944,7 @@
       "path": "client/src/pages/submissions/SubmissionDetailPage.jsx",
       "area": "page:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions/:submissionId",
-        "/submissions/:submissionId"
-      ],
+      "routes": ["/project/submissions/:submissionId", "/submissions/:submissionId"],
       "visualEvidence": [
         "scratch/responsive-layout/: four inspected light/dark desktop/mobile captures cover chapter detail, originality estimate, revision actions, and document metadata using a synthetic manuscript.",
         "Read-only in-app browser review of the faculty annotation branch covered light/dark at 1440x900 and 390x844; the page/line/comment fields and header actions stack on mobile, and both document and main-content scroll widths match their viewports. No annotation was submitted. These supplementary browser frames were visually inspected but not saved under scratch."
@@ -3361,10 +2957,7 @@
       "path": "client/src/pages/submissions/SubmissionReviewPage.jsx",
       "area": "page:submissions",
       "status": "source-updated",
-      "routes": [
-        "/project/submissions/:submissionId/review",
-        "/submissions/:submissionId/review"
-      ],
+      "routes": ["/project/submissions/:submissionId/review", "/submissions/:submissionId/review"],
       "visualEvidence": [
         "scratch/responsive-layout/: 4 inspected Playwright captures at 1440x900 and 390x844 in light/dark; synthetic faculty review fixture; no overflow or browser errors."
       ],
@@ -3384,10 +2977,7 @@
       "path": "client/src/pages/teams/components/AcceptInviteForm.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams",
-        "/teams/invites/:token/:action"
-      ],
+      "routes": ["/teams", "/teams/invites/:token/:action"],
       "visualEvidence": [
         "In-app Playwright-backed review of six-character code entry and full-link states in light/dark at 1440x900 and 390x844; no horizontal overflow."
       ],
@@ -3399,9 +2989,7 @@
       "path": "client/src/pages/teams/components/CreateTeamForm.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "In-app browser reviewed team form and open student-search popover in light/dark at 1440x900 and 390x844; no horizontal overflow"
       ],
@@ -3413,9 +3001,7 @@
       "path": "client/src/pages/teams/components/EmptyTeamState.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "In-app browser reviewed light/dark at 1440x900 and 390x844; no horizontal overflow"
       ],
@@ -3427,9 +3013,7 @@
       "path": "client/src/pages/teams/components/FacultyTeamDetail.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "Four inspected light/dark desktop/mobile captures show the faculty team detail panel with long synthetic team, leader, and member names wrapping within the card; no overflow or browser errors."
       ],
@@ -3441,9 +3025,7 @@
       "path": "client/src/pages/teams/components/FacultyTeamsView.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/teams/teams-desktop-light.png",
         "scratch/shadcn-ui-captures/teams/teams-desktop-dark.png",
@@ -3456,9 +3038,7 @@
       "path": "client/src/pages/teams/components/InviteMemberForm.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "In-app browser reviewed empty-result Popover in light/dark at 1440x900 and 390x844; no horizontal overflow"
       ],
@@ -3470,9 +3050,7 @@
       "path": "client/src/pages/teams/components/StudentTeamDetail.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "In-app browser reviewed leave, finalize, and unlock confirmation dialogs in light/dark at 1440x900 and 390x844; no horizontal overflow"
       ],
@@ -3484,10 +3062,7 @@
       "path": "client/src/pages/teams/components/StudentTeamView.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams",
-        "/teams/accept/:token"
-      ],
+      "routes": ["/teams", "/teams/accept/:token"],
       "visualEvidence": [
         "Four inspected light/dark desktop/mobile captures cover the student profile-completion gate with synthetic no-team state; no overflow or browser errors."
       ],
@@ -3499,9 +3074,7 @@
       "path": "client/src/pages/teams/components/TeamCard.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/teams/teams-desktop-light.png",
         "scratch/shadcn-ui-captures/teams/teams-desktop-dark.png",
@@ -3514,9 +3087,7 @@
       "path": "client/src/pages/teams/components/TeamRosterCard.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams"
-      ],
+      "routes": ["/teams"],
       "visualEvidence": [
         "scratch/shadcn-ui-captures/teams/teams-roster-desktop-light.png",
         "scratch/shadcn-ui-captures/teams/teams-roster-desktop-dark.png",
@@ -3539,11 +3110,7 @@
       "path": "client/src/pages/teams/TeamsPage.jsx",
       "area": "page:teams",
       "status": "source-updated",
-      "routes": [
-        "/teams",
-        "/teams/invites/:token/:action",
-        "/team"
-      ],
+      "routes": ["/teams", "/teams/invites/:token/:action", "/team"],
       "visualEvidence": [
         "scratch/responsive-layout/: 4 inspected Playwright captures at 1440x900 and 390x844 in light/dark with synthetic student team; no overflow or browser errors."
       ],
@@ -3565,10 +3132,7 @@
       "path": "client/src/pages/users/UsersPage.jsx",
       "area": "page:users",
       "status": "source-updated",
-      "routes": [
-        "/users",
-        "/admin/users"
-      ],
+      "routes": ["/users", "/admin/users"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /users for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow.",
         "Read-only user-row hover captures under scratch/qa-evidence/user-row-token-hover cover light/dark at 1440x900 and 390x844; computed background and border change to primary-token colors, with no page overflow."
@@ -3916,9 +3480,7 @@
       "path": "client/src/components/ui/Accordion.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/"
-      ],
+      "routes": ["/"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover / for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -3930,11 +3492,7 @@
       "path": "client/src/components/ui/Avatar.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/dashboard",
-        "/projects",
-        "/committee-assignments"
-      ],
+      "routes": ["/dashboard", "/projects", "/committee-assignments"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 16 matching screenshots under scratch/responsive-layout/ cover /dashboard, /projects for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -3963,10 +3521,7 @@
       "path": "client/src/components/ui/Collapsible.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/plagiarism-checker",
-        "/projects/:id"
-      ],
+      "routes": ["/plagiarism-checker", "/projects/:id"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /projects/660000000000000000000002 for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -3978,9 +3533,7 @@
       "path": "client/src/components/ui/DropdownMenu.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/dev/ui-showcase"
-      ],
+      "routes": ["/dev/ui-showcase"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: dropdown-menu presentation in light/dark at 1440x900 and 390x844; no page errors or horizontal overflow."
       ],
@@ -4027,9 +3580,7 @@
       "path": "client/src/components/ui/Separator.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/dev/ui-showcase"
-      ],
+      "routes": ["/dev/ui-showcase"],
       "visualEvidence": [
         "scratch/qa-evidence/shadcn-component-showcase/: foundations presentation in light/dark at 1440x900 and 390x844; no page errors or horizontal overflow."
       ],
@@ -4041,9 +3592,7 @@
       "path": "client/src/components/ui/Sheet.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/dashboard"
-      ],
+      "routes": ["/dashboard"],
       "visualEvidence": [
         "scratch/qa-evidence/dashboard-layout/ (left Sheet in light/dark mobile states)"
       ],
@@ -4067,26 +3616,17 @@
       "path": "client/src/components/ui/Switch.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/settings"
-      ],
+      "routes": ["/settings"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 4 matching screenshots under scratch/responsive-layout/ cover /settings for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
-      "functionalEvidence": [
-        "Shadcn/Radix switch primitive used for appearance settings."
-      ]
+      "functionalEvidence": ["Shadcn/Radix switch primitive used for appearance settings."]
     },
     {
       "path": "client/src/components/ui/Table.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/scheduling-center",
-        "/reports",
-        "/projects/:id",
-        "/plagiarism-checker"
-      ],
+      "routes": ["/scheduling-center", "/reports", "/projects/:id", "/plagiarism-checker"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 12 matching screenshots under scratch/responsive-layout/ cover /reports, /scheduling-center, /projects/660000000000000000000002 for instructor across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],
@@ -4098,10 +3638,7 @@
       "path": "client/src/components/ui/Tooltip.jsx",
       "area": "component:ui-primitives",
       "status": "source-updated",
-      "routes": [
-        "/dashboard",
-        "/archive"
-      ],
+      "routes": ["/dashboard", "/archive"],
       "visualEvidence": [
         "Keyed route visual capture manifest: scratch/responsive-layout/inventory-visual-manifest.json; 16 matching screenshots under scratch/responsive-layout/ cover /dashboard, /archive for instructor, faculty, student across light/dark at 1440x900/390x844. Every recorded capture reports no browser/page errors or horizontal overflow."
       ],

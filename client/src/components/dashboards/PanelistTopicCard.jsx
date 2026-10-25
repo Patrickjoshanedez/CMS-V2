@@ -20,52 +20,49 @@ const PanelistTopicCard = ({ topic, onSelect, selecting }) => {
         topic.isAssigned ? 'cursor-pointer transition-colors hover:border-primary/50' : ''
       }`}
     >
-    <article
-      onClick={handleCardClick}
-      className="space-y-3"
-    >
-      <CardHeader className="flex flex-row items-start justify-between gap-3 p-0">
-        <div>
-          <h4 className="text-base font-semibold text-foreground">{topic.title}</h4>
-          <p className="text-sm text-muted-foreground">{topic.team?.name}</p>
-        </div>
-        {topic.isAssigned ? (
-          <Badge variant="success">Assigned</Badge>
-        ) : (
-          <Badge variant="secondary">Available</Badge>
-        )}
-      </CardHeader>
+      <article onClick={handleCardClick} className="space-y-3">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 p-0">
+          <div>
+            <h4 className="text-base font-semibold text-foreground">{topic.title}</h4>
+            <p className="text-sm text-muted-foreground">{topic.team?.name}</p>
+          </div>
+          {topic.isAssigned ? (
+            <Badge variant="success">Assigned</Badge>
+          ) : (
+            <Badge variant="secondary">Available</Badge>
+          )}
+        </CardHeader>
 
-      <CardContent className="space-y-3 p-0">
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">Phase {topic.capstonePhase}</Badge>
-        <Badge variant={topic.hasSlot ? 'warning' : 'secondary'}>
-          Panelists: {topic.panelistCount}/3
-        </Badge>
-        <Badge variant="outline">{topic.titleStatus}</Badge>
-      </div>
+        <CardContent className="space-y-3 p-0">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Phase {topic.capstonePhase}</Badge>
+            <Badge variant={topic.hasSlot ? 'warning' : 'secondary'}>
+              Panelists: {topic.panelistCount}/3
+            </Badge>
+            <Badge variant="outline">{topic.titleStatus}</Badge>
+          </div>
 
-      <div className="space-y-1 text-sm text-muted-foreground">
-        <p>
-          <span className="font-medium">Adviser:</span> {topic.adviser}
-        </p>
-        <p>
-          <span className="font-medium">Members:</span> {topic.team?.memberCount || 0}
-        </p>
-      </div>
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>
+              <span className="font-medium">Adviser:</span> {topic.adviser}
+            </p>
+            <p>
+              <span className="font-medium">Members:</span> {topic.team?.memberCount || 0}
+            </p>
+          </div>
 
-      {!topic.isAssigned && topic.hasSlot && (
-        <Button
-          type="button"
-          onClick={() => onSelect(topic._id)}
-          disabled={selecting}
-          className="w-full"
-        >
-          {selecting ? 'Selecting...' : 'Select Topic'}
-        </Button>
-      )}
-      </CardContent>
-    </article>
+          {!topic.isAssigned && topic.hasSlot && (
+            <Button
+              type="button"
+              onClick={() => onSelect(topic._id)}
+              disabled={selecting}
+              className="w-full"
+            >
+              {selecting ? 'Selecting...' : 'Select Topic'}
+            </Button>
+          )}
+        </CardContent>
+      </article>
     </Card>
   );
 };

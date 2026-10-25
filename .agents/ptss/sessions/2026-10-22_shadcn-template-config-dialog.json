@@ -1,0 +1,35 @@
+{
+  "session_id": "2026-10-22_shadcn-template-config-dialog",
+  "timestamp": "2026-10-22T03:54:21+08:00",
+  "status": "in_progress",
+  "task_summary": "Migrated the instructor template dialog and Settings loading/tab behavior; expanded the source census, verified focused suites and visual states, and checkpointed the ongoing repository-wide shadcn/ui refactor.",
+  "active_skills": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "completed": [
+    "InstructorTemplateConfigModal focused suite passes 2/2; scoped ESLint passes; production build succeeds with 4,844 modules transformed",
+    "Captured and reviewed final dialog composition in light/dark at 1440x900 and 390x844, including both distribution tabs; no template update submitted",
+    "Reconciled the source inventory to 275 current non-test JavaScript/JSX modules, including 12 shared primitives that were missing from the original census",
+    "Migrated instructor administration loading and save feedback to shared Spinner and Button loading states without changing settings or template mutations",
+    "Hardened SettingsPage role-aware tab resolution: student deep links cannot select administration, the legacy admin alias still works, and selected tabs remain synchronized with the query string",
+    "SettingsPage role/URL tests pass 2/2; AppearanceSection, DigitalSignatureSection, and settingsStore suites pass 8/8; scoped Settings ESLint has zero warnings",
+    "Reviewed instructor Settings route and Administration panel in light/dark at 1440x900 and 390x844; no settings, template, or signature mutation was submitted; restored the original light/high-contrast preference and login route",
+    "Latest client production build succeeds with 4,844 modules transformed in 118.6 seconds; existing Tailwind ambiguity and large-chunk warnings remain"
+  ],
+  "remaining": [
+    "Finish P6 evidence and consistency audit for profile/settings/team role selectors, including remaining role and loading/error states",
+    "Migrate proposals, project/course workspaces, submissions/documents/archive, and scheduling/secretary/ADM/report/certification surfaces",
+    "Audit every one of the 275 current client source modules against route/import/role inventory; verify every state and eliminate unexplained legacy styling",
+    "Run the required final governance, full test partitions, lint, build, evidence, and visual verification gates"
+  ],
+  "verification": {
+    "tests": "SettingsPage 2/2; AppearanceSection, DigitalSignatureSection, settingsStore 8/8; template dialog 2/2",
+    "eslint": "0 errors, 0 warnings",
+    "client_build": "passed; 4,844 modules transformed in 118.6 seconds, existing Tailwind ambiguity and chunk-size warnings",
+    "visual": "Instructor Settings and Administration inspected light/dark at 1440x900 and 390x844; no mutation submitted; browser theme/contrast restored and returned to login"
+  },
+  "status_note": "Full repository-wide refactor is not complete; 53 of 275 inventoried source modules are source-updated and 222 remain pending."
+}

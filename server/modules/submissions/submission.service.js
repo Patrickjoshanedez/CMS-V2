@@ -31,6 +31,7 @@ import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import Section from '../academics/section.model.js';
 import MilestoneDeadline from '../settings/milestoneDeadline.model.js';
 import storageService from '../../services/storage.index.js';
+import cacheService from '../../services/cache.service.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
@@ -345,10 +346,7 @@ class SubmissionService {
     justificationLetterFile = null,
     requireLetter = false,
   ) {
-    const scheduledDeadline = await this._findScheduledMilestoneDeadline(
-      project,
-      deadlineField,
-    );
+    const scheduledDeadline = await this._findScheduledMilestoneDeadline(project, deadlineField);
     const deadline = scheduledDeadline?.deadlineDate || project.deadlines?.[deadlineField];
     const isLate = deadline ? new Date() > new Date(deadline) : false;
 
@@ -381,9 +379,8 @@ class SubmissionService {
 
   async _findScheduledMilestoneDeadline(project, deadlineField) {
     const deliverable = SCHEDULED_DELIVERABLE_BY_DEADLINE_FIELD[deadlineField];
-    const team = project?.teamId && typeof project.teamId === 'object'
-      ? project.teamId
-      : project?.team || {};
+    const team =
+      project?.teamId && typeof project.teamId === 'object' ? project.teamId : project?.team || {};
     const batchYear = String(project?.academicYear || team.academicYear || '').trim();
     if (!deliverable || !batchYear) return null;
 
@@ -961,6 +958,7 @@ class SubmissionService {
     );
     if (isArchived) {
       const isArchiveFaculty = [ROLES.INSTRUCTOR, ROLES.FACULTY].includes(user?.role);
+      const isStudent = user?.role === ROLES.STUDENT;
       const isProjectAuthor = Boolean(
         project.teamId?.members
           ?.map((memberId) => String(memberId?._id || memberId))
@@ -968,23 +966,33 @@ class SubmissionService {
       );
       const isReleasedJournal = Boolean(
         submission?.type === 'final_journal' &&
-          [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.ACCEPTED, SUBMISSION_STATUSES.LOCKED].includes(
-            submission.status,
-          ),
+        [
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+          SUBMISSION_STATUSES.LOCKED,
+        ].includes(submission.status),
       );
+      const isApprovedFinal =
+        ['final_academic', 'final_journal', 'final_paper'].includes(submission?.type) &&
+        [
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+          SUBMISSION_STATUSES.LOCKED,
+        ].includes(submission?.status);
 
-      // The journal paper is the public archive deliverable; the full academic manuscript
-      // and all draft material remain limited to faculty and the project's own team.
+      // In the BukSU Capstone archive repository, approved final manuscripts and journals
+      // are available to faculty, students, and project authors for academic reference.
       if (
         isArchiveFaculty ||
         isProjectAuthor ||
-        (isReleasedJournal && allowArchivedFinalJournalPublicView)
+        (isReleasedJournal && allowArchivedFinalJournalPublicView) ||
+        (isStudent && isApprovedFinal)
       ) {
         return;
       }
 
       throw new AppError(
-        'Archived academic manuscripts are available to faculty and the project team; only approved journal papers are publicly viewable.',
+        'Archived academic manuscripts are available to faculty, students, and the project team; only approved journal papers are publicly viewable.',
         403,
         'FORBIDDEN',
       );
@@ -1136,7 +1144,12 @@ class SubmissionService {
     const pendingStorageKeys = new Set([file?.storageKey || file?.key].filter(Boolean));
     try {
       return await this._uploadChapterWithReservedVersion(
-        userId, projectId, data, file, justificationLetterFile, pendingStorageKeys,
+        userId,
+        projectId,
+        data,
+        file,
+        justificationLetterFile,
+        pendingStorageKeys,
       );
     } catch (error) {
       await this._cleanupUncommittedChapterFiles(pendingStorageKeys);
@@ -1149,13 +1162,22 @@ class SubmissionService {
     const results = await Promise.allSettled(keys.map((key) => storageService.deleteFile(key)));
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        logger.error('[SubmissionService] Uncommitted chapter file cleanup failed:', keys[index], result.reason);
+        logger.error(
+          '[SubmissionService] Uncommitted chapter file cleanup failed:',
+          keys[index],
+          result.reason,
+        );
       }
     });
   }
 
   async _uploadChapterWithReservedVersion(
-    userId, projectId, data, file, justificationLetterFile, pendingStorageKeys,
+    userId,
+    projectId,
+    data,
+    file,
+    justificationLetterFile,
+    pendingStorageKeys,
   ) {
     const { user, project } = await this._authorizeStudentUpload(
       userId,
@@ -1163,29 +1185,6 @@ class SubmissionService {
       'upload chapters',
     );
     const { chapter, remarks } = data;
-
-    if (chapter > 1) {
-      const previousChapterLocked = await Submission.findOne({
-        projectId,
-        chapter: chapter - 1,
-        type: 'chapter',
-        status: {
-          $in: [
-            SUBMISSION_STATUSES.LOCKED,
-            SUBMISSION_STATUSES.APPROVED,
-            SUBMISSION_STATUSES.ACCEPTED,
-          ],
-        },
-      });
-
-      if (!previousChapterLocked) {
-        throw new AppError(
-          `Chapter ${chapter - 1} must be approved before you can submit Chapter ${chapter}.`,
-          400,
-          'PREVIOUS_CHAPTER_NOT_APPROVED',
-        );
-      }
-    }
 
     // --- Project state checks (chapter-specific) ---
     if (!isProjectSubmittableForPhase(project)) {
@@ -1213,10 +1212,7 @@ class SubmissionService {
     }
 
     if (Number(chapter) > 1) {
-      if (
-        Number(chapter) >= 4 &&
-        resolveWorkflowPhase(project) < CAPSTONE_PHASES.PHASE_4
-      ) {
+      if (Number(chapter) >= 4 && resolveWorkflowPhase(project) < CAPSTONE_PHASES.PHASE_4) {
         throw new AppError(
           'You must complete Capstone 2 (System Development) before submitting Chapters 4 and 5.',
           400,
@@ -1299,7 +1295,9 @@ class SubmissionService {
 
     // --- Auto-increment version ---
     const { version: nextVersion, revisionRound } = await reserveChapterVersion(
-      projectId, chapter, latestSubmission,
+      projectId,
+      chapter,
+      latestSubmission,
     );
 
     // --- Upload to S3 (if not already streamed to S3 by streamUploadMiddleware) ---
@@ -1440,6 +1438,13 @@ class SubmissionService {
 
     project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
     await project.save();
+
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
 
     return { submission };
   }
@@ -1629,12 +1634,26 @@ class SubmissionService {
     project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
     await project.save();
 
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     await this._notifyAdviserProposalSubmitted({
       project,
       submission,
       user,
       version: nextVersion,
     });
+
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
 
     return { submission };
   }
@@ -1801,6 +1820,13 @@ class SubmissionService {
       extraMetadata: { type },
     });
 
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     return { submission };
   }
 
@@ -1910,7 +1936,8 @@ class SubmissionService {
     );
     if (
       chapterSubmissions.some(
-        (submission) => !submission || !['approved', 'accepted', 'locked'].includes(submission.status),
+        (submission) =>
+          !submission || !['approved', 'accepted', 'locked'].includes(submission.status),
       )
     ) {
       throw new AppError(
@@ -2057,6 +2084,13 @@ class SubmissionService {
       docLabel: `${docLabelPrefix} (v${nextVersion})`,
       extraMetadata: { type },
     });
+
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
 
     return { submission };
   }
@@ -2323,6 +2357,13 @@ class SubmissionService {
       .sort({ version: -1 })
       .populate('submittedBy', 'firstName middleName lastName email')
       .populate('reviewedBy', 'firstName middleName lastName email');
+
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
 
     return { submission };
   }
@@ -2908,9 +2949,7 @@ class SubmissionService {
         }
 
         // Capstone 1 proposal readiness: notify the Course Instructor after the compiled manuscript is approved.
-        if (
-          submission.type === 'proposal'
-        ) {
+        if (submission.type === 'proposal') {
           if (!projectDoc.defenseSchedule) {
             projectDoc.defenseSchedule = {};
           }
@@ -3074,6 +3113,13 @@ class SubmissionService {
       // Non-blocking notification dispatch
     }
 
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     return { submission };
   }
 
@@ -3119,6 +3165,13 @@ class SubmissionService {
     });
     emitToUser(submission.submittedBy, 'notification:new', unlockNotif);
 
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     return { submission };
   }
 
@@ -3149,9 +3202,15 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async addAnnotationReply(submissionId, annotationId, userId, data) {
-    return submissionAnnotationService.addAnnotationReply(submissionId, annotationId, userId, data, {
-      submissionService: this,
-    });
+    return submissionAnnotationService.addAnnotationReply(
+      submissionId,
+      annotationId,
+      userId,
+      data,
+      {
+        submissionService: this,
+      },
+    );
   }
 
   /**
@@ -3165,9 +3224,15 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async removeAnnotation(submissionId, annotationId, userId, userRole) {
-    return submissionAnnotationService.removeAnnotation(submissionId, annotationId, userId, userRole, {
-      submissionService: this,
-    });
+    return submissionAnnotationService.removeAnnotation(
+      submissionId,
+      annotationId,
+      userId,
+      userRole,
+      {
+        submissionService: this,
+      },
+    );
   }
 
   /**
@@ -3381,6 +3446,13 @@ class SubmissionService {
       },
     );
 
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     return { submission };
   }
 
@@ -3457,6 +3529,13 @@ class SubmissionService {
     submission.justification = justification;
     submission.remarks = justification;
     await submission.save();
+
+    try {
+      await cacheService.del(`project:meta:${submission.projectId}`);
+      await cacheService.del(`project:detail:${submission.projectId}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
 
     return { submission };
   }

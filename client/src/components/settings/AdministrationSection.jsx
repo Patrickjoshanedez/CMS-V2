@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Settings2,
-  AlertTriangle,
-  Calendar,
-  FileSpreadsheet,
-  FileText,
-  Save,
-} from 'lucide-react';
+import { Settings2, AlertTriangle, Calendar, FileSpreadsheet, FileText, Save } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';

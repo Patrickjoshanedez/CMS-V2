@@ -1,0 +1,52 @@
+{
+  "session_id": "2026-10-25_shadcn-final-client-suite-pass",
+  "timestamp": "2026-10-25T12:16:14.127Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "Completed final current-source client and server test gates and restored the local development client. Broader visual acceptance and the exact pre-refactor baseline remain open.",
+  "client": {
+    "fingerprint": "cbcea4ffd6afaf90ab01d681cd81cc73cbd6eda4a89cf2cd73d647bb9f529c73",
+    "sourceFilesHashed": 483,
+    "completedShards": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    "expectedFiles": 174,
+    "passedFiles": 174,
+    "passedTests": 1029,
+    "failedTests": 0,
+    "pendingTests": 0,
+    "missingFiles": [],
+    "duplicateFiles": [],
+    "maxShardDurationMs": 72942,
+    "report": "scratch/qa-evidence/shadcn-final-test-gates/verified-current-suites.json"
+  },
+  "server": {
+    "fingerprint": "d9056528d902f329012b5e624cfc82a370c03a2e32829857b1b69ab18f2212b7",
+    "passedTests": 13,
+    "failedTests": 0,
+    "pendingTests": 0,
+    "durationMs": 51957
+  },
+  "runtime": {
+    "container": "cms-client",
+    "initialState": "exited",
+    "action": "Started existing development client after verifying its Vite-only startup command.",
+    "currentState": "running",
+    "preview": "http://localhost:43211/login",
+    "httpStatus": 200,
+    "viteVersion": "8.3.5",
+    "directDependenciesChecked": 53,
+    "dependencyMismatches": 0,
+    "parityReport": "scratch/qa-evidence/shadcn-final-test-gates/client-container-dependency-parity.json",
+    "limitations": "HTTP and package parity are verified; live page rendering, real account sessions and backend/realtime integration were not rechecked after restart."
+  },
+  "evidence": {
+    "sourceCensus": 276,
+    "uniqueExistingPngs": 536,
+    "route": 364,
+    "supplemental": 172
+  },
+  "next_action": "Finish the visual/interaction acceptance matrix using the restored Vite preview. The named scratch/shadcn_ui_audit.mjs exists and imports responsive_layout_audit.mjs; isolate new shard output and prevent legacy manual counters from overwriting the reconciled capture catalog before running it.",
+  "remaining": [
+    "Exhaustive current-source interaction/role/phase visual coverage and final browser gate.",
+    "Exact pre-refactor working-tree performance baseline, explicitly retained by the user."
+  ]
+}

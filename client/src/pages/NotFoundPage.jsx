@@ -2,13 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { FileQuestion } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/Card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/Card';
 
 /**
  * NotFoundPage — displayed for any unmatched route (404).
@@ -33,8 +27,8 @@ export default function NotFoundPage() {
             Page not found
           </h1>
           <CardDescription className="mx-auto max-w-md text-base">
-            The page you&apos;re looking for doesn&apos;t exist or may have moved. Check the address or
-            choose where you&apos;d like to go next.
+            The page you&apos;re looking for doesn&apos;t exist or may have moved. Check the address
+            or choose where you&apos;d like to go next.
           </CardDescription>
         </CardContent>
         <CardFooter className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">

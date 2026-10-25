@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "generated_at": "2026-08-23T23:08:00.000Z",
+  "version": "1.1.0",
+  "generated_at": "2026-10-21T00:58:00.000Z",
   "patterns": [
     {
       "id": "sec-no-hardcoded-credentials",
@@ -16,6 +16,16 @@
       "id": "hllm-anti-slop-generic-placeholder",
       "pattern": "TODO:\\s*implement\\s+this\\s+later|PLACEHOLDER_FOR_REAL_CODE",
       "reason": "Unimplemented placeholder code pattern forbidden."
+    },
+    {
+      "id": "ux-no-ai-slop-hardcoded-hex-focus-ring",
+      "pattern": "focus(?:-visible)?:ring-\\[#[0-9a-fA-F]{3,8}\\]",
+      "reason": "Hardcoded hex focus rings violate CMS-V2 design tokens and Anti-AI-Slop UX rules; use focus-visible:ring-ring."
+    },
+    {
+      "id": "ux-no-ai-slop-neon-gradient-button",
+      "pattern": "auth-btn-gradient|bg-gradient-to-r\\s+from-(?:purple|pink|fuchsia)-[0-9]{3}\\s+via-(?:purple|pink|fuchsia)-[0-9]{3}",
+      "reason": "Decorative neon purple/pink button gradients violate Anti-AI-Slop UX rules; use semantic bg-primary tokens."
     }
   ]
 }

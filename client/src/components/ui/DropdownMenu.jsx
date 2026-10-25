@@ -25,7 +25,10 @@ const DropdownMenuSubTrigger = ({ className, inset, children, ...props }) => (
 
 const DropdownMenuSubContent = ({ className, ...props }) => (
   <MenuPrimitive.SubContent
-    className={cn('z-50 min-w-32 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)}
+    className={cn(
+      'z-50 min-w-32 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md',
+      className,
+    )}
     {...props}
   />
 );
@@ -49,7 +52,8 @@ const DropdownMenuItem = ({ className, inset, variant = 'default', ...props }) =
     className={cn(
       'relative flex min-h-9 cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0',
       inset && 'pl-8',
-      variant === 'destructive' && 'text-destructive focus:bg-destructive/10 focus:text-destructive',
+      variant === 'destructive' &&
+        'text-destructive focus:bg-destructive/10 focus:text-destructive',
       className,
     )}
     {...props}
@@ -59,7 +63,10 @@ const DropdownMenuItem = ({ className, inset, variant = 'default', ...props }) =
 const DropdownMenuCheckboxItem = ({ className, children, checked, ...props }) => (
   <MenuPrimitive.CheckboxItem
     checked={checked}
-    className={cn('relative flex min-h-9 cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50', className)}
+    className={cn(
+      'relative flex min-h-9 cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      className,
+    )}
     {...props}
   >
     <span className="absolute left-2 flex size-4 items-center justify-center">
@@ -73,7 +80,10 @@ const DropdownMenuCheckboxItem = ({ className, children, checked, ...props }) =>
 
 const DropdownMenuRadioItem = ({ className, children, ...props }) => (
   <MenuPrimitive.RadioItem
-    className={cn('relative flex min-h-9 cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50', className)}
+    className={cn(
+      'relative flex min-h-9 cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      className,
+    )}
     {...props}
   >
     <span className="absolute left-2 flex size-4 items-center justify-center">
@@ -86,7 +96,10 @@ const DropdownMenuRadioItem = ({ className, children, ...props }) => (
 );
 
 const DropdownMenuLabel = ({ className, inset, ...props }) => (
-  <MenuPrimitive.Label className={cn('px-2 py-1.5 text-sm font-semibold', inset && 'pl-8', className)} {...props} />
+  <MenuPrimitive.Label
+    className={cn('px-2 py-1.5 text-sm font-semibold', inset && 'pl-8', className)}
+    {...props}
+  />
 );
 
 const DropdownMenuSeparator = ({ className, ...props }) => (
@@ -94,7 +107,10 @@ const DropdownMenuSeparator = ({ className, ...props }) => (
 );
 
 const DropdownMenuShortcut = ({ className, ...props }) => (
-  <span className={cn('ml-auto text-xs tracking-widest text-muted-foreground', className)} {...props} />
+  <span
+    className={cn('ml-auto text-xs tracking-widest text-muted-foreground', className)}
+    {...props}
+  />
 );
 
 export {

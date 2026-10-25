@@ -101,15 +101,15 @@ export function AssignCommitteeDialog({
 
       setAdviserId(existingAdviser);
       setSecretaryId(existingSecretary);
-       setPanelist1Id(existingPanelists[0] || initialPanelistIdsBySlot[0] || '');
-       setPanelist2Id(existingPanelists[1] || initialPanelistIdsBySlot[1] || '');
-       setPanelist3Id(existingPanelists[2] || initialPanelistIdsBySlot[2] || '');
+      setPanelist1Id(existingPanelists[0] || initialPanelistIdsBySlot[0] || '');
+      setPanelist2Id(existingPanelists[1] || initialPanelistIdsBySlot[1] || '');
+      setPanelist3Id(existingPanelists[2] || initialPanelistIdsBySlot[2] || '');
     } else {
       setAdviserId(getId(initialAdviserId));
       setSecretaryId(getId(initialSecretaryId));
-       setPanelist1Id(initialPanelistIdsBySlot[0] || '');
-       setPanelist2Id(initialPanelistIdsBySlot[1] || '');
-       setPanelist3Id(initialPanelistIdsBySlot[2] || '');
+      setPanelist1Id(initialPanelistIdsBySlot[0] || '');
+      setPanelist2Id(initialPanelistIdsBySlot[1] || '');
+      setPanelist3Id(initialPanelistIdsBySlot[2] || '');
     }
   }, [open, teamData, initialAdviserId, initialSecretaryId, initialPanelistIdsBySlot]);
 

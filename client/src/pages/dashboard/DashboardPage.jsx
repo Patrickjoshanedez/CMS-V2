@@ -96,8 +96,8 @@ function StudentDashboard({ user }) {
     };
   });
 
-  const completedChapters = derivedChapterProgress.filter(
-    (chapter) => isChapterApprovedLike(chapter.status),
+  const completedChapters = derivedChapterProgress.filter((chapter) =>
+    isChapterApprovedLike(chapter.status),
   ).length;
   const chaptersInReview = derivedChapterProgress.filter((chapter) =>
     ['pending', 'under_review', 'revisions_required'].includes(chapter.status),
@@ -472,11 +472,7 @@ function StudentDashboard({ user }) {
                       <div
                         key={ch}
                         className={`h-2 rounded-full transition-all ${
-                          isApproved
-                            ? 'bg-success'
-                            : isInProgress
-                              ? 'bg-warning/80'
-                              : 'bg-muted/70'
+                          isApproved ? 'bg-success' : isInProgress ? 'bg-warning/80' : 'bg-muted/70'
                         }`}
                         title={`Chapter ${ch}: ${formatChapterStatus(chapterInfo?.status || 'not_started')}`}
                       />

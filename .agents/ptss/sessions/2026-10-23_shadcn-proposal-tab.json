@@ -1,0 +1,60 @@
+{
+  "session_id": "2026-10-23_shadcn-proposal-tab",
+  "date": "2026-10-23T06:20:27+08:00",
+  "task_summary": "Migrated ProposalTab selectors and status panels to shared shadcn Tabs, Alerts, semantic Badges, busy Buttons, and an accessible AlertDialog approval-scope guard. Proposal drafts, PDF generation, revision payload, locking, and refresh behavior are preserved. Focused tests pass 9/9; scoped ESLint and Prettier pass; production build passes with 4,853 modules; 16 SSR Playwright captures cover review, locked, revision, and empty states across light/dark desktop/mobile. Inventory: 139 source-updated, 3 reviewed-no-ui, 136 pending; full refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/projects/ProposalTab.jsx",
+    "client/src/components/projects/ProposalTab.test.jsx",
+    "scratch/proposal_tab_audit.mjs",
+    "scratch/qa-evidence/proposal-tab/",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/classification-manifest.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/tasks/shadcn-full-ui-refactor.json",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/sessions/2026-10-23_shadcn-proposal-tab.json"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Used the shared Radix Tabs component for candidate proposal selection and tab panel semantics.",
+    "Replaced proposal revision and approval-lock palettes with shared Alert variants and semantic Badge variants.",
+    "Replaced native window.confirm for approved-scope unlocking with the shared accessible AlertDialog while retaining the warning and explicit confirmation.",
+    "Used the shared Button busy state for PDF generation and revision resubmission without changing their data and completion behavior."
+  ],
+  "lessons_learned": [
+    "Radix Tabs tests must dispatch the mouse-down selection gesture or exercise keyboard navigation; a bare synthetic click does not reproduce the primitive selection path.",
+    "The approved-scope warning needs to stay visible and the fields disabled until the explicit AlertDialog action is confirmed."
+  ],
+  "open_threads": [
+    "The full refactor remains active: 139/278 source modules are source-updated, 3 are reviewed-no-ui, and 136 remain pending.",
+    "Continue with PrototypeGalleryModal.jsx, then the remaining proposal/project/course workspaces and P8-P11 surfaces.",
+    "Complete final route-integrated visual audits and all governance, full test partition, evidence, and workspace gates."
+  ],
+  "verification_status": "pass_for_slice",
+  "verification_notes": {
+    "focused_test": "npm test --workspace=client -- src/components/projects/ProposalTab.test.jsx: 9/9 tests passed.",
+    "lint": "Scoped ESLint passed with zero errors or warnings.",
+    "formatting": "Prettier check passed for ProposalTab.jsx and ProposalTab.test.jsx; audit runner was checked after creation.",
+    "production_build": "npm run build --workspace=client passed with 4,853 modules transformed; existing Tailwind easing ambiguity and large-chunk warnings remain.",
+    "visual": "Playwright SSR audit captured and checked 16 states across review, approved-locked, revision-required, and empty fixtures at 1440x900 and 390x844 in light and dark themes. Screenshot review confirmed readable alerts, retained lock state, and no horizontal overflow.",
+    "final_quality_gates": "Full endpoint, governance, all-client, server workflow, workspace, and route-integrated visual gates remain pending for the complete refactor."
+  },
+  "inventory": {
+    "total": 278,
+    "source_updated": 139,
+    "reviewed_no_ui": 3,
+    "pending": 136
+  },
+  "full_refactor_status": "active"
+}

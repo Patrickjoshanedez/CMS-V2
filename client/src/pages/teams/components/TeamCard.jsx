@@ -12,7 +12,14 @@ import {
 } from '@/utils/sectionUtils';
 import { formatName } from '../utils/teamFormatters';
 
-export default function TeamCard({ team, onSelect, onInspect, onAssign, canAssignCommittee, isSelected }) {
+export default function TeamCard({
+  team,
+  onSelect,
+  onInspect,
+  onAssign,
+  canAssignCommittee,
+  isSelected,
+}) {
   const leaderName = team.leaderId ? formatName(team.leaderId) : 'Unknown';
   const isLocked = Boolean(team.isLocked);
   const assignment = team.assignment || {};
@@ -76,45 +83,30 @@ export default function TeamCard({ team, onSelect, onInspect, onAssign, canAssig
 
           <div className="flex flex-col items-end gap-1 shrink-0">
             {isLocked ? (
-              <Badge
-                variant="success"
-                className="gap-1 text-[10px] py-0 px-1.5 font-medium"
-              >
+              <Badge variant="success" className="gap-1 text-[10px] py-0 px-1.5 font-medium">
                 <Lock className="h-2.5 w-2.5" />
                 Locked
               </Badge>
             ) : (
-              <Badge
-                variant="warning"
-                className="gap-1 text-[10px] py-0 px-1.5 font-medium"
-              >
+              <Badge variant="warning" className="gap-1 text-[10px] py-0 px-1.5 font-medium">
                 <Clock className="h-2.5 w-2.5" />
                 Forming
               </Badge>
             )}
 
             {capstoneMeta?.courseTitle && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] py-0 px-1.5 font-medium"
-              >
+              <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-medium">
                 {capstoneMeta.courseTitle}
               </Badge>
             )}
 
             {hasCommittee ? (
-              <Badge
-                variant="info"
-                className="gap-1 text-[10px] py-0 px-1.5 font-medium"
-              >
+              <Badge variant="info" className="gap-1 text-[10px] py-0 px-1.5 font-medium">
                 <ShieldCheck className="h-2.5 w-2.5" />
                 Committee Set
               </Badge>
             ) : isAwaitingCommittee ? (
-              <Badge
-                variant="warning"
-                className="gap-1 text-[10px] py-0 px-1.5 font-medium"
-              >
+              <Badge variant="warning" className="gap-1 text-[10px] py-0 px-1.5 font-medium">
                 <UserCheck className="h-2.5 w-2.5" />
                 Needs Committee
               </Badge>

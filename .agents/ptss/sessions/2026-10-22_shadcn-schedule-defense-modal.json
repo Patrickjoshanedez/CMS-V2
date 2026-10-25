@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-10-22_shadcn-schedule-defense-modal",
+  "timestamp": "2026-10-22T23:59:27+08:00",
+  "status": "completed",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Migrate the scheduled defense/title hearing modal to the shared shadcn UI system while preserving scheduling and committee rules.",
+  "changes": [
+    "Replaced the custom portal and focus trap with the shared Radix Dialog and generated accessible title linkage; preserved Escape behavior during active submission and prevented outside-click dismissal.",
+    "Replaced native defense type, round, time, and venue selects with shared Select primitives.",
+    "Replaced compact quick-time buttons with shared Button controls and accessible pressed state.",
+    "Replaced literal amber/emerald colors with shared warning/success semantic tokens."
+  ],
+  "verification": {
+    "focused_tests": "ScheduleDefenseModal.test.jsx: 12/12 passed, covering scheduling/removal payloads, title hearing rules, labeled fields, and errors.",
+    "eslint": "Scoped ESLint passed with zero warnings and errors.",
+    "prettier": "Passed for the component, test, visual audit script, inventory, and classification manifest.",
+    "build": "Client production build passed with 4,853 modules transformed; existing Tailwind ambiguity and large-chunk warnings remain.",
+    "playwright": "Eight screenshots cover standard defense and title-hearing variants in light/dark at 1440x900 and 390x844. Defense type, round, time, quick slot, venue, and Escape dismissal were exercised; no horizontal overflow, Vite overlay, or application errors.",
+    "visual_evidence": "scratch/qa-evidence/schedule-defense-modal/"
+  },
+  "workflow_safety": "Synthetic data only. No schedule, removal, or notification mutation was invoked.",
+  "inventory": {
+    "source_updated": 114,
+    "pending": 164,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

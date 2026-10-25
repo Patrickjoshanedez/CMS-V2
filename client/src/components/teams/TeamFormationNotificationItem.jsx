@@ -148,10 +148,7 @@ export function TeamFormationNotificationItem({
                       Committee Assigned
                     </Badge>
                   ) : (
-                    <Badge
-                      variant="warning"
-                      className="px-1.5 py-0 text-[10px] font-medium"
-                    >
+                    <Badge variant="warning" className="px-1.5 py-0 text-[10px] font-medium">
                       Action Required
                     </Badge>
                   )}
@@ -251,11 +248,7 @@ export function TeamFormationNotificationItem({
                   >
                     Inspect Roster
                   </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
-                    onClick={handleAssign}
-                  >
+                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleAssign}>
                     <UserCheck className="h-3.5 w-3.5" />
                     Assign Committee
                   </Button>

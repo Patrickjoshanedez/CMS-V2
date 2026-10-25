@@ -11,11 +11,17 @@ const AccordionItem = ({ className, ...props }) => (
 const AccordionTrigger = ({ className, children, ...props }) => (
   <AccordionPrimitive.Header className="flex">
     <AccordionPrimitive.Trigger
-      className={cn('flex min-h-11 flex-1 items-center justify-between gap-4 py-4 text-left text-sm font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&[data-state=open]>svg]:rotate-180', className)}
+      className={cn(
+        'flex min-h-11 flex-1 items-center justify-between gap-4 py-4 text-left text-sm font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&[data-state=open]>svg]:rotate-180',
+        className,
+      )}
       {...props}
     >
       {children}
-      <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform" aria-hidden="true" />
+      <ChevronDown
+        className="size-4 shrink-0 text-muted-foreground transition-transform"
+        aria-hidden="true"
+      />
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 );

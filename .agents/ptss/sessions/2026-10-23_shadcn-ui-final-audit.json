@@ -1,0 +1,37 @@
+{
+  "session_id": "2026-10-23_shadcn-ui-final-audit",
+  "timestamp": "2026-10-23T17:20:00+08:00",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Finish the full CMS-V2 shadcn/ui refactor and final verification gates defined in docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+  "completed_this_turn": [
+    "Replaced remaining functional palette treatments in title approval, chapter upload, users, dashboard, project, compilation, citation, and plagiarism-color surfaces with semantic tokens; specialist print, paper, and slide output stays documented.",
+    "Removed obsolete global muted/border overrides and unused legacy text, brand, auth-gradient, glass, shimmer, and report style rules from index.css.",
+    "Normalized login/landing, loading, modal, toolbar, and mobile overlay surfaces to shared shadcn components and theme tokens; removed unnecessary dark-mode overrides and oversized dialog shadows.",
+    "Updated role-management and sidebar tests to exercise Radix tab/select/tooltip behavior accessibly; focused affected tests pass in three final sweeps (35/35, 32/32, 32/32).",
+    "Added similarity color token tests, passing 3/3.",
+    "Fixed route progress generation races, false-success timeout completion, listener cleanup, and pending progress on route render errors; the affected route-progress and error-boundary suites pass 11/11.",
+    "Captured the actual route skeleton and top progress bar in light/dark desktop/mobile; all four captures have no overflow or browser errors.",
+    "Authenticated one seeded instructor, faculty, and student account read-only; each reached /dashboard with no failed API requests, browser errors, or overflow. Credentials were omitted from output.",
+    "Ran 96 final responsive Playwright captures across public, student, instructor, and faculty route-role groups at 1440x900 and 390x844 in light and dark; all captured pages had zero browser errors and no horizontal overflow. Inspected representative landing, login, dashboard, archive, settings, project, and reader screenshots.",
+    "Production client build passes with 4,852 transformed modules; ambiguous easing-class warning is resolved. Large chart/PDF chunks remain a performance follow-up.",
+    "Scoped ESLint passes with zero warnings for changed JavaScript/JSX files; Prettier was applied to the changed formatting outliers.",
+    "Endpoint parity passes (229 server / 209 client / 0 unmatched); agentic audit 62/62, governance, workspace guardrail, and evidence verification 34/34 pass.",
+    "Added the component/token guide and an implementation verification report that identifies completed work and outstanding full-suite gates."
+  ],
+  "verification": {
+    "full_client_suite": "PASS: eight serial shards passed 981/981 before the latest route-progress test additions; current affected route-progress/error-boundary suites pass 11/11.",
+    "full_repository_lint": "PASS: zero errors and 507 warnings; changed JavaScript/JSX files pass scoped ESLint with zero warnings.",
+    "server_comprehensive_workflow": "PASS: 13/13 using isolated in-memory MongoDB with loopback access; no server source changed in this UI slice.",
+    "client_build": "PASS: 4,852 modules transformed; remaining large chart and PDF engine chunks are recorded in the implementation report.",
+    "visual": "PASS for 110 route-role theme/viewport states plus four route-loading captures; full interaction-state matrix remains open."
+  },
+  "inventory": {
+    "total": 278,
+    "source_updated": 196,
+    "reviewed_no_ui": 82,
+    "pending": 0
+  },
+  "next_action": "Finish the interaction-state and performance evidence gaps, then update task status only after all required plan gates are closed.",
+  "full_refactor_status": "in_progress"
+}

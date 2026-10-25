@@ -74,7 +74,11 @@ describe('InviteMemberForm', () => {
     );
     expect(option).toBeDefined();
     act(() => option.click());
-    act(() => container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    act(() =>
+      container
+        .querySelector('form')
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
 
     expect(mutate).toHaveBeenCalledWith({ teamId: 'team-1', email: candidate.email });
   });
@@ -101,7 +105,11 @@ describe('InviteMemberForm', () => {
       button.textContent.includes(candidate.email),
     );
     act(() => option.click());
-    act(() => container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    act(() =>
+      container
+        .querySelector('form')
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
 
     expect(mutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith('Complete your student profile first.');

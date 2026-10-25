@@ -1,0 +1,16 @@
+{
+  "session_id": "2026-10-23_shadcn-reports-filter-drawer",
+  "date": "2026-10-23T07:32:03+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "ReportsFilterDrawer now uses shared Radix Select controls, Sheet, Badge, Button, and Card primitives for quick/advanced filters and the persistent ribbon. Immediate quick filtering, staged advanced filters, sort, page size, reset, and Escape behavior are preserved. Focused component/page tests pass 15/15; scoped lint/format and client build pass; eight Playwright captures verify open/closed states in light/dark desktop/mobile with panel/action bounds and Escape checks. Inventory: 146 source-updated, 5 reviewed-no-ui, 127 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "ReportsFilterDrawer.test.jsx and ReportsPage.test.jsx 15/15",
+    "Scoped ESLint passed",
+    "Prettier passed",
+    "Client production build passed with 4,853 transformed modules",
+    "Eight Playwright captures passed across open/closed × light/dark × desktop/mobile",
+    "Workspace evidence validation passed 34/34 checks"
+  ]
+}

@@ -42,7 +42,10 @@ describe('CalendarScheduler', () => {
   it('moves the displayed month when a navigation button is activated', async () => {
     const now = new Date();
     const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const expectedTitle = previousMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const expectedTitle = previousMonth.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
     await render();
 
     await act(async () => container.querySelector('[aria-label="Previous Month"]').click());
@@ -53,7 +56,9 @@ describe('CalendarScheduler', () => {
   it('reports an empty agenda for a day without scheduled events', async () => {
     await render();
 
-    expect(container.textContent).toContain('No deadlines or defense events scheduled for this day.');
+    expect(container.textContent).toContain(
+      'No deadlines or defense events scheduled for this day.',
+    );
     expect(container.textContent).toContain('0 Events');
   });
 

@@ -889,36 +889,44 @@ async function seed() {
 
   // Current year sections
   const secAcur = await Section.create({
-    name: 'BSIT 4-A',
-    code: 'BSIT-4A',
+    name: '4A',
+    code: 'T65',
     courseId: course._id,
     academicYear: CURRENT_YEAR,
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     isActive: true,
     createdBy: adminId,
   });
   const secBcur = await Section.create({
-    name: 'BSIT 4-B',
-    code: 'BSIT-4B',
+    name: '4B',
+    code: 'T66',
     courseId: course._id,
     academicYear: CURRENT_YEAR,
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     isActive: true,
     createdBy: adminId,
   });
 
   // Previous year sections
   const secAprev = await Section.create({
-    name: 'BSIT 4-A',
-    code: 'BSIT-4A',
+    name: '3A',
+    code: 'T76',
     courseId: course._id,
     academicYear: PREV_YEAR,
+    academicTerm: '1st Semester',
+    capstoneCourse: 1,
     isActive: false,
     createdBy: adminId,
   });
   const secBprev = await Section.create({
-    name: 'BSIT 4-B',
-    code: 'BSIT-4B',
+    name: '3B',
+    code: 'T89',
     courseId: course._id,
     academicYear: PREV_YEAR,
+    academicTerm: '2nd Semester',
+    capstoneCourse: 2,
     isActive: false,
     createdBy: adminId,
   });

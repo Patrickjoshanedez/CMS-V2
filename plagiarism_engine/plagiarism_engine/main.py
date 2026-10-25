@@ -149,8 +149,9 @@ async def require_service_token(request, call_next):
         return await call_next(request)
 
     expected_token = _os.environ.get("PLAGIARISM_ENGINE_API_TOKEN", "").strip()
+    _env = _os.environ.get("ENV", _os.environ.get("NODE_ENV", "development")).lower()
     is_local_dev = (
-        _os.environ.get("ENV", "development").lower() in ("test", "development")
+        _env in ("test", "development")
         or _os.environ.get("PYTEST_CURRENT_TEST") is not None
     )
     if not expected_token:

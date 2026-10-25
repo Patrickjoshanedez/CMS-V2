@@ -1,0 +1,30 @@
+{
+  "session_id": "2026-10-21_proposal-review-vacant-adviser-rules",
+  "timestamp": "2026-10-21T19:42:00.000Z",
+  "task_summary": "Allow vacant adviser for Phase 1 Title Proposal Review while strictly requiring secretary and 3 panelists. Enable adviser selection upon proposal approval or post-approval based on project field.",
+  "task_category": "defense_workflow_and_role_rules",
+  "skills_used": [
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "capstone-lifecycle-orchestrator",
+    "ptss"
+  ],
+  "files_modified": [
+    "server/modules/projects/services/projectDefense.service.js",
+    "server/modules/projects/project.validation.js",
+    "server/modules/projects/services/projectTitle.service.js",
+    "server/tests/unit/project.defense-schedule-clear.test.js",
+    "server/tests/unit/project.defense-schedule-gate.test.js",
+    "client/src/pages/instructor/utils/defenseSchedulingHelpers.js",
+    "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+    "client/src/pages/instructor/DefenseSchedulingPage.test.jsx",
+    "client/src/components/defense/ScheduleDefenseModal.jsx",
+    "client/src/components/defense/ScheduleDefenseModal.test.jsx",
+    "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone1CollapsibleSections.test.jsx",
+    "client/src/components/teams/AssignCommitteeDialog.jsx"
+  ],
+  "verification_summary": "Targeted client tests (53/53 passed: 29 DefenseSchedulingPage, 12 ScheduleDefenseModal, 12 Capstone1CollapsibleSections), server unit tests (9/9 project.defense-schedule-clear, 14/14 project.defense-schedule-gate), endpoint parity check (229 Server / 209 Client, 0 unmatched), agentic governance validation (62/62 checks passed), and governance pipeline verification passed with zero errors.",
+  "status": "completed"
+}

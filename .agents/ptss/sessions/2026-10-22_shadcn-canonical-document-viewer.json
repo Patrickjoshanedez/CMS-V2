@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-10-22_shadcn-canonical-document-viewer",
+  "timestamp": "2026-10-22T12:25:40+08:00",
+  "status": "in_progress",
+  "task_summary": "Continued Luna 6's complete shadcn/ui refactor through RevisionDiffViewer, the canonical SophisticatedDocumentViewer, and a reusable shared Slider primitive. Focused reader/revision/Slider tests pass 24/24; scoped ESLint has zero errors with existing unused-code warnings in the legacy viewer, and scoped Prettier passes. In-app browser review covered light/dark at 1440x900 and 390x844, including the mobile identity row, metadata drawer, and keyboard-adjusted annotation sliders; document width matched the viewport. Existing DOCX/PDF engines, workflow callbacks, and review behavior remain intact. Inventory is 103/278 source-updated with 175 pending. Full refactor and final route/state verification remain active.",
+  "active_skills": [
+    "frontend-patterns",
+    "ui-design-principles",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "completed": [
+    "Migrated RevisionDiffViewer selection, search, deletion marker, state, and comparison surfaces to shared shadcn primitives and semantic tokens, preserving Word/Sentence/Line diff behavior, version selection, annotations, and revision details.",
+    "Migrated SophisticatedDocumentViewer toolbar buttons, review status badge, originality progress, and annotation overlay feedback to shared Button, Badge, and Progress primitives with semantic tokens.",
+    "Added the shared accessible Slider primitive and connected both annotation opacity controls without changing their value ranges or callback behavior.",
+    "Improved the narrow identity row so chapter title, version, document format, originality score, filename, and file size remain visible on mobile.",
+    "Focused SophisticatedDocumentViewer, RevisionDiffViewer, and Slider suites pass 24/24. Scoped ESLint reports zero errors and legacy warnings; scoped Prettier passes.",
+    "Reviewed the canonical reader in the Playwright-backed in-app browser in light/dark at 1440x900 and 390x844, including the details drawer and expanded annotation opacity sliders on desktop and mobile. Keyboard adjustment worked and document width matched each viewport.",
+    "Replaced DOCX plagiarism highlight fallback colors with theme-aware destructive tokens; verified browser support for the tokenized highlight color and readable dark-theme mobile contrast.",
+    "Updated the source migration inventory to 103/278 modules, evidence inventory, authority index, classifier, and durable task checkpoint."
+  ],
+  "pending": [
+    "Continue the remaining migration inventory modules and full route/state audit.",
+    "Run final governance, complete test partitions, lint, production build, evidence, and visual verification gates."
+  ],
+  "observations": [
+    "The default Windows sandbox temp directory denied Vitest SSR cache renames before test execution. Pointing TEMP, TMP, and TMPDIR for the focused process to scratch/vitest-tmp resolved the environment failure; all three suites then passed.",
+    "The visual harness used synthetic plain-text manuscript content only. No seeded credentials, account records, stored documents, or institutional workflow actions were used or changed.",
+    "The local standalone Playwright Chromium binary remains unavailable; visual interaction and inspection used the existing in-app browser's Playwright-backed tab. Full refactor remains active."
+  ]
+}

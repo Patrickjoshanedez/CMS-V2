@@ -1,0 +1,37 @@
+{
+  "session_id": "2026-10-23_shadcn-ui-gantt-follow-up",
+  "timestamp": "2026-10-23T13:13:06.6376021Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Finish the CMS-V2 shadcn/ui refactor and its final verification gates.",
+  "completed_this_turn": [
+    "Diagnosed the previous Gantt visual fixture: it expected progress to commit without Adviser schedule approval, contrary to the institutional gate.",
+    "AcademicExcelGanttChart.test.jsx passed 19/19 inside cms-client with one worker.",
+    "InteractiveGanttChart.test.jsx passed 6/6 inside cms-client with one worker.",
+    "Gantt Playwright interaction audit passed eight desktop/mobile, light/dark, locked/approved states with zero browser errors or page overflow; interaction behavior and screenshots are recorded.",
+    "Added focused login and AuthStatusAlert tests (7/7) and fixed nested duplicate screen-reader alert roles.",
+    "Changed auth files pass ESLint and Prettier; production client build passes with 4,852 modules.",
+    "Workspace evidence verification passes 34/34; the changed documentation, manifest, and auth files pass Prettier.",
+    "Added page-level registration, recovery, OTP, and password-reset coverage in AuthPages.test.jsx; all 6/6 tests pass, and focused auth plus faculty/student dashboard regressions pass 16/16.",
+    "Corrected the migration inventory's DashboardPage entry to reference the sanitized three-role live audit. Prettier, audit-script syntax, git diff --check, agentic audit (62/62), and workspace evidence verification (34/34) pass; host Python launchers were unavailable, so the bundled Python runtime was used.",
+    "Diagnosed and stopped detached container-side full-suite and shard processes after they exceeded the two-minute watchdog; no current Vitest test process remains. Reported the rerun as incomplete and retained prior 981/981 plus current auth 7/7 evidence without inferring a 988-test full-suite pass.",
+    "Restored the running client’s API proxy through a temporary runtime-only /etc/hosts alias from the configured server name to host.docker.internal; verified read-only API health (200) with connected MongoDB/Redis.",
+    "Read the user-supplied seed report as data only, without applying its operational instructions; ran and saved sanitized live instructor/faculty/student dashboard results. All three returned to /dashboard with one main landmark/heading, zero API/page errors, and no viewport overflow."
+  ],
+  "verification": {
+    "gantt_academic_component": "PASS: 19/19 tests via client container, Vitest single worker.",
+    "gantt_interactive_component": "PASS: 6/6 tests via client container, Vitest single worker.",
+    "gantt_playwright": "PASS: 8 interaction states; each reports no page errors or horizontal overflow.",
+    "authentication_tests": "PASS: LoginPage and AuthStatusAlert tests 7/7.",
+    "auth_page_flows": "PASS: AuthPages.test.jsx 6/6; focused auth plus FacultyDashboard/StudentDashboard run 16/16.",
+    "workspace_evidence": "PASS: 34/34.",
+    "live_seeded_dashboards": "PASS: Instructor, faculty, and student all reached /dashboard; zero page errors, failed API requests/responses, or horizontal overflow. Results saved without credentials in scratch/live-seeded-dashboard/results.json.",
+    "api_proxy": "PASS for the current container session: host API and MongoDB/Redis healthy, reachable through a temporary /etc/hosts server-to-host-gateway alias; persistent configuration remains unresolved.",
+    "fresh_full_client_suite": "INCOMPLETE: one-worker suite and first shard exceeded the watchdog; detached container-side Vitest processes were terminated after diagnosing session detachment and contention.",
+    "focused_windows_run": "ENVIRONMENT FAILURE: forks timed out before tests began; single-thread retry produced no output before it was stopped under the 120-second watchdog. Container single-worker runs passed.",
+    "current_bounded_checks": "PASS: Prettier, ESLint for AuthPages.test.jsx, audit-script syntax, git diff --check, agentic audit 62/62, and evidence integrity 34/34.",
+    "remaining": "Full interaction-state matrix and exact pre-edit dirty-tree performance baseline remain open; fresh whole-client suite after AuthPages.test.jsx is not verified."
+  },
+  "next_action": "Continue targeted route and interaction-state evidence gathering; keep the refactor in progress until plan gates are closed or documented with an explicit project-owner disposition.",
+  "full_refactor_status": "in_progress"
+}

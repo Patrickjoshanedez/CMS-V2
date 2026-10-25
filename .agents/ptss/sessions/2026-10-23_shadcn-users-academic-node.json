@@ -1,0 +1,14 @@
+{
+  "session_id": "2026-10-23_shadcn-users-academic-node",
+  "date": "2026-10-23T11:05:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "CreateAcademicNodeDialog now uses shared Radix Dialog, Tabs, and Select controls with shadcn Button, Spinner, Input, and Label surfaces. Existing course and section payloads remain intact and the focused suite passes 4/4. YearInput forwards its id for an associated School Year label. Four inspected light/dark desktop/mobile Playwright captures verify tab switching, course/year selection, canonical preview, and viewport bounds without browser errors or API mutations. Inventory: 167/278 source-updated, 5 reviewed-no-ui, 106 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "CreateAcademicNodeDialog.test.jsx passes 4/4, covering program creation and normalized section/course/year payloads.",
+    "Scoped ESLint and Prettier pass for CreateAcademicNodeDialog, its focused test, and YearInput.",
+    "Playwright audit passes in light/dark at 1440x900 and 390x844; all tabs, course/year selects, preview, and viewport bounds pass; four captures inspected; no browser errors or API mutations.",
+    "The inventory records 167/278 source-updated, 5 reviewed-no-ui, and 106 pending. Full refactor remains active."
+  ]
+}

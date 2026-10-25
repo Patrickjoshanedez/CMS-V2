@@ -4,7 +4,7 @@ import Evaluation from '../../evaluations/evaluation.model.js';
 import AppError from '../../../utils/AppError.js';
 import { findSimilarProjects } from '../../../utils/titleSimilarity.js';
 import settingsService from '../../settings/settings.service.js';
-import { emitToRoom } from '../../../services/socket.service.js';
+import { emitToRoom, emitToAll } from '../../../services/socket.service.js';
 import {
   ROLES,
   TITLE_STATUSES,
@@ -39,6 +39,27 @@ class ProjectTitleService {
 
   async _notifyCommittee(project, notif) {
     return projectCommitteeService._notifyCommittee(project, notif);
+  }
+
+  async _invalidateProjectCache(projectId) {
+    return projectCoreService._invalidateProjectCache(projectId);
+  }
+
+  _broadcastProjectUpdate(project, payload = {}) {
+    if (!project?._id) return;
+    try {
+      const data = {
+        projectId: String(project._id),
+        title: project.title,
+        titleStatus: project.titleStatus,
+        workflowPhase: project.workflowPhase,
+        ...payload,
+      };
+      emitToRoom(`project:${project._id}`, 'project:updated', data);
+      emitToAll('project:updated', data);
+    } catch {
+      // Non-blocking socket emit
+    }
   }
 
   _normalizeTitleProposals(titleProposals = []) {
@@ -354,6 +375,8 @@ class ProjectTitleService {
     }
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_updated' });
 
     // Run similarity check on updated title
     const otherProjects = await Project.find({
@@ -422,6 +445,8 @@ class ProjectTitleService {
 
     project.titleStatus = TITLE_STATUSES.SUBMITTED;
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_submitted' });
 
     // Notify all instructors
     await this._notifyInstructors({
@@ -576,9 +601,7 @@ class ProjectTitleService {
     project.driveFolderId = null;
     project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
     project.capstonePhase = 1;
-    project.workflowPhase = approveWithRevision
-      ? CAPSTONE_PHASES.PHASE_1
-      : CAPSTONE_PHASES.PHASE_2;
+    project.workflowPhase = approveWithRevision ? CAPSTONE_PHASES.PHASE_1 : CAPSTONE_PHASES.PHASE_2;
     project.stage = 'capstone_1';
     // Title approval is a pre-course review; any legacy schedule belongs to that
     // review and must not be mistaken for the later Capstone 1 proposal defense.
@@ -593,7 +616,65 @@ class ProjectTitleService {
       }
     }
 
+    // Optional adviser appointment based on the approved capstone's field/discipline
+    if (data?.adviserId) {
+      const adviser = await User.findById(data.adviserId);
+      if (!adviser) {
+        throw new AppError('The specified adviser was not found.', 400, 'INVALID_ADVISER');
+      }
+      if (adviser.role === ROLES.INSTRUCTOR || adviser.role === 'instructor') {
+        throw new AppError(
+          'Course instructors cannot serve as a capstone adviser. Please appoint a verified faculty member.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
+      if (adviser.role === ROLES.STUDENT || adviser.role === 'student') {
+        throw new AppError(
+          'Students cannot serve on the faculty committee.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
+      const existingSecretaryId = String(project.secretaryId?._id || project.secretaryId || '');
+      if (existingSecretaryId && existingSecretaryId === String(adviser._id)) {
+        throw new AppError(
+          'The adviser and committee secretary cannot be the same faculty member on the same team.',
+          400,
+          'ROLE_CONFLICT',
+        );
+      }
+      const existingPanelistIds = (project.panelistIds || []).map((p) => String(p?._id || p));
+      if (existingPanelistIds.includes(String(adviser._id))) {
+        throw new AppError(
+          'A faculty adviser cannot serve as a defense panelist on the same team.',
+          400,
+          'ROLE_CONFLICT',
+        );
+      }
+      project.adviserId = adviser._id;
+      const Team = (await import('../../teams/team.model.js')).default;
+      if (project.teamId) {
+        await Team.findByIdAndUpdate(project.teamId, { adviserId: adviser._id });
+      }
+
+      try {
+        const Notification = (await import('../../notifications/notification.model.js')).default;
+        await Notification.create({
+          userId: adviser._id,
+          type: 'committee_appointed',
+          title: 'Assigned as Capstone Adviser',
+          message: `You have been appointed as the Capstone Adviser for "${project.title}" based on project specialization.`,
+          metadata: { projectId: project._id, teamId: project.teamId, role: 'adviser' },
+        });
+      } catch (notifErr) {
+        console.warn('[approveTitle] Failed to notify newly appointed adviser:', notifErr.message);
+      }
+    }
+
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_approved' });
 
     // Notify team members
     const notifMessage = approveWithRevision
@@ -713,6 +794,8 @@ class ProjectTitleService {
     }
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_rejected' });
 
     const displayTitle =
       project.title ||
@@ -836,6 +919,8 @@ class ProjectTitleService {
     }
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_comment_added' });
 
     return { project };
   }
@@ -907,6 +992,8 @@ class ProjectTitleService {
     project.titleStatus = TITLE_STATUSES.SUBMITTED;
     project.rejectionReason = null;
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_resubmitted' });
 
     // Similarity check
     const otherProjects = await Project.find({
@@ -986,6 +1073,8 @@ class ProjectTitleService {
       fromStatus: previousTitleStatus,
     };
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_modification_requested' });
 
     // Notify instructors
     await this._notifyInstructors({
@@ -1043,6 +1132,8 @@ class ProjectTitleService {
       project.titleStatus = restoredStatus;
     }
     await project.save();
+    await this._invalidateProjectCache(project._id);
+    this._broadcastProjectUpdate(project, { action: 'title_modification_resolved' });
 
     const verb = data.action === 'approved' ? 'approved' : 'denied';
     await this._notifyTeamMembers(project.teamId, {
@@ -1102,6 +1193,8 @@ class ProjectTitleService {
       project.unlockedDeliverables = Array.from(currentUnlocked);
 
       await project.save();
+      await this._invalidateProjectCache(project._id);
+      this._broadcastProjectUpdate(project, { action: 'post_approval_unlocked' });
 
       try {
         emitToRoom(`project:${project._id}`, 'project:postApprovalUnlocked', {

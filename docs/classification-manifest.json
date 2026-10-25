@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "description": "CMS-V2 Authoritative Document and Artifact Classification Manifest",
-  "last_updated": "2026-10-17",
+  "last_updated": "2026-10-25",
   "authority_order": [
     "1. Approved institutional requirements and role boundaries",
     "2. Approved API contracts and intended user behavior",
@@ -22,6 +22,41 @@
   ],
   "statuses": ["current", "needs-review", "superseded", "historical", "generated"],
   "artifacts": [
+    {
+      "path": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md",
+      "current_verification_addendum": "As of 25 October 2026, the complete current-source client suite passes all 174 files and 1,029 tests across sixteen isolated shards, with no failures, pending cases, duplicate files or missing files. Independent verification recomputed the client/server source fingerprints; the longest client shard is 72.942 seconds. The required server workflow passes 13/13 in 51.957 seconds. Root lint (798 files/0 errors/505 warnings), bounded production build, endpoint parity, agentic/governance, evidence and guardrail checks pass. The catalog contains 536 unique existing PNGs. The stopped development client was restored: login HTTP 200, 53 direct dependencies match the lockfile and Vite is 8.3.5. Exhaustive current-source visual/interaction verification, live rendered/runtime checks and the user-retained exact pre-refactor performance baseline remain open.",
+      "verification_evidence": "As of 25 October 2026, the complete current-source client suite passes all 174 files and 1,029 tests across sixteen isolated shards, with no failures, pending cases, duplicate files or missing files. Independent verification recomputed the client/server source fingerprints; the longest client shard is 72.942 seconds. The required server workflow passes 13/13 in 51.957 seconds. Root lint (798 files/0 errors/505 warnings), bounded production build, endpoint parity, agentic/governance, evidence and guardrail checks pass. The catalog contains 536 unique existing PNGs. The stopped development client was restored: login HTTP 200, 53 direct dependencies match the lockfile and Vite is 8.3.5. Exhaustive current-source visual/interaction verification, live rendered/runtime checks and the user-retained exact pre-refactor performance baseline remain open.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/shadcn-ui-migration-inventory.json",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md",
+      "current_verification_addendum": "As of 25 October 2026, the complete current-source client suite passes all 174 files and 1,029 tests across sixteen isolated shards, with no failures, pending cases, duplicate files or missing files. Independent verification recomputed the client/server source fingerprints; the longest client shard is 72.942 seconds. The required server workflow passes 13/13 in 51.957 seconds. Root lint (798 files/0 errors/505 warnings), bounded production build, endpoint parity, agentic/governance, evidence and guardrail checks pass. The catalog contains 536 unique existing PNGs. The stopped development client was restored: login HTTP 200, 53 direct dependencies match the lockfile and Vite is 8.3.5. Exhaustive current-source visual/interaction verification, live rendered/runtime checks and the user-retained exact pre-refactor performance baseline remain open.",
+      "verification_evidence": "As of 25 October 2026, the complete current-source client suite passes all 174 files and 1,029 tests across sixteen isolated shards, with no failures, pending cases, duplicate files or missing files. Independent verification recomputed the client/server source fingerprints; the longest client shard is 72.942 seconds. The required server workflow passes 13/13 in 51.957 seconds. Root lint (798 files/0 errors/505 warnings), bounded production build, endpoint parity, agentic/governance, evidence and guardrail checks pass. The catalog contains 536 unique existing PNGs. The stopped development client was restored: login HTTP 200, 53 direct dependencies match the lockfile and Vite is 8.3.5. Exhaustive current-source visual/interaction verification, live rendered/runtime checks and the user-retained exact pre-refactor performance baseline remain open.",
+      "retirement_or_quarantine_reason": null,
+      "live_visual_checkpoint": "Live Vite checkpoint: eight bounded batches captured 192 states across 48 route inputs. Six batches passed automated checks; batches 4 and 6 remain flagged for Socket.IO HTTP 400. Top contact sheets for batches 1-3 were inspected; desktop dashboard captures include loading skeletons, so body readiness cannot establish loaded-state acceptance. Batches 9-11, deterministic loaded-state readiness, realtime diagnosis and exhaustive interactions remain open. These fresh captures stay separate from the existing 536-file catalog. Exact performance baseline remains open at the user’s request."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-manuscript-template-widget.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for AcceptInviteForm (4/4), ManuscriptTemplateWidget (8/8), TeamFormationNotificationItem (7/7), and digital-signature confirmation (4/4) plus shared AlertDialog (2/2); relevant states were reviewed across light/dark desktop/mobile. The repository-wide UI refactor remains in progress.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/components.json",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "shadcn/ui JavaScript Vite configuration for React 18 and Tailwind CSS 3",
+      "verification_evidence": "Registry aliases configured to the existing @/components, @/lib/utils, and @/hooks source layout",
+      "retirement_or_quarantine_reason": null
+    },
     {
       "path": ".agents/ptss/sessions/2026-10-15_chapter-upload-version-fix.json",
       "category": "agent-governance-and-memory",
@@ -587,7 +622,7 @@
       "category": "operational-runbook",
       "status": "current",
       "governing_requirement_or_replacement": "AGENTS.md targeted testing, Windows sandbox recovery, and 120-second watchdog requirements",
-      "verification_evidence": "Version 1.6.2 documents workspace-local Vitest temp paths for client/server tests, sequential sharding for large Windows client suites, isolated approved MongoMemoryServer loopback, binary-cache preflight, and bounded startup recovery.",
+      "verification_evidence": "Version 1.6.5 documents workspace-local Vitest temp paths for client/server tests, sequential sharding for large Windows client suites, isolated approved MongoMemoryServer loopback, binary-cache preflight, bounded startup recovery, per-file isolation for multi-file Radix portal suites, stable screenshot capture after animations, and viewport-bound geometry checks during and after dialog animation.",
       "retirement_or_quarantine_reason": null
     },
     {
@@ -697,9 +732,9 @@
     {
       "path": "client/src/pages/auth/RegisterPage.jsx",
       "category": "institutional-contract",
-      "status": "needs-review",
+      "status": "current",
       "governing_requirement_or_replacement": "Student registration domain rule in server/modules/auth/auth.validation.js",
-      "verification_evidence": "The registration page now uses the aligned schema; focused schema tests passed 3/3. Public-page visual verification remains open.",
+      "verification_evidence": "The registration page uses the aligned student-domain schema and retains its two-step validation. AuthPages.test.jsx passes 6/6, including focus transfer to the Account Credentials heading. Four read-only Playwright captures verify its visible semantic focus ring in light/dark at desktop/mobile with no page errors or overflow; no registration request was submitted.",
       "retirement_or_quarantine_reason": null
     },
     {
@@ -723,7 +758,7 @@
       "category": "agent-governance-and-memory",
       "status": "current",
       "governing_requirement_or_replacement": "Durable technical context and prevention runbooks for CMS-V2",
-      "verification_evidence": "Records student registration domain alignment, focused-service test isolation, and preservation of original MIME types in archive readers, with prevention checklists and targeted evidence.",
+      "verification_evidence": "Records student registration domain alignment, focused-service test isolation, preservation of original MIME types in archive readers, and resumable 121-state route audit / bounded 1,012-test client verification runbooks, with prevention checklists and targeted evidence.",
       "retirement_or_quarantine_reason": null
     },
     {
@@ -772,6 +807,1489 @@
       "status": "current",
       "governing_requirement_or_replacement": "User authorization and safe test isolation for registration and OTP workflows",
       "verification_evidence": "Versioned guidance distinguishes seeded account data from mailbox ownership and requires an approved local OTP sink or explicit recipient authorization before live submission.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-interactive-gantt-chart.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim session record for the InteractiveGanttChart shadcn migration; full UI refactor remains in progress.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-project-context-widget.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for ProjectContextWidget (3/3), CalendarScheduler (4/4), and OptimizationEngine (4/4), scoped ESLint, and reviewed light/dark desktop/mobile captures; full refactor remains active. Workspace evidence verification passed 34/34, workspace guardrail passed, and git diff --check passed.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-defense-schedule-calendar.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for DefenseScheduleCalendar (6/6 tests, 16 visual captures), BukSULoginSidePanel (1/1 test, four captures), LandingPage (2/2 tests, ten captures), notification/archive shared primitive consumer tests (33/33), and shared loading UI (16/16 tests, 12 light/dark desktop/mobile captures). MilestoneDeadlinesModal passes 6/6 tests and 16 light/dark desktop/mobile captures; section targeting, required section validation, late-submission choice, and delete cancel/confirm behavior pass, with no overflow or browser/Vite errors. TopProgressBar omits aria-valuenow while pending and reports 100% only after route settlement. Archive status/citation controls use shared Button, Tooltip, and Dialog primitives; the combined archive component/page tests pass 27/27 and 12 Playwright captures verify semantic statuses, keyboard tooltip/dialog behavior, and a visible mobile footer. Direct headless app-shell rendering at / returned an empty body; full route-shell rendering remains unverified.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-milestone-deadlines-modal.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for MilestoneDeadlinesModal: focused tests pass 6/6, scoped ESLint and Prettier pass, and 16 light/dark desktop/mobile Playwright captures cover the form, section scope, active list, and delete confirmation. Full UI refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-committee-assignments-view.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for TeamCommitteeAssignmentsView: focused tests pass 12/12, scoped ESLint and Prettier pass, and 24 light/dark desktop/mobile captures cover approved teams, eligible faculty, the prerequisite lock, empty results, loading, and retryable errors. Full UI refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-defense-schedule-badge.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for DefenseScheduleBadge: focused tests pass 12/12, scoped ESLint and Prettier pass, and four in-app browser captures were visually reviewed across light/dark desktop/mobile without horizontal overflow. Local Playwright Chromium is unavailable in this environment; full UI refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-canonical-document-viewer.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Interim session record for RevisionDiffViewer, SophisticatedDocumentViewer, and the shared Slider primitive: focused suites pass 24/24; scoped lint reports zero errors with existing legacy warnings; Prettier passes; Playwright-backed in-app review covered light/dark at desktop and mobile and verified no horizontal overflow. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/auth/BukSULoginSidePanel.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Focused component render test passes 1/1; asserts the institutional home link, lifecycle heading, four stages, Secretary compliance gate, and MinIO vault label.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-dropzone.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Interim execution record for plagiarism DropZone: focused suites pass 27/27 (final component suite 8/8), scoped ESLint and Prettier pass, client production build succeeds, and 12 light/dark desktop/mobile rendered states were inspected without overflow. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-match-snippet.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Interim execution record for MatchSnippet: the focused plagiarism component suite passes 10/10, scoped ESLint/Prettier and client build pass, and four light/dark desktop/mobile states were visually inspected without overflow. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-score-bar.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Migrated ScoreBar to shared Progress and Badge primitives with semantic severity tokens, preserved the existing similarity thresholds, and added an accessible progress label/value. The focused plagiarism component suite passes 12/12; scoped ESLint and Prettier pass; the client build succeeds with 4,852 transformed modules. Playwright captured high (81%) and low (8%) states in light/dark at desktop and mobile sizes; all eight checks passed without overflow or browser/Vite errors, and representative captures were visually inspected. Source search found no active production caller. Full UI refactor remains active. Inventory is 106/278 source-updated with 172 pending.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-scan-button.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Migrated ScanButton's indeterminate scan track to the shared Progress primitive and removed its one-off animation, while preserving the shared Button, timing display, disabled state, and polite status. The focused plagiarism component suite passes 12/12; scoped ESLint and Prettier pass; the client build succeeds with 4,852 transformed modules. Playwright covered ready/scanning states in light/dark at desktop and mobile sizes with no overflow or Vite overlay; representative renders were inspected. The only console 404 was the dev server's automatic /favicon.ico request. Inventory is 107/278 source-updated with 171 pending; the full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-progress-modal.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Migrated both floating plagiarism scan surfaces to shared Card, Button, Badge, and Progress primitives. Archive scans now use accessible indeterminate progress; Socket.IO scans use labeled determinate progress with semantic success on completion. Navigation, dismissal, route suppression, and timing remain intact. Focused component tests pass 6/6, scoped ESLint/Prettier pass, and the production build succeeds with 4,852 transformed modules. Playwright covered archive scanning and completion in light/dark desktop/mobile with no overflow or Vite overlay, and representative captures were inspected. Inventory: 108/278 source-updated, 170 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-plagiarism-archive-checker.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Migrated the archive plagiarism checker page and ScanHero to shared shadcn Card, Alert, Badge, Button, and Collapsible components; fixed the long scanning label and mobile grid min-width behavior so scanning content fits the 390px viewport. The existing plagiarism page tests pass 5/5 and component tests pass 12/12; scoped ESLint and Prettier pass with zero warnings/errors. Playwright covered empty, selected, error, and scanning states in light/dark desktop/mobile; all 16 checks report no overflow or Vite overlay, with representative renders inspected. Production build passed with 4,853 modules transformed and existing warnings. Inventory is 110/278 updated with 168 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-google-scholar-sidebar.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Migrated GoogleScholarSidebar to shared Button, Input, Checkbox, and Sheet primitives. Selection states use semantic theme tokens; checkbox names and mobile close behavior are accessible. ArchiveSearchPage tests pass 10/10, scoped ESLint/Prettier pass, and production build succeeds with 4,853 modules. Playwright exercised sorting, checkbox, custom year, and Sheet close in light/dark desktop/mobile with no overflow or Vite overlay. Inventory is 111/278 updated and 167 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-archive-document-viewer.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "CanonicalDocumentViewer uses shared Button/Input controls and semantic chart/status tokens; focused tests pass 13/13, scoped lint has zero errors, Prettier and client build pass. Corrected Playwright audit captured nine current archive states across light/dark desktop/mobile and asserted no horizontal overflow or Vite overlay; representative views were visually inspected. Inventory is 112/278 source-updated and 166 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-defense-minutes-modal.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "LiveDefenseMinutesModal uses the shared Radix Dialog and shadcn form/tab controls; the focused suite passes 2/2, scoped ESLint has zero warnings/errors, Prettier passes, and the client build passes with 4,853 modules. Playwright captured 12 states across light/dark desktop/mobile, with no overflow or app errors. Inventory is 113/278 source-updated and 165 pending; full refactor remains active. ProjectDetailPage currently has no opener for the modal.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-22_shadcn-schedule-defense-modal.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ScheduleDefenseModal uses the shared accessible Radix Dialog, Select, Button, Badge, and semantic status tokens. Focused tests pass 12/12, scoped lint/format pass, production build passes with 4,853 modules, and eight Playwright captures cover standard defense and title hearing states across light/dark desktop/mobile. Inventory is 114/278 source-updated and 164 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-ui-refactor-continuation.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Continuation checkpoint for the full refactor: 114/278 modules source-updated, 164 pending. Recent dialog slices pass 14/14 focused tests, scoped lint/format/build, and their light/dark desktop/mobile Playwright audits. Workspace evidence authority check passes 34/34. Full refactor and final gates remain open.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-secretary-review-page.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "SecretaryReviewPage uses shared shadcn controls and semantic loading/empty/status patterns. Focused tests pass 8/8; scoped lint, Prettier, and source sweep pass; four real Playwright captures cover the seeded Phase 0 empty queue in light/dark desktop/mobile. Inventory is 115/278 source-updated and 163 pending.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-ui-refactor-doc-viewer-and-adm-table.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "GoogleDocViewer and DocumentEditorPage use shared Button, Badge, Skeleton, and Alert components; ADMTableView uses shared Table primitives and Button while retaining the printable matrix; ActionDoneMatrixSection uses the shared Radix Dialog and semantic Badge variants; AutoExpandingTextarea uses shared Textarea, Label, and Badge; FullscreenToolbar uses shared Button/Badge controls and semantic tokens; ConsultationLogWidget uses semantic Button sizes, Badge variants, accessible Labels, and theme tokens. Focused tests pass 8/8 for document viewer/editor, 29/29 for ADM table/row/workflow, 4/4 for ActionDoneMatrixSection, 5/5 for AutoExpandingTextarea, 6/6 for FullscreenToolbar, and 2/2 for ConsultationLogWidget; scoped ESLint and Prettier pass, and the client build succeeds with 4,853 modules. Visual review remains pending because the local Vite preview port refuses connections. Inventory: 123/278 source-updated and 155 pending.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-proposal-alignment-selector.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "AlignmentSelectorDialog now uses shared Dialog, Button, Checkbox, Input, Label, and Badge primitives on /project/create. Focused tests pass 7/7; scoped ESLint and Prettier pass; the client build succeeds with 4,853 modules and existing Tailwind ambiguity/large-chunk warnings. Eight live discipline/SDG dialog captures cover light/dark desktop/mobile without overflow, Vite overlay, or application browser errors. Inventory: 130/278 source-updated and 148 pending; the full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-evaluation-panel.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "EvaluationPanel migration verified by focused 6/6 and Capstone 1 integration 12/12 tests, clean scoped lint/format, successful production build, and 11 responsive Playwright captures. Inventory is 131/278 source-updated, 147 pending; the full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/evaluation_panel_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Reusable read-only Playwright capture script writes 11 responsive evaluation-panel screenshots under scratch/qa-evidence/evaluation-panel and removes temporary harness files from client/src after each run.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/evaluation-panel-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary HTML entry point for the EvaluationPanel Playwright visual audit.",
+      "verification_evidence": "Copied into client/src/__visualAudit only while the audit runs; the audit removes the copy in a finally block.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/EvaluationPanelAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary synthetic EvaluationPanel harness for responsive visual testing.",
+      "verification_evidence": "Mocks evaluation API responses in memory and is copied into client/src/__visualAudit only during the visual audit; no real evaluation data is modified.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/evaluation-panel/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for client/src/components/projects/EvaluationPanel.jsx in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eleven inspected Playwright screenshots cover form, summary, and submit/release/unlock dialogs in light/dark at desktop 1440x900 and mobile 390x844.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-faculty-committee.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "FacultyCommitteeCard focused tests pass 7/7; scoped ESLint and Prettier pass; four-state Playwright audit passes. Full refactor remains in progress.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/faculty-committee-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary entry point for the FacultyCommitteeCard Playwright visual audit.",
+      "verification_evidence": "Copied into client/src/__visualAudit only while the audit runs; the audit removes it in a finally block.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/FacultyCommitteeAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic FacultyCommitteeCard fixture for responsive visual verification.",
+      "verification_evidence": "Uses synthetic project and faculty data and is copied into client/src/__visualAudit only during the audit.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/faculty_committee_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Captures light/dark desktop/mobile views, validates normalized team labels and horizontal bounds, reports Vite/page errors, and removes temporary client harness files in finally.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/faculty-committee/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for client/src/components/projects/FacultyCommitteeCard.jsx in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected Playwright screenshots at 1440x900 and 390x844 in light and dark themes; no horizontal overflow, Vite overlay, or page errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project-audit-trail-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary entry point for the ProjectAuditTrail Playwright visual audit.",
+      "verification_evidence": "Copied into client/src/__visualAudit only while the audit runs; the audit removes it in a finally block.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/ProjectCohortCardAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic ProjectCohortCard fixture for the responsive visual audit.",
+      "verification_evidence": "Uses synthetic project, roster, and adviser data; the temporary client copy is removed after the Playwright run.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project-cohort-card-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary Vite entry point for ProjectCohortCard visual verification.",
+      "verification_evidence": "Copied into client/src/__visualAudit only during the audit; the runner removes its temporary copy in finally.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project_cohort_card_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Captures 16 state/theme/viewport combinations, checks overflow, theme application, Vite overlays and browser errors, and removes temporary client harness files in finally.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/project-cohort-card/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for client/src/components/projects/ProjectCohortCard.jsx in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Sixteen Playwright screenshots cover submitted, revision-required, approved, and archived cards at 1440x900 and 390x844 in light/dark themes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/ProjectAuditTrailAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic ProjectAuditTrail fixture for responsive visual verification.",
+      "verification_evidence": "Wraps the TanStack Query component with a dedicated QueryClientProvider and uses an intercepted synthetic audit-event response.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project_audit_trail_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Captures four light/dark desktop/mobile states, checks event count and category filtering, detects overflow and browser errors, and removes temporary client harness files in finally.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/project-audit-trail/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for client/src/components/projects/ProjectAuditTrail.jsx in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected Playwright screenshots at 1440x900 and 390x844 in light and dark; the Submissions category filter works across all four views without overflow or browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-project-audit-trail.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "FacultyCommitteeCard and ProjectAuditTrail focused suites pass 18/18; scoped lint/format and workspace evidence validation pass; eight component screenshots cover light/dark desktop/mobile. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-project-cohort-card.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ProjectCohortCard tests pass 5/5; scoped ESLint and Prettier pass; sixteen Playwright screenshots cover four project/title states in light/dark at 1440x900 and 390x844. The full UI refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/ProjectDetailsModalAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic ProjectDetailsModal states for responsive visual verification.",
+      "verification_evidence": "Uses approved, revision, and pending records only; no workflow mutation.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project-details-modal-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary Vite entry point for ProjectDetailsModal visual verification.",
+      "verification_evidence": "Copied into client/src/__visualAudit only during audit and removed by the runner.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project_details_modal_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Captures 12 modal state/theme/viewport combinations and checks bounds, focus, accessible description, close control, Escape dismissal, overflow, Vite/browser errors, and temporary-file cleanup.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/project-details-modal/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ProjectDetailsModal in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Twelve inspected screenshots cover approved, revision, and pending synthetic states at 1440x900 and 390x844 in light and dark themes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/ProjectSidebarInfoAudit.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic ProjectSidebarInfo proposal and approved states for responsive visual verification.",
+      "verification_evidence": "Uses synthetic project, roster, adviser, SDG, keyword, and external-link data only.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project-sidebar-info-audit.html",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Temporary Vite entry point for ProjectSidebarInfo visual verification.",
+      "verification_evidence": "Copied into client/src/__visualAudit only during audit and removed by the runner.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/project_sidebar_info_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required by AGENTS.md for client/src UI changes.",
+      "verification_evidence": "Captures eight states, checks shared Card, proposal/revision conditions, theme, Team prefix normalization, link safety, overflow, browser errors, and temporary-file cleanup.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/project-sidebar-info/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ProjectSidebarInfo in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected screenshots cover proposal and approved data at 1440x900 and 390x844 in light and dark themes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-project-details-sidebar.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ProjectDetailsModal and ProjectSidebarInfo focused suites pass 15/15; scoped lint/format, the 4,853-module production client build, and 20 Playwright screenshots pass. Workspace evidence validation passes 34/34. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/proposal_slide_canvas_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the ProposalSlideCanvas shadcn migration.",
+      "verification_evidence": "Renders the actual component through Vite SSR with the production stylesheet; checks branded colors, edit cue, 16:9 geometry, viewport overflow, and mobile scroll reachability across light/dark desktop/mobile.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/proposal-slide-canvas/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ProposalSlideCanvas in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected captures show cover/content slides in light/dark at 1440x900 and 390x844; two additional mobile captures show content scroll-end states.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-proposal-slide-canvas.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ProposalSlideCanvas tests pass 5/5; scoped lint and formatting pass; client build passes with 4,853 modules; eight SSR Playwright screenshots and two mobile scroll-end captures verify colors, geometry, and overflow. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/proposal_tab_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the ProposalTab shadcn migration.",
+      "verification_evidence": "Renders the actual component through Vite SSR with the production stylesheet; checks review, approved-locked, revision-required, and empty states across light/dark desktop/mobile, including field counts, lock state, page width, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/proposal-tab/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ProposalTab in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Sixteen inspected screenshots cover review, approved-locked, revision-required, and empty states at 1440x900 and 390x844 in light and dark themes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-proposal-tab.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ProposalTab tests pass 9/9; scoped lint/format pass; production client build passes with 4,853 modules; sixteen Playwright component screenshots cover the complete theme/viewport matrix for review, lock, revision, and empty states. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/prototype_gallery_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the PrototypeGalleryModal shadcn migration.",
+      "verification_evidence": "Bundles the actual component with Vite and mounts it in Playwright with the production theme stylesheet; checks media and empty states, nested image preview, responsive dialog bounds, accessible controls, secure external links, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/prototype-gallery/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for PrototypeGalleryModal in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Twelve inspected captures cover media, empty, and nested lightbox states at 1440x900 and 390x844 in light and dark themes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-prototype-gallery.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "PrototypeGalleryModal tests pass 3/3; scoped lint/format pass; production client build passes with 4,853 modules; twelve interactive Playwright captures cover media, empty, and nested image preview states across the full theme/viewport matrix. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/prototype-showcase/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for PrototypeShowcaseAndDemo in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight captures cover the populated gallery and add-link dialog at 1440x900 and 390x844 in light and dark themes; responsive bounds, gallery card count, tab content, and browser errors were checked.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/prototype_showcase_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the PrototypeShowcaseAndDemo shadcn migration.",
+      "verification_evidence": "Bundles the component and synthetic fixtures with Vite, aliases route preloading, and checks the gallery and add-link dialog across light/dark desktop/mobile for bounds, content, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-prototype-showcase.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "PrototypeShowcaseAndDemo tests pass 7/7; scoped lint has zero errors with one existing hook dependency warning; Prettier, client build, eight Playwright captures, and workspace evidence validation pass. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/similar-project-modal/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for SimilarProjectModal in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight captures cover proposal and archived layouts at 1440x900 and 390x844 in light and dark themes; dialog bounds, titles, recommendation content, document width, and browser errors were checked.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/similar_project_modal_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the SimilarProjectModal shadcn migration.",
+      "verification_evidence": "Builds an isolated synthetic fixture with route preloading aliased, then checks proposal/archive dialogs across the complete light/dark desktop/mobile matrix for content, bounds, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-similar-project-modal.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "SimilarProjectModal, TitleSimilarityChecker, and AlertDialog suites pass 14/14; scoped lint/format and production client build pass; eight Playwright captures and workspace evidence validation pass. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/title-feedback-remarks/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for TitleFeedbackRemarksCard in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four captures cover two committee remarks at 1440x900 and 390x844 in light and dark themes; heading, author/date content, and overflow were checked.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/title_feedback_remarks_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the TitleFeedbackRemarksCard shadcn migration.",
+      "verification_evidence": "Builds an isolated synthetic feedback fixture and checks the remark count, role/date metadata, viewport width, and browser errors across light/dark desktop/mobile.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-title-feedback-remarks.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ProjectDetailsModal.test.jsx passes 7/7; scoped lint/format and client production build pass; four Playwright captures and workspace evidence validation pass. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/title-similarity-checker/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for TitleSimilarityChecker in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight captures cover conflict/clear states at 1440x900 and 390x844 in light and dark themes; preview opens and dismisses with Escape and no viewport overflow or browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/title_similarity_checker_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the TitleSimilarityChecker shadcn migration.",
+      "verification_evidence": "Builds isolated match/clear fixtures, checks the response status and shared preview modal across light/dark desktop/mobile, verifies Escape dismissal, and reports browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-title-similarity-checker.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "TitleSimilarityChecker tests pass 5/5; scoped lint/format and production client build pass; eight Playwright captures and workspace evidence validation pass. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/weekly-progress-check-ins/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for WeeklyProgressCheckIns in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four captures cover the student check-in form in light/dark at 1440x900 and 390x844; field labels render and there is no horizontal overflow or page error.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/weekly_progress_check_ins_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for WeeklyProgressCheckIns shadcn migration.",
+      "verification_evidence": "Captures the weekly check-in component across light/dark desktop/mobile and checks visible heading, accessible summary label, viewport width, and page errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-weekly-progress-checkins.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Focused tests pass 4/4; scoped lint/format and production client build pass; four Playwright captures and workspace evidence validation pass. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/capstone-workflow-stepper/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for CapstoneWorkflowStepper in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four screenshots cover the project workflow stepper, shared KPI Cards, semantic committee KPI Button, and success Alert at 1440x900 and 390x844 in light and dark themes; no horizontal overflow or page errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/capstone_workflow_stepper_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for the CapstoneWorkflowStepper shadcn follow-up.",
+      "verification_evidence": "Captures milestone header and progression states in light/dark desktop/mobile, checking heading visibility, viewport width, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/reports-filter-drawer/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ReportsFilterDrawer in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight screenshots cover open/closed Sheet states at desktop 1440x900 and mobile 390x844 in light/dark themes; Playwright verifies panel and footer buttons remain within the viewport and Escape dismisses the Sheet.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/reports_filter_drawer_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for ReportsFilterDrawer shadcn migration.",
+      "verification_evidence": "Uses a synthetic report-filter fixture, captures open/closed state across light/dark desktop/mobile, checks five advanced Select controls, panel/action bounds, Escape dismissal, and page errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/cohort-kpi-ribbon/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for CohortKPIRibbon in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight screenshots cover loaded and skeleton states at 1440x900 and 390x844 in light/dark themes; audit asserts four Cards, four semantic status Badges when loaded, at least twelve shared Skeletons when loading, no gradient or legacy palette classes, and no horizontal overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/cohort_kpi_ribbon_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for CohortKPIRibbon shadcn migration.",
+      "verification_evidence": "Uses a synthetic cohort summary, captures loaded/loading states across light/dark desktop/mobile, and checks card, badge, skeleton, token, overflow, and browser-error conditions.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/dynamic-chart-widget/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for DynamicChartWidget in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Twelve screenshots cover bar, table, and empty states at 1440x900 and 390x844 in light/dark themes. Playwright checks semantic state, viewport width, legacy palette classes, and fullscreen dialog bounds and Escape dismissal.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/dynamic_chart_widget_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for DynamicChartWidget shadcn migration.",
+      "verification_evidence": "Uses a synthetic cohort chart, captures bar/table/empty states in light/dark desktop/mobile, verifies no horizontal overflow, and checks fullscreen dialog bounds and Escape dismissal.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/secretary-minutes-dialog/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Partial visual evidence for SecretaryMinutesDocumentSheet in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four screenshots show the Secretary signature dialog at 1440x900 and 390x844 in light/dark. Playwright verifies dialog bounds, labeled name input, mobile viewport width, and Escape dismissal; no signature is applied.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/secretary_minutes_dialog_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop for the partial SecretaryMinutesDocumentSheet signature-dialog migration.",
+      "verification_evidence": "Mounts a synthetic defense-minutes fixture, captures the dialog in light/dark desktop/mobile, and tests responsive bounds, Escape dismissal, and return to the editor without signing.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/secretary-minutes-editor/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for SecretaryMinutesDocumentSheet in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four captures cover the complete editor at 1440x900 and 390x844 in light/dark; two print-media captures verify the three-sheet white-paper form, print twins, and hidden controls. Playwright checks viewport overflow and 44px mobile field targets.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/secretary_minutes_editor_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop required for SecretaryMinutesDocumentSheet shadcn refactor.",
+      "verification_evidence": "Mounts synthetic saved minutes without API or signature mutations, exercises add-proponent and add-panel-row actions, captures light/dark desktop/mobile and print media, and asserts no overflow, styled fields, preserved print content, and hidden controls.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-annotation-viewer.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "AnnotationViewer focused tests pass 3/3; scoped ESLint and Prettier pass; eight Playwright light/dark desktop/mobile captures verify collapsed/expanded states. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-chapter-card.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ChapterCard focused tests pass 5/5; scoped ESLint/Prettier pass; sixteen Playwright captures cover approved/new/revision/late-closed states in light/dark desktop/mobile. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-chapter-review-panel.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "ChapterReviewPanel and Capstone1/Capstone3 consumer suites pass 25/25; scoped ESLint/Prettier pass; eight Playwright captures verify review and unsent revision states in light/dark desktop/mobile with measured 44px mobile controls. No review action was submitted.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/compile-proposal-modal/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for CompileProposalModal in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Sixteen captures cover compile/revision empty and file-selected states at light/dark 1440x900 and 390x844. Focused form tests pass; the synthetic file was not uploaded.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/compile_proposal_modal_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop for CompileProposalModal shadcn migration.",
+      "verification_evidence": "Runs compile/revision modal states at light/dark desktop/mobile and checks selected-file readiness, mobile controls, bounds, Escape handling, and browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/evaluation-workspace/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for EvaluationWorkspace in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four captures cover the initial workspace at light/dark 1440x900 and 390x844. Playwright exercises mobile panes, layer filtering, opacity sliders, rubric/ADM/source tabs, 44px mobile actions, and print appendix visibility. No screen-state browser errors occurred.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/evaluation_workspace_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Playwright visual feedback loop for EvaluationWorkspace shadcn migration.",
+      "verification_evidence": "Uses a local synthetic manuscript PDF and inert callback handlers to verify interactive themes, viewports, mobile pane persistence, opacity controls, and print visibility without workflow mutations.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-submission-modal-evaluation-workspace.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "CompileProposalModal and EvaluationWorkspace focused tests pass 13/13; scoped lint/format pass; twenty responsive theme captures verify both components and interactions. Full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/final-paper-upload/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for FinalPaperUpload in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eighteen synthetic captures cover due, overdue, locked, late-closed, and selected-file states at light/dark desktop/mobile; no browser errors or institutional mutation.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/final_paper_upload_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Required Playwright visual feedback loop for FinalPaperUpload shadcn migration.",
+      "verification_evidence": "Exercises four workflow states at light/dark desktop/mobile, accepted-file selection, late-justification gating, target size, bounds, and browser errors using inert callbacks.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-final-paper-upload.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "FinalPaperUpload now uses shared shadcn alerts, labels, textarea, button, and semantic status tokens; PDF type/size validation and late-justification gating are tested. FinalPaperUpload/ProjectSubmissionsPage focused tests pass 15/15; scoped lint/format pass; visual audit covers due/overdue/locked/late-closed at light/dark desktop/mobile plus selected-file states. Inventory: 155/278 source-updated, 5 reviewed-no-ui, 118 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/originality-badge/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for OriginalityBadge in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four light/dark desktop/mobile captures cover five queued, processing, high/moderate score, and failed states without overflow or browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/originality_badge_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Required Playwright visual feedback loop for OriginalityBadge shadcn migration.",
+      "verification_evidence": "Captures both themes at 1440x900 and 390x844, verifies all five live status states, viewport bounds, expected theme, and zero browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-originality-badge.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "OriginalityBadge now uses the shared Spinner and Badge variants with accessible live status updates; score thresholds remain unchanged. Focused tests pass 6/6, scoped ESLint/Prettier pass, and four light/dark desktop/mobile captures cover queued, processing, high/moderate, and failed states. Alongside the completed FinalPaperUpload slice, inventory: 156/278 source-updated, 5 reviewed-no-ui, 117 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/pdf-viewer-workspace/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for PdfViewerWorkspace, TurnitinHighlightOverlay, and tokenized source overlays in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight captures cover comment/plagiarism popup tabs and a loaded sample PDF/source rectangle at light/dark desktop/mobile; audit verifies rendered chart color, 44px mobile controls, viewport bounds, and zero browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/pdf_viewer_workspace_visual_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for PDF annotation workspace changes.",
+      "verification_evidence": "Loads the sample PDF, verifies the chart-token source overlay, popup tab interaction, theme, viewport bounds, mobile action targets, and browser errors at both themes and viewport sizes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-pdf-annotation-workspace.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "PdfViewerWorkspace now wraps annotation details in shared Card and Button/Input primitives, uses semantic status tokens and Spinner/Alert states, and keeps PDF/highlight geometry intact. Turnitin source overlays and the ten-source palette use shared theme chart tokens. Focused PDF/overlay/palette suites pass 30/30; lint/format pass; eight Playwright captures cover comment and plagiarism tabs with the sample PDF at light/dark desktop/mobile. Inventory: 160/278 source-updated, 5 reviewed-no-ui, 113 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-plagiarism-checker.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim execution record for PlagiarismChecker shared UI migration; focused tests pass 12/12 and light/dark desktop/mobile Playwright captures were inspected. The repository-wide UI refactor remains in progress.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-plagiarism-report.json",
+      "category": "agent-governance-and-memory",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and the active PTSS refactor checkpoint",
+      "verification_evidence": "Interim submission UI refactor record covering the checker, originality report, status badge, upload modal, and version history/comparison; focused suites pass 38/38 and twenty inspected light/dark desktop/mobile captures cover active surfaces and unmounted inventory components.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/plagiarism-report/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for the relevant client submission component in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected light/dark desktop/mobile captures show the completed synthetic originality report with no overflow or browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/plagiarism_report_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for the relevant client submission component in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Bounded, read-only Playwright component harness verifies completed report render and viewport bounds; no service mutation.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/upload-chapter-modal/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for the relevant client submission component in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected light/dark desktop/mobile captures show the late-justification gate and selected synthetic files; no viewport overflow, browser errors, or API mutation.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/upload_chapter_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for the relevant client submission component in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Read-only Playwright audit asserts dialog heading, late gate, selected file states, viewport bounds, and zero API mutations.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/version-history/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for VersionHistory and VersionCompare in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected light/dark desktop/mobile captures cover the real saved metadata list and selected-version comparison dialog; no component/document overflow or local application errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/version_history_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for VersionHistory and VersionCompare in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Read-only Playwright audit injects synthetic version records, checks list and comparison rendering/overflow, and blocks API mutations. Known third-party GSI-origin 403 is excluded from app error assertions.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/create-academic-node/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for CreateAcademicNodeDialog in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected light/dark desktop/mobile captures verify the selected section form, Radix tabs/selects, canonical preview, and viewport bounds; no browser errors or API mutations.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/create_academic_node_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for CreateAcademicNodeDialog UI changes.",
+      "verification_evidence": "Read-only Playwright audit covers light/dark at 1440x900 and 390x844; it switches all tabs, selects synthetic course/year values, checks the section preview and viewport bounds, and fails on mutation requests.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-users-academic-node.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "CreateAcademicNodeDialog uses shared shadcn surfaces while preserving academic-node payloads; focused tests pass 4/4, scoped lint/format pass, and four inspected light/dark desktop/mobile captures show no overflow, browser errors, or API mutations. Inventory: 167/278 source-updated, 5 reviewed-no-ui, 106 pending; the full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/tag-input/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for TagInput in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected light/dark desktop/mobile captures cover suggestion and selected-tag states; mobile option and removal controls meet 44px, and no overflow, browser errors, or API mutation occurred.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/tag_input_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for TagInput UI changes.",
+      "verification_evidence": "Read-only Playwright audit covers light/dark at 1440x900 and 390x844, exercises suggestion selection, verifies touch target dimensions after entrance motion, and blocks API mutations.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-tag-input.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "TagInput now composes shared shadcn primitives and an accessible Radix Popover listbox; focused tests pass 5/5, scoped lint/format pass, and eight inspected light/dark desktop/mobile captures show accessible controls, no overflow, no browser errors, and mobile touch targets at least 44px. Inventory: 168/278 source-updated, 5 reviewed-no-ui, 105 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/route-error-boundary/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for RouteErrorBoundary in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected light/dark desktop/mobile captures cover default and expanded development error details; recovery buttons meet 44px on mobile, with no viewport overflow or local browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/route_error_boundary_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for RouteErrorBoundary changes.",
+      "verification_evidence": "Read-only Playwright audit exercises the route error boundary using a synthetic caught exception, checks recovery controls and details disclosure across light/dark desktop/mobile, and measures viewport bounds and mobile targets.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-route-error-boundary.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "The global route error surface uses shared Card, destructive Alert, and Button components while preserving fallback behavior. Tests pass 2/2, scoped lint/format pass, and eight inspected light/dark desktop/mobile captures show no overflow or browser errors; mobile recovery actions meet 44px. Inventory: 169/278 source-updated, 5 reviewed-no-ui, 104 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/signature-pad/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for SignaturePad in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected captures cover typed and draw states in light/dark desktop/mobile; mobile targets meet 44px, typed signature fits the canvas, and no overflow, browser errors, or API mutations occurred.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/signature_pad_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for SignaturePad changes.",
+      "verification_evidence": "Read-only Playwright audit checks themed draw/typed states, mobile target sizes, viewport bounds, and API mutation absence.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-signature-pad.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "SignaturePad migration tests pass 5/5; eight inspected captures verify light/dark desktop/mobile and 44px targets; inventory is 170/278 source-updated, 5 reviewed-no-ui, and 103 pending; refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/label/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for Label in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected light/dark desktop/mobile captures verify the associated field and viewport bounds without browser errors.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/label_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for Label styling changes.",
+      "verification_evidence": "Read-only Playwright audit checks semantic label association and viewport bounds in light/dark desktop/mobile.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-label.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Label focused test passes 1/1; four inspected captures pass. Four core hooks are audited as non-presentational data/state modules. Inventory is 171/278 source-updated, 9 reviewed-no-ui, and 98 pending; refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/reports-page-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ReportsPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Six inspected light/dark desktop/mobile captures cover report tables and the page-size menu; no overflow or browser errors occurred and no non-GET API requests were attempted.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/reports_page_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for ReportsPage UI migration.",
+      "verification_evidence": "Synthetic-data audit verifies table presence, accessible page-size selection, mobile menu bounds, desktop/mobile viewport width, and blocks all API writes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-reports-page.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "ReportsPage tests pass 14/14; scoped lint/format pass; six visual captures inspected; inventory is 172/278 source-updated, 9 reviewed-no-ui, and 97 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/projects-page-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ProjectsPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Six inspected light/dark desktop/mobile captures include open mobile status menus; 44px mobile controls, viewport bounds, and browser health pass.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/projects_page_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for ProjectsPage UI migration.",
+      "verification_evidence": "Synthetic-data audit verifies category/status controls, desktop/mobile bounds, mobile Select menu bounds, touch target size, and blocks all API writes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-projects-page.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "ProjectsPage tests pass 5/5; scoped lint/format pass; six inspected Playwright captures pass. Inventory is 173/278 source-updated, 9 reviewed-no-ui, and 96 pending; full refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/audit-log-page-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for AuditLogPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Ten inspected light/dark desktop/mobile captures include mobile entity menus and payload dialogs; 44px targets and viewport bounds pass.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/audit_log_page_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for Activity Log UI migration.",
+      "verification_evidence": "Synthetic-data audit blocks all writes and verifies responsive log cards, entity selector, dialog bounds, browser health, and touch target sizes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-audit-log-page.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "AuditLogPage tests pass 6/6; scoped lint/format pass; ten inspected Playwright captures pass. Inventory is 174/278 source-updated, 9 reviewed-no-ui, and 95 pending; refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/certificate-page-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for CertificatePage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Eight inspected light/dark desktop/mobile captures cover content-shaped loading and uploaded certificate states; 44px actions and viewport bounds pass.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/certificate_page_shadcn_audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for CertificatePage UI migration.",
+      "verification_evidence": "Synthetic certificate audit blocks all writes and verifies loading/loaded page states, viewport bounds, touch targets, and browser health.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-certificate-page.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "CertificatePage tests pass 4/4; lint/format pass; eight inspected visual captures pass. Inventory is 175/278 source-updated, 9 reviewed-no-ui, and 94 pending; refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-evaluation-team-review.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "EvaluationTemplateBuilderPage and TeamReviewWorkflowPage focused tests pass 7/7; scoped lint/format pass; 22 inspected theme/viewport captures pass. Inventory is 177/278 source-updated, 9 reviewed-no-ui, and 92 pending; refactor remains active.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/team-review-workflow-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for TeamReviewWorkflowPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Twelve inspected light/dark desktop/mobile captures cover loading, populated queue, and refresh-error states; no overflow, browser exceptions, or API writes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/evaluation-template-builder-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for EvaluationTemplateBuilderPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Ten inspected light/dark desktop/mobile captures cover loaded states, phase menu, and archive dialogs; mobile touch targets meet 44px and no writes occur.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/team_review_workflow_shadcn_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for TeamReviewWorkflowPage UI migration.",
+      "verification_evidence": "Audit checks loading, populated queue, and refresh errors across both themes and desktop/mobile, blocks non-GET API requests, measures touch targets and viewport bounds, and closes browser under watchdog.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/adviser/TeamReviewWorkflowPage.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Focused regression coverage for TeamReviewWorkflowPage behavior.",
+      "verification_evidence": "Focused page test passes 3/3 for loading, workload metrics and destinations, and retry behavior.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/archive/ArchiveRouteWrappers.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Focused regression coverage for archive route wrappers reviewed as non-presentational.",
+      "verification_evidence": "Focused ArchiveRouteWrappers.test.jsx suite passes 3/3, covering both legacy upload redirects and canonical reader project handoff.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/archive-search-page-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ArchiveSearchPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Twenty-four inspected light/dark desktop/mobile captures cover loaded, loading, empty, error, citation dialog, filter sheet, and custom range states; responsive bounds, Vite health, and mobile targets pass.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/archive_search_page_shadcn_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for ArchiveSearchPage UI migration.",
+      "verification_evidence": "Audit uses synthetic archive records, blocks writes, waits for Radix transitions, and verifies light/dark desktop/mobile query, empty, error, citation, and filter flows under a 110-second watchdog.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/existing-capstone-upload-shadcn/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence for ExistingCapstoneUploadPage in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Four inspected light/dark desktop/mobile captures cover initial upload form, accessible year selection, viewport bounds, and measured mobile actions; no API writes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/existing_capstone_upload_shadcn_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for ExistingCapstoneUploadPage UI migration.",
+      "verification_evidence": "Audit blocks non-GET requests, exercises academic-year selection, checks page action targets and viewport bounds across themes/viewports, and uses a 110-second watchdog.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/shadcn_ui_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Required shadcn UI visual verification command in docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "The read-only Playwright route matrix now contains 304 captures across 62 route inputs and 76 complete route-role groups, with all four viewport/theme combinations per group. It includes synthetic role gates, query preservation, wildcard not-found, valid local PDF delivery, GET-only fixtures, non-GET blocking, and zero page errors or overflow. This verifies route-level responsive rendering; nested interaction states remain tracked separately.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/responsive_layout_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Required route/role/theme/viewport visual audit in docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "The read-only Playwright route matrix now contains 304 captures across 62 route inputs and 76 complete route-role groups, with all four viewport/theme combinations per group. It includes synthetic role gates, query preservation, wildcard not-found, valid local PDF delivery, GET-only fixtures, non-GET blocking, and zero page errors or overflow. This verifies route-level responsive rendering; nested interaction states remain tracked separately.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/compare_ui_bundle.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Bundle baseline/current comparison required by the shadcn refactor plan.",
+      "verification_evidence": "Measures initial static JavaScript and CSS transfer gzip sizes from the committed HEAD proxy build and current production build. HEAD baseline a03f829: 467188 bytes initial JS gzip; current: 470346 bytes (+0.68%). Current CSS gzip is 51788 bytes versus 61866 at HEAD (-16.3%). Current-build login interaction medians are in scratch/performance-baseline/current-login-runtime.json. The exact pre-edit dirty-tree baseline remains unavailable; the HEAD proxy runtime currently crashes before render on PDF.js global initialization and cannot supply an interaction timing comparator.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/responsive-layout/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Responsive Playwright evidence for migrated application routes in docs/specs/shadcn-ui-migration-inventory.json.",
+      "verification_evidence": "Read-only Playwright output contains 304 route/role/theme/viewport captures across 62 route inputs and 76 route-role groups, each covered at 1440x900 and 390x844 in light/dark themes, plus 118 supplemental states (422 total). Route captures report zero page errors and viewport overflow; there are no missing viewport/theme combinations in the audited groups. The harness preserves query strings, uses synthetic responses, blocks non-GET API requests, and serves a valid local PDF fixture for submission views. Representative captures were visually inspected. The full per-interaction matrix remains open; no institutional workflow writes were submitted.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/live-seeded-dashboard/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Seeded-role dashboard verification required by docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "Sanitized Playwright results for instructor, faculty, and student: all three reached /dashboard with one main landmark and one visible heading, zero page errors, zero failed API requests/responses, and no viewport overflow. Credentials and token values are excluded; no academic workflow mutations were submitted. The client container used a temporary runtime-only host-gateway alias to reach the existing host API.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/shadcn-ui-component-and-token-guide.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md",
+      "verification_evidence": "Documents shared shadcn composition, semantic theme tokens, specialist boundaries and scoped paper-ui palette for functional controls on fixed white institutional sheets. See the current verification report for production route contrast evidence.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/pages/dev/ShadcnComponentShowcase.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Development-only component showcase required by docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "The route is registered only in development mode and uses inert local workflow fixtures. Focused showcase and autosizing-textarea tests pass 9/9. Seventy-six Playwright states cover foundations, forms, keyboard focus, open select/dropdown overlays, a synthetic DOCX comment-popover CSS fixture, and representative ADM, autosizing note, consultation, presentation toolbar, and slide surfaces across light/dark desktop/mobile with zero page errors or horizontal overflow; results and screenshots are under scratch/qa-evidence/shadcn-component-showcase/.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/shadcn-document-editor/results.json",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Route-integrated visual verification for GoogleDocViewer and DocumentEditorPage in the Luna 6 shadcn refactor.",
+      "verification_evidence": "Eight Playwright screenshots cover embedded and fullscreen editor states at light/dark 1440x900 and 390x844. Synthetic read-only API and iframe responses verify actual route chrome with zero page errors or horizontal overflow; no real document was accessed and no workflow mutation was submitted.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/shadcn-ui-implementation-verification.md",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "As of 25 October 2026, the complete current-source client suite passes all 174 files and 1,029 tests across sixteen isolated shards, with no failures, pending cases, duplicate files or missing files. Independent verification recomputed the client/server source fingerprints; the longest client shard is 72.942 seconds. The required server workflow passes 13/13 in 51.957 seconds. Root lint (798 files/0 errors/505 warnings), bounded production build, endpoint parity, agentic/governance, evidence and guardrail checks pass. The catalog contains 536 unique existing PNGs. The stopped development client was restored: login HTTP 200, 53 direct dependencies match the lockfile and Vite is 8.3.5. Exhaustive current-source visual/interaction verification, live rendered/runtime checks and the user-retained exact pre-refactor performance baseline remain open.",
+      "retirement_or_quarantine_reason": null,
+      "live_visual_checkpoint": "Live Vite checkpoint: eight bounded batches captured 192 states across 48 route inputs. Six batches passed automated checks; batches 4 and 6 remain flagged for Socket.IO HTTP 400. Top contact sheets for batches 1-3 were inspected; desktop dashboard captures include loading skeletons, so body readiness cannot establish loaded-state acceptance. Batches 9-11, deterministic loaded-state readiness, realtime diagnosis and exhaustive interactions remain open. These fresh captures stay separate from the existing 536-file catalog. Exact performance baseline remains open at the user’s request.",
+      "loaded_state_follow_up": "Loaded-state diagnostic follow-up: revised audit captures a fully loaded instructor dashboard (desktop light image inspected), but its batch remains flagged for Socket.IO Session ID unknown. Batch 11 passes all eight theme/viewport captures. Batches 9 and 10 terminate with 12 captures each; the document-editor diagnostic shows an empty synthetic API response leaves only the Back control, rather than a persistent skeleton. Batch 10 also records invalid PDF structure from a fixture response. Fix fixture contracts and verify document-reader contract before retrying. No product code changed; full test fingerprints remain valid. Exact baseline stays open.",
+      "fixture_repair_checkpoint": "25 October fixture repair: deterministic manuscript open-link responses and a valid generated one-page PDF replace empty/JSON document fixtures. PDF.js independently parses the PDF and its expected text. Batch 9 passes 24 captures; batch 10 completes 24 with only Socket.IO Session ID unknown remaining. A focused editor rerun passes all four theme/viewport modes after giving the synthetic iframe a white paper surface. Its dark-mobile image, batch 9 contact sheet and a submission-review image were inspected. Reader PDF completion/metadata fixture parity and canonical read-only Google-document presentation still need stronger verification. The local cms-server container is exited; the client proxy targets server:43210. No server restart or workflow writes occurred. Product sources remain unchanged; exact baseline remains open."
+    },
+    {
+      "path": "scratch/loading_feedback_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Mandatory Playwright visual feedback loop for route loading and progress UI in the Luna 6 refactor.",
+      "verification_evidence": "Captures the route skeleton and top progress bar in light/dark desktop/mobile with synthetic GET-only API fixtures, a delayed lazy route, zero page errors, zero horizontal overflow, and a 110-second watchdog with browser cleanup.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/loading-feedback/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual evidence from scratch/loading_feedback_audit.mjs for route loading states.",
+      "verification_evidence": "Four captures cover the form skeleton and top progress indicator at 1440x900 and 390x844 in light/dark; all show loading, zero page errors, and no horizontal overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-23_shadcn-ui-final-audit.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Dual-persistence session memory requirements in AGENTS.md and docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "Records the current 196/278 UI migration census, final client/server checks, seeded-role read-only dashboard access, four loading-state visual captures, and the remaining interaction/performance acceptance work.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-24_shadcn-spinner-consistency.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Dual-persistence session memory requirements in AGENTS.md and docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "Records the SubmissionDetailPage shared Spinner migration, 16/16 focused tests, scoped ESLint, successful 1m49s production build, and the localhost Playwright denial that leaves this slice visually unverified. Full refactor remains in progress.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/tasks/shadcn-full-ui-refactor.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Durable checkpoint requirements in AGENTS.md and the Luna 6 implementation plan.",
+      "verification_evidence": "Checkpoint records 222 completed subgoals, the active P11 acceptance stage, one remaining coverage/performance subgoal, and a positive progress delta after closing client/server test gates.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/shadcn_performance_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Performance comparison and runtime verification required by the Luna 6 UI refactor plan.",
+      "verification_evidence": "Runs bounded Playwright checks against production build artifacts with local static servers, five-sample login interaction timings, and synthetic read-only archive-viewer route verification. Uses a 110-second watchdog and closes browser and servers in finally. HEAD-proxy runtime currently fails on PDF.js initialization; current build passes after entry-point worker registration.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/performance-baseline/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Runtime and interaction performance evidence generated by scratch/shadcn_performance_audit.mjs.",
+      "verification_evidence": "The current production build transforms 4,857 modules in 100.1 seconds. current-login-runtime.json records five fresh samples (median usable state 1,123 ms, FCP 700 ms, password toggle 8.6 ms, zero page errors); production-viewer-smoke.json verifies the synthetic read-only archive-document route (1,219 ms usable, 752 ms FCP, zero page errors). The exact pre-edit dirty-tree comparator remains unavailable.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/auth-interaction-state-audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Light/dark, desktop/mobile, and interactive-state visual requirements in the Luna 6 UI refactor plan.",
+      "verification_evidence": "Captures login hover, focus, and invalid-field states, verifies password reveal, zero overflow and page errors, and asserts validation-text contrast >=4.5:1. Four state combinations passed at 1440x900 and 390x844; results and screenshots are in scratch/qa-evidence/auth-interaction-states/.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/register_step_focus_visual_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Keyboard focus visibility and four-state visual requirements in the Luna 6 UI refactor plan.",
+      "verification_evidence": "Exercises the registration step transition with synthetic names only, verifies focus and computed theme-token ring, and asserts no non-GET API requests, browser errors, or horizontal overflow. Four states passed at 1440x900 and 390x844 in light/dark; results and inspected screenshots are in scratch/qa-evidence/register-step-focus/.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/register-step-focus/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Rendered registration focus evidence generated by scratch/register_step_focus_visual_audit.mjs.",
+      "verification_evidence": "Four inspected Playwright screenshots show the Account Credentials step heading's visible focus ring in light/dark at desktop/mobile. results.json records no horizontal overflow, browser errors, or non-GET API requests; no registration form was submitted.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/dashboard_layout_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Keyboard navigation visibility and theme/viewport verification requirements in the Luna 6 UI refactor plan.",
+      "verification_evidence": "Exercises expanded desktop, collapsed desktop, and mobile Sheet sidebar navigation with synthetic GET-only instructor fixtures. Six light/dark states passed at 1440x900 and 390x844; verifies accessible names, focus-visible ring, Escape/focus restoration, no page errors, and no overflow. Screenshots and focus-states.json are in scratch/qa-evidence/dashboard-layout/.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/dashboard-layout/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Rendered sidebar focus evidence generated by scratch/dashboard_layout_audit.mjs.",
+      "verification_evidence": "Six inspected screenshots cover expanded/collapsed desktop and mobile Sheet navigation in light/dark. focus-states.json records visible theme-aware rings, no page errors, and no overflow; the audit submits no workflow writes.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/shadcn-loading-state-audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Startup loader and responsive loading-state requirements in the Luna 6 UI refactor plan.",
+      "verification_evidence": "Uses delayed synthetic GET-only API fixtures against the local app, captures session initialization in light/dark at 1440x900 and 390x844, then verifies the instructor dashboard becomes available. Four inspected states passed with no browser/page errors or horizontal overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/loading-states/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Rendered session-initialization evidence generated by scratch/shadcn-loading-state-audit.mjs.",
+      "verification_evidence": "Four inspected screenshots cover the actual application startup loader in light/dark at desktop/mobile. results.json records successful dashboard arrival, GET-only API methods, no page errors, and no overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/auth-interaction-states/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Focused login interaction evidence generated by scratch/auth-interaction-state-audit.mjs.",
+      "verification_evidence": "Twelve inspected Playwright screenshots cover hover, focus, and invalid fields in light/dark at desktop/mobile. results.json records 6.96:1 light and 6.61:1 dark validation text contrast, successful password reveal, and zero page errors or horizontal overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/shadcn-component-showcase/results.json",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Light/dark desktop/mobile and representative interaction-state visual requirements in docs/specs/shadcn-full-ui-refactor-luna-6-plan.md.",
+      "verification_evidence": "Seventy-six Playwright captures cover shared component states including keyboard focus, open select/dropdown menus, a synthetic DOCX comment-popover CSS fixture, and local-fixture workflow surfaces. The audit verifies theme, document and main-content overflow, and page errors across 1440x900 and 390x844 in light and dark; all captured states pass.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/my_project_empty_state_visual_audit.mjs",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Route-level visual coverage for MyProjectPage no-project states; read-only synthetic GET fixtures only.",
+      "verification_evidence": "The bounded Playwright audit passes 8/8 /my-project route states: no-team and locked-team-with-draft in light/dark at desktop/mobile. It intercepts synthetic GET requests only; zero browser errors or overflow and no workflow writes. Results and inspected screenshots are under scratch/qa-evidence/my-project-empty-state/.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/my-project-empty-state/results.json",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Visual verification of MyProjectPage empty and proposal-draft route states across theme and viewport variants.",
+      "verification_evidence": "Eight inspected Playwright captures cover no-team and locked-team-with-draft states in light/dark at 1440x900 and 390x844. Synthetic GET fixtures only; all states pass with no page errors or horizontal overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "client/src/components/ui/Dialog.test.jsx",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md, P10-P11",
+      "verification_evidence": "Dialog.test.jsx passes 1/1 and asserts that the shared Dialog centering hook is independent of zoom-animation transforms. Seven isolated shared-dialog consumer suites pass 50/50.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/live-minutes-capability-audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-ui-migration-inventory.json, LiveDefenseMinutesModal.jsx",
+      "verification_evidence": "Reproducible actual-component Playwright fixture captures five appointment capabilities in light/dark at desktop/mobile and checks dialog viewport bounds during animation. No workflow mutations.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/adm-tableview-component-audit.mjs",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-ui-migration-inventory.json, ADMTableView.jsx",
+      "verification_evidence": "Reproducible actual-component Playwright fixture verifies paper contrast, keyboard-focusable horizontal scrolling, and last-column reachability across theme/viewport states.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/standalone-ui-audit/adm-table-entry.jsx",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "scratch/adm-tableview-component-audit.mjs",
+      "verification_evidence": "Synthetic read-only React entry used to mount the actual ADMTableView with production CSS.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/live-minutes-capabilities/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "client/src/components/defense/LiveDefenseMinutesModal.jsx and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Twenty inspected actual-component Playwright screenshots cover five capability states, both themes, and desktop/mobile; dialog bounds stay within viewport during zoom animation, with no page errors or document overflow.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/qa-evidence/adm-tableview-component/",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "client/src/components/projects/adm/ADMTableView.jsx and docs/specs/shadcn-ui-migration-inventory.json",
+      "verification_evidence": "Eight inspected actual-component Playwright screenshots cover both themes and viewports at the start/end of the accessible horizontal table scroller. Paper helper contrast is 5.66:1; last column is reachable.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-25_shadcn-adm-component-visual.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and .agents/ptss/tasks/shadcn-full-ui-refactor.json",
+      "verification_evidence": "Session records the ADM actual-component visual audit and remaining route/session and interaction-matrix gaps.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-25_shadcn-dialog-centering.json",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md and .agents/ptss/tasks/shadcn-full-ui-refactor.json",
+      "verification_evidence": "Records the shared Dialog positioning correction, bounded role/theme/viewport screenshots, 50 isolated consumer tests, and open route/session/interaction matrix gates.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "scratch/responsive-layout/inventory-visual-manifest.json",
+      "category": "generated-artifact",
+      "status": "generated",
+      "governing_requirement_or_replacement": "docs/specs/shadcn-ui-migration-inventory.json and docs/specs/shadcn-ui-implementation-verification.md",
+      "verification_evidence": "Current visual matrix contains 304 route-integrated states and 146 supplemental component states (450 total), including 20 actual defense-minutes role/theme/viewport captures that verify dialog bounds during zoom animation and eight actual ADM table captures at both scroller endpoints.",
       "retirement_or_quarantine_reason": null
     }
   ]

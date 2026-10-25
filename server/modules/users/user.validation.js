@@ -69,10 +69,32 @@ export const updateProfileSchema = z.object({
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must not exceed 50 characters')
     .optional(),
-  profilePicture: z.string().nullable().optional(),
-  digitalSignature: z.string().nullable().optional(),
-  sectionId: z.string().nullable().optional(),
-  instructorId: z.string().nullable().optional(),
+  profilePicture: z
+    .string()
+    .trim()
+    .max(2048, 'Profile picture URL/key must not exceed 2048 characters')
+    .refine((val) => val === '' || /^avatars\/[a-f\d]{24}\/[a-zA-Z0-9._-]+$/.test(val), {
+      message: 'Profile picture must be a valid user avatar storage key',
+    })
+    .nullable()
+    .optional(),
+  digitalSignature: z
+    .string()
+    .max(250000, 'Digital signature payload exceeds maximum allowed size')
+    .nullable()
+    .optional(),
+  sectionId: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId format')
+    .nullable()
+    .optional(),
+  instructorId: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid instructorId format')
+    .nullable()
+    .optional(),
   studentId: z.string().trim().max(32, 'Student ID must not exceed 32 characters').optional(),
   academicTerm: z.enum(ACADEMIC_TERM_VALUES).nullable().optional(),
 });

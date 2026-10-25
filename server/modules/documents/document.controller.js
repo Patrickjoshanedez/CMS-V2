@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { MetadataExtractionFeedback } from './document.model.js';
 
 const OCR_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_OCR_CACHE_ENTRIES = 200;
 const ocrExtractionCache = new Map();
 
 const buildPdfCacheKey = (fileBuffer, originalName = '') => {
@@ -30,9 +31,23 @@ const getCachedOcrResult = (cacheKey) => {
 };
 
 const setCachedOcrResult = (cacheKey, result) => {
+  const now = Date.now();
+  if (ocrExtractionCache.size >= MAX_OCR_CACHE_ENTRIES) {
+    for (const [key, entry] of ocrExtractionCache.entries()) {
+      if (now >= entry.expiresAt) {
+        ocrExtractionCache.delete(key);
+      }
+    }
+    if (ocrExtractionCache.size >= MAX_OCR_CACHE_ENTRIES) {
+      const oldestKey = ocrExtractionCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        ocrExtractionCache.delete(oldestKey);
+      }
+    }
+  }
   ocrExtractionCache.set(cacheKey, {
     result,
-    expiresAt: Date.now() + OCR_CACHE_TTL_MS,
+    expiresAt: now + OCR_CACHE_TTL_MS,
   });
 };
 
@@ -247,7 +262,12 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
       const cached = await redis.get(`extraction:job:${jobId}`);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.userId && requesterId && parsed.userId.toString() !== requesterId && !isPrivileged) {
+        if (
+          parsed.userId &&
+          requesterId &&
+          parsed.userId.toString() !== requesterId &&
+          !isPrivileged
+        ) {
           return res.status(HTTP_STATUS.FORBIDDEN).json({
             success: false,
             message: 'You do not have permission to view this extraction job.',
@@ -264,7 +284,12 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
   if (queue) {
     const job = await queue.getJob(jobId);
     if (job) {
-      if (job.data?.userId && requesterId && job.data.userId.toString() !== requesterId && !isPrivileged) {
+      if (
+        job.data?.userId &&
+        requesterId &&
+        job.data.userId.toString() !== requesterId &&
+        !isPrivileged
+      ) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'You do not have permission to view this extraction job.',

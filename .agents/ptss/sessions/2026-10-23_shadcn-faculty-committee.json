@@ -1,0 +1,25 @@
+{
+  "session_id": "2026-10-23_shadcn-faculty-committee",
+  "timestamp": "2026-10-23T04:51:00+08:00",
+  "status": "complete",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Continue the full CMS-V2 shadcn/ui refactor according to the Luna 6 plan while preserving institutional workflows.",
+  "changes": [
+    "Migrated FacultyCommitteeCard workload and committee status badges to semantic shared variants, replaced the roster raw copy button with a shared Button and accessible name, exposed removal controls on touch, and normalized repeated Team prefixes.",
+    "Reviewed admWorkflow.js as a non-presentational workflow utility; its semantic output is rendered by ActionDoneMatrixSection through shared Badge variants."
+  ],
+  "verification": {
+    "tests": "FacultyCommitteeCard.test.jsx and admWorkflow.test.js passed 14/14.",
+    "lint_and_format": "Scoped ESLint and Prettier passed.",
+    "visual_evidence": "Four synthetic Playwright captures in scratch/qa-evidence/faculty-committee/ cover light/dark at 1440x900 and 390x844; no horizontal overflow, Vite overlay, or browser page errors.",
+    "build": "Not run in this slice; the client Vite module transform was exercised by Playwright and Vitest."
+  },
+  "workflow_safety": "Visual audit used synthetic in-memory project and faculty-list data, intercepted the faculty lookup, and did not invoke assignment/removal actions. The user browser dashboard remains open.",
+  "inventory": {
+    "source_updated": 132,
+    "reviewed_no_ui": 1,
+    "pending": 145,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

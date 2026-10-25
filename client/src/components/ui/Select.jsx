@@ -52,9 +52,7 @@ const SelectContent = ({ className, children, position = 'popper', ...props }) =
       {...props}
     >
       <SelectScrollUpButton />
-      <SelectPrimitive.Viewport className="p-1">
-        {children}
-      </SelectPrimitive.Viewport>
+      <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
       <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
@@ -87,10 +85,7 @@ const SelectItem = ({ className, children, ...props }) => (
 );
 
 const SelectSeparator = ({ className, ...props }) => (
-  <SelectPrimitive.Separator
-    className={cn('-mx-1 my-1 h-px bg-muted', className)}
-    {...props}
-  />
+  <SelectPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-muted', className)} {...props} />
 );
 
 export {

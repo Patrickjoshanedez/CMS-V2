@@ -9,6 +9,7 @@ import Evaluation from './evaluation.model.js';
 import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToProject } from '../../services/socket.service.js';
+import cacheService from '../../services/cache.service.js';
 import AppError from '../../utils/AppError.js';
 import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 import {
@@ -137,8 +138,9 @@ class EvaluationService {
     const project = await Project.findById(projectId);
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
-    // Verify panelist is assigned to this project
-    const isPanelist = project.panelistIds.some((id) => id.toString() === panelistId.toString());
+    // Verify panelist is assigned to this project across both legacy panelistIds and structured panelists
+    const assignedPanelistIds = getAssignedPanelistIds(project);
+    const isPanelist = assignedPanelistIds.includes(panelistId.toString());
     if (!isPanelist) {
       throw new AppError(
         'You are not assigned as a panelist for this project.',
@@ -155,12 +157,24 @@ class EvaluationService {
 
     if (!evaluation) {
       assertProjectWritable(project);
-      evaluation = await Evaluation.create({
-        projectId,
-        panelistId,
-        defenseType,
-        criteria: this.getDefaultCriteria(defenseType),
-      });
+      try {
+        evaluation = await Evaluation.create({
+          projectId,
+          panelistId,
+          defenseType,
+          criteria: this.getDefaultCriteria(defenseType),
+        });
+      } catch (err) {
+        if (err?.code === 11000) {
+          evaluation = await Evaluation.findOne({
+            projectId,
+            panelistId,
+            defenseType,
+          });
+        } else {
+          throw err;
+        }
+      }
     }
 
     return { evaluation };
@@ -419,11 +433,10 @@ class EvaluationService {
     const allEvaluations = await Evaluation.find({ projectId, defenseType });
     const isPassedVerdict =
       allEvaluations.length > 0 &&
-      allEvaluations.every(
-        (e) =>
-          [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
-            String(e.decision || '').toLowerCase(),
-          ),
+      allEvaluations.every((e) =>
+        [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
+          String(e.decision || '').toLowerCase(),
+        ),
       );
 
     if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
@@ -465,6 +478,14 @@ class EvaluationService {
     }
 
     emitToProject(projectId, 'defense:scores_released', { projectId, defenseType });
+    emitToProject(projectId, 'project:updated', { projectId });
+
+    try {
+      await cacheService.del(`project:meta:${projectId}`);
+      await cacheService.del(`project:detail:${projectId}`);
+    } catch {
+      // Non-blocking
+    }
 
     return { releasedCount: result.modifiedCount, isArchived: project.isArchived };
   }
@@ -497,7 +518,7 @@ class EvaluationService {
         project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
         team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
         (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
-      if (!isMember && !project.isArchived) {
+      if (!isMember) {
         throw new AppError(
           'You do not have permission to view evaluations for this project.',
           403,
@@ -585,12 +606,8 @@ class EvaluationService {
         team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
         (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
 
-      if (!isMember && !project?.isArchived) {
-        throw new AppError(
-          'You do not have permission to view this evaluation.',
-          403,
-          'FORBIDDEN',
-        );
+      if (!isMember) {
+        throw new AppError('You do not have permission to view this evaluation.', 403, 'FORBIDDEN');
       }
 
       if (evaluation.status !== EVALUATION_STATUSES.RELEASED) {
@@ -623,7 +640,9 @@ class EvaluationService {
       status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
     }).select('panelistId');
 
-    const submittedPanelistIds = new Set(submittedEvaluations.map((evaluation) => toUserId(evaluation.panelistId)));
+    const submittedPanelistIds = new Set(
+      submittedEvaluations.map((evaluation) => toUserId(evaluation.panelistId)),
+    );
     const allAssignedPanelistsSubmitted = assignedPanelistIds.length
       ? assignedPanelistIds.every((panelistId) => submittedPanelistIds.has(panelistId))
       : submittedEvaluations.length >= 1;
@@ -703,8 +722,7 @@ class EvaluationService {
           ? Math.round((ev.totalScore / ev.maxTotalScore) * 10000) / 100
           : null;
       return {
-        panelistName:
-          `${panelist.firstName || ''} ${panelist.lastName || ''}`.trim() || 'Unknown',
+        panelistName: `${panelist.firstName || ''} ${panelist.lastName || ''}`.trim() || 'Unknown',
         panelRole: assignment?.role || 'member',
         status: ev.status,
         decision: ev.decision,
@@ -727,8 +745,7 @@ class EvaluationService {
       [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED].includes(row.status),
     );
     const avgScore = submittedRows.length
-      ? submittedRows.reduce((sum, row) => sum + (row.totalScore || 0), 0) /
-        submittedRows.length
+      ? submittedRows.reduce((sum, row) => sum + (row.totalScore || 0), 0) / submittedRows.length
       : null;
     const avgMax = submittedRows.length
       ? submittedRows.reduce((sum, row) => sum + (row.maxTotalScore || 100), 0) /

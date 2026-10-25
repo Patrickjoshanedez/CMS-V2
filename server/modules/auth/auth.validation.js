@@ -23,6 +23,12 @@ export const registerSchema = z.object({
     .trim()
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must not exceed 50 characters'),
+  studentId: z
+    .string()
+    .trim()
+    .max(32, 'Student ID must not exceed 32 characters')
+    .optional()
+    .default(''),
   email: z
     .string({ required_error: 'Email is required' })
     .trim()
@@ -103,6 +109,12 @@ export const resetPasswordSchema = z.object({
     .email('Please provide a valid email address')
     .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
+  code: z
+    .string()
+    .trim()
+    .length(6, 'OTP must be exactly 6 digits')
+    .regex(/^\d{6}$/, 'OTP must contain only digits')
+    .optional(),
   newPassword: z
     .string({ required_error: 'New password is required' })
     .min(8, 'Password must be at least 8 characters')

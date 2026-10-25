@@ -7,8 +7,10 @@ import { ROLES } from '@cms/shared';
 
 class DocumentService {
   async uploadManuscript(userId, projectId, payload) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
 
     this._assertCanUpload(user, project);
 
@@ -49,8 +51,10 @@ class DocumentService {
   }
 
   async listProjectManuscripts(userId, projectId, query = {}) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanView(user, project);
 
     const page = Number(query.page) || 1;
@@ -82,12 +86,21 @@ class DocumentService {
   }
 
   async getOpenLink(userId, projectId, documentType) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanView(user, project);
 
     const manuscript = await this._getManuscriptOrFail(projectId, documentType);
     const openLink = this._resolveOpenLink(user, manuscript);
+    if (!openLink) {
+      throw new AppError(
+        'Manuscript link is not available for this document.',
+        404,
+        'MANUSCRIPT_LINK_NOT_FOUND',
+      );
+    }
 
     return {
       manuscript,
@@ -97,12 +110,16 @@ class DocumentService {
   }
 
   async syncPermissions(userId, projectId, documentType) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanManagePermissions(user, project);
 
-    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
-    const permissionSnapshot = await this._syncPermissionsInternal(project);
+    const [manuscript, permissionSnapshot] = await Promise.all([
+      this._getManuscriptOrFail(projectId, documentType),
+      this._syncPermissionsInternal(project),
+    ]);
 
     manuscript.permissionSnapshot = permissionSnapshot;
     await manuscript.save();
@@ -111,8 +128,10 @@ class DocumentService {
   }
 
   async submitReview(userId, projectId, documentType) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanSubmitReview(user, project);
 
     const manuscript = await this._getManuscriptOrFail(projectId, documentType);
@@ -128,8 +147,10 @@ class DocumentService {
   }
 
   async syncComments(userId, projectId, documentType) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanSubmitReview(user, project);
 
     const manuscript = await this._getManuscriptOrFail(projectId, documentType);
@@ -140,8 +161,10 @@ class DocumentService {
   }
 
   async getArchivedComments(userId, projectId, documentType) {
-    const user = await this._getUserOrFail(userId);
-    const project = await this._getProjectOrFail(projectId);
+    const [user, project] = await Promise.all([
+      this._getUserOrFail(userId),
+      this._getProjectOrFail(projectId),
+    ]);
     this._assertCanView(user, project);
 
     const manuscript = await this._getManuscriptOrFail(projectId, documentType);

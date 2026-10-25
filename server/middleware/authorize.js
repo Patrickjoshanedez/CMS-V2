@@ -292,11 +292,11 @@ export const verifyAdmSignatoryRole = () => {
       const milestoneSig = project.admSignaturesByMilestone?.[targetMilestone];
       const isSecretaryEndorsed = Boolean(
         milestoneSig?.secretary?.endorsed ??
-          (targetMilestone === 'CAPSTONE_1' ? project.admSignatures?.secretary?.endorsed : false),
+        (targetMilestone === 'CAPSTONE_1' ? project.admSignatures?.secretary?.endorsed : false),
       );
 
       // 1. Capstone Adviser
-      if (role === 'adviser' || (tier === 1 && req.user.role === ROLES.ADVISER)) {
+      if (role === 'adviser' || (Number(tier) === 1 && req.user.role !== ROLES.INSTRUCTOR)) {
         if (!isSecretaryEndorsed) {
           return next(
             new AppError(
@@ -363,13 +363,14 @@ export const verifyAdmSignatoryRole = () => {
         }
 
         const isChair = Boolean(
+          (project.chairpersonId && project.chairpersonId.toString() === userIdStr) ||
+          String(project.panelistIds?.[0]?._id || project.panelistIds?.[0] || '') === userIdStr ||
           (Array.isArray(project.panelists) &&
             project.panelists.some(
               (p) =>
                 (p.userId?._id || p.userId)?.toString() === userIdStr &&
                 (p.role === PANEL_ROLES.CHAIR || p.role === 'chair'),
-            )) ||
-          (req.user.role === ROLES.FACULTY && req.user.facultyRole === 'chair'),
+            )),
         );
 
         if (!isChair) {
@@ -454,25 +455,25 @@ export const getProjectPermissions = async (userId, targetId) => {
     .populate({
       path: 'teamId',
       select: 'adviserId secretaryId panelistIds members leaderId sectionId',
-      populate: { path: 'sectionId', select: 'createdBy' },
+      populate: { path: 'sectionId', select: 'createdBy instructorId' },
     });
 
   let team = project?.teamId;
   if (!project) {
     team = await Team.findById(targetId).populate({
       path: 'sectionId',
-      select: 'createdBy',
+      select: 'createdBy instructorId',
     });
     if (team) {
       project = await Project.findOne({ teamId: team._id }).select(
-        'panelists panelistIds adviserId secretaryId',
+        'panelists panelistIds adviserId secretaryId chairpersonId memberRoleAssignments',
       );
     }
   }
 
   const adviserIdStr = (project?.adviserId || team?.adviserId)?.toString();
   const secretaryIdStr = (project?.secretaryId || team?.secretaryId)?.toString();
-  const instructorIdStr = team?.sectionId?.createdBy?.toString();
+  const instructorIdStr = (team?.sectionId?.instructorId || team?.sectionId?.createdBy)?.toString();
 
   const isInstructor = Boolean(instructorIdStr && instructorIdStr === userIdStr);
   const isAdviser = Boolean(adviserIdStr && adviserIdStr === userIdStr);
@@ -480,26 +481,41 @@ export const getProjectPermissions = async (userId, targetId) => {
     (secretaryIdStr && secretaryIdStr === userIdStr) ||
     (project?.panelists &&
       project.panelists.some(
-        (p) => p.userId?.toString() === userIdStr && p.role === PANEL_ROLES.SECRETARY,
+        (p) =>
+          (p.userId?._id || p.userId)?.toString() === userIdStr && p.role === PANEL_ROLES.SECRETARY,
       )),
   );
 
   const isChair = Boolean(
-    project?.panelists &&
-    project.panelists.some(
-      (p) => p.userId?.toString() === userIdStr && p.role === PANEL_ROLES.CHAIR,
-    ),
+    (project?.chairpersonId && project.chairpersonId.toString() === userIdStr) ||
+    String(project?.panelistIds?.[0]?._id || project?.panelistIds?.[0] || '') === userIdStr ||
+    (project?.panelists &&
+      project.panelists.some(
+        (p) =>
+          (p.userId?._id || p.userId)?.toString() === userIdStr && p.role === PANEL_ROLES.CHAIR,
+      )),
   );
 
   const isPanelist = Boolean(
     isChair ||
-    isSecretary ||
-    (project?.panelistIds && project.panelistIds.some((id) => id?.toString() === userIdStr)) ||
-    (team?.panelistIds && team.panelistIds.some((id) => id?.toString() === userIdStr)) ||
-    (project?.panelists && project.panelists.some((p) => p.userId?.toString() === userIdStr)),
+    (project?.panelistIds &&
+      project.panelistIds.some((id) => (id?._id || id)?.toString() === userIdStr)) ||
+    (team?.panelistIds &&
+      team.panelistIds.some((id) => (id?._id || id)?.toString() === userIdStr)) ||
+    (project?.panelists &&
+      project.panelists.some(
+        (p) =>
+          p.role !== PANEL_ROLES.SECRETARY && (p.userId?._id || p.userId)?.toString() === userIdStr,
+      )),
   );
 
-  const isMember = Boolean(team?.members && team.members.some((m) => m?.toString() === userIdStr));
+  const isMember = Boolean(
+    (team?.members && team.members.some((m) => (m?._id || m)?.toString() === userIdStr)) ||
+    (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr ||
+    project?.memberRoleAssignments?.some(
+      (m) => (m?.userId?._id || m?.userId)?.toString() === userIdStr,
+    ),
+  );
 
   return {
     isInstructor,

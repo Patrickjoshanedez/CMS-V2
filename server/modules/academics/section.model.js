@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ACADEMIC_TERM_VALUES, CAPSTONE_COURSE_VALUES } from '@cms/shared';
 
 const sectionSchema = new mongoose.Schema(
   {
@@ -27,6 +28,16 @@ const sectionSchema = new mongoose.Schema(
       required: [true, 'Academic year is required'],
       match: [/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'],
     },
+    academicTerm: {
+      type: String,
+      enum: [...ACADEMIC_TERM_VALUES, null],
+      default: '1st Semester',
+    },
+    capstoneCourse: {
+      type: Number,
+      enum: [...CAPSTONE_COURSE_VALUES, null],
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -42,8 +53,11 @@ const sectionSchema = new mongoose.Schema(
   },
 );
 
-sectionSchema.index({ courseId: 1, academicYear: 1, name: 1 }, { unique: true });
-sectionSchema.index({ academicYear: 1, isActive: 1 });
+sectionSchema.index(
+  { courseId: 1, academicYear: 1, academicTerm: 1, name: 1, code: 1 },
+  { unique: true },
+);
+sectionSchema.index({ academicYear: 1, academicTerm: 1, isActive: 1 });
 
 const Section = mongoose.model('Section', sectionSchema);
 

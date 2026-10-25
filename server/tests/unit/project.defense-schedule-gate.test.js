@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import projectTitleService from '../../modules/projects/services/projectTitle.service.js';
 import projectCoreService from '../../modules/projects/services/projectCore.service.js';
+import User from '../../modules/users/user.model.js';
+import Team from '../../modules/teams/team.model.js';
+import Notification from '../../modules/notifications/notification.model.js';
 import { TITLE_STATUSES, ROLES } from '@cms/shared';
 
 vi.mock('../../modules/projects/services/projectCore.service.js', () => ({
@@ -203,6 +206,106 @@ describe('projectTitleService.approveTitle - Pre-Course Topic Approval & State P
         'Proposal Revision Required: Additional panel feedback.',
       );
       expect(mockProject.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('projectTitleService.approveTitle - Post-Proposal Field-Based Adviser Appointment', () => {
+    const validFacultyAdviserId = '65e000000000000000000077';
+    const mockFacultyAdviser = {
+      _id: validFacultyAdviserId,
+      role: ROLES.FACULTY,
+      firstName: 'Dr. Jane',
+      lastName: 'FieldExpert',
+    };
+
+    beforeEach(() => {
+      vi.spyOn(Notification, 'create').mockResolvedValue({});
+    });
+
+    it('assigns field-specific faculty adviser to project and syncs with team upon approval', async () => {
+      mockProject.adviserId = null; // Vacant during proposal phase
+      mockProject.secretaryId = '65e000000000000000000030';
+      mockProject.panelistIds = [
+        '65e000000000000000000040',
+        '65e000000000000000000041',
+        '65e000000000000000000042',
+      ];
+
+      vi.spyOn(User, 'findById').mockResolvedValue(mockFacultyAdviser);
+      const teamUpdateSpy = vi.spyOn(Team, 'findByIdAndUpdate').mockResolvedValue({});
+
+      const result = await projectTitleService.approveTitle(projectId, mockInstructor, {
+        proposalId: 0,
+        adviserId: validFacultyAdviserId,
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.APPROVED);
+      expect(result.project.adviserId).toBe(validFacultyAdviserId);
+      expect(teamUpdateSpy).toHaveBeenCalledWith(mockProject.teamId, {
+        adviserId: validFacultyAdviserId,
+      });
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+
+    it('rejects adviser appointment if assigned user is an instructor', async () => {
+      vi.spyOn(User, 'findById').mockResolvedValue({
+        _id: '65e000000000000000000088',
+        role: ROLES.INSTRUCTOR,
+      });
+
+      await expect(
+        projectTitleService.approveTitle(projectId, mockInstructor, {
+          proposalId: 0,
+          adviserId: '65e000000000000000000088',
+        }),
+      ).rejects.toMatchObject({
+        code: 'INVALID_COMMITTEE_ROLE',
+      });
+      expect(mockProject.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects adviser appointment if user is already the committee secretary', async () => {
+      const secretaryId = '65e000000000000000000030';
+      mockProject.secretaryId = secretaryId;
+
+      vi.spyOn(User, 'findById').mockResolvedValue({
+        _id: secretaryId,
+        role: ROLES.FACULTY,
+      });
+
+      await expect(
+        projectTitleService.approveTitle(projectId, mockInstructor, {
+          proposalId: 0,
+          adviserId: secretaryId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'ROLE_CONFLICT',
+      });
+      expect(mockProject.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects adviser appointment if user is already a defense panelist', async () => {
+      const panelistId = '65e000000000000000000040';
+      mockProject.panelistIds = [
+        panelistId,
+        '65e000000000000000000041',
+        '65e000000000000000000042',
+      ];
+
+      vi.spyOn(User, 'findById').mockResolvedValue({
+        _id: panelistId,
+        role: ROLES.FACULTY,
+      });
+
+      await expect(
+        projectTitleService.approveTitle(projectId, mockInstructor, {
+          proposalId: 0,
+          adviserId: panelistId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'ROLE_CONFLICT',
+      });
+      expect(mockProject.save).not.toHaveBeenCalled();
     });
   });
 });

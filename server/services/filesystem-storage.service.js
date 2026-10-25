@@ -26,7 +26,20 @@ const __dirname = path.dirname(__filename);
 class FilesystemStorageService {
   constructor() {
     // Base directory for all uploads. Configurable via env, defaults to ./uploads
-    this.baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uploads');
+    const defaultLocalPath = path.resolve(__dirname, '..', '..', 'uploads');
+    let configured = env.STORAGE_LOCAL_PATH;
+    if (
+      process.platform === 'win32' &&
+      configured &&
+      (configured.startsWith('/app/') ||
+        configured.startsWith('\\app\\') ||
+        configured === '/app/uploads')
+    ) {
+      // In Windows host environment running a Docker-targeted .env (/app/uploads),
+      // resolve to local workspace uploads/
+      configured = defaultLocalPath;
+    }
+    this.baseDir = configured ? path.resolve(configured) : defaultLocalPath;
     this.isConfigured = true;
   }
 
@@ -108,6 +121,32 @@ class FilesystemStorageService {
   }
 
   /**
+   * Build a filesystem path for a system design document.
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} Full filesystem path
+   */
+  buildSystemDesignKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/system-design/v${version}/${safeName}`;
+    return path.join(this.baseDir, key);
+  }
+
+  /**
+   * Build a filesystem path for a test results document.
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} Full filesystem path
+   */
+  buildTestResultsKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/test-results/v${version}/${safeName}`;
+    return path.join(this.baseDir, key);
+  }
+
+  /**
    * Build a filesystem path for a prototype media file.
    * @param {string} projectId
    * @param {string} prototypeId
@@ -155,6 +194,16 @@ class FilesystemStorageService {
   buildCertificateKey(projectId, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const key = `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/certificates/${safeName}`;
+    return path.join(this.baseDir, key);
+  }
+
+  /**
+   * Build a filesystem path for an approval sheet.
+   * @param {string} projectId
+   * @returns {string} Full filesystem path
+   */
+  buildApprovalSheetKey(projectId) {
+    const key = `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/approval/approval-sheet.pdf`;
     return path.join(this.baseDir, key);
   }
 
@@ -262,6 +311,9 @@ class FilesystemStorageService {
       normalizedKey = '';
     }
 
+    // Strip leading /app/uploads/ or /uploads/ or uploads/ if present in legacy keys
+    normalizedKey = normalizedKey.replace(/^\/?(app\/)?uploads\/?/, '');
+
     const candidatePath = path.isAbsolute(normalizedKey)
       ? path.resolve(normalizedKey)
       : path.resolve(basePath, normalizedKey);
@@ -323,11 +375,28 @@ class FilesystemStorageService {
       const buffer = await fs.readFile(resolvedPath);
       return buffer;
     } catch (error) {
+      if (error.code === 'ENOENT') {
+        // Auto-healing fallback: if physical file exists in "Sample papers", load and cache it to uploads
+        try {
+          const baseFileName = path.basename(key);
+          const samplePaperCandidate = path.resolve(
+            this.baseDir,
+            '..',
+            'Sample papers',
+            baseFileName,
+          );
+          const sampleBuf = await fs.readFile(samplePaperCandidate);
+          const targetPath = this._resolveStoragePath(key);
+          await this._ensureDirectory(targetPath);
+          await fs.writeFile(targetPath, sampleBuf);
+          return sampleBuf;
+        } catch {
+          // Pass through to standard 404
+        }
+        throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
+      }
       if (error.isOperational) {
         throw error;
-      }
-      if (error.code === 'ENOENT') {
-        throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
       }
       console.error('[FilesystemStorageService] Download failed:', error);
       throw new AppError('Failed to download file', 500, 'STORAGE_DOWNLOAD_ERROR');

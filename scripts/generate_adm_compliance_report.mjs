@@ -223,10 +223,10 @@ export const admComplianceData = [
     originalSuggestion:
       "FRAD2, however, remains partially complete, as it requires the display of team member names on the adviser's view, specifically positioned on the right side of the interface.",
     actionTaken:
-      'Engineered an institutional sticky right-margin sidebar (xl:col-span-4 sticky top-24) in ProjectDetailPage.jsx. Houses the FacultyWidget and Team Member list on the right 30% of the desktop canvas, displaying proponent names, assigned roles, and defense standing alongside the primary manuscript tabs.',
+      'Engineered an institutional sticky right-margin sidebar (xl:col-span-4 sticky top-24) in ProjectDetailPage.jsx. Houses the FacultyCommitteeCard and Team Member list on the right 30% of the desktop canvas, displaying proponent names, assigned roles, and defense standing alongside the primary manuscript tabs.',
     codeReferences: [
       'client/src/pages/projects/ProjectDetailPage.jsx:1068-1140',
-      'client/src/components/projects/FacultyWidget.jsx',
+      'client/src/components/projects/FacultyCommitteeCard.jsx',
     ],
     screenshotPath: path.join(SCREENSHOT_DIR, 'raul_sticky_right_sidebar.png'),
     uiSelector: 'div.sticky, [data-testid="faculty-widget"], h3:has-text("Adviser"), h3:has-text("Panel")',

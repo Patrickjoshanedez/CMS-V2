@@ -316,7 +316,10 @@ export default function ProjectAuditTrail({ projectId }) {
 
       {/* ── States ── */}
       {isLoading && (
-        <div role="status" className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <div
+          role="status"
+          className="flex items-center justify-center py-16 text-muted-foreground gap-2"
+        >
           <Spinner className="size-5 text-primary" />
           <span className="text-sm font-medium">Loading audit trail…</span>
         </div>

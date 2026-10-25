@@ -56,10 +56,20 @@ describe('ProjectContextWidget', () => {
   });
 
   it('falls back through team and project repository fields', async () => {
-    await render({ titleStatus: TITLE_STATUSES.APPROVED, teamId: { githubUrl: 'https://github.com/example/team' } });
-    expect(container.querySelector('a')?.getAttribute('href')).toBe('https://github.com/example/team');
+    await render({
+      titleStatus: TITLE_STATUSES.APPROVED,
+      teamId: { githubUrl: 'https://github.com/example/team' },
+    });
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(
+      'https://github.com/example/team',
+    );
 
-    await render({ titleStatus: TITLE_STATUSES.APPROVED, githubRepoUrl: 'https://github.com/example/project' });
-    expect(container.querySelector('a')?.getAttribute('href')).toBe('https://github.com/example/project');
+    await render({
+      titleStatus: TITLE_STATUSES.APPROVED,
+      githubRepoUrl: 'https://github.com/example/project',
+    });
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(
+      'https://github.com/example/project',
+    );
   });
 });

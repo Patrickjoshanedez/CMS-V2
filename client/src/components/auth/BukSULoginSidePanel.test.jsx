@@ -14,7 +14,9 @@ describe('BukSULoginSidePanel', () => {
     expect(
       screen.getByRole('link', { name: /Bukidnon State University.*College of Technologies/ }),
     ).toHaveAttribute('href', '/');
-    expect(screen.getByRole('heading', { name: /Academic capstone governance/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Academic capstone governance/ }),
+    ).toBeInTheDocument();
     expect(screen.getByText('System Architecture & Lifecycle Engine')).toBeInTheDocument();
     expect(screen.getByText('Secretary Compliance Gate')).toBeInTheDocument();
     expect(screen.getByText('MinIO Vault')).toBeInTheDocument();

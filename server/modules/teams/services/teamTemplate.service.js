@@ -150,12 +150,18 @@ export class TeamTemplateService {
       fileName: normDistributionType === 'FILE_ATTACHMENT' ? fileName : null,
     };
 
+    const safeTargetType = String(targetType || 'manuscript').trim();
+    const safeAcademicYear = String(academicYear || '').trim();
+
     // Deactivate previous templates for this academic year & targetType
-    await DocumentTemplate.updateMany({ targetType, academicYear }, { $set: { isActive: false } });
+    await DocumentTemplate.updateMany(
+      { targetType: safeTargetType, academicYear: safeAcademicYear },
+      { $set: { isActive: false } },
+    );
 
     const newTemplate = await DocumentTemplate.create({
-      targetType,
-      academicYear,
+      targetType: safeTargetType,
+      academicYear: safeAcademicYear,
       versionLabel,
       distributionType: normDistributionType,
       resourcePayload,

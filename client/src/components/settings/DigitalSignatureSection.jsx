@@ -18,14 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/AlertDialog';
 import { toast } from 'sonner';
-import {
-  PenTool,
-  CheckCircle2,
-  ShieldCheck,
-  Save,
-  Trash2,
-  FileSignature,
-} from 'lucide-react';
+import { PenTool, CheckCircle2, ShieldCheck, Save, Trash2, FileSignature } from 'lucide-react';
 
 function formatFullName(user) {
   if (!user) return '';
@@ -138,9 +131,9 @@ export default function DigitalSignatureSection() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Remove your digital signature?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This removes the saved signature from your account. You will need to
-                        create and save a new signature before using it for Action Done Matrix
-                        endorsements or approval sheets.
+                        This removes the saved signature from your account. You will need to create
+                        and save a new signature before using it for Action Done Matrix endorsements
+                        or approval sheets.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

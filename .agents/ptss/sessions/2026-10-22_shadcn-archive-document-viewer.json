@@ -1,0 +1,41 @@
+{
+  "session_id": "2026-10-22_shadcn-archive-document-viewer",
+  "timestamp": "2026-10-22T23:03:42+08:00",
+  "status": "in_progress",
+  "task_summary": "Continued the full Luna 6 shadcn/ui refactor through CanonicalDocumentViewer. All controls in this source use shared Button/Input primitives, source/originality colors use chart and semantic theme tokens, and existing document, score, and workflow behavior is preserved. CanonicalDocumentViewer tests pass 13/13, Prettier passes, scoped ESLint has zero errors with four existing warnings, and the production client build passes. The corrected Playwright audit authenticates to the local CMS, checks theme persistence, asserts no horizontal overflow or Vite overlay, and captured nine archive states across light/dark desktop/mobile; representative themes, viewports, and the drawer were inspected. Inventory is 112/278 source-updated, 166 pending; full refactor and final verification remain active.",
+  "active_skills": [
+    "documents",
+    "frontend-patterns",
+    "ui-design-principles",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "completed": [
+    "Migrated archive document type and clean/integrity mode controls to shared Button primitives with accessible tab semantics after reproducing a selection regression with the shared Tabs wrapper.",
+    "Replaced hardcoded source, plagiarism, originality, citation, and archive status colors with theme chart, success, warning, primary, and destructive tokens while preserving score math and classifications.",
+    "Fixed the existing archive Playwright audit's unconditional successful exit, obsolete authentication fixture, incorrect theme key, and stale document-reader selectors; added overflow and Vite overlay assertions and desktop/mobile coverage in both themes.",
+    "Focused CanonicalDocumentViewer suite passes 13/13; Prettier passes; scoped ESLint has zero errors and four existing warnings; client production build passes with 4,853 transformed modules and existing build warnings.",
+    "Captured nine Playwright states in scratch/qa-evidence/canonical-document-viewer and visually inspected representative reader/drawer captures in both themes and at desktop/mobile. Automated checks found no horizontal overflow or Vite overlay."
+  ],
+  "pending": [
+    "Continue migrating the remaining 166 pending client source modules and reconcile all routes, roles, workflow states, and descendants.",
+    "Run the final required governance, test, build, evidence, and visual verification gates after the complete migration."
+  ],
+  "observations": [
+    "The old auth-storage fixture was obsolete because current authentication is established by server cookies; the seeded test account successfully reached the live local student dashboard.",
+    "The old audit fixture set localStorage.theme while the application persists theme under cms-accessibility-settings; earlier captures were therefore dark-mode renders. Correcting the key yielded distinct light and dark results.",
+    "The audit's try/finally called process.exit(0), masking failures in later visual steps. Exit handling now preserves nonzero failures and closes the browser normally."
+  ],
+  "verification": {
+    "CanonicalDocumentViewer.test.jsx": "13/13 passed",
+    "scoped_eslint": "passed with zero errors; four pre-existing warnings",
+    "prettier": "passed",
+    "client_build": "passed; 4,853 modules transformed; existing warnings remain",
+    "playwright_visual": "9 captures; light/dark desktop/mobile; drawer, overflow, and Vite overlay checks passed"
+  },
+  "inventory": {
+    "total": 278,
+    "updated": 112,
+    "pending": 166
+  }
+}

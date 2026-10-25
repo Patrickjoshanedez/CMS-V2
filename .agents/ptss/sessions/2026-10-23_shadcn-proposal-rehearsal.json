@@ -1,0 +1,55 @@
+{
+  "session_id": "2026-10-23_shadcn-proposal-rehearsal",
+  "date": "2026-10-23T05:51:36+08:00",
+  "task_summary": "Reviewed FacultyWidget as a compatibility re-export with no independent UI; migrated ProposalRehearsalModal chrome to shared Radix Dialog, semantic tokens, Buttons, and Badges while preserving the official 16:9 slide canvas and rehearsal behavior. Focused suites pass 16/16, scoped lint/format pass, the 4,853-module production build passes, and 16 Playwright captures cover light/dark desktop/mobile review/edit states. Inventory: 137/278 source-updated, 3 reviewed-no-ui, 138 pending; full refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/ui/Dialog.jsx",
+    "client/src/components/projects/ProposalRehearsalModal.jsx",
+    "client/src/components/projects/ProposalRehearsalModal.test.jsx",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "scratch/ProposalRehearsalAudit.jsx",
+    "scratch/proposal-rehearsal-audit.html",
+    "scratch/proposal_rehearsal_visual_audit.mjs",
+    "scratch/qa-evidence/proposal-rehearsal/"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "i-frontend-design",
+    "i-teach-impeccable",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Used the existing plan direction of restrained shadcn surfaces with BukSU identity and both themes; kept official 16:9 canvas artwork, logos, and institutional footer intact.",
+    "Moved the fullscreen shell to the shared Radix Dialog portal and delegated focus, Escape dismissal, overlay, and scroll locking to that primitive.",
+    "Kept Escape in edit mode focused: a first Escape blurs an active contentEditable field, a second Escape exits edit mode, and a regular Escape closes the dialog.",
+    "Used shared Buttons for all slide controls and semantic tokens for the theater shell; added portalContainer support to shared DialogContent without changing its default portal behavior.",
+    "Classified FacultyWidget as reviewed-no-ui because it only re-exports the already migrated FacultyCommitteeCard."
+  ],
+  "lessons_learned": [
+    "Radix scroll locking is represented by data-scroll-locked and injected stylesheet rules rather than an inline body style in JSDOM.",
+    "Global presentation shortcuts should not intercept keyboard input while a button or slider has focus; let native controls retain Enter/Space behavior."
+  ],
+  "open_threads": [
+    "Continue the 138 pending source modules and complete the plan-wide route/state and final quality gates."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "ProposalRehearsalModal.test.jsx passes 9/9; ProjectDetailsModal.test.jsx passes 7/7 after the shared Dialog portal option was added. Scoped ESLint and Prettier pass. Production client build passes with 4,853 modules transformed; existing Tailwind ease ambiguity and large-chunk warnings remain. Sixteen Playwright captures cover review/edit in light/dark at 1440x900 and 390x844 with no viewport escape, overflow, theme mismatch, browser errors, or broken interactions. Workspace evidence validation is pending after the final PTSS update.",
+  "status": "complete",
+  "inventory": {
+    "source_updated": 137,
+    "reviewed_no_ui": 3,
+    "pending": 138,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

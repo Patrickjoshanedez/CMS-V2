@@ -68,7 +68,7 @@ router.post(
 // PATCH /api/adm/:projectId/metadata — Update review type and title
 router.patch(
   '/:projectId/metadata',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.updateADMMetadata,
 );
 

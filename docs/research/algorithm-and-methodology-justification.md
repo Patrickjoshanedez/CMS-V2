@@ -157,7 +157,7 @@ $$S_{\text{hybrid}} = \alpha \cdot S_{\text{winnowing}} + (1 - \alpha) \cdot S_{
 | **FR11** | GitHub Repo Link on Adviser Interface | Complete | `ProjectSidebarInfo.jsx`, `ProjectDetailPage.jsx` |
 | **FR12 – FR17** | Plagiarism Scanning, OCR Autofill, Notifications | Complete | `plagiarism_engine`, `NotificationsPage.jsx` |
 | **FRAD1, FRAD5–7** | Adviser Approval, Endorsement, Review Routing | Complete | `ProjectDetailPage.jsx` |
-| **FRAD2** | Team Member Display on Right Sidebar | Complete | `FacultyWidget`, `ProjectSidebarInfo.jsx` |
+| **FRAD2** | Team Member Display on Right Sidebar | Complete | `FacultyCommitteeCard.jsx`, `ProjectSidebarInfo.jsx` |
 | **FRAD3 – FRAD4** | Adviser Minutes Attachment | De-scoped | Transferred to Panel Secretary workflow |
 | **FRPA01 – FRPA07** | Panel Evaluation, Rubric Scoring, Recommendations | Complete | `EvaluationPanel.jsx`, `ActionDoneMatrixTab.jsx` |
 | **FRINS1 – FRINS7** | Instructor Overview, Soft Archiving (FRINS2), Evaluation & Plagiarism Reports (FRINS6) | Complete | `ProjectsPage.jsx`, `AcademicReportsWidget` |

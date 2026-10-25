@@ -20,13 +20,15 @@ export async function generateEvaluationReportPdf(evaluationId) {
     throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
   }
 
-  const project = await Project.findById(evaluation.projectId._id || evaluation.projectId).populate(
-    'teamId',
-  );
+  const targetProjectId = evaluation.projectId?._id || evaluation.projectId;
+  const [project, latestSubmission] = await Promise.all([
+    Project.findById(targetProjectId).populate('teamId'),
+    Submission.findOne({ projectId: targetProjectId }).sort({ version: -1, createdAt: -1 }),
+  ]);
 
-  const latestSubmission = await Submission.findOne({
-    projectId: project._id,
-  }).sort({ version: -1, createdAt: -1 });
+  if (!project) {
+    throw new AppError('Project not found for this evaluation.', 404, 'PROJECT_NOT_FOUND');
+  }
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([612, 792]); // Standard Letter size

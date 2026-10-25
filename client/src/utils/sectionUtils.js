@@ -53,12 +53,16 @@ export function formatCanonicalSectionName(section, courseCode = '') {
  */
 export function extractSectionCode(section) {
   if (!section || typeof section !== 'object') return '';
-  const rawCode = String(section.code || '').trim().toUpperCase();
+  const rawCode = String(section.code || '')
+    .trim()
+    .toUpperCase();
   if (!rawCode) return '';
 
   const courseCode = section.courseId?.code || section.courseCode || 'BSIT';
   const canonicalBlock = formatCanonicalSectionName(section, courseCode).toUpperCase();
-  const normalizedName = String(section.name || '').trim().toUpperCase();
+  const normalizedName = String(section.name || '')
+    .trim()
+    .toUpperCase();
 
   // If the stored code is identical to the section block (e.g. "BSIT-4B" or "4B"), it is not a T-code
   if (rawCode === canonicalBlock || rawCode === normalizedName) {

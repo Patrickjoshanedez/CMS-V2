@@ -1,6 +1,13 @@
 ---
 name: plagiarism-engine
-description: High-performance plagiarism detection and document similarity engine. Use when implementing or improving the plagiarism checker, originality scoring, document fingerprinting, or similarity search features. Covers HNSW vector indexing (ChromaDB), the Winnowing/Rabin-Karp fingerprinting algorithm, async task queues (Bull/Redis for Node.js, Celery for Python), and UI virtualization for large plagiarism reports. Triggers on: "plagiarism", "originality check", "text similarity", "document fingerprinting", "winnowing", "HNSW", "vector search", "bulk archive comparison", "highlight matches", "plagiarism report".
+description: >
+  High-performance plagiarism detection and document similarity engine. Use when implementing or
+  improving the plagiarism checker, originality scoring, document fingerprinting, or similarity
+  search features. Covers HNSW vector indexing (ChromaDB), the Winnowing/Rabin-Karp fingerprinting
+  algorithm, async task queues (Bull/Redis for Node.js, Celery for Python), and UI virtualization
+  for large plagiarism reports. Triggers on: "plagiarism", "originality check", "text similarity",
+  "document fingerprinting", "winnowing", "HNSW", "vector search", "bulk archive comparison",
+  "highlight matches", "plagiarism report".
 ---
 
 # High-Performance Plagiarism Engine

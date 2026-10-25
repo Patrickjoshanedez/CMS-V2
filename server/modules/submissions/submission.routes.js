@@ -537,6 +537,7 @@ router.post(
 router.post(
   '/secretary/scan-minutes',
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER),
+  authorizeSecretaryCapability,
   uploadLimiter,
   upload.single('file'),
   validateFile,

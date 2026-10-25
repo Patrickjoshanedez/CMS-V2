@@ -809,7 +809,10 @@ export const updateWeeklyCheckIn = catchAsync(async (req, res) => {
   );
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: req.body.submit === false ? 'Weekly check-in draft saved.' : 'Weekly check-in submitted for adviser review.',
+    message:
+      req.body.submit === false
+        ? 'Weekly check-in draft saved.'
+        : 'Weekly check-in submitted for adviser review.',
     data: { project, checkIn },
   });
 });
@@ -858,12 +861,23 @@ export const updateSystemDefenseApproval = catchAsync(async (req, res) => {
 export async function assertProjectAccess(
   project,
   user,
-  { allowStudentWrite = false, requireCommitteeForFacultyWrite = false } = {},
+  {
+    allowStudentWrite = false,
+    forbidStudentAccess = false,
+    requireCommitteeForFacultyWrite = false,
+  } = {},
 ) {
   if (!project || !user) return;
   const userIdStr = (user._id || user.id || '').toString();
 
   if (user.role === ROLES.STUDENT) {
+    if (forbidStudentAccess) {
+      throw new AppError(
+        'Students do not have permission to perform this action.',
+        403,
+        'FORBIDDEN',
+      );
+    }
     const TeamModel = mongoose.model('Team');
     const team = project.teamId?._id
       ? project.teamId
@@ -927,7 +941,11 @@ export const handleProjectStream = catchAsync(async (req, res) => {
   }
 
   assertProjectWritable(project);
-  await assertProjectAccess(project, req.user, { allowStudentWrite: true });
+  await assertProjectAccess(project, req.user, {
+    allowStudentWrite: false,
+    forbidStudentAccess: true,
+    requireCommitteeForFacultyWrite: true,
+  });
   const targetCourse = req.body?.capstoneCourse || project.capstoneCourse;
   if (targetCourse) {
     project.capstoneCourse = targetCourse;
@@ -1247,11 +1265,21 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
     if (isLocked !== undefined && isInstructor) item.isLocked = isLocked;
   }
 
-  // Check overall ADM completion → advance status
-  const allAddressed = project.actionDoneMatrix.every(
-    (row) => row.status === 'addressed' || row.status === 'verified',
+  // Scope completion check strictly to the active milestone and respect the Secretary gate
+  const targetMilestone = resolveTargetMilestone(project, item.milestone);
+  const milestoneRows = (project.actionDoneMatrix || []).filter(
+    (row) => (row.milestone || 'CAPSTONE_1') === targetMilestone,
   );
-  if (allAddressed && project.actionDoneMatrix.length > 0) {
+  const allAddressed =
+    milestoneRows.length > 0 &&
+    milestoneRows.every((row) => row.status === 'addressed' || row.status === 'verified');
+  const allVerified =
+    milestoneRows.length > 0 && milestoneRows.every((row) => row.status === 'verified');
+
+  const currentSignatures = getMilestoneSignatures(project, targetMilestone);
+  const isSecretaryEndorsed = Boolean(currentSignatures?.secretary?.endorsed);
+
+  if (allVerified || isSecretaryEndorsed || allAddressed) {
     project.admStatus = 'under_panel_review';
   }
 
@@ -1290,7 +1318,8 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
   }
   assertProjectWritable(project);
   await assertProjectAccess(project, req.user, {
-    allowStudentWrite: true,
+    allowStudentWrite: false,
+    forbidStudentAccess: true,
     requireCommitteeForFacultyWrite: true,
   });
 
@@ -1404,7 +1433,8 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
   }
   assertProjectWritable(project);
   await assertProjectAccess(project, req.user, {
-    allowStudentWrite: true,
+    allowStudentWrite: false,
+    forbidStudentAccess: true,
     requireCommitteeForFacultyWrite: true,
   });
 
@@ -1455,94 +1485,7 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
     project.admStatus = 'approved';
 
     if (currentPhase < 3) {
-      const blocker = await projectService.getPhaseExitBlocker(project, currentPhase);
-      if (blocker) return;
-    }
-
-    if (currentPhase === 1) {
-      project.capstonePhase = 2;
-      project.workflowPhase = 3;
-      project.capstoneCourse = 'Capstone 2';
-      project.stage = 'capstone_2';
-      project.admStatus = 'not_started';
-      project.projectStatus = PROJECT_STATUSES.ACTIVE;
-
-      try {
-        const Team = (await import('../teams/team.model.js')).default;
-        const team = await Team.findById(project.teamId);
-        if (team?.members?.length > 0) {
-          const notifications = team.members.map((memberId) => ({
-            userId: memberId,
-            type: 'phase_advanced',
-            title: '🎉 Promoted to Capstone 2: System Development & Prototype!',
-            message: `Congratulations! Your proposal defense review has been fully endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 2. System Development Roadmap & Gantt Chart are now unlocked!`,
-            metadata: {
-              projectId: project._id,
-              capstonePhase: 2,
-              workflowPhase: project.workflowPhase,
-              capstoneCourse: 'Capstone 2',
-            },
-          }));
-          const createdNotifs = await Notification.insertMany(notifications);
-          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-        }
-      } catch {
-        // Non-blocking notification
-      }
-
-      try {
-        emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
-          projectId: project._id,
-          capstonePhase: 2,
-          workflowPhase: project.workflowPhase,
-          capstoneCourse: 'Capstone 2',
-        });
-        emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
-      } catch {
-        // Non-blocking socket
-      }
-    } else if (currentPhase === 2) {
-      project.capstonePhase = 3;
-      project.workflowPhase = 4;
-      project.capstoneCourse = 'Capstone 3';
-      project.stage = 'capstone_3';
-      project.admStatus = 'not_started';
-      project.projectStatus = PROJECT_STATUSES.ACTIVE;
-
-      try {
-        const Team = (await import('../teams/team.model.js')).default;
-        const team = await Team.findById(project.teamId);
-        if (team?.members?.length > 0) {
-          const notifications = team.members.map((memberId) => ({
-            userId: memberId,
-            type: 'phase_advanced',
-            title: '🎉 Promoted to Capstone 3: Final Manuscript & Defense!',
-            message: `Congratulations! Your Capstone 2 system defense ADM has been fully signed and your grades released. Your project "${project.title}" has advanced to Capstone 3 for Chapters 4–5 and the final defense.`,
-            metadata: {
-              projectId: project._id,
-              capstonePhase: 3,
-              workflowPhase: project.workflowPhase,
-              capstoneCourse: 'Capstone 3',
-            },
-          }));
-          const createdNotifs = await Notification.insertMany(notifications);
-          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-        }
-      } catch {
-        // Non-blocking notification
-      }
-
-      try {
-        emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
-          projectId: project._id,
-          capstonePhase: 3,
-          workflowPhase: project.workflowPhase,
-          capstoneCourse: 'Capstone 3',
-        });
-        emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
-      } catch {
-        // Non-blocking socket
-      }
+      await projectService.advanceAfterADMCompletion(project);
     } else if (currentPhase === 3) {
       // Capstone 3 ADM v3 finalized; archive readiness is evaluated after this signature set.
       try {
@@ -1604,7 +1547,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
   const name = signatoryName || `${req.user.firstName} ${req.user.lastName}`;
   const now = new Date();
 
-  if (role === 'adviser' || (tier === 1 && req.user.role === ROLES.ADVISER)) {
+  if (role === 'adviser' || (Number(tier) === 1 && req.user.role !== ROLES.INSTRUCTOR)) {
     currentSignatures.adviser = {
       signed: true,
       signedAt: now,
@@ -1835,7 +1778,8 @@ export const submitADMForEndorsement = catchAsync(async (req, res) => {
   }
   assertProjectWritable(project);
   await assertProjectAccess(project, req.user, {
-    allowStudentWrite: true,
+    allowStudentWrite: false,
+    forbidStudentAccess: true,
     requireCommitteeForFacultyWrite: true,
   });
 
@@ -1907,7 +1851,8 @@ export const seedInstitutionalADM = catchAsync(async (req, res) => {
   }
   assertProjectWritable(project);
   await assertProjectAccess(project, req.user, {
-    allowStudentWrite: true,
+    allowStudentWrite: false,
+    forbidStudentAccess: true,
     requireCommitteeForFacultyWrite: true,
   });
 
@@ -1956,13 +1901,25 @@ export const seedInstitutionalADM = catchAsync(async (req, res) => {
   ];
 
   const requestedMilestone = resolveTargetMilestone(project, req.body?.milestone);
+  const existingRows = Array.isArray(project.actionDoneMatrix) ? project.actionDoneMatrix : [];
+  const existingMilestoneRows = existingRows.filter(
+    (r) => (r.milestone || 'CAPSTONE_1') === requestedMilestone,
+  );
+  const hasLockedOrVerified = existingMilestoneRows.some(
+    (r) => r.isLocked || r.status === 'verified',
+  );
+  if (hasLockedOrVerified && req.user.role !== ROLES.INSTRUCTOR) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({
+      success: false,
+      message: 'Cannot re-seed institutional ADM when rows have already been verified or locked.',
+    });
+  }
   const rowsWithMilestone = institutionalRows.map((r, idx) => ({
     ...r,
     itemNo: idx + 1,
     milestone: requestedMilestone,
   }));
 
-  const existingRows = Array.isArray(project.actionDoneMatrix) ? project.actionDoneMatrix : [];
   const otherMilestoneRows = existingRows.filter(
     (r) => (r.milestone || 'CAPSTONE_1') !== requestedMilestone,
   );
@@ -2054,7 +2011,11 @@ export const signADMItem = catchAsync(async (req, res) => {
     throw new AppError('Students cannot sign ADM items.', 403, 'FORBIDDEN');
   }
   if (req.user?.role === ROLES.INSTRUCTOR) {
-    throw new AppError('Course Instructors are excluded from signing committee ADM items.', 403, 'INSTRUCTOR_COMMITTEE_EXCLUSION');
+    throw new AppError(
+      'Course Instructors are excluded from signing committee ADM items.',
+      403,
+      'INSTRUCTOR_COMMITTEE_EXCLUSION',
+    );
   }
   await assertProjectAccess(project, req.user, {
     allowStudentWrite: false,
@@ -2076,11 +2037,33 @@ export const signADMItem = catchAsync(async (req, res) => {
       .json({ success: false, message: 'You have already signed this ADM item.' });
   }
 
+  const userIdStr = String(req.user._id);
   const panelistAssignment = (project.panelists || []).find(
-    (p) => String(p.userId) === String(req.user._id),
+    (p) => String(p.userId?._id || p.userId) === userIdStr,
   );
-  const userRole =
-    panelistAssignment?.role || (req.user.facultyRole === 'chair' ? 'chair' : 'panel member');
+  const isChair =
+    (project.chairpersonId && String(project.chairpersonId) === userIdStr) ||
+    String(project.panelistIds?.[0]?._id || project.panelistIds?.[0] || '') === userIdStr ||
+    (Array.isArray(project.panelists) &&
+      project.panelists.some(
+        (p) => p.role === 'chair' && String(p.userId?._id || p.userId) === userIdStr,
+      ));
+  const isPanelist =
+    isChair ||
+    project.panelistIds?.some((id) => String(id?._id || id) === userIdStr) ||
+    project.panelists?.some(
+      (p) => p.role !== 'secretary' && String(p.userId?._id || p.userId) === userIdStr,
+    );
+
+  if (!isPanelist && !isChair) {
+    throw new AppError(
+      'Only assigned defense panelists or the committee chair can sign ADM evaluation rows.',
+      403,
+      'FORBIDDEN',
+    );
+  }
+
+  const userRole = isChair ? 'chair' : panelistAssignment?.role || 'panel member';
   item.signatures.push({
     userId: req.user._id,
     name: `${req.user.firstName} ${req.user.lastName}`,

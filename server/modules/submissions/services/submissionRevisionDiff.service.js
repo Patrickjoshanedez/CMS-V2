@@ -105,6 +105,16 @@ export class SubmissionRevisionDiffService {
     let previousSubmission = null;
     if (compareWithId) {
       previousSubmission = await Submission.findById(compareWithId).select('+extractedText');
+      if (!previousSubmission) {
+        throw new AppError('Comparison submission not found.', 404, 'COMPARE_NOT_FOUND');
+      }
+      if (previousSubmission.projectId?.toString() !== targetSubmission.projectId?.toString()) {
+        throw new AppError(
+          'Comparison submission must belong to the same project.',
+          403,
+          'CROSS_PROJECT_COMPARISON_FORBIDDEN',
+        );
+      }
     } else {
       // Pick immediate previous version (version < target.version)
       const prevFilter = {

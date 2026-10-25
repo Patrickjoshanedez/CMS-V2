@@ -44,9 +44,7 @@ export default function ThemeSelector() {
             key={opt.value}
             className={[
               'group relative flex flex-col items-center gap-3 rounded-lg border p-4 text-center transition-colors',
-              isSelected
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:bg-accent/50',
+              isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50',
             ].join(' ')}
           >
             <RadioGroupItem id={`theme-${opt.value}`} value={opt.value} aria-label={opt.label} />

@@ -1,0 +1,55 @@
+{
+  "session_id": "2026-10-23_shadcn-project-details-sidebar",
+  "date": "2026-10-23T05:34:25+08:00",
+  "task_summary": "Migrated ProjectDetailsModal to shared Radix Dialog, Card, Avatar, Button, and Alert primitives; normalized ProjectSidebarInfo theme tokens and repeated Team prefixes; classified useActionDoneMatrix as a non-presentational hook. ProjectDetailsModal tests pass 7/7, MyProjectPage tests pass 8/8, scoped ESLint/Prettier pass, the 4,853-module production client build passes, and 20 Playwright captures cover approved/revision/pending modal states plus proposal/approved sidebar states across light/dark desktop/mobile. Inventory: 136/278 source-updated, 2 reviewed-no-ui, 140 pending; full refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/projects/ProjectDetailsModal.jsx",
+    "client/src/components/projects/ProjectDetailsModal.test.jsx",
+    "client/src/components/projects/ProjectSidebarInfo.jsx",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/classification-manifest.json",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "scratch/ProjectDetailsModalAudit.jsx",
+    "scratch/project-details-modal-audit.html",
+    "scratch/project_details_modal_visual_audit.mjs",
+    "scratch/ProjectSidebarInfoAudit.jsx",
+    "scratch/project-sidebar-info-audit.html",
+    "scratch/project_sidebar_info_visual_audit.mjs",
+    "scratch/qa-evidence/project-details-modal/",
+    "scratch/qa-evidence/project-sidebar-info/"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Replaced the project details modal custom portal and keyboard/body-scroll handlers with the shared Radix Dialog, preserving role and approval navigation behavior.",
+    "Used shared Card, Avatar, Button, Alert, and semantic tokens for modal content; preserved canonical document and institutional workflow behaviors.",
+    "Normalized repeated Team prefixes in both project presenters and hardened external links with noopener/noreferrer.",
+    "Classified useActionDoneMatrix.js as reviewed-no-ui because it contains no rendered markup or styling and its output is presented by shared ADM components."
+  ],
+  "lessons_learned": [
+    "Windows Vitest cache renames can fail with EPERM when the process temp path is sandbox-managed; setting TEMP and TMP to a validated workspace-local scratch directory allowed the focused suite to pass.",
+    "CSS text-transform can change visible uppercase headings while DOM text remains case-sensitive; visual audit assertions should account for presentation transforms."
+  ],
+  "open_threads": [
+    "Continue the 140 pending source modules and complete the required final plan gates."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "ProjectDetailsModal.test.jsx passes 7/7; MyProjectPage.test.jsx passes 8/8. Scoped ESLint/Prettier pass. The production client build passes with 4,853 modules transformed; existing Tailwind ease ambiguity and large-chunk warnings remain. Playwright modal audit passes 12 approved/revision/pending, theme, and viewport combinations with dialog focus/description/close and Escape checks. ProjectSidebarInfo audit passes 8 proposal/approved, theme, and viewport combinations with theme, shared Card, conditional content, safe links, team-prefix, overflow, and browser-error checks. Workspace evidence validation passes 34/34. Repository-wide final gates remain outstanding.",
+  "status": "complete",
+  "inventory": {
+    "source_updated": 136,
+    "reviewed_no_ui": 2,
+    "pending": 140,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

@@ -26,7 +26,6 @@ export default function AuthLayout({ children, title, description, wide = false 
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/20">
-
       {/* Top bar */}
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5">

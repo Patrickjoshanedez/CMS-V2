@@ -29,9 +29,7 @@ describe('InteractiveGanttChart Component', () => {
       user: { _id: 'interactive-gantt-test-student', role: 'student' },
     });
     await act(async () => {
-      root.render(
-        <InteractiveGanttChart project={editableProject} defaultView={defaultView} />,
-      );
+      root.render(<InteractiveGanttChart project={editableProject} defaultView={defaultView} />);
     });
   };
 

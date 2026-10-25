@@ -327,10 +327,7 @@ export default function PrototypeShowcaseAndDemo({
               </CardDescription>
             </div>
             {project?.demoVideoUrl && (
-              <Badge
-                variant="success"
-                className="w-fit text-[11px] font-mono gap-1.5"
-              >
+              <Badge variant="success" className="w-fit text-[11px] font-mono gap-1.5">
                 <CheckCircle2 className="h-3 w-3 text-success-foreground" />
                 Video Submitted
               </Badge>

@@ -226,7 +226,9 @@ export default function CreateTeamForm({ onCancel }) {
                       const value = event.target.value;
                       setInviteQuery(value);
                       setShowSuggestions(true);
-                      if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
+                      if (
+                        selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()
+                      ) {
                         setSelectedCandidate(null);
                       }
                     }}
@@ -249,69 +251,69 @@ export default function CreateTeamForm({ onCancel }) {
                   className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
                   aria-live="polite"
                 >
-                    {isFetchingCandidates ? (
-                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                        <Spinner className="h-3.5 w-3.5" />
-                        Searching students...
-                      </div>
-                    ) : candidates.length > 0 ? (
-                      <ul className="max-h-56 overflow-auto py-1" role="listbox">
-                        {candidates.map((candidate) => {
-                          const isAlreadyStaged = stagedCandidates.some(
-                            (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
-                          );
+                  {isFetchingCandidates ? (
+                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                      <Spinner className="h-3.5 w-3.5" />
+                      Searching students...
+                    </div>
+                  ) : candidates.length > 0 ? (
+                    <ul className="max-h-56 overflow-auto py-1" role="listbox">
+                      {candidates.map((candidate) => {
+                        const isAlreadyStaged = stagedCandidates.some(
+                          (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
+                        );
 
-                          return (
-                            <li key={candidate._id} role="option" aria-selected={isAlreadyStaged}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                className={cn(
-                                  'h-auto w-full items-start justify-start gap-2 px-3 py-2 text-left font-normal hover:bg-accent',
-                                  isAlreadyStaged && 'bg-muted/60',
-                                )}
-                                onClick={() => {
-                                  setInviteQuery(candidate.email);
-                                  setDebouncedInviteQuery(candidate.email);
-                                  setShowSuggestions(false);
-                                  setSelectedCandidate(candidate);
-                                  if (!isAlreadyStaged) {
-                                    if (stagedCandidates.length >= 3) {
-                                      toast.warning('Maximum of 3 teammates can be invited.');
-                                      return;
-                                    }
-                                    setStagedCandidates((prev) => [...prev, candidate]);
+                        return (
+                          <li key={candidate._id} role="option" aria-selected={isAlreadyStaged}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className={cn(
+                                'h-auto w-full items-start justify-start gap-2 px-3 py-2 text-left font-normal hover:bg-accent',
+                                isAlreadyStaged && 'bg-muted/60',
+                              )}
+                              onClick={() => {
+                                setInviteQuery(candidate.email);
+                                setDebouncedInviteQuery(candidate.email);
+                                setShowSuggestions(false);
+                                setSelectedCandidate(candidate);
+                                if (!isAlreadyStaged) {
+                                  if (stagedCandidates.length >= 3) {
+                                    toast.warning('Maximum of 3 teammates can be invited.');
+                                    return;
                                   }
-                                }}
-                              >
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-medium">
-                                    {candidate.fullName}
-                                  </span>
-                                  <span className="block truncate text-xs text-muted-foreground">
-                                    {candidate.email}
-                                  </span>
-                                  {candidate.canInvite === false && (
-                                    <span className="mt-0.5 block text-xs font-medium text-destructive">
-                                      Cannot invite yet
-                                    </span>
-                                  )}
+                                  setStagedCandidates((prev) => [...prev, candidate]);
+                                }
+                              }}
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">
+                                  {candidate.fullName}
                                 </span>
-                                {isAlreadyStaged && (
-                                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                                    Staged
-                                  </Badge>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {candidate.email}
+                                </span>
+                                {candidate.canInvite === false && (
+                                  <span className="mt-0.5 block text-xs font-medium text-destructive">
+                                    Cannot invite yet
+                                  </span>
                                 )}
-                              </Button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">
-                        No matching students found.
-                      </div>
-                    )}
+                              </span>
+                              {isAlreadyStaged && (
+                                <Badge variant="secondary" className="text-[10px] shrink-0">
+                                  Staged
+                                </Badge>
+                              )}
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      No matching students found.
+                    </div>
+                  )}
                 </PopoverContent>
               )}
             </Popover>

@@ -10,7 +10,7 @@ import AppError from '../../../utils/AppError.js';
 import { findSimilarProjects } from '../../../utils/titleSimilarity.js';
 import storageService from '../../../services/storage.index.js';
 import cacheService from '../../../services/cache.service.js';
-import { emitToUser } from '../../../services/socket.service.js';
+import { emitToUser, emitToRoom, emitToAll } from '../../../services/socket.service.js';
 import { isADMComplete } from './admCompletion.js';
 import { assertProjectWritable } from './projectMutationGuard.js';
 import {
@@ -185,17 +185,16 @@ class ProjectCoreService {
       projectId: project._id,
       defenseType: { $in: aliases },
     }).select('panelistId status decision');
-    const byPanelist = new Map(evaluations.map((evaluation) => [
-      String(evaluation.panelistId),
-      evaluation,
-    ]));
+    const byPanelist = new Map(
+      evaluations.map((evaluation) => [String(evaluation.panelistId), evaluation]),
+    );
     return assignedIds.every((panelistId) => {
       const evaluation = byPanelist.get(panelistId);
       return Boolean(
         evaluation?.status === EVALUATION_STATUSES.RELEASED &&
-          [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
-            String(evaluation.decision || '').toLowerCase(),
-          ),
+        [DEFENSE_DECISIONS.PASSED, DEFENSE_DECISIONS.PASSED_WITH_REVISIONS].includes(
+          String(evaluation.decision || '').toLowerCase(),
+        ),
       );
     });
   }
@@ -224,7 +223,8 @@ class ProjectCoreService {
       if (!proposal || !['approved', 'accepted', 'locked'].includes(proposal.status)) {
         return {
           code: 'APPROVED_PROPOSAL_REQUIRED',
-          message: 'The compiled Chapters 1–3 proposal must be approved by the adviser before Capstone 2 can begin.',
+          message:
+            'The compiled Chapters 1–3 proposal must be approved by the adviser before Capstone 2 can begin.',
         };
       }
       return null;
@@ -241,7 +241,8 @@ class ProjectCoreService {
     ) {
       return {
         code: 'GANTT_APPROVAL_REQUIRED',
-        message: 'A saved Capstone 2 Gantt schedule must be approved by the adviser before the course can advance.',
+        message:
+          'A saved Capstone 2 Gantt schedule must be approved by the adviser before the course can advance.',
       };
     }
     const checkInBlocker = getWeeklyCheckInBlocker(project);
@@ -249,13 +250,15 @@ class ProjectCoreService {
     if (!project.githubRepoUrl || (!(project.prototypes || []).length && !project.demoVideoUrl)) {
       return {
         code: 'SYSTEM_ARTIFACTS_REQUIRED',
-        message: 'Add the project GitHub repository and at least one system demo or gallery artifact before advancing to Capstone 3.',
+        message:
+          'Add the project GitHub repository and at least one system demo or gallery artifact before advancing to Capstone 3.',
       };
     }
     if (!project.systemDefenseApproval?.approved) {
       return {
         code: 'SYSTEM_DEFENSE_CLEARANCE_REQUIRED',
-        message: 'The adviser must clear the working system for defense before the project can advance to Capstone 3.',
+        message:
+          'The adviser must clear the working system for defense before the project can advance to Capstone 3.',
       };
     }
     return null;
@@ -332,7 +335,8 @@ class ProjectCoreService {
         : []),
     ];
     const isPanelist =
-      userRole === ROLES.PANELIST || panelistIds.some((panelistId) => getId(panelistId) === actorId);
+      userRole === ROLES.PANELIST ||
+      panelistIds.some((panelistId) => getId(panelistId) === actorId);
 
     if (isPanelist) {
       throw new AppError(
@@ -394,6 +398,19 @@ class ProjectCoreService {
       })),
     );
     notifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+  }
+
+  async _invalidateProjectCache(projectId) {
+    if (!projectId) return;
+    try {
+      const id = String(projectId._id || projectId);
+      await cacheService.del(`project:meta:${id}`);
+      await cacheService.del(`project:detail:${id}`);
+      emitToRoom(`project:${id}`, 'project:updated', { projectId: id });
+      emitToAll('project:updated', { projectId: id });
+    } catch {
+      // Non-blocking cache eviction
+    }
   }
 
   /**
@@ -626,7 +643,11 @@ class ProjectCoreService {
       throw new AppError('Academic year is required.', 400, 'ACADEMIC_YEAR_REQUIRED');
     }
     if (!effectiveAcademicTerm) {
-      throw new AppError('Academic term is required in the student profile.', 400, 'ACADEMIC_TERM_REQUIRED');
+      throw new AppError(
+        'Academic term is required in the student profile.',
+        400,
+        'ACADEMIC_TERM_REQUIRED',
+      );
     }
 
     const hasCanonicalTeamSection = Boolean(team?.sectionId);
@@ -854,12 +875,16 @@ class ProjectCoreService {
       );
     }
 
-    // Similarity check against all non-rejected projects
+    // Similarity check against all non-rejected projects (bounded and lean for high throughput)
     const allProjects = await Project.find({
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
-    }).select(
-      'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
-    );
+    })
+      .select(
+        'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+      )
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
 
     const similarProjects = findSimilarProjects(
       { title: data.title, keywords: data.keywords || [] },
@@ -944,21 +969,34 @@ class ProjectCoreService {
    */
   _normalizeProjectADMPhase(project) {
     if (!project) return project;
-    const isADMApproved = isADMComplete(project, 'CAPSTONE_2');
+    const isArchivedOrDefended =
+      Boolean(project.isArchived) ||
+      project.projectStatus === 'archived' ||
+      project.projectStatus === PROJECT_STATUSES.ARCHIVED ||
+      project.projectStatus === PROJECT_STATUSES.DEFENDED;
 
-    if (
-      Number(project.capstonePhase) >= 3 &&
-      !isADMApproved &&
-      !project.isArchived &&
-      project.projectStatus !== 'archived' &&
-      project.projectStatus !== PROJECT_STATUSES.ARCHIVED &&
-      project.projectStatus !== PROJECT_STATUSES.DEFENDED
-    ) {
+    if (isArchivedOrDefended) return project;
+
+    const isC2ADMComplete = isADMComplete(project, 'CAPSTONE_2');
+    if (Number(project.capstonePhase) >= 3 && !isC2ADMComplete) {
       project.capstonePhase = 2;
-      if (project.capstoneCourse === 'Capstone 3') {
-        project.capstoneCourse = 'Capstone 2';
-      }
+      project.workflowPhase = 3;
+      project.capstoneCourse = 'Capstone 2';
+      project.stage = 'capstone_2';
     }
+
+    const isC1ADMComplete = isADMComplete(project, 'CAPSTONE_1');
+    if (
+      Number(project.capstonePhase) === 2 &&
+      !isC1ADMComplete &&
+      project.titleStatus === TITLE_STATUSES.APPROVED
+    ) {
+      project.capstonePhase = 1;
+      project.workflowPhase = 2;
+      project.capstoneCourse = 'Capstone 1';
+      project.stage = 'capstone_1';
+    }
+
     return project;
   }
 
@@ -1033,11 +1071,11 @@ class ProjectCoreService {
           },
           {
             path: 'sectionId',
-            select: 'name academicYear courseId createdBy',
-            populate: {
-              path: 'createdBy',
-              select: 'firstName middleName lastName email profilePicture',
-            },
+            select: 'name code academicYear academicTerm capstoneCourse courseId createdBy',
+            populate: [
+              { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+              { path: 'courseId', select: 'name code' },
+            ],
           },
         ],
       })
@@ -1048,9 +1086,10 @@ class ProjectCoreService {
       .populate('courseId', 'name code')
       .populate({
         path: 'sectionId',
-        select: 'name academicYear courseId createdBy',
+        select: 'name code academicYear academicTerm capstoneCourse courseId createdBy',
         populate: [
           { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+          { path: 'courseId', select: 'name code' },
         ],
       })
       .populate('memberRoleAssignments.userId', 'firstName middleName lastName email')
@@ -1207,11 +1246,11 @@ class ProjectCoreService {
           },
           {
             path: 'sectionId',
-            select: 'name academicYear courseId createdBy',
-            populate: {
-              path: 'createdBy',
-              select: 'firstName middleName lastName email profilePicture',
-            },
+            select: 'name code academicYear academicTerm capstoneCourse courseId createdBy',
+            populate: [
+              { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+              { path: 'courseId', select: 'name code' },
+            ],
           },
         ],
       },
@@ -1221,9 +1260,10 @@ class ProjectCoreService {
       { path: 'panelists.userId', select: 'firstName middleName lastName email profilePicture' },
       {
         path: 'sectionId',
-        select: 'name academicYear courseId createdBy',
+        select: 'name code academicYear academicTerm capstoneCourse courseId createdBy',
         populate: [
           { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+          { path: 'courseId', select: 'name code' },
         ],
       },
       { path: 'courseId', select: 'name code' },
@@ -1388,9 +1428,10 @@ class ProjectCoreService {
         .populate('panelists.userId', 'firstName middleName lastName email profilePicture')
         .populate({
           path: 'sectionId',
-          select: 'name academicYear courseId createdBy',
+          select: 'name code academicYear academicTerm capstoneCourse courseId createdBy',
           populate: [
             { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+            { path: 'courseId', select: 'name code' },
           ],
         })
         .populate('courseId', 'name code')
@@ -1427,6 +1468,7 @@ class ProjectCoreService {
     if (data.ganttChartUrl !== undefined) {
       project.ganttChartUrl = data.ganttChartUrl;
       await project.save();
+      await this._invalidateProjectCache(project._id);
     }
 
     return { project };
@@ -1456,8 +1498,7 @@ class ProjectCoreService {
     );
     const addedProgress = nextPlan.tasks.some(
       (task) =>
-        (Number(task?.progress) || 0) >
-        (previousProgressByTaskId.get(String(task?.id || '')) || 0),
+        (Number(task?.progress) || 0) > (previousProgressByTaskId.get(String(task?.id || '')) || 0),
     );
     if ((!hasCurrentScheduleApproval || nextHash !== previousHash) && addedProgress) {
       throw new AppError(
@@ -1480,6 +1521,7 @@ class ProjectCoreService {
     if (previousHash !== nextHash) this._invalidateSystemDefenseApproval(project);
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -1506,14 +1548,18 @@ class ProjectCoreService {
       );
     }
     if (Number(project.capstonePhase) !== CAPSTONE_COURSES.CAPSTONE_2) {
-      throw new AppError('System defense clearance is only available during Capstone 2.', 400, 'WRONG_PHASE');
+      throw new AppError(
+        'System defense clearance is only available during Capstone 2.',
+        400,
+        'WRONG_PHASE',
+      );
     }
     const hasSystemEvidence = Boolean(
       project.githubRepoUrl && ((project.prototypes || []).length > 0 || project.demoVideoUrl),
     );
     const hasApprovedGantt = Boolean(
       project.ganttApproval?.approved &&
-        project.ganttApproval.scheduleHash === ganttScheduleHash(project.ganttPlan || {}),
+      project.ganttApproval.scheduleHash === ganttScheduleHash(project.ganttPlan || {}),
     );
     if (data.approved && !hasApprovedGantt) {
       throw new AppError(
@@ -1542,6 +1588,7 @@ class ProjectCoreService {
       remarks: typeof data.remarks === 'string' ? data.remarks.trim() : '',
     };
     await project.save();
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -1564,6 +1611,7 @@ class ProjectCoreService {
       project.demoVideoUrl = data.demoVideoUrl;
       if (changed) this._invalidateSystemDefenseApproval(project);
       await project.save();
+      await this._invalidateProjectCache(project._id);
     }
 
     return { project };
@@ -1600,6 +1648,7 @@ class ProjectCoreService {
       project.githubRepoUrl = data.githubRepoUrl;
       if (changed) this._invalidateSystemDefenseApproval(project);
       await project.save();
+      await this._invalidateProjectCache(project._id);
 
       // Mirror to team if applicable
       if (team && (!team.githubUrl || team.githubUrl !== data.githubRepoUrl)) {
@@ -1640,6 +1689,7 @@ class ProjectCoreService {
     if (data.googleDocUrl !== undefined) {
       project.googleDocUrl = data.googleDocUrl;
       await project.save();
+      await this._invalidateProjectCache(project._id);
 
       // Mirror to team if applicable
       if (team && (!team.googleDocUrl || team.googleDocUrl !== data.googleDocUrl)) {
@@ -1730,7 +1780,11 @@ class ProjectCoreService {
     }
 
     if (Number(project.capstonePhase) !== CAPSTONE_COURSES.CAPSTONE_2) {
-      throw new AppError('Gantt schedule review is only available during Capstone 2.', 400, 'WRONG_PHASE');
+      throw new AppError(
+        'Gantt schedule review is only available during Capstone 2.',
+        400,
+        'WRONG_PHASE',
+      );
     }
 
     const hasReviewableSchedule = (project.ganttPlan?.tasks || []).some(
@@ -1766,7 +1820,9 @@ class ProjectCoreService {
 
     if (isApproved) {
       const existing = new Set(
-        (project.weeklyCheckIns || []).map((checkIn) => `${checkIn.scheduleHash}:${checkIn.weekKey}`),
+        (project.weeklyCheckIns || []).map(
+          (checkIn) => `${checkIn.scheduleHash}:${checkIn.weekKey}`,
+        ),
       );
       scheduledCheckIns.forEach((checkIn) => {
         const key = `${checkIn.scheduleHash}:${checkIn.weekKey}`;
@@ -1775,11 +1831,12 @@ class ProjectCoreService {
     }
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
 
     // Broadcast realtime event
     try {
-      const { emitToProject } = await import('../../services/socket.service.js');
-      emitToProject(projectId, 'project:gantt_approval_updated', {
+      const { emitToRoom } = await import('../../../services/socket.service.js');
+      emitToRoom(`project:${projectId}`, 'project:gantt_approval_updated', {
         projectId,
         ganttApproval: project.ganttApproval,
       });
@@ -1796,7 +1853,10 @@ class ProjectCoreService {
     await this._assertTeamMember(project.teamId, userId);
     this._assertCapstone2ADMApproved(project);
 
-    if (!project.ganttApproval?.approved || project.ganttApproval.scheduleHash !== ganttScheduleHash(project.ganttPlan || {})) {
+    if (
+      !project.ganttApproval?.approved ||
+      project.ganttApproval.scheduleHash !== ganttScheduleHash(project.ganttPlan || {})
+    ) {
       throw new AppError(
         'The adviser must approve the current Gantt schedule before weekly check-ins can be submitted.',
         400,
@@ -1806,7 +1866,11 @@ class ProjectCoreService {
 
     const checkIn = project.weeklyCheckIns?.id(checkInId);
     if (!checkIn || checkIn.scheduleHash !== project.ganttApproval.scheduleHash) {
-      throw new AppError('Weekly check-in not found for the current Gantt schedule.', 404, 'CHECKIN_NOT_FOUND');
+      throw new AppError(
+        'Weekly check-in not found for the current Gantt schedule.',
+        404,
+        'CHECKIN_NOT_FOUND',
+      );
     }
     if (['approved', 'awaiting_instructor_waiver'].includes(checkIn.status)) {
       throw new AppError('This weekly check-in is locked after review.', 409, 'CHECKIN_LOCKED');
@@ -1815,7 +1879,11 @@ class ProjectCoreService {
     const taskIds = new Set(checkIn.taskIds || []);
     const completedTaskIds = Array.isArray(data.completedTaskIds) ? data.completedTaskIds : [];
     if (completedTaskIds.some((taskId) => !taskIds.has(String(taskId)))) {
-      throw new AppError('Completed tasks must belong to this scheduled week.', 400, 'INVALID_CHECKIN_TASK');
+      throw new AppError(
+        'Completed tasks must belong to this scheduled week.',
+        400,
+        'INVALID_CHECKIN_TASK',
+      );
     }
 
     checkIn.summary = String(data.summary || '').trim();
@@ -1827,7 +1895,11 @@ class ProjectCoreService {
 
     if (data.submit !== false) {
       if (!checkIn.summary) {
-        throw new AppError('Add a short progress summary before submitting.', 400, 'CHECKIN_SUMMARY_REQUIRED');
+        throw new AppError(
+          'Add a short progress summary before submitting.',
+          400,
+          'CHECKIN_SUMMARY_REQUIRED',
+        );
       }
       const now = new Date();
       checkIn.isLate = now > new Date(checkIn.dueAt);
@@ -1840,11 +1912,23 @@ class ProjectCoreService {
       }
       checkIn.status = 'submitted';
       checkIn.submittedAt = now;
-      checkIn.adviserReview = { decision: 'pending', remarks: '', reviewedBy: null, reviewedAt: null };
-      checkIn.instructorWaiver = { decision: 'pending', remarks: '', reviewedBy: null, reviewedAt: null };
+      checkIn.adviserReview = {
+        decision: 'pending',
+        remarks: '',
+        reviewedBy: null,
+        reviewedAt: null,
+      };
+      checkIn.instructorWaiver = {
+        decision: 'pending',
+        remarks: '',
+        reviewedBy: null,
+        reviewedAt: null,
+      };
     }
 
-    await project.save({ validateModifiedOnly: true });
+    if (typeof project.save === 'function') {
+      await project.save({ validateModifiedOnly: true });
+    }
     if (data.submit !== false) {
       await this._notifyTeamMembers(project.teamId, {
         type: 'weekly_checkin_submitted',
@@ -1860,14 +1944,26 @@ class ProjectCoreService {
     const project = await this._getProjectOrFail(projectId);
     this._assertProjectWritable(project);
     if (String(project.adviserId?._id || project.adviserId || '') !== String(reviewerId)) {
-      throw new AppError('Only the assigned adviser can review this weekly check-in.', 403, 'NOT_ASSIGNED_ADVISER');
+      throw new AppError(
+        'Only the assigned adviser can review this weekly check-in.',
+        403,
+        'NOT_ASSIGNED_ADVISER',
+      );
     }
     if (Number(project.capstonePhase) !== CAPSTONE_COURSES.CAPSTONE_2) {
-      throw new AppError('Weekly check-in review is only available during Capstone 2.', 400, 'WRONG_PHASE');
+      throw new AppError(
+        'Weekly check-in review is only available during Capstone 2.',
+        400,
+        'WRONG_PHASE',
+      );
     }
     const checkIn = project.weeklyCheckIns?.id(checkInId);
     if (!checkIn || checkIn.status !== 'submitted') {
-      throw new AppError('Only submitted weekly check-ins can be reviewed.', 409, 'CHECKIN_NOT_REVIEWABLE');
+      throw new AppError(
+        'Only submitted weekly check-ins can be reviewed.',
+        409,
+        'CHECKIN_NOT_REVIEWABLE',
+      );
     }
 
     checkIn.adviserReview = {
@@ -1882,13 +1978,19 @@ class ProjectCoreService {
       checkIn.status = checkIn.isLate ? 'awaiting_instructor_waiver' : 'approved';
     }
 
-    await project.save({ validateModifiedOnly: true });
+    if (typeof project.save === 'function') {
+      await project.save({ validateModifiedOnly: true });
+    }
     await this._notifyTeamMembers(project.teamId, {
       type: 'weekly_checkin_reviewed',
-      title: checkIn.isLate && data.decision === 'approved' ? 'Instructor waiver required' : 'Weekly check-in reviewed',
-      message: checkIn.isLate && data.decision === 'approved'
-        ? 'The adviser accepted the late justification. The assigned instructor must issue a waiver before progression.'
-        : `The adviser ${data.decision === 'approved' ? 'approved' : 'requested revisions to'} the weekly check-in.`,
+      title:
+        checkIn.isLate && data.decision === 'approved'
+          ? 'Instructor waiver required'
+          : 'Weekly check-in reviewed',
+      message:
+        checkIn.isLate && data.decision === 'approved'
+          ? 'The adviser accepted the late justification. The assigned instructor must issue a waiver before progression.'
+          : `The adviser ${data.decision === 'approved' ? 'approved' : 'requested revisions to'} the weekly check-in.`,
       metadata: { projectId: project._id, checkInId: checkIn._id, status: checkIn.status },
     });
     return { project, checkIn };
@@ -1907,11 +2009,19 @@ class ProjectCoreService {
       assignedInstructorId = section?.createdBy;
     }
     if (String(assignedInstructorId?._id || assignedInstructorId || '') !== String(reviewerId)) {
-      throw new AppError('Only the assigned course instructor can issue this late waiver.', 403, 'NOT_ASSIGNED_INSTRUCTOR');
+      throw new AppError(
+        'Only the assigned course instructor can issue this late waiver.',
+        403,
+        'NOT_ASSIGNED_INSTRUCTOR',
+      );
     }
     const checkIn = project.weeklyCheckIns?.id(checkInId);
     if (!checkIn || checkIn.status !== 'awaiting_instructor_waiver') {
-      throw new AppError('This weekly check-in is not waiting for an instructor waiver.', 409, 'WAIVER_NOT_PENDING');
+      throw new AppError(
+        'This weekly check-in is not waiting for an instructor waiver.',
+        409,
+        'WAIVER_NOT_PENDING',
+      );
     }
 
     checkIn.instructorWaiver = {
@@ -1921,13 +2031,19 @@ class ProjectCoreService {
       reviewedAt: new Date(),
     };
     checkIn.status = data.decision === 'granted' ? 'approved' : 'waiver_denied';
-    await project.save({ validateModifiedOnly: true });
+    if (typeof project.save === 'function') {
+      await project.save({ validateModifiedOnly: true });
+    }
     await this._notifyTeamMembers(project.teamId, {
       type: 'weekly_checkin_waiver_reviewed',
-      title: data.decision === 'granted' ? 'Late check-in waiver granted' : 'Late check-in waiver denied',
-      message: data.decision === 'granted'
-        ? 'The instructor granted the weekly check-in waiver. Capstone 2 progression can continue once all due check-ins are approved.'
-        : 'The instructor denied the weekly check-in waiver. Update the check-in justification and resubmit it for review.',
+      title:
+        data.decision === 'granted'
+          ? 'Late check-in waiver granted'
+          : 'Late check-in waiver denied',
+      message:
+        data.decision === 'granted'
+          ? 'The instructor granted the weekly check-in waiver. Capstone 2 progression can continue once all due check-ins are approved.'
+          : 'The instructor denied the weekly check-in waiver. Update the check-in justification and resubmit it for review.',
       metadata: { projectId: project._id, checkInId: checkIn._id, status: checkIn.status },
     });
     return { project, checkIn };
@@ -2095,6 +2211,7 @@ class ProjectCoreService {
     project.projectStatus = PROJECT_STATUSES.REJECTED;
     project.rejectionReason = data.reason;
     await project.save();
+    await this._invalidateProjectCache(project._id);
 
     await this._notifyTeamMembers(project.teamId, {
       type: 'project_rejected',
@@ -2143,6 +2260,34 @@ class ProjectCoreService {
     project.admStatus = 'not_started';
     project.projectStatus = PROJECT_STATUSES.ACTIVE;
     await project.save();
+    await this._invalidateProjectCache(project._id);
+
+    try {
+      await Team.findByIdAndUpdate(project.teamId, {
+        $set: { currentCapstonePhase: project.capstonePhase },
+      });
+    } catch {
+      // Non-blocking team sync
+    }
+
+    try {
+      await cacheService.del(`project:meta:${project._id}`);
+      await cacheService.del(`project:detail:${project._id}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
+    try {
+      emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
+        projectId: project._id,
+        capstonePhase: project.capstonePhase,
+        workflowPhase: project.workflowPhase,
+        capstoneCourse: project.capstoneCourse,
+      });
+      emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+    } catch {
+      // Non-blocking socket emit
+    }
 
     await this._notifyTeamMembers(project.teamId, {
       type: 'phase_advanced',
@@ -2177,6 +2322,37 @@ class ProjectCoreService {
     project.stage = `capstone_${project.capstonePhase}`;
     project.admStatus = 'not_started';
     project.projectStatus = PROJECT_STATUSES.ACTIVE;
+    if (typeof project.save === 'function') {
+      await project.save({ validateModifiedOnly: true });
+    }
+
+    try {
+      await Team.findByIdAndUpdate(project.teamId, {
+        $set: { currentCapstonePhase: project.capstonePhase },
+      });
+    } catch {
+      // Non-blocking team sync
+    }
+
+    try {
+      await cacheService.del(`project:meta:${project._id}`);
+      await cacheService.del(`project:detail:${project._id}`);
+    } catch {
+      // Non-blocking cache eviction
+    }
+
+    try {
+      emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
+        projectId: project._id,
+        capstonePhase: project.capstonePhase,
+        workflowPhase: project.workflowPhase,
+        capstoneCourse: project.capstoneCourse,
+      });
+      emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+    } catch {
+      // Non-blocking socket emit
+    }
+
     await this._notifyTeamMembers(project.teamId, {
       type: 'phase_advanced',
       title: `Capstone ${project.capstonePhase} is ready`,
@@ -2298,6 +2474,7 @@ class ProjectCoreService {
     }
 
     await project.save();
+    await this._invalidateProjectCache(project._id);
 
     await this._notifyAdviser(project, {
       type: 'prototype_added',
@@ -2343,6 +2520,7 @@ class ProjectCoreService {
     project.prototypes.pull({ _id: prototypeId });
     this._invalidateSystemDefenseApproval(project);
     await project.save();
+    await this._invalidateProjectCache(project._id);
 
     return { project };
   }

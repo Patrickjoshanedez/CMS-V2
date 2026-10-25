@@ -40,8 +40,8 @@ const ProgressBar = ({ label, value, tone }) => {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold text-foreground">{safeValue.toFixed(2)}%</span>
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold text-foreground">{safeValue.toFixed(2)}%</span>
       </div>
       <Progress
         value={safeValue}
@@ -97,15 +97,19 @@ const AdviserAnalytics = ({ analytics }) => {
           <CardTitle className="text-lg">Review Outcomes</CardTitle>
         </CardHeader>
         <CardContent>
-        <div className="space-y-4">
-          <ProgressBar label="Approved" value={breakdown.approved?.percentage || 0} tone="green" />
-          <ProgressBar
-            label="Revision Requested"
-            value={breakdown.revisionRequested?.percentage || 0}
-            tone="amber"
-          />
-          <ProgressBar label="Rejected" value={breakdown.rejected?.percentage || 0} tone="red" />
-        </div>
+          <div className="space-y-4">
+            <ProgressBar
+              label="Approved"
+              value={breakdown.approved?.percentage || 0}
+              tone="green"
+            />
+            <ProgressBar
+              label="Revision Requested"
+              value={breakdown.revisionRequested?.percentage || 0}
+              tone="amber"
+            />
+            <ProgressBar label="Rejected" value={breakdown.rejected?.percentage || 0} tone="red" />
+          </div>
         </CardContent>
       </Card>
 
@@ -114,12 +118,12 @@ const AdviserAnalytics = ({ analytics }) => {
           <CardTitle className="text-lg">Interpretation</CardTitle>
         </CardHeader>
         <CardContent>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          This panel summarizes your recent review behavior. A high approval rate with low average
-          review time usually indicates smooth student submissions. If revision and rejection bars
-          rise, inspect recurring issues in chapter quality or compliance before the next advising
-          cycle.
-        </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            This panel summarizes your recent review behavior. A high approval rate with low average
+            review time usually indicates smooth student submissions. If revision and rejection bars
+            rise, inspect recurring issues in chapter quality or compliance before the next advising
+            cycle.
+          </p>
         </CardContent>
       </Card>
     </div>

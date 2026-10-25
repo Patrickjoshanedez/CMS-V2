@@ -24,7 +24,9 @@ const SIDEBAR_STATE_KEY = 'cms.sidebar.open';
 export default function DashboardLayout({ children }) {
   useSocket();
   const hasPortalSpacing = useAuthStore((state) =>
-    [ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR].includes(state.user?.role),
+    [ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR].includes(
+      state.user?.role,
+    ),
   );
   const [mobileView, setMobileView] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 1024,
@@ -89,11 +91,7 @@ export default function DashboardLayout({ children }) {
             <SheetDescription className="sr-only">
               Navigate between your capstone workspace, tools, and account pages.
             </SheetDescription>
-            <Sidebar
-              open
-              mobileView
-              onToggle={() => setSidebarOpen((prev) => !prev)}
-            />
+            <Sidebar open mobileView onToggle={() => setSidebarOpen((prev) => !prev)} />
           </SheetContent>
         )}
 

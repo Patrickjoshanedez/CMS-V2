@@ -304,6 +304,7 @@ class ProposalService {
     const html = buildDeckHtml(payload);
     const browser = await puppeteer.launch({
       headless: true,
+      timeout: 15000,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       channel: process.env.PUPPETEER_EXECUTABLE_PATH ? undefined : 'chrome',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
@@ -311,12 +312,13 @@ class ProposalService {
 
     try {
       const page = await browser.newPage();
+      page.setDefaultTimeout(15000);
       // Set viewport to match slide dimensions for consistent rendering
       await page.setViewport({
         width: Math.round((SLIDE_WIDTH_MM * 96) / 25.4), // Convert mm to pixels at 96 DPI
         height: Math.round((SLIDE_HEIGHT_MM * 96) / 25.4),
       });
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const pdfBuffer = await page.pdf({
         width: `${SLIDE_WIDTH_MM}mm`,
         height: `${SLIDE_HEIGHT_MM}mm`,

@@ -172,11 +172,17 @@ export default function InteractiveGanttChart({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [project?._id, project?.id, tasks, sections, planProjectId, canEditSchedule, isScheduleReadOnly]);
+  }, [
+    project?._id,
+    project?.id,
+    tasks,
+    sections,
+    planProjectId,
+    canEditSchedule,
+    isScheduleReadOnly,
+  ]);
 
-  const projectWithGanttApproval = project
-    ? { ...project, ganttApproval }
-    : project;
+  const projectWithGanttApproval = project ? { ...project, ganttApproval } : project;
 
   // Combined canonical sections list
   const allSections = useMemo(() => {
@@ -669,7 +675,7 @@ export default function InteractiveGanttChart({
                                     </div>
                                   </div>
                                 </td>
-                                    {!isScheduleReadOnly && (
+                                {!isScheduleReadOnly && (
                                   <td className="p-3 text-center">
                                     <Button
                                       type="button"
@@ -713,9 +719,7 @@ export default function InteractiveGanttChart({
               {allSections.length > 0 ? (
                 <Select
                   value={newTask.section}
-                  onValueChange={(value) =>
-                    setNewTask((prev) => ({ ...prev, section: value }))
-                  }
+                  onValueChange={(value) => setNewTask((prev) => ({ ...prev, section: value }))}
                 >
                   <SelectTrigger id="task-section" className="h-9 text-xs">
                     <SelectValue />
@@ -929,10 +933,7 @@ export default function InteractiveGanttChart({
           </div>
         </DialogContent>
       </Dialog>
-      <WeeklyProgressCheckIns
-        project={project}
-        isReadOnly={isReadOnly || isProjectArchived}
-      />
+      <WeeklyProgressCheckIns project={project} isReadOnly={isReadOnly || isProjectArchived} />
     </div>
   );
 }

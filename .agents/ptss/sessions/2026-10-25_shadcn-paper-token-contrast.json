@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-10-25_shadcn-paper-token-contrast",
+  "timestamp": "2026-10-24T18:43:14Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Continue the full CMS-V2 shadcn/ui refactor and verify the latest paper-surface token change.",
+  "completed_this_turn": [
+    "Replaced the ADM screen-only spacing hint token with text-paper-muted, a dedicated token that stays legible on the invariant white ADM paper in light and dark themes.",
+    "Updated the Tailwind token mapping and theme variables while preserving the institutional paper and print surface rules.",
+    "Focused ADMTableView tests pass 3/3 under Vitest single-thread/no-isolation; changed-file ESLint and Prettier pass.",
+    "Client production build passes with 4,859 modules transformed in 29.58 seconds.",
+    "Corrected verification and evidence records to distinguish the paper token and current build time from the prior muted-foreground note.",
+    "Added an offline Playwright fixture against the built CSS; four inspected captures verify invariant color rgb(90, 104, 125), 5.66:1 contrast on white, and no overflow across light/dark desktop/mobile."
+  ],
+  "verification": {
+    "focused_tests": "3/3 passed",
+    "scoped_eslint": "passed",
+    "prettier": "passed",
+    "client_production_build": "passed, 4,859 modules, 29.58 seconds",
+    "offline_token_visual": "passed in four themes/viewports; screenshots inspected",
+    "fresh_live_app_visual": "pending; the browser and shell cannot reach localhost under current network permissions"
+  },
+  "remaining": [
+    "Capture and inspect current ADM paper-token and defense-minutes capability states across light/dark and desktop/mobile.",
+    "Continue final route and interaction-state audit, including workflow pending/loading states.",
+    "Keep exact pre-edit dirty-working-tree performance baseline gap explicit and finish remaining required final gates."
+  ]
+}

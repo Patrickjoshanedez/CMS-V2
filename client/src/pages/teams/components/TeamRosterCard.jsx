@@ -224,10 +224,7 @@ export default function TeamRosterCard({
             value={role || NO_ROLE_SELECT_VALUE}
             disabled={isAssignPending}
             onValueChange={(nextRole) => {
-              onAssignRole?.(
-                nextRole === NO_ROLE_SELECT_VALUE ? '' : nextRole,
-                memberId,
-              );
+              onAssignRole?.(nextRole === NO_ROLE_SELECT_VALUE ? '' : nextRole, memberId);
             }}
           >
             <SelectTrigger
@@ -240,11 +237,11 @@ export default function TeamRosterCard({
               <SelectItem value={NO_ROLE_SELECT_VALUE}>
                 {role ? 'Change role...' : 'Assign role...'}
               </SelectItem>
-            {roleOptions.map((roleOption) => (
-              <SelectItem key={roleOption} value={roleOption}>
-                {roleOption}
-              </SelectItem>
-            ))}
+              {roleOptions.map((roleOption) => (
+                <SelectItem key={roleOption} value={roleOption}>
+                  {roleOption}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}

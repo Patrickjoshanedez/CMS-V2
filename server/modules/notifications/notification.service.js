@@ -3,6 +3,7 @@ import AppError from '../../utils/AppError.js';
 import deadlineNotificationService from '../settings/deadlineNotification.service.js';
 
 const DEADLINE_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
+const MAX_DEADLINE_CACHE_USERS = 2000;
 const lastDeadlineCheckByUser = new Map();
 
 /**
@@ -23,6 +24,19 @@ class NotificationService {
     const lastChecked = lastDeadlineCheckByUser.get(userKey) || 0;
 
     if (now - lastChecked >= DEADLINE_CHECK_COOLDOWN_MS) {
+      if (lastDeadlineCheckByUser.size >= MAX_DEADLINE_CACHE_USERS) {
+        for (const [key, timestamp] of lastDeadlineCheckByUser.entries()) {
+          if (now - timestamp >= DEADLINE_CHECK_COOLDOWN_MS) {
+            lastDeadlineCheckByUser.delete(key);
+          }
+        }
+        if (lastDeadlineCheckByUser.size >= MAX_DEADLINE_CACHE_USERS) {
+          const oldestKey = lastDeadlineCheckByUser.keys().next().value;
+          if (oldestKey !== undefined) {
+            lastDeadlineCheckByUser.delete(oldestKey);
+          }
+        }
+      }
       lastDeadlineCheckByUser.set(userKey, now);
       try {
         await deadlineNotificationService.checkAndDispatchDueDeadlines(userId);

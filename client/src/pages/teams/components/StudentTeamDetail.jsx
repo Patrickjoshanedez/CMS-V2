@@ -186,9 +186,7 @@ export default function StudentTeamDetail({ team, userId }) {
   );
   const sectionTCode = extractSectionCode(sectionObj) || team.sectionCode || null;
   const capstoneMeta = resolveSectionCapstoneMeta(sectionObj, team.academicTerm);
-  const teamEnrollments = Array.isArray(team.capstoneEnrollments)
-    ? team.capstoneEnrollments
-    : [];
+  const teamEnrollments = Array.isArray(team.capstoneEnrollments) ? team.capstoneEnrollments : [];
 
   return (
     <div className="space-y-6">
@@ -238,7 +236,8 @@ export default function StudentTeamDetail({ team, userId }) {
               <>
                 <span>&bull;</span>
                 <span>
-                  Group code: <span className="font-mono font-medium text-foreground">#{groupCode}</span>
+                  Group code:{' '}
+                  <span className="font-mono font-medium text-foreground">#{groupCode}</span>
                 </span>
               </>
             )}
@@ -267,9 +266,7 @@ export default function StudentTeamDetail({ team, userId }) {
                 loading={leaveTeam.isPending}
                 loadingText="Leaving team"
               >
-                {!leaveTeam.isPending && (
-                  <LogOut className="mr-1.5 h-3.5 w-3.5" />
-                )}
+                {!leaveTeam.isPending && <LogOut className="mr-1.5 h-3.5 w-3.5" />}
                 Leave Team
               </Button>
               {isLeader && (
@@ -282,13 +279,16 @@ export default function StudentTeamDetail({ team, userId }) {
                     }
                     setPendingTeamAction('lock');
                   }}
-                  disabled={!isMinMembersMet || !allRolesAssigned || lockTeam.isPending || leaveTeam.isPending}
+                  disabled={
+                    !isMinMembersMet ||
+                    !allRolesAssigned ||
+                    lockTeam.isPending ||
+                    leaveTeam.isPending
+                  }
                   loading={lockTeam.isPending}
                   loadingText="Finalizing team"
                 >
-                  {!lockTeam.isPending && (
-                    <Lock className="mr-1.5 h-3.5 w-3.5" />
-                  )}
+                  {!lockTeam.isPending && <Lock className="mr-1.5 h-3.5 w-3.5" />}
                   Finalize & Lock Team
                 </Button>
               )}
@@ -305,9 +305,7 @@ export default function StudentTeamDetail({ team, userId }) {
               loading={unlockTeam.isPending}
               loadingText="Unlocking roster"
             >
-              {!unlockTeam.isPending && (
-                <Unlock className="mr-1.5 h-3.5 w-3.5" />
-              )}
+              {!unlockTeam.isPending && <Unlock className="mr-1.5 h-3.5 w-3.5" />}
               Unlock Roster
             </Button>
           )}
@@ -813,13 +811,17 @@ export default function StudentTeamDetail({ team, userId }) {
             <CardContent className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">Section Block</span>
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                    Section Block
+                  </span>
                   <p className="mt-0.5 text-sm font-semibold text-foreground">
                     {canonicalSection || 'Unassigned'}
                   </p>
                 </div>
                 <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">Section Code</span>
+                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                    Section Code
+                  </span>
                   <p className="mt-0.5 font-mono text-sm font-bold text-primary">
                     {sectionTCode || '—'}
                   </p>
@@ -827,9 +829,12 @@ export default function StudentTeamDetail({ team, userId }) {
               </div>
 
               <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Academic Term</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  Academic Term
+                </span>
                 <p className="mt-0.5 font-medium text-foreground">
-                  {team.academicYear || '2025–2026'} • {team.academicTerm || sectionObj?.academicTerm || '1st Semester'}
+                  {team.academicYear || '2025–2026'} •{' '}
+                  {team.academicTerm || sectionObj?.academicTerm || '1st Semester'}
                 </p>
               </div>
 
@@ -871,7 +876,10 @@ export default function StudentTeamDetail({ team, userId }) {
                               {trackMeta?.courseTitle || `Capstone ${courseNum}`}
                             </span>
                             {isCurrentCourse && (
-                              <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/40 bg-primary/10 text-primary">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] py-0 px-1 border-primary/40 bg-primary/10 text-primary"
+                              >
                                 Current
                               </Badge>
                             )}
@@ -882,7 +890,8 @@ export default function StudentTeamDetail({ team, userId }) {
                         </div>
                         <div className="text-right">
                           <span className="font-mono text-xs font-semibold text-foreground">
-                            {enrollment?.sectionCode || (isCurrentCourse ? sectionTCode || '—' : '—')}
+                            {enrollment?.sectionCode ||
+                              (isCurrentCourse ? sectionTCode || '—' : '—')}
                           </span>
                           {enrollment?.sectionName && (
                             <p className="text-[10px] text-muted-foreground">
@@ -1131,9 +1140,7 @@ export default function StudentTeamDetail({ team, userId }) {
                 <AlertDialogDescription>{teamActionDialog.description}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={teamActionDialog.isPending}>
-                  Cancel
-                </AlertDialogCancel>
+                <AlertDialogCancel disabled={teamActionDialog.isPending}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   variant={teamActionDialog.variant}
                   disabled={teamActionDialog.isPending}

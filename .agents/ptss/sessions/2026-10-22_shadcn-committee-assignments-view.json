@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-10-22_shadcn-committee-assignments-view",
+  "timestamp": "2026-10-22T03:43:00Z",
+  "status": "in_progress",
+  "task_summary": "Migrated TeamCommitteeAssignmentsView to shared shadcn controls, semantic states, shared avatars/cards, a workspace-shaped skeleton, retryable error handling, and EmptyState while preserving role eligibility, filters, committee drafts, and assignment payloads. Its focused tests pass 12/12, scoped ESLint and Prettier pass, and 24 light/dark desktop/mobile visual captures show approved, eligible-faculty, prerequisite-lock, empty, loading, and retryable-error states without overflow, browser/Vite errors, or mutations. Inventory at this slice is 99/277 source-updated with 178 pending. Full UI refactor remains active.",
+  "active_skills": [
+    "capstone-lifecycle-orchestrator",
+    "frontend-patterns",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "completed": [
+    "Replaced native academic-year, section, status, and team selectors with shared Radix Select controls and accessible names; preserved filter and team-selection behavior.",
+    "Replaced the filter toolbar and panelist rows with shared Card composition; standardized team/member/faculty initials with Avatar and semantic approved/warning Badge variants.",
+    "Replaced the hand-built no-teams branch with EmptyState, the centered loading indicator with a workspace-shaped Skeleton, and the raw error state with a retryable destructive Alert.",
+    "Kept instructor appointment exclusion, conflict filtering, team prerequisite gating, committee role state, save payload, toast behavior, and query invalidation unchanged.",
+    "TeamCommitteeAssignmentsView.test.jsx passed 12/12, including selector changes, faculty instructor exclusion, approved-project gate, assignment mutation payload, empty/loading/error states, and retry.",
+    "Scoped ESLint and Prettier passed.",
+    "Playwright captured and visually reviewed 24 light/dark desktop/mobile states for approved team, eligible faculty choices, prerequisite lock, empty, loading, and retryable-error results; no overflow, browser/Vite errors, or workflow mutations occurred.",
+    "Updated the source census to 99/277 source-updated with 178 pending and recorded evidence in the authority/evidence ledgers."
+  ],
+  "pending": [
+    "Continue the remaining migration inventory modules and full route/state audit.",
+    "Run the required final governance, full test partitions, lint, build, evidence, and visual verification gates."
+  ],
+  "observations": [
+    "Radix Select uses its placeholder to represent an unfiltered empty value; empty-string SelectItem values are not supported.",
+    "Committee assignment backend behavior supports partial draft updates; the UI continues to use the backend's full-assignment status instead of adding an unrequested save gate.",
+    "No committee assignment or notification mutation was submitted during visual review."
+  ]
+}

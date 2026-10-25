@@ -5,6 +5,7 @@ import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Project from '../projects/project.model.js';
 import AppError from '../../utils/AppError.js';
+import { inferCapstoneCourseFromSection, resolveCapstoneCurriculumMeta } from '@cms/shared';
 
 class AcademicService {
   async createCourse(instructorId, data) {
@@ -36,12 +37,19 @@ class AcademicService {
     }
 
     const normalizedSection = (data.section || data.name || '').trim().toUpperCase();
+    const normalizedCode = data.code.trim().toUpperCase();
+    const resolvedTerm =
+      data.academicTerm || (data.capstoneCourse === 2 ? '2nd Semester' : '1st Semester');
+    const resolvedCapstoneCourse =
+      data.capstoneCourse ?? inferCapstoneCourseFromSection(normalizedSection, resolvedTerm);
 
     const section = await Section.create({
       name: normalizedSection,
-      code: data.code.trim().toUpperCase(),
+      code: normalizedCode,
       courseId: data.courseId,
       academicYear: data.academicYear,
+      academicTerm: resolvedTerm,
+      capstoneCourse: resolvedCapstoneCourse,
       createdBy: instructorId,
     });
 
@@ -53,18 +61,20 @@ class AcademicService {
     const fallbackEnabled = query.fallback === true;
     const baseFilter = { isActive: true };
     if (query.courseId) baseFilter.courseId = query.courseId;
+    if (query.academicTerm) baseFilter.academicTerm = query.academicTerm;
+    if (query.capstoneCourse) baseFilter.capstoneCourse = Number(query.capstoneCourse);
 
     const primaryFilter = { ...baseFilter };
     if (query.academicYear) primaryFilter.academicYear = query.academicYear;
 
     let sections = await Section.find(primaryFilter)
-      .sort({ academicYear: -1, name: 1 })
+      .sort({ academicYear: -1, academicTerm: 1, name: 1, code: 1 })
       .populate('courseId', 'name code')
       .lean();
 
     if (fallbackEnabled && query.academicYear && sections.length === 0) {
       sections = await Section.find(baseFilter)
-        .sort({ academicYear: -1, name: 1 })
+        .sort({ academicYear: -1, academicTerm: 1, name: 1, code: 1 })
         .populate('courseId', 'name code')
         .lean();
     }
@@ -73,8 +83,10 @@ class AcademicService {
   }
 
   async listAcademicYears() {
-    const sectionYears = await Section.distinct('academicYear', { isActive: true });
-    const explicitYears = await AcademicYear.distinct('year', { isActive: true });
+    const [sectionYears, explicitYears] = await Promise.all([
+      Section.distinct('academicYear', { isActive: true }),
+      AcademicYear.distinct('year', { isActive: true }),
+    ]);
 
     // Merge them and delete duplicates just in case there are years used in sections but not explicitly created
     const years = [...new Set([...sectionYears, ...explicitYears])];
@@ -101,11 +113,12 @@ class AcademicService {
     const sectionFilter = { isActive: true };
     if (query.courseId) sectionFilter.courseId = query.courseId;
     if (query.academicYear) sectionFilter.academicYear = query.academicYear;
+    if (query.academicTerm) sectionFilter.academicTerm = query.academicTerm;
     if (query.sectionId) sectionFilter._id = query.sectionId;
 
     const sections = await Section.find(sectionFilter)
       .populate('courseId', 'name code')
-      .sort({ name: 1 })
+      .sort({ name: 1, academicTerm: 1, code: 1 })
       .lean();
 
     const sectionIds = sections.map((section) => section._id);
@@ -116,7 +129,10 @@ class AcademicService {
           role: 'student',
           isActive: true,
         })
-          .select('_id sectionId')
+          .select(
+            '_id firstName middleName lastName email role studentId academicTerm sectionId instructorId teamId isVerified isActive createdAt',
+          )
+          .populate('instructorId', 'firstName middleName lastName email')
           .lean()
       : [];
 
@@ -124,90 +140,124 @@ class AcademicService {
     const studentSectionById = new Map(
       activeStudents.map((student) => [student._id.toString(), student.sectionId?.toString()]),
     );
+    const studentsBySection = new Map();
+    for (const student of activeStudents) {
+      const secKey = student.sectionId?.toString();
+      if (!secKey) continue;
+      if (!studentsBySection.has(secKey)) studentsBySection.set(secKey, []);
+      studentsBySection.get(secKey).push(student);
+    }
 
     // Include both:
-    // 1) Teams explicitly linked to a section
+    // 1) Teams explicitly linked to a section or enrolled via capstoneEnrollments
     // 2) Legacy teams missing sectionId but containing section-assigned students
     const teams = sectionIds.length
       ? await Team.find({
-          $or: [{ sectionId: { $in: sectionIds } }, { members: { $in: studentIds } }],
+          $or: [
+            { sectionId: { $in: sectionIds } },
+            { 'capstoneEnrollments.sectionId': { $in: sectionIds } },
+            { members: { $in: studentIds } },
+          ],
         })
           .sort({ createdAt: -1 })
-          .populate('leaderId', 'firstName middleName lastName email')
-          .populate('members', 'firstName middleName lastName email role sectionId')
+          .populate('leaderId', 'firstName middleName lastName email studentId')
+          .populate({
+            path: 'members',
+            select:
+              'firstName middleName lastName email role studentId academicTerm sectionId instructorId isVerified isActive createdAt',
+            populate: { path: 'instructorId', select: 'firstName middleName lastName email' },
+          })
+          .populate('adviserId', 'firstName middleName lastName email')
           .lean()
       : [];
 
-    // Count students from user assignments so orphaned/non-team students are included.
-    const studentCounts = sectionIds.length
-      ? await User.aggregate([
-          {
-            $match: {
-              sectionId: { $in: sectionIds },
-              role: 'student',
-              isActive: true,
-            },
-          },
-          {
-            $group: {
-              _id: '$sectionId',
-              count: { $sum: 1 },
-            },
-          },
-        ])
-      : [];
-
+    // Derive section student counts directly in-memory from activeStudents (eliminating redundant DB aggregation)
     const studentCountBySection = new Map(
-      studentCounts.map((item) => [item._id?.toString(), item.count || 0]),
+      Array.from(studentsBySection.entries()).map(([secId, list]) => [secId, list.length]),
     );
 
     const sectionIdSet = new Set(sectionIds.map((id) => id.toString()));
     const teamsBySection = new Map();
     for (const team of teams) {
-      let key = team.sectionId?.toString() || null;
+      const matchedSectionKeys = new Set();
+      const primaryKey = team.sectionId?.toString() || null;
+      if (primaryKey && sectionIdSet.has(primaryKey)) {
+        matchedSectionKeys.add(primaryKey);
+      }
+
+      for (const enrollment of team.capstoneEnrollments || []) {
+        const enrolledSecId = enrollment?.sectionId?.toString();
+        if (enrolledSecId && sectionIdSet.has(enrolledSecId)) {
+          matchedSectionKeys.add(enrolledSecId);
+        }
+      }
 
       // Fallback mapping for legacy teams without sectionId.
-      if (!key || !sectionIdSet.has(key)) {
+      if (matchedSectionKeys.size === 0) {
         for (const member of team.members || []) {
           const memberSectionId =
             member.sectionId?.toString() || studentSectionById.get(member._id?.toString()) || null;
           if (memberSectionId && sectionIdSet.has(memberSectionId)) {
-            key = memberSectionId;
+            matchedSectionKeys.add(memberSectionId);
             break;
           }
         }
       }
 
-      if (!key || !sectionIdSet.has(key)) continue;
-      if (!teamsBySection.has(key)) teamsBySection.set(key, []);
-      teamsBySection.get(key).push(team);
+      for (const key of matchedSectionKeys) {
+        if (!teamsBySection.has(key)) teamsBySection.set(key, []);
+        teamsBySection.get(key).push(team);
+      }
     }
 
     const teamIds = teams.map((t) => t._id);
     const projects = teamIds.length
       ? await Project.find({ teamId: { $in: teamIds } })
-          .select('teamId capstonePhase titleStatus projectStatus')
+          .select('teamId title stage workflowPhase capstonePhase titleStatus projectStatus')
           .lean()
       : [];
 
     const projectByTeamId = new Map(projects.map((p) => [p.teamId?.toString(), p]));
 
     const hierarchy = sections.map((section) => {
+      const resolvedCapstoneCourse =
+        section.capstoneCourse ??
+        inferCapstoneCourseFromSection(section.name, section.academicTerm);
+      const curriculumMeta = resolveCapstoneCurriculumMeta(resolvedCapstoneCourse);
+
       const sectionTeams = (teamsBySection.get(section._id.toString()) || []).map((team) => {
         const proj = projectByTeamId.get(team._id.toString());
+        const roleByUserId = new Map(
+          (team.memberRoles || []).map((mr) => [mr.userId?.toString(), mr.role]),
+        );
+        const enrichedMembers = (team.members || []).map((member) => ({
+          ...member,
+          teamRole: roleByUserId.get(member._id?.toString()) || null,
+          isLeader: team.leaderId?._id?.toString() === member._id?.toString(),
+        }));
         return {
           ...team,
+          members: enrichedMembers,
           assignment: {
             projectId: proj?._id || null,
-            capstonePhase: proj?.capstonePhase || null,
+            title: proj?.title || null,
+            stage: proj?.stage || null,
+            workflowPhase: proj?.workflowPhase || null,
+            capstonePhase: proj?.capstonePhase || resolvedCapstoneCourse || null,
             titleStatus: proj?.titleStatus || null,
             projectStatus: proj?.projectStatus || null,
           },
         };
       });
+
+      const rawSectionStudents = studentsBySection.get(section._id.toString()) || [];
       return {
         ...section,
+        academicTerm: section.academicTerm || curriculumMeta?.academicTerm || '1st Semester',
+        capstoneCourse: resolvedCapstoneCourse,
+        curriculumLabel: curriculumMeta?.curriculumLabel || null,
         teams: sectionTeams,
+        students: rawSectionStudents,
         teamCount: sectionTeams.length,
         studentCount: studentCountBySection.get(section._id.toString()) || 0,
       };

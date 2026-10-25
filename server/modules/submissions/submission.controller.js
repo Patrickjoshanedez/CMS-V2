@@ -495,19 +495,22 @@ export const getSubmissionVersions = catchAsync(async (req, res) => {
 
 /* ═══════════════════ Inline Document Comments ═══════════════════ */
 
-async function assertSubmissionAccess(submissionId, user) {
-  if (!user || user.role !== ROLES.STUDENT) return;
+async function assertSubmissionAccess(submissionId, user, { isWrite = false } = {}) {
+  if (!user) return;
   const Submission = mongoose.model('Submission');
   const Project = mongoose.model('Project');
   const Team = mongoose.model('Team');
   const submission = await Submission.findById(submissionId).select('projectId').lean();
-  if (!submission) {
-    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-  }
+  if (!submission) return;
   const project = await Project.findById(submission.projectId)
-    .select('teamId memberRoleAssignments isArchived')
+    .select(
+      'teamId memberRoleAssignments isArchived projectStatus adviserId secretaryId chairpersonId panelistIds panelists',
+    )
     .lean();
   if (!project) return;
+  if (isWrite && (project.isArchived || project.projectStatus === 'archived')) {
+    throw new AppError('Archived projects are read-only.', 403, 'PROJECT_ARCHIVED_READ_ONLY');
+  }
   const userIdStr = (user._id || user.id || '').toString();
   const team = project.teamId
     ? await Team.findById(project.teamId).select('members leaderId').lean()
@@ -516,19 +519,41 @@ async function assertSubmissionAccess(submissionId, user) {
     project.memberRoleAssignments?.some((m) => m.userId?.toString() === userIdStr) ||
     team?.members?.some((m) => (m?._id || m)?.toString() === userIdStr) ||
     (team?.leaderId?._id || team?.leaderId)?.toString() === userIdStr;
-  if (!isMember && !project.isArchived) {
-    throw new AppError(
-      'You do not have permission to access comments on this submission.',
-      403,
-      'FORBIDDEN',
-    );
+
+  if (user.role === ROLES.STUDENT) {
+    const isArchivedRead =
+      !isWrite && (project.isArchived === true || project.projectStatus === 'archived');
+    if (!isMember && !isArchivedRead) {
+      throw new AppError(
+        'You do not have permission to access comments on this submission.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+    return;
+  }
+
+  if (isWrite && user.role !== ROLES.INSTRUCTOR && user.role !== ROLES.ADMIN) {
+    const isCommittee =
+      project.adviserId?.toString() === userIdStr ||
+      project.secretaryId?.toString() === userIdStr ||
+      project.chairpersonId?.toString() === userIdStr ||
+      project.panelistIds?.some((id) => (id?._id || id)?.toString() === userIdStr) ||
+      project.panelists?.some((p) => (p.userId?._id || p.userId)?.toString() === userIdStr);
+    if (!isCommittee) {
+      throw new AppError(
+        'Only assigned committee members can modify comments on this project.',
+        403,
+        'FORBIDDEN',
+      );
+    }
   }
 }
 
 /** POST /api/submissions/:submissionId/comments — Create inline highlight comment */
 export const createSubmissionComment = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
-  await assertSubmissionAccess(submissionId, req.user);
+  await assertSubmissionAccess(submissionId, req.user, { isWrite: true });
 
   const {
     pageNumber,
@@ -547,8 +572,7 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
   const authorName =
     [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
 
-  const resolvedRole =
-    req.user.role === ROLES.STUDENT ? 'student' : authorRole || 'faculty';
+  const resolvedRole = req.user.role === ROLES.STUDENT ? 'student' : authorRole || 'faculty';
 
   const comment = await Comment.create({
     submissionId,
@@ -601,7 +625,13 @@ export const addSubmissionCommentReply = catchAsync(async (req, res) => {
       message: 'Comment not found.',
     });
   }
-  await assertSubmissionAccess(comment.submissionId, req.user);
+  if (req.params.submissionId && String(comment.submissionId) !== String(req.params.submissionId)) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment does not belong to this submission.',
+    });
+  }
+  await assertSubmissionAccess(comment.submissionId, req.user, { isWrite: true });
 
   const authorName =
     [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
@@ -653,7 +683,13 @@ export const updateSubmissionCommentStatus = catchAsync(async (req, res) => {
       message: 'Comment not found.',
     });
   }
-  await assertSubmissionAccess(comment.submissionId, req.user);
+  if (req.params.submissionId && String(comment.submissionId) !== String(req.params.submissionId)) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment does not belong to this submission.',
+    });
+  }
+  await assertSubmissionAccess(comment.submissionId, req.user, { isWrite: true });
 
   comment.status = status;
   await comment.save();
@@ -693,6 +729,15 @@ export const deleteSubmissionComment = catchAsync(async (req, res) => {
       message: 'Comment not found.',
     });
   }
+
+  if (req.params.submissionId && String(comment.submissionId) !== String(req.params.submissionId)) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment does not belong to this submission.',
+    });
+  }
+
+  await assertSubmissionAccess(comment.submissionId, req.user, { isWrite: true });
 
   const isOwner = comment.authorId.toString() === req.user._id.toString();
   const isFaculty = req.user.role === ROLES.INSTRUCTOR || req.user.role === ROLES.ADMIN;

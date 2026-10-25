@@ -328,7 +328,9 @@ export default function ProfilePage() {
               </div>
               {avatarError && <p className="mt-1 text-xs text-destructive">{avatarError}</p>}
               <h4 className="mt-4 text-lg font-semibold">{user.fullName}</h4>
-              <p className="max-w-full break-words text-center text-sm text-muted-foreground">{user.email}</p>
+              <p className="max-w-full break-words text-center text-sm text-muted-foreground">
+                {user.email}
+              </p>
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Shield className="h-3 w-3" />
                 {roleLabel}
@@ -430,9 +432,7 @@ export default function ProfilePage() {
             <CardFooter className="flex-col items-start gap-3">
               {saveSuccess && (
                 <Alert variant="success">
-                  <AlertDescription>
-                    Profile updated successfully.
-                  </AlertDescription>
+                  <AlertDescription>Profile updated successfully.</AlertDescription>
                 </Alert>
               )}
               {saveError && (
@@ -552,20 +552,20 @@ export default function ProfilePage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                  {sections.map((s) => {
-                    const secMeta = resolveSectionCapstoneMeta(s);
-                    const termTag = secMeta?.courseTitle
-                      ? ` — ${secMeta.courseTitle} (${secMeta.curriculumLabel})`
-                      : s.academicTerm
-                        ? ` — ${s.academicTerm}`
-                        : '';
-                    return (
-                      <SelectItem key={s._id} value={s._id}>
-                        {formatSectionWithCode(s)}
-                        {termTag} {s.academicYear ? `(${s.academicYear})` : ''}
-                      </SelectItem>
-                    );
-                  })}
+                    {sections.map((s) => {
+                      const secMeta = resolveSectionCapstoneMeta(s);
+                      const termTag = secMeta?.courseTitle
+                        ? ` — ${secMeta.courseTitle} (${secMeta.curriculumLabel})`
+                        : s.academicTerm
+                          ? ` — ${s.academicTerm}`
+                          : '';
+                      return (
+                        <SelectItem key={s._id} value={s._id}>
+                          {formatSectionWithCode(s)}
+                          {termTag} {s.academicYear ? `(${s.academicYear})` : ''}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 {sectionsError && (
@@ -635,11 +635,11 @@ export default function ProfilePage() {
                       <SelectValue placeholder="Select your academic term" />
                     </SelectTrigger>
                     <SelectContent>
-                    {Object.values(ACADEMIC_TERMS).map((term) => (
-                      <SelectItem key={term} value={term}>
-                        {term}
-                      </SelectItem>
-                    ))}
+                      {Object.values(ACADEMIC_TERMS).map((term) => (
+                        <SelectItem key={term} value={term}>
+                          {term}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -728,11 +728,11 @@ export default function ProfilePage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                  {instructors.map((ins) => (
-                    <SelectItem key={ins._id} value={ins._id}>
-                      {[ins.firstName, ins.middleName, ins.lastName].filter(Boolean).join(' ')}
-                    </SelectItem>
-                  ))}
+                    {instructors.map((ins) => (
+                      <SelectItem key={ins._id} value={ins._id}>
+                        {[ins.firstName, ins.middleName, ins.lastName].filter(Boolean).join(' ')}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {instructorsError && (
@@ -751,9 +751,7 @@ export default function ProfilePage() {
                         onClick={() => refetchInstructors()}
                         disabled={instructorsFetching || isSavingAcademic}
                       >
-                        {instructorsFetching && (
-                          <Spinner className="size-3.5" />
-                        )}
+                        {instructorsFetching && <Spinner className="size-3.5" />}
                         Retry
                       </Button>
                     </AlertDescription>
@@ -773,9 +771,7 @@ export default function ProfilePage() {
             <CardFooter className="flex-col items-start gap-3">
               {academicSaveSuccess && (
                 <Alert variant="success">
-                  <AlertDescription>
-                    Academic info saved successfully.
-                  </AlertDescription>
+                  <AlertDescription>Academic info saved successfully.</AlertDescription>
                 </Alert>
               )}
               {academicSaveError && (

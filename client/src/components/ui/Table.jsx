@@ -15,15 +15,33 @@ const TableBody = ({ className, ...props }) => (
 );
 
 const TableFooter = ({ className, ...props }) => (
-  <tfoot className={cn('border-t border-border bg-muted/50 font-medium [&>tr]:last:border-b-0', className)} {...props} />
+  <tfoot
+    className={cn(
+      'border-t border-border bg-muted/50 font-medium [&>tr]:last:border-b-0',
+      className,
+    )}
+    {...props}
+  />
 );
 
 const TableRow = ({ className, ...props }) => (
-  <tr className={cn('border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', className)} {...props} />
+  <tr
+    className={cn(
+      'border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
+      className,
+    )}
+    {...props}
+  />
 );
 
 const TableHead = ({ className, ...props }) => (
-  <th className={cn('h-10 px-3 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', className)} {...props} />
+  <th
+    className={cn(
+      'h-10 px-3 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0',
+      className,
+    )}
+    {...props}
+  />
 );
 
 const TableCell = ({ className, ...props }) => (

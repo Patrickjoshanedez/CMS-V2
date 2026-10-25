@@ -1,0 +1,17 @@
+{
+  "session_id": "2026-10-23_shadcn-title-feedback-remarks",
+  "date": "2026-10-23T06:56:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "TitleFeedbackRemarksCard now uses the shared Card for individual remarks and Avatar/AvatarFallback for author identity. Existing ProjectDetailsModal.test.jsx suite passes 7/7; scoped ESLint, Prettier, and production client build pass. Four Playwright captures pass in light/dark at desktop/mobile, confirming two remarks, role/date metadata, and no overflow/browser errors. Inventory: 143 source-updated, 3 reviewed-no-ui, 132 pending; full refactor remains active. Prior ignored scratch harness cleanup incident remains documented.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "ProjectDetailsModal.test.jsx 7/7",
+    "Scoped ESLint passed",
+    "Prettier passed",
+    "Client production build passed with 4,853 transformed modules",
+    "Four Playwright captures passed across light/dark desktop/mobile",
+    "Workspace evidence validation pending after current documentation update"
+  ],
+  "workspace_incident": "Prior audit cleanup removed pre-existing ignored client/src/__visualAudit/GoogleDocViewerHarness.jsx; prevention lesson saved. Future cleanup removes only exact generated paths."
+}

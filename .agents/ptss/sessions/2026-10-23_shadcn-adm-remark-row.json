@@ -1,0 +1,26 @@
+{
+  "session_id": "2026-10-23_shadcn-adm-remark-row",
+  "timestamp": "2026-10-23T01:18:00+08:00",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "objective": "Continue the full shadcn/ui refactor through the ADM review surface while preserving the official printable matrix and Secretary compliance gates.",
+  "changes": [
+    "Migrated ADMRemarkRow text inputs, fulfillment checkbox, and row actions to shared shadcn controls with accessible names and preserved print-only content.",
+    "Added a labeled, keyboard-focusable horizontal overflow region around the official four-column ADM table for narrow screens.",
+    "Updated the visual audit script to support the installed Chrome executable and bound browser shutdown time."
+  ],
+  "verification": {
+    "prior_focused_tests": "A prior targeted run passed 39/39 tests across ADMRemarkRow, ActionDoneMatrixTab, signatures, and SecretaryReviewPage before the current ADMTableView scroll-region adjustment.",
+    "current_test_attempts": "Current reruns could not reach test collection: default workers failed to start or rename the Vitest cache in the sandbox temp directory; the thread-pool run stalled and was stopped at the 120-second guardrail.",
+    "lint": "Scoped ESLint passed before the last ADMTableView scroll-region markup adjustment.",
+    "format": "Prettier wrote ADMTableView.jsx and the visual audit script after the scroll-region change.",
+    "visual_evidence": "Synthetic read-only row and gate captures exist under scratch/qa-evidence/adm-remark-row/. Final visual verification of the latest scroll-region change remains pending because the audit process did not exit within its guardrail."
+  },
+  "workflow_safety": "The synthetic Playwright fixture blocks non-GET project requests. The seeded login is read from the user-provided report in memory and is not stored in source or output.",
+  "inventory": {
+    "source_updated": 116,
+    "pending": 162,
+    "total": 278
+  },
+  "full_refactor_status": "in_progress"
+}

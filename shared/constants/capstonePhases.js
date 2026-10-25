@@ -83,34 +83,136 @@ export function resolveWorkflowPhase(project) {
 }
 
 /**
- * BukSU IT Department Semester Duration Mapping:
- * Each Capstone stage corresponds strictly to 1 Academic Semester.
+ * BukSU IT Department Curriculum & Semester Duration Mapping:
+ * - Capstone 1: 3rd Year • 1st Semester
+ * - Capstone 2: 3rd Year • 2nd Semester
+ * - Capstone 3: 4th Year • 1st Semester
  */
+export const CAPSTONE_CURRICULUM_MAP = Object.freeze({
+  1: {
+    capstoneCourse: 1,
+    stage: CAPSTONE_STAGES.CAPSTONE_1,
+    workflowPhase: CAPSTONE_PHASES.PHASE_2,
+    yearLevel: 3,
+    yearLabel: '3rd Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '3rd Year • 1st Semester',
+    courseTitle: 'Capstone 1',
+    academicCourse: 'Capstone 1 (Chapters 1–3 & Proposal Defense)',
+  },
+  2: {
+    capstoneCourse: 2,
+    stage: CAPSTONE_STAGES.CAPSTONE_2,
+    workflowPhase: CAPSTONE_PHASES.PHASE_3,
+    yearLevel: 3,
+    yearLabel: '3rd Year',
+    academicTerm: '2nd Semester',
+    curriculumLabel: '3rd Year • 2nd Semester',
+    courseTitle: 'Capstone 2',
+    academicCourse: 'Capstone 2 (System Development & Prototype)',
+  },
+  3: {
+    capstoneCourse: 3,
+    stage: CAPSTONE_STAGES.CAPSTONE_3,
+    workflowPhase: CAPSTONE_PHASES.PHASE_4,
+    yearLevel: 4,
+    yearLabel: '4th Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '4th Year • 1st Semester',
+    courseTitle: 'Capstone 3',
+    academicCourse: 'Capstone 3 (Results, Final Defense & Archival)',
+  },
+});
+
+/**
+ * Infer the BukSU Capstone course number (1, 2, or 3) from a section block (e.g. "3A", "BSIT-4B")
+ * and academic term ("1st Semester" | "2nd Semester").
+ */
+export function inferCapstoneCourseFromSection(sectionName = '', academicTerm = '') {
+  const cleaned = String(sectionName || '')
+    .trim()
+    .toUpperCase();
+  const yearMatch = cleaned.match(/(?:^|[\s_-])([1-4])[A-Z]$/);
+  const yearLevel = yearMatch ? Number(yearMatch[1]) : null;
+  const term = String(academicTerm || '').trim();
+
+  if (yearLevel === 3 && term === '1st Semester') return 1;
+  if (yearLevel === 3 && term === '2nd Semester') return 2;
+  if (yearLevel === 4 && term === '1st Semester') return 3;
+  if (yearLevel === 4) return 3;
+  if (yearLevel === 3) return term === '2nd Semester' ? 2 : 1;
+  return null;
+}
+
+/**
+ * Resolve curriculum metadata for a given capstoneCourse number (1–3) or stage ('capstone_1'..'capstone_3').
+ */
+export function resolveCapstoneCurriculumMeta(courseOrStage) {
+  if (!courseOrStage) return null;
+  const num = Number(courseOrStage);
+  if (CAPSTONE_CURRICULUM_MAP[num]) return CAPSTONE_CURRICULUM_MAP[num];
+
+  const str = String(courseOrStage).toLowerCase();
+  if (str === CAPSTONE_STAGES.CAPSTONE_1 || str === CAPSTONE_STAGES.PROPOSAL) {
+    return CAPSTONE_CURRICULUM_MAP[1];
+  }
+  if (str === CAPSTONE_STAGES.CAPSTONE_2) return CAPSTONE_CURRICULUM_MAP[2];
+  if (str === CAPSTONE_STAGES.CAPSTONE_3 || str === CAPSTONE_STAGES.FINAL) {
+    return CAPSTONE_CURRICULUM_MAP[3];
+  }
+  return null;
+}
+
 export const CAPSTONE_SEMESTER_MAP = Object.freeze({
   [CAPSTONE_STAGES.PROPOSAL]: {
     phase: CAPSTONE_PHASES.PHASE_1,
+    capstoneCourse: 1,
+    yearLevel: 3,
+    yearLabel: '3rd Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '3rd Year • 1st Semester',
     semester: null,
-    semesterLabel: 'Pre-Capstone',
+    semesterLabel: 'Pre-Capstone (3rd Year • 1st Semester)',
     academicCourse: 'Title Proposal & Committee Assignment',
   },
   [CAPSTONE_STAGES.CAPSTONE_1]: {
+    capstoneCourse: 1,
+    yearLevel: 3,
+    yearLabel: '3rd Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '3rd Year • 1st Semester',
     semester: 1,
-    semesterLabel: '1st Semester',
+    semesterLabel: '3rd Year • 1st Semester',
     academicCourse: 'Capstone 1 (Chapters 1–3 & Proposal Defense)',
   },
   [CAPSTONE_STAGES.CAPSTONE_2]: {
+    capstoneCourse: 2,
+    yearLevel: 3,
+    yearLabel: '3rd Year',
+    academicTerm: '2nd Semester',
+    curriculumLabel: '3rd Year • 2nd Semester',
     semester: 2,
-    semesterLabel: '2nd Semester',
+    semesterLabel: '3rd Year • 2nd Semester',
     academicCourse: 'Capstone 2 (System Development & Prototype)',
   },
   [CAPSTONE_STAGES.CAPSTONE_3]: {
+    capstoneCourse: 3,
+    yearLevel: 4,
+    yearLabel: '4th Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '4th Year • 1st Semester',
     semester: 3,
-    semesterLabel: '3rd Semester',
+    semesterLabel: '4th Year • 1st Semester',
     academicCourse: 'Capstone 3 (Results, Final Defense & Archival)',
   },
   [CAPSTONE_STAGES.FINAL]: {
+    capstoneCourse: 3,
+    yearLevel: 4,
+    yearLabel: '4th Year',
+    academicTerm: '1st Semester',
+    curriculumLabel: '4th Year • 1st Semester',
     semester: 3,
-    semesterLabel: '3rd Semester',
+    semesterLabel: '4th Year • 1st Semester',
     academicCourse: 'Capstone 3 (Final Archival & Certification)',
   },
 });

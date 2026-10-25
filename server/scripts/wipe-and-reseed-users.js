@@ -673,37 +673,67 @@ async function executeWipeAndReseedUsers() {
     createdBy: initialAdminId,
   });
 
-  const sectionA = await Section.create({
-    name: 'BSIT-4A',
-    code: 'BSIT-4A',
+  const section3A1 = await Section.create({
+    name: '3A',
+    code: 'T76',
     academicYear: '2025-2026',
+    academicTerm: '1st Semester',
+    capstoneCourse: 1,
+    courseId: course._id,
+    isActive: true,
+    createdBy: initialAdminId,
+  });
+
+  const section3A2 = await Section.create({
+    name: '3A',
+    code: 'T89',
+    academicYear: '2025-2026',
+    academicTerm: '2nd Semester',
+    capstoneCourse: 2,
+    courseId: course._id,
+    isActive: true,
+    createdBy: initialAdminId,
+  });
+
+  const sectionA = await Section.create({
+    name: '4A',
+    code: 'T65',
+    academicYear: '2025-2026',
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     courseId: course._id,
     isActive: true,
     createdBy: initialAdminId,
   });
 
   const sectionB = await Section.create({
-    name: 'BSIT-4B',
-    code: 'BSIT-4B',
+    name: '4B',
+    code: 'T66',
     academicYear: '2025-2026',
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     courseId: course._id,
     isActive: true,
     createdBy: initialAdminId,
   });
 
   const sectionC = await Section.create({
-    name: 'BSIT-4C',
-    code: 'BSIT-4C',
+    name: '4C',
+    code: 'T67',
     academicYear: '2025-2026',
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     courseId: course._id,
     isActive: true,
     createdBy: initialAdminId,
   });
 
   const sectionD = await Section.create({
-    name: 'BSIT-4D',
-    code: 'BSIT-4D',
+    name: '4D',
+    code: 'T68',
     academicYear: '2025-2026',
+    academicTerm: '1st Semester',
+    capstoneCourse: 3,
     courseId: course._id,
     isActive: true,
     createdBy: initialAdminId,

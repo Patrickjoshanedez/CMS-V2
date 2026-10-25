@@ -2,7 +2,8 @@ import Team from '../../teams/team.model.js';
 import User from '../../users/user.model.js';
 import Notification from '../../notifications/notification.model.js';
 import AppError from '../../../utils/AppError.js';
-import { emitToUser } from '../../../services/socket.service.js';
+import cacheService from '../../../services/cache.service.js';
+import { emitToUser, emitToRoom, emitToAll } from '../../../services/socket.service.js';
 import { ROLES } from '@cms/shared';
 import projectCoreService from './projectCore.service.js';
 import { withOptionalTransaction } from '../../../utils/dbTransaction.js';
@@ -14,6 +15,19 @@ class ProjectCommitteeService {
 
   async _notifyTeamMembers(teamId, notif, options) {
     return projectCoreService._notifyTeamMembers(teamId, notif, options);
+  }
+
+  async _invalidateProjectCache(projectId) {
+    if (!projectId) return;
+    try {
+      const id = String(projectId._id || projectId);
+      await cacheService.del(`project:meta:${id}`);
+      await cacheService.del(`project:detail:${id}`);
+      emitToRoom(`project:${id}`, 'project:updated', { projectId: id });
+      emitToAll('project:updated', { projectId: id });
+    } catch {
+      // Non-blocking
+    }
   }
 
   /**
@@ -105,6 +119,7 @@ class ProjectCommitteeService {
       metadata: { projectId: project._id, adviserId: data.adviserId },
     });
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -219,6 +234,7 @@ class ProjectCommitteeService {
       metadata: { projectId: project._id, panelistId: data.panelistId },
     });
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -279,6 +295,7 @@ class ProjectCommitteeService {
       emitToUser(data.panelistId, 'notification:new', removedPanelistNotif);
     }
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -373,6 +390,7 @@ class ProjectCommitteeService {
       metadata: { projectId: project._id, secretaryId: data.secretaryId },
     });
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -425,6 +443,7 @@ class ProjectCommitteeService {
     });
     emitToUser(previousSecretaryId, 'notification:new', removedSecNotif);
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 
@@ -459,6 +478,14 @@ class ProjectCommitteeService {
     if (project.adviserId && project.adviserId.toString() === panelistId.toString()) {
       throw new AppError(
         'A faculty adviser cannot serve as a defense panelist on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    if (project.secretaryId && project.secretaryId.toString() === panelistId.toString()) {
+      throw new AppError(
+        'A committee secretary cannot serve as a defense panelist on the same project.',
         400,
         'ROLE_CONFLICT',
       );
@@ -501,6 +528,11 @@ class ProjectCommitteeService {
     }
     await project.save();
 
+    if (project.teamId) {
+      const Team = (await import('../../teams/team.model.js')).default;
+      await Team.findByIdAndUpdate(project.teamId, { panelistIds: project.panelistIds });
+    }
+
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
     await project.populate(
@@ -516,6 +548,7 @@ class ProjectCommitteeService {
       metadata: { projectId: project._id, panelistId },
     });
 
+    await this._invalidateProjectCache(project._id);
     return { project };
   }
 

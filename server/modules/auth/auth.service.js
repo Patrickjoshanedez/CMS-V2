@@ -28,10 +28,10 @@ class AuthService {
    * - Creates the user (password hashed via model pre-save hook)
    * - Generates and emails a verification OTP
    *
-   * @param {Object} data - { firstName, middleName, lastName, email, password }
+   * @param {Object} data - { firstName, middleName, lastName, email, password, studentId }
    * @returns {Object} { user }
    */
-  async register({ firstName, middleName, lastName, email, password }) {
+  async register({ firstName, middleName, lastName, email, password, studentId }) {
     if (process.env.NODE_ENV !== 'test' && !isBuksuStudentEmail(email)) {
       throw new AppError(
         'Student registration requires a @student.buksu.edu.ph email address.',
@@ -54,6 +54,9 @@ class AuthService {
       existingUser.middleName = middleName;
       existingUser.lastName = lastName;
       existingUser.password = password; // Will be hashed by pre-save hook
+      if (studentId !== undefined) {
+        existingUser.studentId = studentId ? studentId.trim() : '';
+      }
       await existingUser.save();
 
       await this.#createAndSendOtp(email, 'verification');
@@ -61,7 +64,14 @@ class AuthService {
     }
 
     // Create user (unverified)
-    const user = await User.create({ firstName, middleName, lastName, email, password });
+    const user = await User.create({
+      firstName,
+      middleName,
+      lastName,
+      email,
+      password,
+      studentId: studentId ? studentId.trim() : '',
+    });
 
     // Generate verification OTP and send via email
     await this.#createAndSendOtp(email, 'verification');
@@ -286,7 +296,7 @@ class AuthService {
    * @param {Object} data - { email, newPassword }
    * @returns {Object} { user }
    */
-  async resetPassword({ email, newPassword }) {
+  async resetPassword({ email, code, newPassword }) {
     const normalizedEmail = email?.toLowerCase();
 
     // Enforce OTP verification before allowing password reset
@@ -295,10 +305,23 @@ class AuthService {
       type: 'password_reset',
     }).sort({ createdAt: -1 });
 
-    if (!otpRecord || otpRecord.expiresAt < new Date() || !otpRecord.isVerified) {
+    if (!otpRecord || otpRecord.expiresAt < new Date()) {
       if (otpRecord && otpRecord.expiresAt < new Date()) {
         await OTP.deleteMany({ email: normalizedEmail, type: 'password_reset' });
       }
+      throw new AppError(
+        'Please verify your OTP before resetting the password.',
+        400,
+        'OTP_NOT_VERIFIED',
+      );
+    }
+
+    if (code) {
+      const isCodeMatch = await otpRecord.compareCode(code);
+      if (!isCodeMatch) {
+        throw new AppError('Invalid OTP code.', 400, 'OTP_INVALID');
+      }
+    } else if (!otpRecord.isVerified) {
       throw new AppError(
         'Please verify your OTP before resetting the password.',
         400,
@@ -560,7 +583,8 @@ class AuthService {
       code: plainOtp,
       type,
       expiresAt: new Date(
-        Date.now() + (type === 'verification' ? 5 : Number(env.OTP_EXPIRES_MINUTES) || 5) * 60 * 1000,
+        Date.now() +
+          (type === 'verification' ? 5 : Number(env.OTP_EXPIRES_MINUTES) || 5) * 60 * 1000,
       ),
     });
 

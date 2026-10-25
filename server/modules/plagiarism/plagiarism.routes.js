@@ -29,7 +29,7 @@ router.post(
 
 router.post(
   '/:submissionId/plagiarism/archive-scan',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY, ROLES.INSTRUCTOR),
   scanSubmissionAgainstArchive,
 );
 

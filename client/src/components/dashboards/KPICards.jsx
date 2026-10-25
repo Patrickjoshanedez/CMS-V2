@@ -52,20 +52,18 @@ const KPICards = ({ kpis }) => {
             >
               <CardContent className="flex flex-col justify-between gap-3 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {card.label}
-                </span>
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${card.accent}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${card.accent}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
                 </div>
                 <div>
-                <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                  {card.value}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground font-normal">{card.hint}</p>
+                  <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
+                    {card.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground font-normal">{card.hint}</p>
                 </div>
               </CardContent>
             </Card>
@@ -77,60 +75,54 @@ const KPICards = ({ kpis }) => {
       <div className="grid grid-cols-3 gap-3 sm:gap-4 items-stretch">
         <Card className="flex flex-col justify-between transition-colors hover:border-border">
           <CardContent className="flex flex-col justify-between gap-2 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              Total Projects
-            </span>
-            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground border border-border/50">
-              <Layers className="h-3.5 w-3.5" />
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+              <span className="text-xs font-medium text-muted-foreground">Total Projects</span>
+              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground border border-border/50">
+                <Layers className="h-3.5 w-3.5" />
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="font-mono text-2xl font-bold tracking-tight text-foreground tabular-nums">
-              {totals.totalProjects || 0}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Enrolled capstone teams</p>
-          </div>
+            <div>
+              <p className="font-mono text-2xl font-bold tracking-tight text-foreground tabular-nums">
+                {totals.totalProjects || 0}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Enrolled capstone teams</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="flex flex-col justify-between border-primary/25 bg-primary/5 transition-colors hover:border-primary/40">
           <CardContent className="flex flex-col justify-between gap-2 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-            <span className="text-xs font-medium text-primary">
-              Active Pipeline
-            </span>
-            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-              <Activity className="h-3.5 w-3.5" />
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+              <span className="text-xs font-medium text-primary">Active Pipeline</span>
+              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
+                <Activity className="h-3.5 w-3.5" />
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="font-mono text-2xl font-bold tracking-tight text-primary tabular-nums">
-              {totals.activeProjects || 0}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              In manuscript &amp; development
-            </p>
-          </div>
+            <div>
+              <p className="font-mono text-2xl font-bold tracking-tight text-primary tabular-nums">
+                {totals.activeProjects || 0}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                In manuscript &amp; development
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="flex flex-col justify-between border-success/25 bg-success/5 transition-colors hover:border-success/40">
           <CardContent className="flex flex-col justify-between gap-2 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-            <span className="text-xs font-medium text-success">
-              Completed
-            </span>
-            <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
-              <Archive className="h-3.5 w-3.5" />
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+              <span className="text-xs font-medium text-success">Completed</span>
+              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
+                <Archive className="h-3.5 w-3.5" />
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="font-mono text-2xl font-bold tracking-tight text-success tabular-nums">
-              {totals.completedProjects || 0}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Final defense certified</p>
-          </div>
+            <div>
+              <p className="font-mono text-2xl font-bold tracking-tight text-success tabular-nums">
+                {totals.completedProjects || 0}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Final defense certified</p>
+            </div>
           </CardContent>
         </Card>
       </div>

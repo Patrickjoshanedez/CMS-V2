@@ -1,0 +1,16 @@
+{
+  "session_id": "2026-10-23_shadcn-submission-modal-evaluation-workspace",
+  "date": "2026-10-23T09:04:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "CompileProposalModal and EvaluationWorkspace are migrated to shared shadcn primitives. Focused suites pass 13/13; scoped ESLint and Prettier pass. Twenty Playwright captures cover modal and evaluation states at light/dark desktop/mobile. The evaluation audit verifies mobile pane persistence, tabs, opacity controls, 44px actions, and print appendix visibility without screen-state browser errors or institutional mutations. Inventory: 154/278 source-updated, 5 reviewed-no-ui, 119 pending; the full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "CompileProposalModal focused tests passed 4/4 for version rendering, extension rejection, FormData and trimmed remarks, completion callbacks, and busy-close guards.",
+    "EvaluationWorkspace focused tests passed 7/7; shared Button tests passed 2/2 for caller class merging and semantic destructive/warning variants; combined suites passed 13/13.",
+    "Scoped ESLint and Prettier passed for EvaluationWorkspace, CompileProposalModal, and shared Button; the obsolete unused suppression directive was removed.",
+    "Playwright inspected sixteen CompileProposalModal captures and four EvaluationWorkspace captures across light/dark, 1440x900 and 390x844. Evaluation interactions verify pane switching, layer filtering, opacity slider values, rubric/ADM/source tabs, mobile action sizes, and print appendix visibility.",
+    "EvaluationWorkspace is currently imported by a development-only test page; no production route consumer was found. Synthetic tests and visual fixtures did not submit verdict, ADM, review, or upload mutations.",
+    "Migration inventory validated at 154 source-updated, 5 reviewed-no-ui, and 119 pending of 278; full refactor and final repository gates remain active."
+  ]
+}

@@ -43,7 +43,12 @@ function LoadingScreenComponent({
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
       )}
-      <div role="status" aria-live="polite" aria-label={message} className="flex flex-col items-center gap-3">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label={message}
+        className="flex flex-col items-center gap-3"
+      >
         <Spinner className="size-5 text-primary" />
         {message && <p className="text-sm font-medium text-muted-foreground">{message}</p>}
       </div>
@@ -59,11 +64,7 @@ function LoadingScreenComponent({
     );
   }
 
-  return (
-    <div className="flex min-h-60 w-full items-center justify-center p-4">
-      {content}
-    </div>
-  );
+  return <div className="flex min-h-60 w-full items-center justify-center p-4">{content}</div>;
 }
 
 const LoadingScreen = memo(LoadingScreenComponent);

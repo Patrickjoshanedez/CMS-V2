@@ -88,8 +88,7 @@ export class SubmissionReviewWorkspaceService {
       })),
       unaddressedCount: (submission.annotations || []).filter((a) => !a.resolved).length,
       plagiarism: {
-        score:
-          submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
+        score: submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
         status: submission.plagiarismResult?.status || 'not_checked',
       },
     };
@@ -181,7 +180,7 @@ export class SubmissionReviewWorkspaceService {
 
     const [project, user] = await Promise.all([
       Project.findById(submission.projectId)
-        .populate('teamId', 'name members googleDocUrl githubLink')
+        .populate('teamId', 'name members googleDocUrl githubUrl githubLink')
         .lean({ virtuals: true, getters: true }),
       User.findById(userId).lean({ virtuals: true, getters: true }),
     ]);
@@ -272,7 +271,8 @@ export class SubmissionReviewWorkspaceService {
       teamName: project.teamId?.name || 'Unknown Team',
       teamResources: {
         googleDocUrl: project.teamId?.googleDocUrl || null,
-        githubRepoUrl: project.githubRepoUrl || project.teamId?.githubLink || null,
+        githubRepoUrl:
+          project.githubRepoUrl || project.teamId?.githubUrl || project.teamId?.githubLink || null,
         prototypes: Array.isArray(project.prototypes) ? project.prototypes : [],
       },
       adviserId: project.adviserId ? String(project.adviserId) : null,

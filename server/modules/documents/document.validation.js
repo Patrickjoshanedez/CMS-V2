@@ -24,7 +24,13 @@ export const uploadManuscriptSchema = z.object({
     .min(3, 'Title must be at least 3 characters')
     .max(300, 'Title must not exceed 300 characters')
     .optional(),
-  externalDocUrl: z.string().trim().url('externalDocUrl must be a valid URL'),
+  externalDocUrl: z
+    .string()
+    .trim()
+    .url('externalDocUrl must be a valid URL')
+    .refine((val) => /^https?:\/\//i.test(val), {
+      message: 'externalDocUrl must use http or https protocol',
+    }),
   externalDocProvider: z.enum(['google_docs', 'other']).optional(),
 });
 

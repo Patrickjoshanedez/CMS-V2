@@ -4,7 +4,7 @@ import Evaluation from '../evaluations/evaluation.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToRoom } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import { EVALUATION_STATUSES, DEFENSE_TYPES } from '@cms/shared';
+import { EVALUATION_STATUSES, DEFENSE_TYPES, ROLES } from '@cms/shared';
 import { assertProjectWritable } from '../projects/services/projectCore.service.js';
 
 class DefenseMinutesService {
@@ -111,12 +111,47 @@ class DefenseMinutesService {
 
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
+    if (user?.role === ROLES.STUDENT) {
+      const userIdStr = String(user._id);
+      const teamMembers = project.teamId?.members || [];
+      const isTeamMember = teamMembers.some((m) => String(m?._id || m) === userIdStr);
+      if (!isTeamMember) {
+        throw new AppError(
+          'You do not have permission to view defense minutes for this project.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    } else if (user && user.role !== ROLES.INSTRUCTOR && user.role !== ROLES.ADMIN) {
+      const userIdStr = String(user._id);
+      const isCommittee =
+        String(project.adviserId?._id || project.adviserId || '') === userIdStr ||
+        String(project.secretaryId?._id || project.secretaryId || '') === userIdStr ||
+        String(project.chairpersonId?._id || project.chairpersonId || '') === userIdStr ||
+        project.panelistIds?.some((id) => String(id?._id || id) === userIdStr) ||
+        project.panelists?.some((p) => String(p.userId?._id || p.userId) === userIdStr);
+      if (!isCommittee) {
+        throw new AppError(
+          'You are not assigned to this project defense committee.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    }
+
     let minutes = await DefenseMinutes.findOne({ projectId, defenseType })
       .populate('secretaryId', 'firstName lastName email')
       .populate('consensusVerdict.finalizedBy', 'firstName lastName email')
       .populate('compositeScores.lockedBy', 'firstName lastName email');
 
     if (!minutes) {
+      if (user?.role === ROLES.STUDENT) {
+        throw new AppError(
+          'Defense minutes have not been initialized by the defense committee yet.',
+          404,
+          'MINUTES_NOT_FOUND',
+        );
+      }
       assertProjectWritable(project);
       const appointedSecretaryId = project.secretaryId?._id || project.secretaryId || user._id;
       minutes = await DefenseMinutes.create({

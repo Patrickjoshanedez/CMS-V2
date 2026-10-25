@@ -43,11 +43,14 @@ export default function SettingsPage() {
 
   const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : 'appearance';
 
-  const handleTabChange = useCallback((value) => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('tab', value);
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams]);
+  const handleTabChange = useCallback(
+    (value) => {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('tab', value);
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   useEffect(() => {
     if (!user) fetchUser();

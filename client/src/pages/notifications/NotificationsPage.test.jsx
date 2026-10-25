@@ -156,9 +156,7 @@ describe('NotificationsPage behavior', () => {
       firstOptions.onError();
     });
 
-    expect(document.body.textContent).toContain(
-      'Failed to clear notifications. Please try again.',
-    );
+    expect(document.body.textContent).toContain('Failed to clear notifications. Please try again.');
     expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
 
     act(() => {
@@ -263,8 +261,8 @@ describe('NotificationsPage behavior', () => {
     });
 
     expect(view.container.textContent).toContain('No matching notifications');
-    const clearSearchButton = Array.from(view.container.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('Clear search'),
+    const clearSearchButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Clear search'),
     );
     expect(clearSearchButton).toBeTruthy();
 

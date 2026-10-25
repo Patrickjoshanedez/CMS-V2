@@ -54,7 +54,11 @@ describe('CreateTeamForm', () => {
       );
       nameInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    act(() => container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    act(() =>
+      container
+        .querySelector('form')
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+    );
 
     expect(mutate).toHaveBeenCalledWith({ name: 'Research Group' });
   });
@@ -67,7 +71,9 @@ describe('CreateTeamForm', () => {
     });
     renderForm();
 
-    expect(container.querySelector('[role="alert"]').textContent).toContain('Team name is unavailable.');
+    expect(container.querySelector('[role="alert"]').textContent).toContain(
+      'Team name is unavailable.',
+    );
     expect(container.querySelector('#teamName').disabled).toBe(true);
     expect(container.querySelector('#createTeamInvite').disabled).toBe(true);
     expect(container.querySelector('button[type="submit"]').disabled).toBe(true);

@@ -6,10 +6,7 @@ import { cn } from '@/lib/utils';
 export function Skeleton({ className, ...props }) {
   return (
     <div
-      className={cn(
-        'rounded-md bg-muted motion-safe:animate-pulse',
-        className,
-      )}
+      className={cn('rounded-md bg-muted motion-safe:animate-pulse', className)}
       aria-hidden="true"
       {...props}
     />
@@ -77,10 +74,7 @@ export function SkeletonBadge({ className, ...props }) {
 export function SkeletonCard({ className, children, ...props }) {
   return (
     <div
-      className={cn(
-        'space-y-4 rounded-lg border border-border bg-card p-6',
-        className,
-      )}
+      className={cn('space-y-4 rounded-lg border border-border bg-card p-6', className)}
       aria-hidden="true"
       {...props}
     >

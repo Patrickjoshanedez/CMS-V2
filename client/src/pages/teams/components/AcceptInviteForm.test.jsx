@@ -76,7 +76,9 @@ describe('AcceptInviteForm', () => {
 
     expect(container.textContent).toContain('Invite link detected');
     expect(container.textContent).toContain(token);
-    expect(container.querySelectorAll('input[aria-label^="Invite code character"]')).toHaveLength(0);
+    expect(container.querySelectorAll('input[aria-label^="Invite code character"]')).toHaveLength(
+      0,
+    );
 
     submit();
     expect(mockMutate).toHaveBeenCalledWith(token);
@@ -105,9 +107,9 @@ describe('AcceptInviteForm', () => {
     const submitButton = container.querySelector('button[type="submit"]');
     expect(submitButton.disabled).toBe(true);
     expect(submitButton.getAttribute('aria-busy')).toBe('true');
-    expect(container.querySelector('input[aria-label="Invite code character 1 of 6"]').disabled).toBe(
-      true,
-    );
+    expect(
+      container.querySelector('input[aria-label="Invite code character 1 of 6"]').disabled,
+    ).toBe(true);
 
     cleanup();
   });

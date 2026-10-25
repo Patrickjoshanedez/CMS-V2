@@ -1,0 +1,15 @@
+{
+  "session_id": "2026-10-23_shadcn-annotation-viewer",
+  "date": "2026-10-23T08:18:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "AnnotationViewer is migrated to the shared shadcn Card, Button, and Badge primitives with semantic colors and accessible controlled expansion. Focused tests pass 3/3, scoped ESLint and Prettier pass, and eight Playwright captures verify collapsed/expanded states across light/dark desktop/mobile with no overflow or browser errors. No route caller was found, so evidence is component-scoped. Inventory: 150/278 source-updated, 5 reviewed-no-ui, 123 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "AnnotationViewer.test.jsx passed 3/3, covering collapsed/expanded accessible region behavior, resolved messaging, highlights, annotation content, and timestamp.",
+    "Scoped ESLint and Prettier passed for AnnotationViewer and its focused test.",
+    "Playwright visual audit passed eight collapsed/expanded captures across light/dark at 1440x900 and 390x844; no overflow, Vite overlay, or browser errors. Captures inspected.",
+    "Repository search found no import/call site for AnnotationViewer; inventory evidence is explicitly component-scoped.",
+    "Migration inventory validated at 150 source-updated, 5 reviewed-no-ui, and 123 pending out of 278; final repository gates remain outstanding."
+  ]
+}

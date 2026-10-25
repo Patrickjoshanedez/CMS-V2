@@ -57,3 +57,34 @@ Clean lines make designs feel professional.
 2. **Make it effortless:** Good interfaces feel invisible. Keep navigation consistent, provide clear visual feedback, and add smart shortcuts (like search).
 3. **Apply shortcuts:** Speed up common tasks with keyboard shortcuts and quick-access tools.
 4. **Conduct testing:** Watch how people use your interface to catch problems early.
+
+
+---
+
+## Empirical UX & Cognitive Ergonomics Law (CMS-V2 Mandatory Contract)
+
+Every form, wizard, modal, and interactive workflow in `client/src/` must obey four empirical UX pillars:
+
+### 1. Cognitive Load & Chunking (Cowan, 2001)
+- Working memory holds ~4 chunks of information at once.
+- Break dense forms or views into logical `<fieldset>` sections or progressive steps with **3–4 fields maximum per step/group**.
+- Pre-fill **smart defaults** wherever contextually known to eliminate unnecessary micro-decisions.
+- Persist state seamlessly across step navigation (`Back` / `Next`).
+
+### 2. Visual Hierarchy & Perceptual Weight (Arnheim, 1954)
+- **Section Headers (`<legend>`):** Larger (`text-base` / `text-lg`), `font-semibold`, paired with a subtle surface background (`bg-muted/50`) and clear `1px` border separation (`border-border`).
+- **Field Labels:** Smaller than headers (`text-sm`), `font-medium`, positioned directly above inputs.
+- **Helper & Validation Text:** Smallest (`text-xs`), `text-muted-foreground` (or `text-destructive` on inline error) directly below the input.
+- **Action Hierarchy:** Primary submit uses a high-contrast brand button (`bg-primary text-primary-foreground`); secondary/cancel uses a low-weight text/ghost button (`variant="ghost"`) so users never misclick.
+- **Active Section Focus:** Emphasize the currently active `<fieldset>` via `onFocusCapture` (`border-foreground/30 bg-background opacity-100`) while letting inactive sections visually recede (`border-border bg-muted/10 opacity-80`).
+
+### 3. Accessibility & Interaction Resilience (WCAG 2.2 AA)
+- **Focus Management:** Programmatically move focus (`ref.current?.focus()`) to the new step heading or first invalid field upon navigation or error.
+- **Screen Reader Announcements:** Use `aria-live="polite"` and `aria-atomic="true"` regions for step progress updates, dynamic search counts, and inline validation errors.
+- **Semantic Grouping:** Wrap logical sections in `<fieldset>` with `<legend>`, include a clear `* Required` legend, and bind inputs via `aria-required="true"` and `aria-describedby`.
+- **Responsive Ergonomics:** Full-width stacked controls and action buttons on mobile viewports (`flex-col-reverse sm:flex-row`, `w-full sm:w-auto`).
+
+### 4. Strict Anti-AI-Slop Enforcement
+- **NO Decorative Gradients or Neon Glows:** Ban `bg-gradient-to-r`, `auth-btn-gradient`, purple/pink/indigo AI tropes (`text-brand-purple`, `text-brand-pink`), or hardcoded hex focus rings (`focus:ring-[#673ab7]/50`).
+- **NO Emoji or Icon Spam:** Never inject emojis into headings, labels, or buttons, and do not slap decorative icons onto every form label.
+- **NO Card-in-Card Nesting Bloat:** Avoid wrapping inputs inside multiple nested bordered boxes with heavy drop shadows (`shadow-xl`). Use crisp `1px` borders (`border-border`), intentional whitespace, and flat/subtle neutral surfaces.

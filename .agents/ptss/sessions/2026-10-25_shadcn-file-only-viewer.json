@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-10-25_shadcn-file-only-viewer",
+  "timestamp": "2026-10-25T11:00:00Z",
+  "status": "in_progress",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "Fixed canonical file-only reader metadata crash. Viewer suite passes 15/15; 26 overlay fixtures pass and were visually inspected. Manifest: 480 captures. User retains missing exact performance baseline gate.",
+  "changes": [
+    "Guard optional submission metadata inside the migrated Sheet.",
+    "Add file-only Details regression test.",
+    "Repair fixture sidebar variant mounting, tooltip selector and stable-animation capture.",
+    "Index 26 actual-component/shared-composition captures across both themes and desktop/mobile."
+  ],
+  "verification": {
+    "viewer_tests": "15/15 with approved local worker access; restricted worker failed before collection",
+    "lint": "Changed source files: zero errors, 12 existing warnings; root lint remains incomplete",
+    "format": "Both changed source files pass Prettier",
+    "visual": "26/26 captures; no page errors, document overflow or overlay viewport escape; inspected contact sheet and two full-size reader captures",
+    "build": "Exit zero, 4,859 modules; 123 seconds exceeds 120-second limit, so timing gate remains open",
+    "full_client_suite": "Earlier 174 files/1,028 tests pass predates this correction; not rerun after the fix"
+  },
+  "remaining": [
+    "Exhaustive interaction, role and phase visual matrix",
+    "Authenticated route-integrated defense-minutes and ADM screenshots",
+    "Root lint and bounded production build timing",
+    "Exact pre-refactor performance baseline, explicitly retained by user",
+    "Desktop preview reachability"
+  ]
+}

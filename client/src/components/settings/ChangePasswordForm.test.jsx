@@ -12,8 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/stores/authStore', () => ({
-  useAuthStore: (selector) =>
-    selector({ user: mocks.user, clearAuthState: mocks.clearAuthState }),
+  useAuthStore: (selector) => selector({ user: mocks.user, clearAuthState: mocks.clearAuthState }),
 }));
 
 vi.mock('@/services/authService', () => ({
@@ -23,7 +22,10 @@ vi.mock('@/services/authService', () => ({
 vi.mock('react-router-dom', () => ({ useNavigate: () => mocks.navigate }));
 
 vi.mock('sonner', () => ({
-  toast: { success: (...args) => mocks.toastSuccess(...args), error: (...args) => mocks.toastError(...args) },
+  toast: {
+    success: (...args) => mocks.toastSuccess(...args),
+    error: (...args) => mocks.toastError(...args),
+  },
 }));
 
 describe('ChangePasswordForm', () => {

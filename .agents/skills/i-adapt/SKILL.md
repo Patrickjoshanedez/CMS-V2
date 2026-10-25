@@ -2,7 +2,7 @@
 name: i-adapt
 description: Adapt designs to work across different screen sizes, devices, contexts, or platforms. Ensures consistent experience across varied environments.
 user-invocable: true
-argument-hint: "TARGET" [CONTEXT=<value>]
+argument-hint: '"TARGET" [CONTEXT=<value>]'
 ---
 
 Adapt existing designs to work effectively across different contexts - different screen sizes, devices, platforms, or use cases.

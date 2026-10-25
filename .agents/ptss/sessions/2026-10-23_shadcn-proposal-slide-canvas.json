@@ -1,0 +1,65 @@
+{
+  "session_id": "2026-10-23_shadcn-proposal-slide-canvas",
+  "date": "2026-10-23T06:08:57+08:00",
+  "task_summary": "Migrated ProposalSlideCanvas to theme-invariant institutional slide tokens and shared edit-state Badges; removed the broad dark-mode descendant override and fixed mobile edit-cue/title overlap. ProposalSlideCanvas tests pass 5/5, scoped ESLint has zero errors with two existing warnings, scoped Prettier passes, and the client build passes with 4,853 modules. Eight SSR Playwright captures plus two mobile scroll-end captures cover light/dark at 1440x900 and 390x844. Inventory: 138 source-updated, 3 reviewed-no-ui, 137 pending; the complete refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/projects/ProposalSlideCanvas.jsx",
+    "client/src/components/projects/ProposalSlideCanvas.test.jsx",
+    "client/src/index.css",
+    "client/tailwind.config.js",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/classification-manifest.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "scratch/proposal_rehearsal_visual_audit.mjs",
+    "scratch/proposal_slide_canvas_audit.mjs",
+    "scratch/qa-evidence/proposal-slide-canvas/",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/tasks/shadcn-full-ui-refactor.json",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/sessions/2026-10-23_shadcn-proposal-slide-canvas.json"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Centralized official proposal-slide navy, gold, orange, ink, slate, and green colors as theme-invariant tokens so utilities retain original BukSU colors in both app themes.",
+    "Used the shared Badge for edit indicators and placed the content-slide badge in header flow to prevent title overlap on narrow screens.",
+    "Removed the broad dark-mode descendant override because it recolored cover subtitle and edit cue descendants; content and footer use explicit component tokens.",
+    "Used offline Vite SSR plus production stylesheet for visual review after isolated Playwright could not reach local previews. Route-integrated browser visual evidence remains open for final coverage."
+  ],
+  "lessons_learned": [
+    "Dark-mode checks must inspect descendant text on institutional canvases; broad selectors can break white/gold text on navy covers.",
+    "An absolutely positioned status pill can overlap headings when a 16:9 slide scales to mobile; normal header flow preserves both access and geometry."
+  ],
+  "open_threads": [
+    "Full refactor remains active: 138/278 source modules are source-updated, 3 reviewed-no-ui, and 137 pending.",
+    "The isolated Playwright process cannot reach the app or local Vite preview; rerun route-integrated visual audits when the workspace preview is reachable.",
+    "Continue P7 with ProposalTab.jsx, then remaining proposals, project/course workspaces; complete P8-P11 and all final governance/testing gates."
+  ],
+  "verification_status": "partial_pass",
+  "verification_notes": {
+    "focused_test": "npm test --workspace=client -- src/components/projects/ProposalSlideCanvas.test.jsx: 1 file passed, 5/5 tests.",
+    "lint": "Scoped ESLint: zero errors; two existing unused-variable warnings in the export test.",
+    "formatting": "Prettier passed for ProposalSlideCanvas.jsx, ProposalSlideCanvas.test.jsx, tailwind.config.js, and the audit runner. The shared index.css was not reformatted wholesale to avoid unrelated churn; added tokens and removed selectors are locally formatted.",
+    "production_build": "npm run build --workspace=client passed with 4,853 modules; existing Tailwind ease ambiguity and large-chunk warnings remain.",
+    "visual": "Offline SSR Playwright audit passed 8 light/dark desktop/mobile captures plus two mobile content scroll-end captures. It checked exact branded colors, content palette, 16:9 geometry, edit Badge visibility, viewport width, and scroll reachability.",
+    "route_visual": "Not verified: isolated Playwright could not reach the workspace preview over loopback; the attached app at port 43211 is a separate server. Docker restart was unavailable because the Docker engine pipe denied access.",
+    "final_quality_gates": "Endpoint parity, governance suites, full client partitions, comprehensive server workflow test, workspace guardrail, and complete route/state visual audit remain pending."
+  },
+  "status": "in_progress",
+  "inventory": {
+    "total": 278,
+    "source_updated": 138,
+    "reviewed_no_ui": 3,
+    "pending": 137
+  },
+  "full_refactor_status": "active"
+}

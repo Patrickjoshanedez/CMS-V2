@@ -64,7 +64,7 @@ async function callHstMicroservice({ pythonEngineUrl, submissionId, text, chapte
     body: JSON.stringify({
       document_id: String(submissionId),
       text,
-      metadata: { chapter, projectId: String(projectId) },
+      metadata: { chapter, projectId: String(projectId), project_id: String(projectId) },
     }),
   });
 
@@ -968,7 +968,9 @@ async function handleFailedJob(job, err) {
         });
         emitToUser(studentIdStr, 'notification:new', failureNotif);
       } catch (notifErr) {
-        console.warn(`[Plagiarism Worker] Failed to dispatch failure notification: ${notifErr.message}`);
+        console.warn(
+          `[Plagiarism Worker] Failed to dispatch failure notification: ${notifErr.message}`,
+        );
       }
     }
   } catch (updateErr) {

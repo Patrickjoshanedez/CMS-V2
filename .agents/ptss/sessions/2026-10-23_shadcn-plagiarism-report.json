@@ -1,0 +1,16 @@
+{
+  "session_id": "2026-10-23_shadcn-plagiarism-report",
+  "date": "2026-10-23T10:16:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "Submission UI now uses shared shadcn surfaces and semantic tokens across PlagiarismChecker, PlagiarismReport, UploadChapterModal, VersionHistory, and VersionCompare; SubmissionStatusBadge retains institutional labels through semantic Badge variants and prop validation. Thresholds, source ordering, file validation, Capstone 2 ADM chapter locks, late-upload closure, required justification note/letter, and upload callbacks remain intact. Version comparison now displays selected records’ saved metadata rather than hard-coded samples or fake document viewers. Five focused suites pass 38/38; scoped ESLint, Prettier, and diff checks pass. Twenty inspected Playwright captures cover checker, originality, upload, and version comparison in light/dark desktop/mobile without app overflow/errors or workflow mutations. Inventory: 166/278 source-updated, 5 reviewed-no-ui, 107 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "PlagiarismComponents.test.jsx, PlagiarismReport.test.jsx, SubmissionStatusBadge.test.jsx, UploadChapterModal.test.jsx, and VersionHistory.test.jsx pass 38/38 combined.",
+    "Scoped ESLint, Prettier, and git diff checks pass for all changed submission modules.",
+    "Checker, report, upload, and version-history Playwright matrices pass in light/dark at 1440x900 and 390x844; twenty captures were inspected and no component/document overflow or local app errors were found. The version-history harness excludes a known third-party GSI origin 403.",
+    "Synthetic upload fixture selected manuscript/justification files and verified no mutation; version-history fixture served read-only synthetic records and blocked mutations.",
+    "VersionHistory/VersionCompare have no active route consumer in source search; the service path and internal behavior are tested without claiming a live route.",
+    "Inventory records 166/278 source-updated, 5 reviewed-no-ui, and 107 pending; full refactor remains active."
+  ]
+}

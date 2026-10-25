@@ -1,0 +1,39 @@
+{
+  "session_id": "2026-10-22_shadcn-google-scholar-sidebar",
+  "timestamp": "2026-10-22T16:05:00+08:00",
+  "status": "in_progress",
+  "task_summary": "Migrated GoogleScholarSidebar to shared Button, Input, Checkbox, and Sheet primitives. Selection states use semantic theme tokens; checkbox names and mobile close behavior are accessible. ArchiveSearchPage tests pass 10/10, scoped ESLint/Prettier pass, and production build succeeds with 4,853 modules. Playwright exercised sorting, checkbox, custom year, and Sheet close in light/dark desktop/mobile with no overflow or Vite overlay. Inventory is 111/278 updated and 167 pending; full refactor remains active.",
+  "active_skills": [
+    "frontend-patterns",
+    "ui-design-principles",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "completed": [
+    "Replaced custom date/program/sort filter buttons with shared Button variants and aria-pressed state, removing literal Scholar blue colors.",
+    "Replaced raw year inputs with shared Input and labeled publication-year controls.",
+    "Replaced native checkbox visuals with the shared Radix Checkbox, explicit accessible names, and clickable text labels.",
+    "Replaced the bespoke mobile overlay drawer with the shared Radix Sheet, accessible title, and controlled close behavior.",
+    "ArchiveSearchPage.test.jsx passes 10/10; scoped ESLint and Prettier pass.",
+    "Playwright verified filter sorting, citation checkbox toggle, custom year range, and mobile close in light/dark desktop/mobile; all four viewport combinations fit without overflow or Vite errors.",
+    "Production client build succeeds with 4,853 modules transformed; existing warnings remain."
+  ],
+  "pending": [
+    "Continue remaining archive, submission/document, scheduling, ADM, dashboard, settings, and other pending route-family migrations; full inventory audit and final compliance gates remain open."
+  ],
+  "observations": [
+    "The first visual audit exposed that Radix checkbox buttons lacked accessible names from nearby text. Adding aria-labelledby made them discoverable by role and name; the final Playwright audit successfully toggled them."
+  ],
+  "verification": {
+    "archive_search_suite": "10/10",
+    "scoped_eslint": "passed",
+    "prettier": "passed",
+    "client_build": "passed; 4,853 modules transformed; existing warnings remain",
+    "visual": "4 light/dark desktop/mobile states; filter interactions and Sheet close pass; no overflow or Vite overlay"
+  },
+  "inventory": {
+    "total": 278,
+    "updated": 111,
+    "pending": 167
+  }
+}

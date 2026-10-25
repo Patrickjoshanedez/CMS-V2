@@ -1,0 +1,59 @@
+{
+  "session_id": "2026-10-23_shadcn-prototype-gallery",
+  "date": "2026-10-23T06:28:58+08:00",
+  "task_summary": "Migrated PrototypeGalleryModal’s custom gallery overlay and nested lightbox to shared Radix Dialogs, media surfaces to shared Cards and EmptyState, and the image preview action to an accessible shared Button. Clipboard success now follows the resolved copy operation; signed image URLs and safe external links remain intact. Focused tests pass 3/3; scoped ESLint/Prettier pass; production build passes with 4,853 modules; twelve interactive Playwright captures cover media, empty, and nested preview states across light/dark desktop/mobile. Inventory: 140 source-updated, 3 reviewed-no-ui, 135 pending; full refactor remains active.",
+  "task_category": "shadcn_ui_refactor",
+  "files_modified": [
+    "client/src/components/projects/PrototypeGalleryModal.jsx",
+    "client/src/components/projects/PrototypeGalleryModal.test.jsx",
+    "scratch/prototype_gallery_audit.mjs",
+    "scratch/qa-evidence/prototype-gallery/",
+    "docs/specs/shadcn-ui-migration-inventory.json",
+    "docs/classification-manifest.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/tasks/shadcn-full-ui-refactor.json",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/sessions/2026-10-23_shadcn-prototype-gallery.json"
+  ],
+  "skills_triggered": [
+    "frontend-patterns",
+    "i-normalize",
+    "verification-loop",
+    "workspace-evidence-maintenance"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Used the shared Radix Dialog primitive for the gallery and its nested image preview so focus and dismissal remain consistent.",
+    "Made image preview keyboard-accessible through the shared Button and kept its embedded image decorative to avoid duplicate announcements.",
+    "Kept signed URLs and noopener/noreferrer on external links; moved copy feedback to the clipboard promise result."
+  ],
+  "lessons_learned": [
+    "An interactive offline component audit can bundle the target and its required shared primitives, while stubbing unrelated app service, settings, and route-preload imports; temporary harness files must be removed by the runner.",
+    "Wait for shared Radix dialog animations to settle before checking its rendered bounds."
+  ],
+  "open_threads": [
+    "The full refactor remains active: 140/278 source modules are source-updated, 3 are reviewed-no-ui, and 135 remain pending.",
+    "Continue P7 with PrototypeShowcaseAndDemo.jsx, then remaining proposal and project/course workspace surfaces and P8-P11.",
+    "Complete final route-integrated visual audits and all governance, full test, evidence, and workspace gates."
+  ],
+  "verification_status": "pass_for_slice",
+  "verification_notes": {
+    "focused_test": "npm test --workspace=client -- src/components/projects/PrototypeGalleryModal.test.jsx: 3/3 tests passed.",
+    "lint": "Scoped ESLint passed with zero errors and warnings.",
+    "formatting": "Prettier check passed for the component, test, and Playwright audit runner.",
+    "production_build": "npm run build --workspace=client passed with 4,853 modules transformed; existing Tailwind easing ambiguity and large-chunk warnings remain.",
+    "visual": "Twelve interactive Playwright captures cover populated, empty, and nested lightbox states at 1440x900 and 390x844 in light and dark. Main and nested dialogs remain within viewport, external links retain noopener, no horizontal overflow or browser errors occurred, and temporary harness files were removed while preserving GoogleDocViewerHarness.jsx.",
+    "final_quality_gates": "Full endpoint, governance, all-client, server workflow, workspace, and route-integrated visual gates remain pending for the complete refactor."
+  },
+  "inventory": {
+    "total": 278,
+    "source_updated": 140,
+    "reviewed_no_ui": 3,
+    "pending": 135
+  },
+  "full_refactor_status": "active"
+}

@@ -27,7 +27,11 @@ const TabsTrigger = ({
 }) => (
   <TabsPrimitive.Trigger
     aria-disabled={locked || undefined}
-    aria-label={locked && lockedReason ? `${lockedReason}: ${typeof children === 'string' ? children : 'locked tab'}` : undefined}
+    aria-label={
+      locked && lockedReason
+        ? `${lockedReason}: ${typeof children === 'string' ? children : 'locked tab'}`
+        : undefined
+    }
     data-locked={locked || undefined}
     onSelect={(event) => {
       if (locked) {

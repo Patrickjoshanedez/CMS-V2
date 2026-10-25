@@ -31,6 +31,9 @@ export {
   STAGE_DELIVERABLE_MAP,
   DELIVERABLE_CATEGORY_MAP,
   CAPSTONE_SEMESTER_MAP,
+  CAPSTONE_CURRICULUM_MAP,
+  inferCapstoneCourseFromSection,
+  resolveCapstoneCurriculumMeta,
   resolveWorkflowPhase,
 } from './constants/capstonePhases.js';
 export { BUKSU_GRADE_SCALE, BUKSU_GRADE_VALUES, computeBukSUGrade } from './constants/grades.js';

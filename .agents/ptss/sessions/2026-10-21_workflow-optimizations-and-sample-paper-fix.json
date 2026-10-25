@@ -1,0 +1,34 @@
+{
+  "session_id": "2026-10-21_workflow-optimizations-and-sample-paper-fix",
+  "timestamp": "2026-10-21T10:45:00+08:00",
+  "task": "Resolve sample paper synthetic fallback bug and implement all 10 workflow optimizations (WF-01 to WF-10)",
+  "status": "completed",
+  "key_findings": [
+    "FilesystemStorageService on Windows host was resolving STORAGE_LOCAL_PATH=/app/uploads to C:\\app\\uploads instead of relative ./uploads, causing physical files to be treated as missing.",
+    "Restrictive student view checks in projectArchive.service.js and submission.service.js prevented authenticated students from viewing approved archived academic manuscripts in the viewer.",
+    "Physical sample papers in 'Sample papers/' were synced to 'uploads/archives/projects/{projectId}/...'.",
+    "Missing DEFENSE_DECISIONS import in projectTitle.service.js caused ReferenceError during evaluatePostApprovalUnlocks.",
+    "advanceAfterADMCompletion was calling project.save directly without checking if project was a Mongoose document or unit-test mock object.",
+    "projectArchive.service.js archiveProject required capstonePhase === 3 check for stale legacy records."
+  ],
+  "fixes_applied": [
+    "WF-01 & WF-06: Atomic phase advancement with team currentCapstonePhase sync, project.save(), and Redis cache eviction in projectCore.service.js.",
+    "WF-02: Universal Redis cache eviction (project:meta:{id} and project:detail:{id}) across project, submission, and evaluation services.",
+    "WF-03: Added passed_with_revisions and DEFENSE_DECISIONS.PASSED_WITH_REVISIONS in projectTitle.service.js.",
+    "WF-04: Fixed workflowPhase and stage synchronization in _normalizeProjectADMPhase.",
+    "WF-05: Milestone-scoped Action Done Matrix verification checks in project.controller.js.",
+    "WF-07: Deduplicated sequential chapter check and added cache eviction in submission.service.js.",
+    "WF-08: Added distinct dynamic notification titles for each defense phase.",
+    "WF-09: Capped title similarity query to latest 500 records.",
+    "WF-10: Integrated real-time Socket.IO room joining and project event listeners (project:updated, project:phase_advanced, defense:scores_released, etc.) in MyProjectPage.jsx."
+  ],
+  "verifications": {
+    "sample_paper_stream": "Verified 2,669,416 bytes streaming with permission_Advanced_Digital_Animation_Cu.pdf and isGeneratedFallback=undefined",
+    "client_targeted_test": "MyProjectPage.test.jsx (8/8 passed)",
+    "server_targeted_tests": "filesystem-storage.service.test.js, admAutoProgression.test.js, institutionalWorkflow.reliability.test.js, project.manuscript.test.js (26/26 passed)",
+    "check_endpoints": "229 server / 209 client, UNMATCHED_COUNT=0",
+    "validate_agentic": "62/62 passed",
+    "validate_governance": "passed with 0 errors, 0 warnings",
+    "client_build": "Vite production build passed cleanly"
+  }
+}

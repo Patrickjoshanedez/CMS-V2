@@ -106,18 +106,32 @@ describe('AcademicExcelGanttChart Component', () => {
 
       expect(canEditGanttSchedule(project, { _id: 'student-lead', role: 'student' })).toBe(true);
       expect(canEditGanttSchedule(project, { id: 'student-member', role: 'student' })).toBe(true);
-      expect(canEditGanttSchedule(project, { _id: 'student-role-member', role: 'student' })).toBe(true);
+      expect(canEditGanttSchedule(project, { _id: 'student-role-member', role: 'student' })).toBe(
+        true,
+      );
       expect(canEditGanttSchedule(project, { _id: 'adviser-1', role: 'faculty' })).toBe(true);
       expect(canEditGanttSchedule(project, { _id: 'adviser-1', role: 'adviser' })).toBe(true);
-      expect(canEditGanttSchedule(project, { _id: 'student-outsider', role: 'student' })).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'student-outsider', role: 'student' })).toBe(
+        false,
+      );
       expect(
-        canEditGanttSchedule({ ...project, isArchived: true }, { _id: 'student-lead', role: 'student' }),
+        canEditGanttSchedule(
+          { ...project, isArchived: true },
+          { _id: 'student-lead', role: 'student' },
+        ),
       ).toBe(false);
       expect(
-        canEditGanttSchedule({ ...project, projectStatus: 'archived' }, { _id: 'adviser-1', role: 'faculty' }),
+        canEditGanttSchedule(
+          { ...project, projectStatus: 'archived' },
+          { _id: 'adviser-1', role: 'faculty' },
+        ),
       ).toBe(false);
-      expect(canEditGanttSchedule(project, { _id: 'faculty-outsider', role: 'faculty' })).toBe(false);
-      expect(canEditGanttSchedule(project, { _id: 'instructor-1', role: 'instructor' })).toBe(false);
+      expect(canEditGanttSchedule(project, { _id: 'faculty-outsider', role: 'faculty' })).toBe(
+        false,
+      );
+      expect(canEditGanttSchedule(project, { _id: 'instructor-1', role: 'instructor' })).toBe(
+        false,
+      );
       expect(canEditGanttSchedule(project, { _id: 'panelist-1', role: 'faculty' })).toBe(false);
       expect(canEditGanttSchedule(project, { _id: 'panelist-1', role: 'panelist' })).toBe(false);
     });
@@ -168,9 +182,11 @@ describe('AcademicExcelGanttChart Component', () => {
         'View-only schedule — editing is limited to assigned team members and the assigned Adviser',
       );
       expect(container.textContent).not.toContain('Click any cell to edit');
-      expect(Array.from(container.querySelectorAll('button')).some((button) =>
-        button.textContent.includes('Add Section'),
-      )).toBe(false);
+      expect(
+        Array.from(container.querySelectorAll('button')).some((button) =>
+          button.textContent.includes('Add Section'),
+        ),
+      ).toBe(false);
     });
 
     it('shows schedule editing controls only to assigned students and the assigned Adviser', async () => {
@@ -186,12 +202,7 @@ describe('AcademicExcelGanttChart Component', () => {
       const renderFor = async (user) => {
         useAuthStore.setState({ user });
         await act(async () => {
-          root.render(
-            <InteractiveGanttChart
-              project={project}
-              defaultView="compact"
-            />,
-          );
+          root.render(<InteractiveGanttChart project={project} defaultView="compact" />);
         });
         return Array.from(container.querySelectorAll('button')).some((button) =>
           button.textContent.includes('Add Task'),

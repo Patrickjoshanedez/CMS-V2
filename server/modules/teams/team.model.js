@@ -84,6 +84,45 @@ const teamSchema = new mongoose.Schema(
       ref: 'Section',
       default: null,
     },
+    capstoneEnrollments: [
+      {
+        capstoneCourse: {
+          type: Number,
+          enum: [1, 2, 3],
+          required: true,
+        },
+        sectionId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Section',
+          default: null,
+        },
+        sectionName: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        sectionCode: {
+          type: String,
+          trim: true,
+          uppercase: true,
+          default: '',
+        },
+        academicYear: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        academicTerm: {
+          type: String,
+          enum: [...ACADEMIC_TERM_VALUES, null],
+          default: null,
+        },
+        enrolledAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     googleDocUrl: {
       type: String,
       trim: true,

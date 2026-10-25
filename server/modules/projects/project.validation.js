@@ -102,64 +102,68 @@ export const saveCreateProjectDraftSchema = z.object({
   draft: createProjectDraftPayloadSchema.nullable(),
 });
 
-export const createProjectSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(10, 'Title must be at least 10 characters')
-    .max(300, 'Title must not exceed 300 characters'),
-  titleProposals: z
-    .array(titleProposalSchema)
-    .min(1, 'At least 1 title proposal is required')
-    .max(10, 'At most 10 title proposals are allowed'),
-  abstract: z
-    .string()
-    .trim()
-    .max(500, 'Abstract must not exceed 500 characters')
-    .optional()
-    .default(''),
-  keywords: z
-    .array(z.string().trim().min(1))
-    .max(10, 'A project can have at most 10 keywords')
-    .optional()
-    .default([]),
-  sdgTags: z
-    .array(z.enum(SDG_TAG_SUGGESTIONS))
-    .min(1, 'At least one SDG tag is required')
-    .max(17, 'A project can have at most 17 SDG tags'),
-  academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
-  sectionId: z.preprocess(
-    (val) =>
-      typeof val === 'string' && val.trim() === '' ? undefined : val === null ? undefined : val,
-    objectId.optional(),
-  ),
-  memberRoleAssignments: z
-    .array(
-      z.object({
-        userId: objectId,
-        professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
-      }),
-    )
-    .optional()
-    .default([]),
-  allowSoloCapstone: z.boolean().optional().default(false),
-  soloCapstoneConfirmed: z.boolean().optional().default(false),
-  isFlagged: z.boolean().optional(),
-  flagReason: z.string().trim().nullable().optional(),
-  similarityScore: z.number().min(0).max(100).optional(),
-}).superRefine((data, context) => {
-  data.titleProposals.forEach((proposal, index) => {
-    for (const field of ['problemStatement', 'objectives', 'technicalStack']) {
-      if (!proposal.pitchDeck?.[field]?.trim()) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['titleProposals', index, 'pitchDeck', field],
-          message: `Each proposal must include ${field}.`,
-        });
+export const createProjectSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(10, 'Title must be at least 10 characters')
+      .max(300, 'Title must not exceed 300 characters'),
+    titleProposals: z
+      .array(titleProposalSchema)
+      .min(1, 'At least 1 title proposal is required')
+      .max(10, 'At most 10 title proposals are allowed'),
+    abstract: z
+      .string()
+      .trim()
+      .max(500, 'Abstract must not exceed 500 characters')
+      .optional()
+      .default(''),
+    keywords: z
+      .array(z.string().trim().min(1))
+      .max(10, 'A project can have at most 10 keywords')
+      .optional()
+      .default([]),
+    sdgTags: z
+      .array(z.enum(SDG_TAG_SUGGESTIONS))
+      .min(1, 'At least one SDG tag is required')
+      .max(17, 'A project can have at most 17 SDG tags'),
+    academicYear: z
+      .string()
+      .regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
+    sectionId: z.preprocess(
+      (val) =>
+        typeof val === 'string' && val.trim() === '' ? undefined : val === null ? undefined : val,
+      objectId.optional(),
+    ),
+    memberRoleAssignments: z
+      .array(
+        z.object({
+          userId: objectId,
+          professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
+        }),
+      )
+      .optional()
+      .default([]),
+    allowSoloCapstone: z.boolean().optional().default(false),
+    soloCapstoneConfirmed: z.boolean().optional().default(false),
+    isFlagged: z.boolean().optional(),
+    flagReason: z.string().trim().nullable().optional(),
+    similarityScore: z.number().min(0).max(100).optional(),
+  })
+  .superRefine((data, context) => {
+    data.titleProposals.forEach((proposal, index) => {
+      for (const field of ['problemStatement', 'objectives', 'technicalStack']) {
+        if (!proposal.pitchDeck?.[field]?.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['titleProposals', index, 'pitchDeck', field],
+            message: `Each proposal must include ${field}.`,
+          });
+        }
       }
-    }
+    });
   });
-});
 
 /* ───── Update title (draft stage only) ───── */
 
@@ -195,6 +199,11 @@ export const submitTitleSchema = z.object({}).strict();
 
 export const approveTitleSchema = z.object({
   proposalId: z.union([z.string().trim().min(1), z.number().int().nonnegative()]).optional(),
+  adviserId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid adviserId')
+    .optional()
+    .nullable(),
   approveWithRevision: z.boolean().optional().default(false),
 });
 
@@ -350,7 +359,10 @@ export const addPrototypeLinkSchema = z.object({
     .string()
     .trim()
     .url('A valid URL is required for link-type prototypes')
-    .max(2000, 'URL must not exceed 2000 characters'),
+    .max(2000, 'URL must not exceed 2000 characters')
+    .refine((val) => /^https?:\/\//i.test(val), {
+      message: 'Prototype URL must start with http:// or https://',
+    }),
 });
 
 /* ───── Add prototype media (student — file upload; title & description come as form fields) ───── */
@@ -520,7 +532,14 @@ export const bulkUploadSchema = z
 /* ───── Update Asset URLs (student action) ───── */
 
 export const updateGanttChartUrlSchema = z.object({
-  ganttChartUrl: z.string().trim().url('Invalid Gantt chart URL').max(2000),
+  ganttChartUrl: z
+    .string()
+    .trim()
+    .url('Invalid Gantt chart URL')
+    .max(2000)
+    .refine((val) => /^https?:\/\//i.test(val), {
+      message: 'Gantt chart URL must start with http:// or https://',
+    }),
 });
 
 export const updateGanttPlanSchema = z.object({
@@ -529,7 +548,14 @@ export const updateGanttPlanSchema = z.object({
 });
 
 export const updateDemoVideoUrlSchema = z.object({
-  demoVideoUrl: z.string().trim().url('Invalid Demo video URL').max(2000),
+  demoVideoUrl: z
+    .string()
+    .trim()
+    .url('Invalid Demo video URL')
+    .max(2000)
+    .refine((val) => /^https?:\/\//i.test(val), {
+      message: 'Demo video URL must start with http:// or https://',
+    }),
 });
 
 export const updateGithubRepoUrlSchema = z.object({

@@ -1,0 +1,16 @@
+{
+  "session_id": "2026-10-23_shadcn-cohort-kpi-ribbon",
+  "date": "2026-10-23T07:36:14+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "CohortKPIRibbon now uses shared Card, Badge, and Skeleton primitives with semantic status colors; hard-coded palette shades and gradient surfaces were removed. The migrated ReportsFilterDrawer remains integrated with immediate quick filters and staged advanced filtering. Focused KPI, filter, and report-page tests pass 21/21; scoped lint/format and client build pass; eight KPI visual captures pass for loaded/loading at light/dark desktop/mobile. Inventory: 147 source-updated, 5 reviewed-no-ui, 126 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "CohortKPIRibbon.test.jsx, ReportsFilterDrawer.test.jsx, and ReportsPage.test.jsx 21/21",
+    "Scoped ESLint passed",
+    "Prettier passed",
+    "Client production build passed with 4,853 transformed modules",
+    "Eight loaded/loading Playwright captures passed across light/dark desktop/mobile",
+    "Workspace evidence validation passed 34/34 checks"
+  ]
+}

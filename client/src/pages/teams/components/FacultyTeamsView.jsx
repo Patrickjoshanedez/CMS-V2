@@ -1,15 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import {
-  UsersRound,
-  Search,
-  X,
-  Clock,
-  Lock,
-  AlertTriangle,
-  UserCheck,
-} from 'lucide-react';
+import { UsersRound, Search, X, Clock, Lock, AlertTriangle, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLES } from '@cms/shared';
 import PageSkeleton from '@/components/ui/PageSkeleton';
@@ -240,9 +232,7 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             <span className="text-[11px] uppercase tracking-wider text-warning font-medium">
               Awaiting Committee
             </span>
-            {stats.awaitingCommittee > 0 && (
-              <span className="h-2 w-2 rounded-full bg-warning" />
-            )}
+            {stats.awaitingCommittee > 0 && <span className="h-2 w-2 rounded-full bg-warning" />}
           </div>
           <div className="flex items-baseline justify-between mt-1">
             <span className="text-2xl font-bold text-warning">{stats.awaitingCommittee}</span>
@@ -347,16 +337,19 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
               setSectionId('');
             }}
           >
-            <SelectTrigger aria-label="Filter teams by academic year" className="h-9 min-h-9 text-xs">
+            <SelectTrigger
+              aria-label="Filter teams by academic year"
+              className="h-9 min-h-9 text-xs"
+            >
               <SelectValue placeholder="All Academic Years" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_FILTER_VALUE}>All Academic Years</SelectItem>
-            {years.map((year) => (
-              <SelectItem key={year} value={year}>
-                {year}
-              </SelectItem>
-            ))}
+              {years.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -369,12 +362,12 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
               <SelectValue placeholder="All Sections" />
             </SelectTrigger>
             <SelectContent>
-            <SelectItem value={ALL_FILTER_VALUE}>All Sections</SelectItem>
-            {sections.map((section) => (
-              <SelectItem key={section._id} value={section._id}>
-                {formatSectionWithCode(section)}
-              </SelectItem>
-            ))}
+              <SelectItem value={ALL_FILTER_VALUE}>All Sections</SelectItem>
+              {sections.map((section) => (
+                <SelectItem key={section._id} value={section._id}>
+                  {formatSectionWithCode(section)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -453,18 +446,22 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
                 }
               }}
             >
-              <SelectTrigger id="teamQuickSelect" aria-label="Quick jump to inspect a team" className="h-9 min-h-9 w-full text-xs">
+              <SelectTrigger
+                id="teamQuickSelect"
+                aria-label="Quick jump to inspect a team"
+                className="h-9 min-h-9 w-full text-xs"
+              >
                 <SelectValue placeholder="Quick Jump to Inspect Team..." />
               </SelectTrigger>
               <SelectContent>
-              <SelectItem value={NO_TEAM_VALUE}>Quick Jump to Inspect Team...</SelectItem>
-              {teams.map((team) => (
-                <SelectItem key={team._id} value={team._id}>
-                  {team.name || 'Untitled Team'}
-                  {team.isLocked ? ' [Locked]' : ' [Forming]'}
-                  {team.academicYear ? ` • ${team.academicYear}` : ''}
-                </SelectItem>
-              ))}
+                <SelectItem value={NO_TEAM_VALUE}>Quick Jump to Inspect Team...</SelectItem>
+                {teams.map((team) => (
+                  <SelectItem key={team._id} value={team._id}>
+                    {team.name || 'Untitled Team'}
+                    {team.isLocked ? ' [Locked]' : ' [Forming]'}
+                    {team.academicYear ? ` • ${team.academicYear}` : ''}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -489,10 +486,7 @@ export default function FacultyTeamsView({ canAssignCommittee }) {
             const isSelected = selectedTeamId === team._id;
 
             return (
-              <div
-                key={team._id}
-                className="min-w-0 max-w-full"
-              >
+              <div key={team._id} className="min-w-0 max-w-full">
                 <TeamCard
                   team={team}
                   isSelected={isSelected}

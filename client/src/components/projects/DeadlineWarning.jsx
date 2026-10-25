@@ -194,10 +194,7 @@ function RemovedRow({ label }) {
         <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
-      <Badge
-        variant="secondary"
-        className="shrink-0 text-xs font-medium"
-      >
+      <Badge variant="secondary" className="shrink-0 text-xs font-medium">
         Deadline removed
       </Badge>
     </Card>
@@ -368,9 +365,7 @@ export default function DeadlineWarning({ deadlines, defenseSchedule, compact = 
       return (
         <Card
           className={`space-y-3 p-4 ${
-            isUpcomingOnly
-              ? 'border-warning/30 bg-warning/5'
-              : 'border-border/60 bg-muted/20'
+            isUpcomingOnly ? 'border-warning/30 bg-warning/5' : 'border-border/60 bg-muted/20'
           }`}
         >
           <div className="flex items-center gap-2">

@@ -31,7 +31,9 @@ import cacheService from '../../services/cache.service.js';
  * records belong to Capstone 3; dashboard reads never promote or persist phases.
  */
 export function resolveDashboardCapstonePhase(project) {
-  if (project?.capstonePhase == null) return project?.stage === 'final' ? 3 : 1;
+  if (project?.capstonePhase === null || project?.capstonePhase === undefined) {
+    return project?.stage === 'final' ? 3 : 1;
+  }
   const phase = Number(project.capstonePhase);
   if (phase === 4) return 3;
   return Number.isFinite(phase) && phase >= 1 && phase <= 3 ? phase : 1;
@@ -208,13 +210,12 @@ class DashboardService {
       }));
 
       const totalMilestones = chapterProgress.length;
-      const approvedMilestones = chapterProgress.filter(
-        (item) =>
-          [
-            SUBMISSION_STATUSES.APPROVED,
-            SUBMISSION_STATUSES.ACCEPTED,
-            SUBMISSION_STATUSES.LOCKED,
-          ].includes(item.status),
+      const approvedMilestones = chapterProgress.filter((item) =>
+        [
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+          SUBMISSION_STATUSES.LOCKED,
+        ].includes(item.status),
       ).length;
       const inReviewMilestones = chapterProgress.filter((item) =>
         [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW].includes(item.status),
@@ -782,35 +783,107 @@ class DashboardService {
    * @returns {Promise<Object>}
    */
   async getInstructorKpis() {
-    const [totalProjects, activeProjects, completedProjects, submissions, evaluations] =
-      await Promise.all([
-        Project.countDocuments(),
-        Project.countDocuments({ projectStatus: PROJECT_STATUSES.ACTIVE }),
-        Project.countDocuments({ projectStatus: PROJECT_STATUSES.ARCHIVED }),
-        Submission.find().select('submittedAt reviewedAt status').lean(),
-        Evaluation.find().select('score').lean(),
-      ]);
+    const [
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      submissionStatsArr,
+      evaluationStatsArr,
+    ] = await Promise.all([
+      Project.countDocuments(),
+      Project.countDocuments({ projectStatus: PROJECT_STATUSES.ACTIVE }),
+      Project.countDocuments({ projectStatus: PROJECT_STATUSES.ARCHIVED }),
+      Submission.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalSubmissions: { $sum: 1 },
+            pendingSubmissions: {
+              $sum: { $cond: [{ $eq: ['$status', SUBMISSION_STATUSES.PENDING] }, 1, 0] },
+            },
+            underReview: {
+              $sum: {
+                $cond: [
+                  {
+                    $in: [
+                      '$status',
+                      [SUBMISSION_STATUSES.UNDER_REVIEW, SUBMISSION_STATUSES.REVISIONS_REQUIRED],
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            approved: {
+              $sum: { $cond: [{ $eq: ['$status', SUBMISSION_STATUSES.APPROVED] }, 1, 0] },
+            },
+            reviewedCount: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: [{ $ifNull: ['$reviewedAt', null] }, null] },
+                      { $ne: [{ $ifNull: ['$submittedAt', null] }, null] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            totalTurnaroundMs: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: [{ $ifNull: ['$reviewedAt', null] }, null] },
+                      { $ne: [{ $ifNull: ['$submittedAt', null] }, null] },
+                    ],
+                  },
+                  { $subtract: ['$reviewedAt', '$submittedAt'] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
+      Evaluation.aggregate([
+        {
+          $group: {
+            _id: null,
+            avgScore: {
+              $avg: { $ifNull: ['$percentage', { $ifNull: ['$totalScore', 0] }] },
+            },
+          },
+        },
+      ]),
+    ]);
 
     const completionRate = totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
+    const subStats = submissionStatsArr[0] || {
+      totalSubmissions: 0,
+      pendingSubmissions: 0,
+      underReview: 0,
+      approved: 0,
+      reviewedCount: 0,
+      totalTurnaroundMs: 0,
+    };
 
-    const reviewed = submissions.filter((s) => !!s.reviewedAt);
-    const avgTurnaroundHours = reviewed.length
-      ? reviewed.reduce((acc, s) => {
-          const turnaround = (new Date(s.reviewedAt) - new Date(s.submittedAt)) / (1000 * 60 * 60);
-          return acc + (Number.isFinite(turnaround) ? turnaround : 0);
-        }, 0) / reviewed.length
-      : 0;
+    const avgTurnaroundHours =
+      subStats.reviewedCount > 0
+        ? subStats.totalTurnaroundMs / (1000 * 60 * 60) / subStats.reviewedCount
+        : 0;
 
-    const avgEvaluationScore = evaluations.length
-      ? evaluations.reduce((acc, e) => acc + (Number(e.score) || 0), 0) / evaluations.length
-      : 0;
+    const avgEvaluationScore = Number(evaluationStatsArr[0]?.avgScore) || 0;
 
     return {
       totals: {
         totalProjects,
         activeProjects,
         completedProjects,
-        totalSubmissions: submissions.length,
+        totalSubmissions: subStats.totalSubmissions,
       },
       performance: {
         completionRatePercent: Number(completionRate.toFixed(2)),
@@ -818,14 +891,9 @@ class DashboardService {
         avgEvaluationScore: Number(avgEvaluationScore.toFixed(2)),
       },
       pipeline: {
-        pendingSubmissions: submissions.filter((s) => s.status === SUBMISSION_STATUSES.PENDING)
-          .length,
-        underReview: submissions.filter(
-          (s) =>
-            s.status === SUBMISSION_STATUSES.UNDER_REVIEW ||
-            s.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED,
-        ).length,
-        approved: submissions.filter((s) => s.status === SUBMISSION_STATUSES.APPROVED).length,
+        pendingSubmissions: subStats.pendingSubmissions,
+        underReview: subStats.underReview,
+        approved: subStats.approved,
       },
     };
   }

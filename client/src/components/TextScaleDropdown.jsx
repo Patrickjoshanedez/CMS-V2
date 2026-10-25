@@ -1,6 +1,12 @@
 import React, { useEffect } from 'react';
 import { useSettingsStore, ZOOM_OPTIONS } from '@/stores/settingsStore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 
 /**
  * TextScaleDropdown
@@ -27,7 +33,9 @@ export function TextScaleDropdown() {
   return (
     <Select value={zoomLevel} onValueChange={setZoomLevel}>
       <SelectTrigger className="h-9 w-[5.5rem] gap-1 px-2.5" aria-label="Adjust text scaling">
-        <span aria-hidden="true" className="text-xs font-semibold text-muted-foreground">T</span>
+        <span aria-hidden="true" className="text-xs font-semibold text-muted-foreground">
+          T
+        </span>
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">

@@ -1,5 +1,48 @@
 # CMS-V2 Technical Context
 
+- Lesson learned: A Radix Dialog can report transient off-viewport bounds while its zoom-in animation is still running, and flex children in a horizontal filter scroller can shrink until labels overlap. Prevention: give filter chips `shrink-0` and wait for dialog animations to finish before geometry assertions or screenshots. Runbook/checklist: await the visible dialog, wait until `getAnimations()` reports all animations finished, verify the dialog bounds, then capture; inspect horizontal-scroller labels at desktop and mobile widths.
+
+- Lesson learned: The shared Radix Dialog overlay must use an overlay-specific token rather than `foreground`; the dark theme foreground is white and made the backdrop wash out the page. Prevention: keep backdrop semantics stable across themes and inspect actual dialog captures in light/dark. Runbook/checklist: define `--overlay: 0 0% 0%`, map it as `overlay`, use `bg-overlay/60` on the shared overlay, run affected dialog tests and a production build, then inspect desktop (1440x900) and mobile (390x844) screenshots in both themes.
+- Lesson learned: The shared destructive Alert needs a dedicated text color instead of `destructive`; dark mode's destructive surface token is too dark for text. Prevention: pair status backgrounds with readable text tokens. Runbook/checklist: define light/dark `--destructive-text`, map it as `destructive-text`, use it in the Alert variant, and inspect error/retry states in both themes and viewport sizes.
+- Lesson learned: Removing a saved institutional digital signature directly from its settings button can invalidate future Action Done Matrix endorsements and approval sheets without a deliberate confirmation. Prevention: require an accessible shared AlertDialog that explains the downstream impact and leaves the existing API untouched on Cancel. Runbook/checklist: verify cancel produces no `updateMe` call, explicit confirmation calls the existing removal path, and the dialog fits light/dark desktop/mobile viewports.
+
+- 2026-10-21 shadcn migration planning record: the inspected client uses React 18.3.1/Tailwind 3.4.17/JSX, custom PascalCase UI primitives, and no prior client/components.json. The implementation is now active under docs/specs/shadcn-full-ui-refactor-luna-6-plan.md; the 262-module inventory is authoritative for remaining work. The canonical PTSS snapshot was write-locked, so scratch checkpoints preserve this task without overwriting the other active session.
+
+- CMS-V2 Student ID Number Registration and Academic Profile Binding Rule:
+  1. Lesson learned: In BukSU Capstone workflow Phase 0 (Registration & Team Scaffolding), students assemble teams and lock rosters, which strictly gates proposal submissions based on having an established Student ID (`user.studentId`). Capturing the Student ID number directly during Step 2 (Account Credentials) of student self-registration eliminates profile completion friction and guarantees every registered student possesses an institutional student identification string upon account activation.
+  2. Lesson learned: On the frontend, validating `studentId` via `registerSchema` (required, trimmed, max 32 characters) and rendering it with `FloatingInput` (with `id="studentId"` and `label="Student ID no. *"`) provides ergonomic feedback with BukSU Royal Blue and Academic Gold focus glows without visual layout jumps across desktop (1440x900) and mobile (390x844) viewports.
+  3. Lesson learned: On the backend, declaring `studentId` as an optional, trimmed string (max 32 characters, default `''`) in `server/modules/auth/auth.validation.js` preserves full backwards compatibility with headless integration tests and script invocations that do not supply a student ID, while cleanly persisting `studentId` when provided during student self-registration and unverified account updates.
+  4. Prevention: Always bind newly registered student credentials to `studentId`. Always test registration schema boundaries with both positive and negative fixtures. Always execute multi-viewport Playwright visual feedback loops (light/dark, desktop/mobile) to verify floating input alignment and contrast.
+  5. Runbook & Checklist for Student ID Registration Verification:
+     - Step 1 (Checklist): Verify `registerSchema` in `client/src/pages/auth/registerSchema.js` requires `studentId` and enforces max 32 characters.
+     - Step 2 (Checklist): Verify `RegisterPage.jsx` renders `Student ID no. *` floating input under Institutional Email in Step 2 fieldset.
+     - Step 3 (Checklist): Verify `server/modules/auth/auth.validation.js` and `auth.service.js` accept and persist `studentId`.
+     - Step 4 (Evidence): Verify targeted client tests passed (`npm test --workspace=client -- src/pages/auth/registerSchema.test.js`: 5/5 passed).
+     - Step 5 (Evidence): Verify targeted server tests passed (`npm test --workspace=server -- tests/unit/auth.registration-domain.test.js`: 6/6 passed).
+     - Step 6 (Evidence): Verify Vite client production build passed (`npx --workspace=client vite build`: 4,759 modules transformed, 0 errors).
+     - Step 7 (Evidence): Verify API endpoint parity passed (`npm run check:endpoints`: SERVER=229, CLIENT=209, UNMATCHED_COUNT=0).
+     - Step 8 (Evidence): Verify agentic system governance passed (`npm run validate:agentic`: 62/62 checks passed).
+     - Step 9 (Evidence): Verify governance pipeline passed (`npm run validate:governance`: 100% passed).
+     - Step 10 (Evidence): Verify Playwright visual audit passed across 8 matrix snapshots (`step2_desktop_light_empty.png`, `step2_desktop_light_filled.png`, `step2_desktop_dark_empty.png`, `step2_desktop_dark_filled.png`, `step2_mobile_light_empty.png`, `step2_mobile_light_filled.png`, `step2_mobile_dark_empty.png`, `step2_mobile_dark_filled.png`).
+
+- CMS-V2 Section T-Code Architecture, Multi-Semester Capstone 1–3 Progression, and Academic Hierarchy Optimization Rule:
+  1. Lesson learned: In the BukSU Capstone curriculum, a section consists of a canonical section block (e.g. `BSIT-3A`) and an institutional schedule code (`T`-code, e.g. `T65`, `T76`). Displaying `courseId.code` (`BSIT`) as the section code conflates the degree program with the class schedule code. Extracting the schedule `T`-code via `extractSectionCode(section)` and presenting both distinctly (`BSIT-3A (T76)`) guarantees zero confusion between degree programs and section blocks.
+  2. Lesson learned: BukSU Information Technology capstone spans three distinct consecutive academic terms: Capstone 1 in 3rd Year 1st Semester (Proposal Defense), Capstone 2 in 3rd Year 2nd Semester (System Development & Midterm Prototype Defense), and Capstone 3 in 4th Year 1st Semester (Final Defense & Multi-Tier ADM Sign-Off). Teams rolling over into a new semester when the Team Leader updates their profile must have all teammates synchronized (`User.updateMany`), the team's active `Project` record updated (`sectionId`, `academicYear`, `academicTerm`), and the team's `capstoneEnrollments` history tracked across semesters.
+  3. Lesson learned: In the Instructor Hierarchy Navigator (`UsersPage.jsx`), instructors drill down from `Year -> Program -> Section Block (attached with Section Code) -> Teams -> Students -> Student Information`. When navigating a section, instructors need to see both assigned teams AND unassigned students enrolled in that section block + `T`-code. Permitting direct selection of any enrolled student (`setNavStudentId`) directly from the section view—while seamlessly resolving their team and capstone progression—delivers complete visibility into cohort enrollment without orphan states.
+  4. Lesson learned: Aggregating section student counts via redundant `User.aggregate` when `rawSectionStudents` are already fetched introduces $O(N)$ query latency. Computing `studentCountBySection` directly in-memory from `activeStudents` eliminates database round-trips and speeds up hierarchy navigation response times.
+  5. Prevention: Always format sections with canonical names and distinct schedule `T`-codes via `sectionUtils.js`. Always synchronize teammates and active projects on leader semester rollover. Never hide unassigned students in hierarchy views. Always verify bundle compilation with `npx --workspace=client vite build` and ensure endpoint parity with `npm run check:endpoints`.
+  6. Runbook & Checklist for Hierarchy & Multi-Semester Verification:
+     - Step 1 (Checklist): Verify `extractSectionCode` reliably isolates `T`-codes (e.g., `T65`, `T76`) from block names in `sectionUtils.js`.
+     - Step 2 (Checklist): Verify `updateMe` in `user.service.js` propagates section/semester changes to all teammates and active project.
+     - Step 3 (Checklist): Verify `HierarchyView` in `UsersPage.jsx` renders both "Teams in Section" and "Students Enrolled in Section" with All/Unassigned/In-Team filter pills and direct student inspection.
+     - Step 4 (Checklist): Verify `TeamCard.jsx` and `StudentTeamDetail.jsx` render section block, `T`-code, and multi-semester Capstone 1–3 progression track.
+     - Step 5 (Evidence): Verify targeted client tests passed (`npm test --workspace=client -- src/pages/teams/TeamsPage.test.jsx`: 7/7 passed).
+     - Step 6 (Evidence): Verify targeted server tests passed (`npm test --workspace=server -- tests/integration/academics.test.js`: 3/3 passed).
+     - Step 7 (Evidence): Verify Vite client production build passed (`npx --workspace=client vite build`: 4,759 modules transformed, 0 errors, 0 warnings in 8.56s).
+     - Step 8 (Evidence): Verify API endpoint parity passed (`npm run check:endpoints`: SERVER=229, CLIENT=209, UNMATCHED_COUNT=0).
+     - Step 9 (Evidence): Verify agentic system governance passed (`npm run validate:agentic`: 62/62 checks passed).
+     - Step 10 (Evidence): Verify governance pipeline passed (`npm run validate:governance`: 100% passed).
+
 - CMS-V2 Containerized Ngrok Development Tunnel and External Network Resolution Rule:
   1. Lesson learned: In multi-file Docker Compose architectures where an extension compose file (`docker-compose.ngrok.yml`) attaches to a primary compose network (`cms_network`), declaring `networks.cms_network.external: true` without an explicit `name:` causes Docker Compose to look for a network literally named `cms_network`. Because `docker-compose.yml` defaults to project name `cms-v2`, the actual created network in the Docker engine is `cms-v2_cms_network`, causing compose to fail with `network cms_network declared as external, but could not be found`. Explicitly configuring `name: ${CMS_NETWORK_NAME:-cms-v2_cms_network}` in both `docker-compose.yml` and `docker-compose.ngrok.yml` deterministically bridges containers across separate compose invocations.
   2. Lesson learned: When an extension compose file does not define a separate project `name:`, Docker Compose assigns the directory name (`cms-v2`), causing it to view all running core containers (`cms-client`, `cms-server`, `cms-mongodb`, `cms-redis`, etc.) as orphans of the extension compose file and prompting for deletion via `--remove-orphans`. Declaring `name: cms-v2-tunnel` in `docker-compose.ngrok.yml` completely isolates the tunnel service from core stack lifecycle management.
@@ -5045,3 +5088,568 @@ resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (matc
   - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
   - `npm run validate:agentic`: 60/60 checks passed.
   - `npm run validate:governance`: DAG valid, 0 errors, 0 warnings.
+
+
+### 77. End-to-End Capstone Workflow Optimization & Sample Paper Stream Reliability (2026-10-21)
+
+**Incident / Problem Statement:**
+1. Archived academic sample papers (e.g. *Advanced Digital Animation Curriculum Development: An Interdisciplinary Approach*, 2.67 MB) displayed a synthetic 1.9 KB PDF fallback in `SophisticatedDocumentViewer` instead of streaming the real, physical PDF paper from the archive repository.
+2. Cross-cutting workflow transitions (WF-01 through WF-10) suffered from non-atomic ADM completion advances, stale Redis cached metadata across project phases, pluralization typos in post-approval decisions, un-synchronized workflow phases when normalizing ADMs, unscoped row verifications, and missing real-time project room event listeners in the student frontend dashboard.
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (Local vs Docker storage path divergence):** On Windows host environments, `env.STORAGE_LOCAL_PATH` was set to `/app/uploads` (the container volume path). Without defensive host normalization, `path.resolve('/app/uploads')` evaluated to `C:\app\uploads` rather than `./uploads`, rendering stored files inaccessible to the server process when running outside Docker. Normalizing default paths in `FilesystemStorageService` ensures deterministic path resolution across both local and container environments.
+- **Lesson learned (Student archive viewing vs download permissions):** Strict permission checks in `projectArchive.service.js` and `submission.service.js` blocked outsider students from reading approved final academic manuscripts in the archive, returning 403 `FORBIDDEN` and causing the client viewer to fall back to synthetic dummy PDFs. In academic institutions, approved archived manuscripts must be open to authenticated students and faculty for reading and literature review, while raw physical file downloads remain restricted.
+- **Lesson learned (Atomic phase progression and cache eviction):** Advancing capstone phases upon ADM completion requires synchronous state updates (`capstonePhase`, `workflowPhase`, `stage`, `admStatus`, `projectStatus`), saving the project, updating the team's `currentCapstonePhase`, invalidating Redis caches (`project:meta:{id}`, `project:detail:{id}`), and broadcasting `project:phase_advanced` to connected project rooms.
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): Always guard `FilesystemStorageService` base directories with fallback resolution to `./uploads` and strip redundant container path prefixes (`/app/uploads/`).
+- Step 2 (Checklist): Ensure that approved archived manuscripts (`final_academic`, `final_journal`) allow authenticated student read/stream access (`isDownload: false`) while restricting direct downloads (`isDownload: true`).
+- Step 3 (Checklist): When mutating project phase, stage, or ADM milestones, evict Redis cache keys (`project:meta:${projectId}` and `project:detail:${projectId}`) to prevent stale state from serving subsequent reads.
+- Step 4 (Checklist): In ADM item verification, always scope row checks to the active milestone (`CAPSTONE_1`, `CAPSTONE_2`, `CAPSTONE_3`) rather than all legacy rows.
+- Step 5 (Checklist): Subscribe student project pages (`MyProjectPage.jsx`) to `project:${projectId}` Socket.IO rooms for `project:updated`, `project:phase_advanced`, and `defense:scores_released` to trigger automatic query refetches.
+
+**Evidence:**
+- Real sample paper streaming verified: `permission_Advanced_Digital_Animation_Cu.pdf` streams **2,669,416 bytes (~2,607 KB)** with `isGeneratedFallback: undefined`.
+- Fast-Path Targeted Verification passed:
+  - `npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx`: 8/8 passed.
+  - `npm test --workspace=server -- tests/unit/filesystem-storage.service.test.js tests/unit/admAutoProgression.test.js tests/unit/institutionalWorkflow.reliability.test.js`: 26/26 passed.
+  - `npm test --workspace=server -- tests/unit/project.manuscript.test.js`: 5/5 passed.
+- Governance Quality Battery passed:
+  - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
+  - `npm run validate:agentic`: 62/62 checks passed.
+  - `npm run validate:governance`: DAG valid, 0 errors, 0 warnings.
+  - `npm run build --workspace=client`: Vite production build passed cleanly.
+
+
+### 78. Full Gemini 3.8 Vulnerability Remediation & Architectural Consistency Suite (2026-10-21)
+
+**Incident / Problem Statement:**
+Comprehensive automated scanning of CMS-V2 across backend, frontend, shared workspace, and plagiarism engine identified 26 architectural inconsistencies and security vulnerabilities (VULN-01 to VULN-26) spanning BOLA/IDOR object references, unvalidated OTP in password reset, cross-project document revision access, unescaped regex injection in team searches, unverified external URLs, missing Secretary endorsement gates on tiered ADM signatures, and hardcoded UI colors.
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (Submission Revision Diff IDOR):** In `submissionRevisionDiff.service.js`, checking that both the current and previous submissions share the identical `projectId` (`previousSubmission.projectId?.toString() !== targetSubmission.projectId?.toString()`) is vital to prevent malicious proponents from comparing and leaking other teams' drafts.
+- **Lesson learned (OTP Password Reset Verification):** In `auth.service.js`, accepting a password reset without requiring and verifying a 6-digit OTP code (`code` parameter compared via `compareCode`) allowed unauthenticated token substitution. Enforcing code verification with token expiration ensures zero-trust credential recovery.
+- **Lesson learned (Tiered Board ADM Signatures vs Row-Level Verification):** The Secretary compliance endorsement gate (`admSignatures.secretary.endorsed === true`) must gate the **Tiered Board Signatures** (`signTieredADM` / `/adm-signatures`), NOT row-level verification items (`signADMItem`). Conflating the two creates an unresolvable deadlock where panel members cannot verify rows because the Secretary has not yet endorsed, while the Secretary cannot endorse until all rows are verified.
+- **Lesson learned (URL Scheme Sanitization):** Frontend inputs and backend validators (`project.validation.js`, `team.service.js`, `PrototypeShowcaseAndDemo.jsx`) must enforce strict `http:` or `https:` protocols via regex (`^https?:\/\/[\w\-]+(\.[\w\-]+)+[/#?]?.*$`) to prevent `javascript:` and `data:` URI attacks.
+- **Lesson learned (Institutional Committee Exclusion Integrity):** Instructors (`role: 'instructor'`) are strictly excluded from serving on capstone defense committees per Institutional Rule #2. UI comboboxes and backend committee assignments must filter by `role: 'faculty'` and reject instructor accounts.
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): Always check that `previousSubmission.projectId === targetSubmission.projectId` in any revision comparison service.
+- Step 2 (Checklist): Validate 6-digit OTP codes during password reset flows before modifying user password hashes.
+- Step 3 (Checklist): Gate Tier 1, Tier 2, and Tier 3 digital signatures behind Secretary endorsement (`currentSignatures.secretary.endorsed`), but keep row verification open to assigned panel members.
+- Step 4 (Checklist): Sanitize all external link inputs (GitHub URLs, demo video links, Google Doc URLs) against strict HTTP/HTTPS protocol regex.
+- Step 5 (Checklist): In user listings and committee dropdowns, query `role: 'faculty'` and prohibit instructor appointments.
+- Step 6 (Checklist): Use design system tokens (`bg-card`, `bg-background`, `text-foreground`, `border-border`) in functional UI components to eliminate dark mode contrast clipping.
+
+**Evidence:**
+- Verification passed across all fast-path and comprehensive test batteries:
+  - `npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js`: **13/13 passed**.
+  - `npm test --workspace=server -- tests/integration/adm-compliance.test.js`: **13/13 passed**.
+  - `npm test --workspace=server -- tests/unit/auth.registration-domain.test.js`: **6/6 passed**.
+  - `npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx`: **19/19 passed**.
+  - `npm test --workspace=client -- src/pages/auth/registerSchema.test.js`: **5/5 passed**.
+- Governance Quality Battery passed:
+  - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
+  - `npm run validate:agentic`: 62/62 checks passed.
+  - `npm run validate:governance`: DAG valid, 0 errors, 0 warnings.
+
+### 79. Phase 1 Proposal Review Vacant Adviser Rules & Post-Approval Field-Based Appointment (2026-10-21)
+
+**Incident / Problem Statement:**
+During Phase 1 (Title Proposal Review), projects were incorrectly flagged with amber `Missing Committee` and `Missing Adviser & 3 Panelists` in the Defense Scheduling Page even when a Secretary and 3 distinct Panelists were assigned, blocking defense scheduling. Under BukSU institutional workflow, during initial proposal review the capstone's topic is not yet finalized, so the Adviser can remain vacant (`adviserId: null`), whereas the Secretary is strictly required alongside 3 Defense Panelists. Only after a proposal is approved does the Instructor select a suitable Adviser aligned with the approved project's field of discipline.
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (Phase 1 Committee Invariant):** In Phase 1 Title Proposal Review, defense readiness (`getDefenseReadiness` in `defenseSchedulingHelpers.js` and `_assertDefenseReadiness` in `projectDefense.service.js`) must require strictly 1 Secretary and 3 Panelists. The Adviser is permitted to be vacant (`adviserId: null`). If Secretary is missing, the system must explicitly flag `Missing Secretary` rather than a blanket `Missing Adviser`.
+- **Lesson learned (Post-Approval Discipline-Based Adviser Assignment):** In `projectTitle.service.js:approveTitle` and `Capstone1CollapsibleSections.jsx`, instructors can select an adviser during approval or post-approval via an institutional banner ("Appoint Capstone Adviser"). The assigned adviser must be a faculty member (instructors and students prohibited) and must not conflict with the existing committee secretary or panelists on the same team.
+- **Lesson learned (Notification Title Alignment):** In `projectDefense.service.js`, Capstone 2 defense scheduling emits `'Capstone 2 System Defense Scheduled'` for phase 2. Test assertions in unit test suites must match this exact label.
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): In `defenseSchedulingHelpers.js:getDefenseReadiness`, branch on `isTitleReview`. If in Phase 1, evaluate `hasFullCommittee = hasSecretary && panelistCount >= 3`.
+- Step 2 (Checklist): In `projectDefense.service.js:_assertDefenseReadiness`, omit `!project.adviserId` from `isTitleReviewHearing` validation while strictly retaining `!project.secretaryId` and 3 panelists.
+- Step 3 (Checklist): Allow `adviserId` in `approveTitleSchema` and handle faculty validation, role conflict prevention, and team synchronization in `projectTitle.service.js:approveTitle`.
+- Step 4 (Checklist): Provide an "Appoint Capstone Adviser" banner in `Capstone1CollapsibleSections.jsx` when title is approved but adviser remains vacant, passing project disciplines to `AssignCommitteeDialog`.
+
+**Evidence:**
+- Targeted client tests passed:
+  - `npm test --workspace=client -- src/pages/instructor/DefenseSchedulingPage.test.jsx src/components/defense/ScheduleDefenseModal.test.jsx src/components/projects/Capstone1CollapsibleSections.test.jsx`: **53/53 passed**.
+- Server unit tests passed:
+  - `npm test --workspace=server -- tests/unit/project.defense-schedule-clear.test.js`: **9/9 passed**.
+  - `npm test --workspace=server -- tests/unit/project.defense-schedule-gate.test.js`: **14/14 passed**.
+- Governance Quality Battery passed:
+  - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
+  - `npm run validate:agentic`: 62/62 checks passed.
+  - `npm run validate:governance`: DAG valid, 0 errors, 0 warnings.
+
+### 80. Skill Frontmatter YAML Syntax Hardening & Parsing Compliance (2026-10-21)
+
+**Incident / Problem Statement:**
+Five skills failed to parse frontmatter during agent runtime / skill loader initialization:
+1. `cognitive-ergonomics-ux/SKILL.md`: `yaml: line 2: mapping values are not allowed in this context`
+2. `context7-agent-ops/SKILL.md`: `yaml: line 2: mapping values are not allowed in this context`
+3. `i-adapt/SKILL.md`: `yaml: line 3: did not find expected key`
+4. `plagiarism-engine/SKILL.md`: `yaml: line 2: mapping values are not allowed in this context`
+5. `tanstack-query/SKILL.md`: `yaml: line 4: mapping values are not allowed in this context`
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (YAML Plain Scalar Colon Parsing):** In unquoted plain YAML scalars, encountering colons followed by spaces (e.g. `Triggers on: "..."` or `Keywords: ...`) causes parsers to treat the token as a dictionary key, triggering `mapping values are not allowed in this context`. Multi-line descriptions and trigger strings MUST use folded block scalars (`description: >`) or explicit single/double quoting.
+- **Lesson learned (Hybrid Quoting in argument-hint):** In `i-adapt/SKILL.md`, `argument-hint: "TARGET" [CONTEXT=<value>]` mixed a leading quoted string with unquoted bracketed options, violating YAML tokenization and triggering `did not find expected key`. Enclosing the entire hint in quotes (`argument-hint: '"TARGET" [CONTEXT=<value>]'`) resolves the parsing error.
+- **Lesson learned (Fence Wrapper Intrusion in Skill Documents):** In `.claude/skills/plagiarism-engine/SKILL.md` and `.github/skills/plagiarism-engine/SKILL.md`, markdown code fence wrappers (````skill` ... ````) enclosed the entire file, hiding the opening `---` frontmatter delimiter from top-level frontmatter parsers.
+- **Lesson learned (Multi-Directory Skill Synchronization):** Skills are mirrored across `.agents/skills/`, `.claude/skills/`, and `.github/skills/`. Fixing frontmatter across all copies ensures unified runtime execution regardless of which agent loader is active.
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): Always format multi-sentence or keyword-rich descriptions in `SKILL.md` using `description: >` followed by indented text.
+- Step 2 (Checklist): Quote composite `argument-hint` strings that include both quoted target names and optional brackets.
+- Step 3 (Checklist): Ensure `SKILL.md` starts on line 1 with `---` without enclosing code fences.
+- Step 4 (Checklist): Validate all `SKILL.md` files across `.agents/skills`, `.claude/skills`, and `.github/skills` using automated YAML parser.
+
+**Evidence:**
+- Automated validation script (`scratch/validate_skills_frontmatter.js`) verified all 169 `SKILL.md` files across `.agents/skills`, `.claude/skills`, and `.github/skills` with **0 YAML errors**.
+- Governance quality batteries passed:
+  - `npm run validate:agentic`: **62/62 checks passed**.
+  - `npm run validate:governance`: **DAG valid, 0 errors, 0 warnings**.
+
+## Shadcn/UI Refactor Notes (2026-10-22)
+
+- Lesson learned: When migrating an existing manual modal to Radix Dialog, test the behavior Radix owns (Escape dismissal, title linkage, open/closed state) instead of assertions tied to the former hook's `body.style.overflow` implementation. Prevention: keep dismissal guarded during pending mutations at both the controlled `onOpenChange` and Escape/outside-event boundaries, and retain institutional duplicate-role tests. Runbook/checklist: use shared `DialogContent`, `DialogTitle`, and `DialogDescription`; verify close/cancel, pending guard, nested searchable selector, and 1440x900/390x844 light/dark layouts.
+- Lesson learned: A team invitation composer carries workflow safeguards beyond its dialog frame. Prevention: preserve the four-member cap (including pending invites), blocked candidate warnings, duplicate-staging prevention, and post-send invite-code results while migrating the visuals. Runbook/checklist: use semantic warning/success/destructive tokens, shared loading buttons, and `EmptyState` for candidate/staged empties; test invite staging and results, then visually verify the student role at 1440x900/390x844 in both themes before claiming completion.
+
+- **Lesson learned (Auth Visual Audit):** Auth pages stagger `.auth-item` opacity and transform transitions after mount. A screenshot taken after the heading appears can capture missing form controls. Wait for every `.auth-form.auth-loaded .auth-item` to reach opacity 1 before capturing.
+- **Lesson learned (Local Dashboard Review):** The host API can already be listening on port 43210 while the Vite client on 43211 is stopped. Check the API health endpoint and start the client separately before diagnosing test-account authentication as a backend failure.
+- **Prevention checklist:** Capture light and dark screenshots at 1440×900 and 390×844; inspect the full animation state, inspect authenticated data surfaces with seeded local accounts when provided, and restore the browser theme and viewport after review.
+
+### 81. Action Done Matrix Header Title Harmonization & Continuation Suffix Removal (2026-10-21)
+
+**Incident / Problem Statement:**
+In `ActionDoneMatrixTab.jsx`, subsequent pages (continuation and final sign-off sheets) rendered the document header as `ACTION DONE MATRIX (CONTINUATION)`. Institutional feedback required removing the `(CONTINUATION)` text suffix so that the header uniformly reads `ACTION DONE MATRIX`.
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (Document Title Uniformity):** In multi-sheet institutional capstone documents like Form RU-F-033, while individual pages are tracked internally with `data-page="continuation"`, the visible document title heading beneath the university letterhead must maintain uniform institutional branding (`ACTION DONE MATRIX`) across all pages rather than displaying `(CONTINUATION)`.
+- **Lesson learned (Test Assertion Alignment):** Tests checking multi-page ADM insertions (`ActionDoneMatrixTab.test.jsx`) must assert the presence of `ACTION DONE MATRIX` and the absence of `ACTION DONE MATRIX (CONTINUATION)`.
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): In `ActionDoneMatrixTab.jsx`, render `<h2 className="...">ACTION DONE MATRIX</h2>` across both Page 1 and subsequent continuation/final pages.
+- Step 2 (Checklist): Update unit test assertions in `ActionDoneMatrixTab.test.jsx`.
+
+**Evidence:**
+- Targeted client tests passed:
+  - `npm test --workspace=client -- src/components/projects/ActionDoneMatrixTab.test.jsx`: **24/24 passed**.
+  - `npm test --workspace=client -- src/components/secretary/SecretaryMinutesDocumentSheet.test.jsx`: **16/16 passed**.
+- Governance Quality Battery passed:
+  - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
+  - `npm run validate:agentic`: 62/62 checks passed.
+  - `npm run validate:governance`: DAG valid, 0 errors, 0 warnings.
+
+### 82. Automatic Real-Time Query Invalidation & Synchronization on Proposal Title / Details Update (2026-10-21)
+
+**Incident / Problem Statement:**
+When a student updated and saved a proposal title or details (e.g. in response to panel deliberation remarks), the updated title did not automatically re-render on the instructor or faculty side without a manual browser page reload.
+
+**Root cause analysis & lessons learned:**
+- **Lesson learned (Server-Side Redis Cache Invalidation):** `projectCoreService.getProject` caches the project payload in Redis under `project:meta:<projectId>` and `project:detail:<projectId>` with a 120-second TTL. `projectTitleService` updated MongoDB records but never evicted these Redis keys, causing subsequent queries to return stale data for up to two minutes. All title mutations (`updateTitle`, `submitTitle`, `approveTitle`, `rejectTitle`, `addTitleComment`, `reviseAndResubmit`, `requestTitleModification`, `resolveTitleModification`, `evaluatePostApprovalUnlocks`) must invoke `this._invalidateProjectCache(project._id)`.
+- **Lesson learned (Socket.IO Cross-Client Synchronization):** Server mutations must broadcast `project:updated` to both the project room (`project:<projectId>`) and all connected clients (`emitToAll('project:updated', payload)`). This guarantees that instructors viewing the list of projects or faculty in other views receive the event even if not currently inside the specific project room.
+- **Lesson learned (Client-Side Global Socket Listener):** `useSocket.js` (mounted globally in `DashboardLayout`) must listen to `socket.on('project:updated', handleProjectUpdated)` and immediately invalidate `projectKeys.detail(targetProjectId)`, `projectKeys.lists()`, `projectKeys.my()`, and `projectKeys.all`, triggering instantaneous background re-fetching across all open tabs.
+- **Lesson learned (Draft Save Cache Invalidation):** When `handleSaveProposalDraft` calls `projectService.updateTitle` directly on `CreateProjectPage.jsx`, it must also defensively invalidate React Query caches via `QueryClientContext` (`queryClient?.invalidateQueries?.(...)`).
+
+**Prevention runbook checklist:**
+- Step 1 (Checklist): Evict Redis cache keys (`project:meta:<id>` and `project:detail:<id>`) on every project/title modification via `_invalidateProjectCache`.
+- Step 2 (Checklist): Broadcast `project:updated` via Socket.IO to `project:<id>` room and globally via `emitToAll`.
+- Step 3 (Checklist): In `useSocket.js`, register `socket.on('project:updated', handleProjectUpdated)` and invalidate all project query caches.
+- Step 4 (Checklist): In `ProjectDetailPage.jsx`, join `project:<projectId>` defense room on mount and leave on unmount via `getSocket()`.
+- Step 5 (Checklist): In `CreateProjectPage.jsx`, safely invalidate `projectKeys` upon draft saving using `useContext(QueryClientContext)`.
+
+**Evidence:**
+- Targeted client tests passed:
+  - `npm test --workspace=client -- src/hooks/useSocket.test.jsx`: **2/2 passed**.
+  - `npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx`: **19/19 passed**.
+  - `npm test --workspace=client -- src/pages/projects/ProjectDetailPage.back-nav.test.jsx`: **2/2 passed**.
+- Targeted server tests passed:
+  - `npm test --workspace=server -- tests/unit/projectTitleRealtimeUpdates.test.js`: **2/2 passed**.
+  - `npm test --workspace=server -- tests/unit/projectTitleFinalApprovalGate.test.js`: **3/3 passed**.
+- Governance Quality Battery passed:
+  - `npm run check:endpoints`: SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0.
+  - `npm run validate:agentic`: **62/62 checks passed**.
+  - `npm run validate:governance`: **DAG valid, 0 errors, 0 warnings**.
+
+- 2026-10-22 UI refactor lesson learned: Radix Select options with long academic program names can exceed a 390px mobile viewport when content sizes intrinsically. Prevention runbook/checklist: set popover width from the trigger, cap it to viewport width, allow option text to wrap, then inspect the open menu at 390x844 and verify document scroll width remains within the viewport. Profile and UsersPage now use shared Select/loading/status components; targeted lint and production build passed, while route-wide visual artifact coverage remains pending. PTSS writes were denied by the read-only .agents sandbox; the required active chat starter and resumable checkpoint are kept under scratch per the documented fallback.
+- 2026-10-22 UI refactor lesson learned: a searchable committee picker inside a modal must close its own Radix Popover on Escape without dismissing the parent committee Dialog. Prevention runbook/checklist: use a controlled shared Popover, reset the search term through `onOpenChange`, focus the search input on open, verify role-conflict options remain disabled, then test Escape and responsive light/dark views at 1440x900 and 390x844 without submitting changes.
+- 2026-10-22 UI refactor lesson learned: the roster inspector duplicated portal, focus, Escape, and body-scroll behavior already provided by the shared Dialog primitive. Prevention runbook/checklist: use the shared Dialog root/content/title/description and built-in focus lifecycle, keep the existing roster and committee readout inside the bounded scrolling content, and inspect both compact and desktop layouts in light/dark before changing team data.
+
+- **Lesson learned (Dialog Surface Ownership):** Shared Radix DialogContent already provides the modal surface, viewport bounds, scrolling, border, and theme tokens. Nesting a second styled wrapper duplicates surface ownership and complicates responsive sizing. Prevention: style the shared DialogContent as the themed surface, keep semantic DialogTitle/Description inside it, and verify both tab states at desktop/mobile sizes in light and dark before a mutation-capable dialog is considered done.
+- **Checklist:** Test open, tab switch, cancel/close, and ensure no save mutation occurred; run the focused dialog suite, scoped lint, and production build.
+
+- 2026-10-22 lesson learned: the shared EmptyState component's previous action API fixed all CTAs to small text-only buttons, which forced team pages to keep a parallel bespoke empty-state layout. Prevention runbook/checklist: allow each shared empty-state action to specify a shadcn Button size and optional icon, migrate role-specific empty states to the shared primitive, and verify action callbacks plus the role with no actions; review light/dark at 1440x900 and 390x844 for overflow.
+- 2026-10-22 lesson learned: a custom suggestion panel inside a form duplicated overlay positioning and dismissal behavior. Prevention runbook/checklist: anchor the search field with the shared Popover, keep controlled open state and focus behavior explicit, size the content to its trigger within viewport bounds, and test selection/removal and empty/loading states at desktop/mobile sizes.
+- 2026-10-22 lesson learned: candidate selection wired only to `onMouseDown` is not activated by keyboard users even when candidates are rendered as buttons. Prevention runbook/checklist: use the native button `onClick` path, let the controlled shared Popover manage dismissal, and verify candidate selection and authorization warnings by keyboard and pointer before invite mutations.
+- 2026-10-22 lesson learned: native `window.confirm` prompts do not share application theme, focus, or responsive behavior and make mutation timing harder to test. Prevention runbook/checklist: use a shared role=alertdialog primitive, keep mutations behind its explicit action button, verify cancel and confirm paths against the team API hooks, and review the focused dialog at desktop/mobile sizes in both themes.
+
+- **Lesson learned (Role-Aware Settings Deep Links):** A controlled tab value can become invalid when a role-specific tab is removed from the available set; Radix then renders no active tab. Prevention: derive the selected tab from the role-authorized list, normalize unavailable deep links to the default after user identity loads, and preserve supported legacy aliases. Checklist: test instructor access, student denial, URL synchronization, and all settings tabs at mobile/desktop widths.
+- **Lesson learned (Local Preference Restoration During Visual Review):** Theme and contrast controls persist locally during browser audits. Prevention: record their initial state, restore it after contrast/theme captures, and return the browser to its requested route.
+- **Lesson learned (Institutional Template Fallback):** A built-in sample template URL can look actionable even when no institutionally configured template exists. Prevention runbook/checklist: use only server-provided or explicitly supplied template data, keep approval gating authoritative, render a shared unavailable/error state when configuration is absent, and use the shared Skeleton for loading. Evidence passed: ManuscriptTemplateWidget tests 7/7 and light/dark desktop/mobile review with no horizontal overflow.
+- **Lesson learned (Team Notification States):** Raw emerald/amber classes duplicate semantic Badge variants and status color tokens, while a non-wrapping action strip can push team controls beyond the card on mobile. Prevention runbook/checklist: use success/warning variants for assigned/pending states, allow the action group to wrap below desktop breakpoints, and verify both states in light/dark at desktop/mobile sizes. Evidence passed: TeamFormationNotificationItem tests 7/7 and viewport width stayed within 390px.
+- **Lesson learned (Team Invite Acceptance):** Native code-entry inputs can drift from the shared focus, disabled, and contrast behavior, and a full invite URL needs its own informative state. Prevention runbook/checklist: render each labeled invite-code cell through the shared Input, display links and server failures with shared Alerts, drive pending state through the shared Button, and test both code and link submission without triggering a real invite. Evidence passed: AcceptInviteForm tests 4/4 and light/dark desktop/mobile review had no horizontal overflow.
+
+- 2026-10-22 lesson learned: large capstone workflow components can retain their underlying review gates while replacing presentation palettes with semantic tokens and shared Card/Badge/Button primitives. Prevention runbook/checklist: preserve each status label and mutation guard, verify student and reviewer states in light/dark at desktop/mobile, avoid activating approval/scheduling/evaluation controls, and measure document width at every viewport. Evidence passed: Capstone1CollapsibleSections focused tests 12/12 and scoped ESLint clean.
+
+- 2026-10-22 lesson learned: Capstone 2 Gantt, prototype, and ADM surfaces have distinct semantic states that should remain legible across theme changes. Prevention runbook/checklist: map only status meaning to semantic tokens (`success` for ratification, `info` for Secretary endorsement, `warning` for evaluation), preserve adviser pre-approval lock copy, and inspect narrow Gantt tables for page overflow without submitting schedule or ADM mutations. Evidence passed: Capstone2CollapsibleSections tests 5/5, scoped ESLint clean, light/dark desktop/mobile visual review.
+
+- 2026-10-22 lesson learned: final-course manuscript and publication surfaces benefit from distinct semantic success, info, and warning roles while retaining institutional review and secretary-endorsement gates. Prevention runbook/checklist: preserve canonical document-reader use and all approval/ADM guards, verify chapter-empty and publication-empty states in both themes and device sizes, and avoid opening or submitting actual manuscripts during a presentation-only change. Evidence passed: Capstone3CollapsibleSections tests 6/6, scoped ESLint zero warnings, four-mode visual review.
+
+- 2026-10-22 lesson learned: the cross-course workflow stepper had locally managed overlays whose status colors and focus behavior diverged from shared UI primitives. Prevention runbook/checklist: use semantic theme tokens for workflow statuses, migrate committee/reports/external-link overlays to the shared Radix Dialog, assert dialog roles and Escape dismissal, and inspect each dialog in light/dark at desktop/mobile without submitting workflow mutations. Evidence passed: CapstoneWorkflowStepper tests 15/15, scoped ESLint clean, four-mode visual review; browser returned signed out to light `/login`.
+
+- 2026-10-22 lesson learned: the dense academic Gantt chart needs its task palette to stay visually distinct while following the site theme; raw color classes and a native owner selector made the chart and toolbar drift from the shadcn foundation. Prevention runbook/checklist: map categories onto centralized chart tokens for light/dark themes, use shared controls with compact geometry, preserve the Excel export and adviser pre-approval gates, and measure the responsive canvas separately from the page viewport. Evidence passed: AcademicExcelGanttChart tests 19/19, scoped ESLint clean, four-mode screenshot matrix, page widths 1430/1440 desktop and 381/390 mobile; no workflow mutation.
+
+- Lesson learned: Migrating a hand-built modal to Radix Dialog moves its content into a portal, so component tests that query only the React root will miss the dialog and its fields. Prevention: assert the dialog role and query portalled controls from `document.body`; verify Escape dismissal as well as submit behavior. Runbook/checklist: keep the workflow fixture mutation-free, run the focused component suite and scoped ESLint, then inspect light/dark desktop/mobile schedule and dialog states with page overflow and dialog bounds checked.
+
+- Lesson learned: Dark-theme native text areas can retain a light surface when an application-level warning card changes the surrounding surface. Prevention: verify the rendered control itself and its foreground in both themes, not just the card surface. Runbook/checklist: apply shared card-surface and card-foreground tokens to the field, capture light/dark desktop/mobile screenshots, check overflow and browser errors, and leave approval/revision actions untouched during visual review.
+
+- Lesson learned: Playwright captures taken immediately after theme changes can freeze midway through CSS color transitions and misrepresent the final contrast. Prevention: disable transitions in audit-only fixtures and assert the expected root theme class before capture. Runbook/checklist: wait for the final theme state, inspect both populated and reduced-content states, and check desktop/mobile overflow before recording visual evidence.
+
+- Lesson learned: Calendar event dots and their agenda cards are separate visual signals and both need theme-aware status colors. Prevention: map deadline and defense types through shared warning/success tokens at each presentation point. Runbook/checklist: verify populated and empty agendas at desktop/mobile in light/dark, including today and selected-day states, before recording completion.
+
+- Lesson learned: A mutually exclusive role filter with no corresponding tab panel should be modeled as a radio group rather than ARIA tabs. Prevention: choose the primitive from the interaction semantics, not its visual appearance. Runbook/checklist: expose a labeled radio group, keep the visual selection tokenized, verify keyboard/pointer activation and callback values, and inspect all loading/result states at both themes and viewport sizes.
+
+
+- 2026-10-22 lesson learned: the defense calendar’s month cells are dense at mobile widths, so their accessible names must carry the full date and event count while visible chips can truncate. Prevention runbook/checklist: keep each day cell a native shared Button, label singular/plural event counts, keep selected-day details in an announced region, use semantic Badge variants for event types, and inspect empty/populated agenda plus month/details states in both themes and viewport sizes. Evidence passed: DefenseScheduleCalendar tests 6/6, scoped ESLint clean, and 16 Playwright captures with no overflow or browser/Vite errors.
+
+- 2026-10-22 lesson learned: repository auth components can exist without a route consumer, so a component-only visual audit must not be presented as a live login-page migration. Prevention runbook/checklist: search imports and route composition before editing, preserve the existing account form and institutional content, audit the component’s actual responsive visibility, and explicitly document when the component is currently unmounted. Evidence passed: BukSULoginSidePanel test 1/1, scoped ESLint clean, and four light/dark desktop/mobile captures with intended breakpoint visibility and no overflow or browser/Vite errors.
+
+- 2026-10-22 lesson learned: public navigation hidden at the mobile breakpoint needs an explicit accessible replacement, and sticky-header screenshots should be viewport captures when the page has scrolled. Prevention runbook/checklist: use a shared Dialog trigger for the mobile drawer, wrap its hash links in DialogClose, use the shared Accordion for FAQs, preserve route-prefetch props on route links, and capture default pages full-height but open overlays at viewport size. Evidence passed: LandingPage tests 2/2, scoped ESLint clean, and ten light/dark desktop/mobile captures with no horizontal overflow or page/Vite errors. The isolated app shell returned an empty body at `/`, so route-shell verification remains pending.
+
+
+2026-10-22 Public error-page refactor: ForbiddenPage and NotFoundPage use shared Card, Badge, and Button primitives; preserve /forbidden and unmatched-route recovery links plus browser-back behavior. Focused page/route tests pass 5/5, scoped ESLint is clean, and all eight light/dark desktop/mobile captures were inspected without overflow or browser/Vite errors. The temporary harness was removed; screenshots and the reusable audit remain under scratch/qa-evidence and scratch.
+
+
+2026-10-22 AnnouncementBanner refactor: the settings-driven global banner uses the shared semantic Alert and dismiss Button; its optional className is merged through cn and PropTypes validates it. Focused tests pass 3/3 and light/dark desktop/mobile review shows no overflow or browser/Vite errors. The temporary Vite harness was removed; retained evidence is under scratch/qa-evidence/announcement-banner.
+
+- 2026-10-22 lesson learned: a clickable notification row with a nested mark-read control creates invalid keyboard and event behavior. Prevention runbook/checklist: make row navigation a shared Button sibling to its action button, ensure filters expose pressed state, use semantic EmptyState for the no-results branch, and reserve room for mobile actions. Evidence passed: notification and Header tests 8/8, scoped ESLint/Prettier, and 12 light/dark desktop/mobile captures without overflow or browser/Vite errors.
+
+- 2026-10-22 lesson learned: CVA button variant strings do not automatically merge conflicting caller Tailwind utilities, so a caller can request justify-start while the shared base still centers its contents. Prevention runbook/checklist: wrap generated Button variants with cn and tailwind-merge, test representative layout overrides, rerun focused consumers, and inspect rendered alignment before keeping screenshot evidence. Evidence passed: Button and archive tests 16/16, eight archive search screenshots, and no viewport/browser errors.
+
+### 2026-10-22 lesson: keep route progress state visible and accessible
+- Lesson learned: A route progress controller can correctly advance internal state while the bar appears static if its rendered indicator is not bound to that state.
+- Prevention checklist: For progress bars, assert an indeterminate pending state without `aria-valuenow`, then a 100% settled state at completion and Suspense boundaries; capture desktop/mobile in both themes.
+- Runbook: Use an animated segment for unknown route duration and omit `aria-valuenow` while pending; expose 100% only after navigation settles. Verify `LoadingScreen`, skeleton, and top progress assertions against the actual shared shadcn contract rather than obsolete animation class names.
+- Evidence: focused loading tests 16/16; Playwright screenshots under `scratch/qa-evidence/loading-surfaces/` passed across light/dark at 1440x900 and 390x844 with no overflow or browser/Vite errors.
+
+- Lesson learned: isolated Vite component harnesses can render unstyled HTML if they omit the application's shared stylesheet, while an absent favicon can create a misleading console 404. Prevention checklist: import /src/index.css in each visual harness, use a data URI favicon, and reject screenshots until semantic colors and typography visibly resolve. Runbook: confirm theme tokens render in both themes, capture light/dark desktop/mobile, and inspect browser/Vite errors before retaining evidence. Evidence passed: TitleWorkflowCards 5/5 tests and four inspected captures under scratch/qa-evidence/title-workflow/.
+
+- 2026-10-22 lesson learned: Radix Select does not accept an empty string as a selectable item value. Prevention checklist: represent unfiltered empty state with `SelectValue` placeholder and controlled empty value, then keep dependent filter resets explicit. Evidence passed: committee academic-year and section filter interactions, status filter, and team jump are covered in the 12/12 focused suite.
+
+- 2026-10-22 lesson learned: In a modal with nested scroll regions, scrolling only the section heading into view does not prove that its action cards are reachable on mobile. Prevention checklist: scroll a representative list item into view, inspect the rendered card and action, and verify the list end at the mobile breakpoint. Evidence passed: MilestoneDeadlinesModal 6/6 tests and 16 light/dark desktop/mobile captures under `scratch/qa-evidence/milestone-deadlines/`.
+
+- Lesson learned: isolated Vite component harnesses can render unstyled HTML if they omit the application's shared stylesheet, while an absent favicon can create a misleading console 404. Prevention checklist: import /src/index.css in each visual harness, use a data URI favicon, and reject screenshots until semantic colors and typography visibly resolve. Runbook: confirm theme tokens render in both themes, capture light/dark desktop/mobile, and inspect browser/Vite errors before retaining evidence. Evidence passed: TitleWorkflowCards 5/5 tests and four inspected captures under scratch/qa-evidence/title-workflow/.
+
+## Lesson learned: shadcn plagiarism upload control (2026-10-22)
+
+The learned DropZone migration uses the shared Button as the actual drag target, preserving native keyboard and click activation without a custom clickable div. Keep Change and Remove as separate shared Buttons, and disable both file-selection paths during scans. Prevention checklist: verify native input change/reset, file drop, scan lock, shared Alert rejection feedback, and empty/selected/error states across light/dark desktop/mobile. Runbook evidence: focused suites 27/27, component suite 8/8, scoped lint/format, production build, and 12 in-app browser viewport checks without overflow.
+
+## Lesson learned: plagiarism source indicator contrast (2026-10-22)
+
+When matching-source identity requires a per-source hue, learned use keeps the numeric score on the semantic foreground and carries the hue through a small marker and badge border. Prevention checklist: validate computed colors with the actual source palette in light and dark; avoid ambiguous Tailwind [31mtext-[var()][0m classes (declare an explicit color type); preserve truncation and jump behavior. Runbook checks include the focused component suite, scoped lint/format, production build, and desktop/mobile rendered review.
+
+## Lesson learned: plagiarism similarity score component (2026-10-22)
+
+The learned ScoreBar migration composes shared Progress and Badge primitives while preserving the established severity thresholds. Prevention checklist: keep the numeric score accessible via aria-valuenow, provide a meaningful progress name, and use semantic severity tokens that remain legible in both themes. Runbook verification: focused plagiarism suite 12/12, scoped ESLint/Prettier, production build, and high/low light/dark desktop/mobile visual capture review.
+
+## Lesson learned: reusable indeterminate progress (2026-10-22)
+
+The learned ScanButton migration uses the shared Progress indeterminate mode and CMS progress animation rather than a component-specific loading bar. Prevention checklist: preserve the progressbar accessible label without aria-valuenow when progress is indeterminate, retain a polite status and busy button state, and visually verify the moving primary indicator in both themes and on mobile. Runbook: focused component tests, scoped lint/format, production build, and ready/scanning visual captures.
+
+## Lesson learned: floating plagiarism scan progress (2026-10-22)
+
+The learned floating scan migration composes shared Card, Button, Badge, and Progress primitives across archive and Socket.IO scan states. Prevention checklist: retain dismissal and navigation, preserve route suppression, expose named determinate/indeterminate progress appropriately, and use semantic success tokens. Runbook verification includes the Socket.IO state test plus archive loading/completion light/dark desktop/mobile visual review.
+
+## Lesson learned: mobile plagiarism scan layout (2026-10-22)
+
+The learned archive checker migration replaces custom panels and disclosure markup with shared Card, Alert, Badge, Button, and Collapsible primitives. Prevention checklist: long scan labels must wrap inside narrow buttons, grid children need min-width constraints, and the 390px scanning state must be included in visual audits. Runbook: empty/selected/error/scanning tests, theme/viewport matrix, scoped lint/format, and production build.
+
+## Lesson learned: Radix checkbox accessible names in archive filters (2026-10-22)
+
+The learned archive sidebar migration uses shared Button/Input/Checkbox/Sheet primitives and semantic selection tokens. Prevention checklist: Radix checkbox roots need explicit aria-labelledby for adjacent text, pointer text should toggle the controlled state, and the mobile Sheet close must update its controlled open prop. Runbook includes Playwright sort/checkbox/custom-year/dismissal checks in both themes and desktop/mobile.
+
+## Lesson learned: archive document viewer theme audit (2026-10-22)
+
+The learned archive reader visual harness must persist theme in `cms-accessibility-settings` (`{ state: { theme, fontSizeMultiplier }, version }`) and establish auth through server cookies; older `localStorage.theme` and `auth-storage` fixtures silently rendered the default dark login state. Prevention checklist: assert the rendered theme, follow the real local login flow, fail audits on horizontal overflow/Vite overlays, and keep browser cleanup in `finally` without calling `process.exit(0)` there. Runbook: reader empty/loaded and similarity drawer in both themes at desktop and 390x844 mobile.
+
+## Lesson learned: defense minutes dialog migration (2026-10-22)
+
+The secretary minutes modal's custom fixed overlay and compressed flex tabs bypassed the shared Dialog's focus, dismissal, and naming behavior, and its long mobile tab labels overlapped when flex items shrank. Prevention checklist: use the shared Radix Dialog with a DialogTitle and controlled `onOpenChange`, set scrollable tab triggers to `shrink-0`, preserve the printable minutes sheet inside DialogContent, and verify every visible tab/form state at 1440x900 and 390x844 in both themes. Evidence passed: 2/2 focused tests, scoped ESLint/Prettier, 4,853-module production build, and 12 Playwright captures without overflow or app errors. Route reachability remains separate: search the parent page for an opener before claiming the modal is user-accessible.
+
+## Lesson learned: schedule defense dialog migration (2026-10-23)
+
+When wrapping an existing scheduling form in the shared Radix Dialog, retain the committee busy-state Escape guard, preserve the existing no-dismiss-on-outside-click behavior, and do not override the generated DialogTitle ID because DialogContent's accessible-name reference is coupled to it. Prevention checklist: use shared Select values for defense type, round, time, and venue; keep quick time presets as compact accessible Buttons with `aria-pressed`; verify title-hearing and standard defense branches, incomplete-committee warnings, schedule/removal service payloads, and keyboard dismissal in tests plus the four-mode Playwright matrix. Evidence passed: 12/12 focused tests, zero-warning lint, Prettier, production build, and eight screenshots without overflow or app errors.
+
+## Lesson learned: secretary review queue migration (2026-10-23)
+
+The secretary queue has two distinct empty regions: the assigned-team list and the project workspace. Prevention checklist: preserve separate EmptyState messages, keep the compliance filters grouped and expose their current choice with `aria-pressed`, and retain the one-team selection semantics while replacing its clickable card with a shared Button. Runbook: cover filter changes, status badges, minutes autofill, ADM tab switching, secretary endorsement locks, and read-only permissions in focused tests; inspect the real Phase 0 empty queue at both required viewports and themes when seeded data contains no projects. Evidence passed: 8/8 focused tests and four Playwright captures without horizontal overflow, Vite overlays, or post-login errors.
+
+
+- CMS-V2 UI refactor visual preview connectivity lesson (2026-10-23): Lesson learned: a Vite “ready” banner does not prove that the preview is reachable in the current Windows sandbox; repeated Test-NetConnection checks for 127.0.0.1:43211 returned False, and no Playwright screenshots could be collected. Prevention: never claim a visual pass from startup output alone. Runbook and checklist: confirm the configured preview port accepts TCP and load the target route with Playwright before capturing; if the listener is absent, record visual evidence as pending, keep progressing on independent source and unit checks, and retry only after the runtime state changes.
+
+
+- Project workflow shared textarea migration lesson (2026-10-23): Lesson learned: replacing custom textarea markup with the shared primitive must retain the component-specific dynamic height calculation, scroll-position preservation, read-only ghost appearance, and save/error status distinctions. Prevention: keep the sizing controller and public prop contract intact while replacing only the presentation layer. Runbook and checklist: retain the focused AutoExpandingTextarea suite; verify controlled input, height adjustment, labels, ghost mode, save feedback, and theme tokens before updating inventory; finish with the light/dark desktop/mobile Playwright matrix when the local preview listener is available.
+
+
+- Proposal rehearsal toolbar theme migration lesson (2026-10-23): Lesson learned: immersive presentation controls can use theme tokens without changing the 16:9 slide canvas; use shared Button loading props for exports so the busy state disables the control, announces progress, and renders the shared spinner. Prevention: keep the toolbar as a separate flex row outside slide content, and give icon-only fullscreen/reset actions explicit accessible names and pressed state. Runbook and checklist: preserve slide count/font callbacks/edit/revert/export/close behavior in focused tests, then verify light/dark at 1440x900 and 390x844 when preview connectivity returns.
+
+
+- Consultation log widget migration lesson (2026-10-23): Lesson learned: shared Button supports `default`, `sm`, `lg`, and `icon`; unsupported `xs` leaves sizing to conflicting utility classes. Prevention: use declared variants, connect each visible Label to its form control, and retain the distinct pending student versus signed adviser creation status. Runbook and checklist: test required fields, role-dependent status, save callback/toast, then inspect the 390px and 1440px layout in both themes when the preview is reachable.
+
+
+- ADM section dialog migration lesson (2026-10-23): Lesson learned: replacing a custom portal with the shared Dialog preserves per-milestone and controlled modal state while adding focus management and Escape dismissal; `DialogTitle` and `DialogDescription` must remain nested under `DialogContent` for accessible naming. Prevention: keep the ActionDoneMatrixTab instance mounted only for the active presentation, and do not bypass the shared dialog with manual `createPortal`. Runbook/checklist: test summary tone, inline expansion, controlled/uncontrolled open callbacks, explicit close, and Escape; confirm Secretary endorsement and signature gates remain inside the unchanged ADM tab; capture both themes and viewport sizes when the preview runtime is reachable.
+
+- Lesson learned: Playwright theme audits can produce false light-mode captures when only the document class changes while the persisted Zustand theme remains dark. Prevention: drive theme through the app's ThemeToggle/store and verify the rendered theme before capture. Runbook/checklist: set theme through the UI, assert the active theme state, capture desktop/mobile in light and dark, then check overflow, clipped controls, Vite overlays, and page exceptions. Also wait for scroll-region controls to render before locating them; synthetic report fixtures should intercept reads only and avoid scan or workflow actions. Evidence: plagiarism report audit passed 12 captures with no overflow or page exceptions.
+
+- Lesson learned: The reseed report stores each account's Status in its directory table, while the universal development password is a separate document paragraph. Prevention: do not infer credentials from the Status cell or expose extracted values in logs, scripts, or evidence. Runbook/checklist: parse the supplied DOCX in memory, select the intended account row by the signed-in role/name, read the explicitly labeled universal development password, pass both only through the child process environment, and clear them in a finally block. Evidence: local Playwright visual audits completed without persisting credentials.
+
+- Lesson learned: The system Python launcher may be blocked on Windows even when validation can run with the workspace's bundled Python runtime. Prevention: use the configured runtime path from workspace dependency metadata before treating the evidence validator as unavailable. Runbook/checklist: execute scripts/verify_workspace_evidence.py with the bundled executable, confirm all 34 checks pass, then validate source inventory totals from JSON. Evidence: this continuation passed 34/34 and confirmed 278 total modules, 128 updated, 150 pending.
+
+- Lesson learned: Radix DialogContent can render its closed children, so a controlled dialog that removes or replaces its selected record must guard every dereference during the closed state. Prevention: use optional access or conditionally render the record-bound content while keeping dialog state controlled. Runbook/checklist: render the screen with the dialog closed, open it, dismiss with Escape, rerun the owning component suite, then inspect all four theme/viewport combinations. Evidence: ActionDoneMatrixTab's shared signing and minutes Dialogs pass 27/27 focused tests and four Playwright views.
+
+### Evaluation panel mobile rubric and grade label prevention learned 2026-10-23
+Lesson learned: an editable four-column evaluation table compresses comment fields on narrow screens even when its container prevents page-level overflow. Use stacked criterion cards below the small breakpoint and retain a horizontally scrollable shared Table for wider screens. Panelist summary controls should wrap into a separate action row so names do not collapse under status and score badges. The canonical BukSU grade scale exposes `meaning`, `status`, and `badgeClass`; presenter UI should consume `meaning` and map status to semantic Badge variants instead of expecting `descriptor` or `color`. Prevention checklist: test the full form and instructor summary at 390x844 in light and dark, inspect every editable field, wait for Radix animations before dialog capture, and confirm release and student visibility guards with focused assertions.
+
+
+### Faculty committee theme tokens and touch actions learned 2026-10-23
+Lesson learned: committee workload and completeness states should use shared Badge semantic variants, and icon-only roster actions need accessible names. Prevention: expose destructive appointment removal on touch screens and use repeated-prefix normalization before adding a presenter-owned Team label. Runbook/checklist: exercise complete and incomplete committees, count boundaries, read-only/manage variants, the four theme/viewport states, and a synthetic already-prefixed team name; never trigger real appointment changes in a visual audit. Evidence: FacultyCommitteeCard and admWorkflow focused suites pass 14/14, with four Playwright captures and no layout or page errors.
+
+### TanStack Query visual harness setup learned 2026-10-23
+Lesson learned: a synthetic Playwright mount of any component using TanStack Query must include a dedicated QueryClientProvider before the page can render; otherwise React reports “No QueryClient set” and the blank page is a harness failure. Prevention: stub required GET endpoints with deterministic page.route responses, confirm the request and expected content before screenshots, and always remove temporary client harness files in finally. Runbook/checklist: check QueryClientProvider, API intercept, expected rendered state, four theme/viewport captures, and error/overflow signals before treating the audit as proof. Evidence: ProjectAuditTrail audit was corrected and passed four viewport/theme states with its Submissions filter verified.
+### Project cohort card semantic tokens and keyboard navigation learned 2026-10-23
+Lesson learned: cohort cards need the same shared Badge variants for phase metadata and proposal state callouts, and a mouse-clickable card needs an explicit keyboard path. Prevention: use semantic warning/success/info tokens, keep the focused card ring visible, avoid nesting interactive controls inside the card link, and strip repeated `Team` prefixes before composing a presenter-owned label. Runbook/checklist: test title proposal, revision, approved and archived variants; verify CTA and Enter/Space navigation; capture light/dark desktop/mobile; scan for hardcoded palette classes and horizontal overflow. Evidence: ProjectCohortCard focused suite passes 5/5 and its 16-state Playwright matrix passes with no overflow, Vite overlay, or page exceptions.
+
+
+### Project details and sidebar shadcn migration lesson learned 2026-10-23
+Lesson learned: Radix Dialog should own portal, focus, Escape, outside-click, and body-scroll lifecycle; project status surfaces should use shared semantic Alert variants instead of duplicating light/dark palettes. CSS text-transform can change visible uppercase headings while DOM text remains case-sensitive. Prevention: keep dialog content under shared DialogContent, preserve approval navigation and faculty/committee presentation, normalize repeated Team prefixes, and make external links use noopener/noreferrer. Runbook/checklist: test closed/open rendering, close callback, Escape, route navigation, approved/revision/pending data, 1440x900 and 390x844 in both themes, page overflow, accessible naming/focus, and browser errors. When Vitest reports EPERM during cache rename in a sandbox-managed temp path, use a validated workspace-local TEMP/TMP and rerun sequentially. Evidence: focused suites pass 15/15 and 20 Playwright captures pass.
+
+### Proposal slide palette and mobile editing state learned 2026-10-23
+Lesson learned: institutional presentation canvases need fixed, theme-invariant palette tokens, and a broad dark-mode descendant rule can silently recolor a cover subtitle or edit badge even when the canvas background remains correct. Prevention: use the shared Badge for edit feedback, keep official navy/gold/orange colors in a dedicated token namespace, and keep narrow-screen edit cues in normal header flow. Runbook/checklist: verify cover and content slides in light/dark, 1440x900 and 390x844; assert exact palette and 16:9 geometry; check mobile content scroll reachability and ensure controls do not cover slide titles. Evidence: ProposalSlideCanvas tests pass 5/5, the production build passes with 4,853 modules, and eight SSR Playwright captures plus two mobile scroll-end captures pass. Route-integrated browser verification remains open because the isolated browser could not reach the local Vite preview.
+
+### Proposal workspace controls and approval guard learned 2026-10-23
+Lesson learned: mutually exclusive proposal selection should use the shared Radix Tabs keyboard model, while approved-scope changes need a shared AlertDialog to preserve the warning and explicit confirmation across keyboard and touch use. Prevention checklist: test tab selection and panel identity, verify all seven pitch fields persist per proposal, confirm approved fields stay disabled until the confirmation action, and preserve the exact revision payload and refresh callback. Runbook: inspect review, approved-locked, revision-required, and empty states in light/dark at 1440x900 and 390x844; use the production stylesheet in SSR captures, check viewport overflow, and run the owning test suite. Evidence: ProposalTab.test.jsx passes 9/9, the production build passes, and 16 Playwright captures passed.
+
+### Prototype gallery dialog and image preview learned 2026-10-23
+Lesson learned: nested media previews should use the shared Dialog stack so focus, Escape dismissal, and scroll locking stay consistent; a clickable image should be a labeled Button even when its image is decorative within that control. Prevention checklist: verify the gallery and preview dialogs independently dismiss, preserve signed media URLs, retain noopener on external links, and keep the footer reachable while the gallery body scrolls on mobile. Runbook: inspect populated, empty, and lightbox states across light/dark at 1440x900 and 390x844; wait for Radix animations to settle before checking bounds; assert no horizontal overflow or browser errors. Evidence: PrototypeGalleryModal tests pass 3/3 and twelve interactive Playwright captures pass.
+
+
+2026-10-23 lesson learned: for Playwright audit cleanup, remove only the exact harness/stub files created by that script and never recursively delete a shared temporary directory. A retained GoogleDocViewerHarness.jsx was lost during cleanup and was not recoverable from Git because it was ignored/untracked. Prevention checklist: inspect the target directory before cleanup; maintain an explicit generated-file list; remove only those paths; verify unrelated harnesses remain. Vite visual fixtures that import shared Button must alias @/utils/routePreload to a no-op to avoid loading route modules into the component harness.
+
+### Vite component visual harness path learned 2026-10-23
+Lesson learned: when Vite uses the client package root, an HTML test harness nested under `client/src/` can be caught by the SPA fallback and handed to React Router as a normal route; the resulting 404 page can look like a component failure. Prevention: put the temporary HTML entry at `client/`, import its JSX fixture from `/src/...`, import the production stylesheet in the fixture, and validate that the component test ID is visible before taking screenshots. Runbook/checklist: confirm the Vite port and served HTML, mount synthetic state without invoking APIs, capture light/dark at 1440x900 and 390x844, assert no horizontal overflow and browser exceptions, test keyboard dismissal, and remove only the exact temporary entry and fixture. Evidence: DynamicChartWidget visual audit passed twelve bar/table/empty captures plus fullscreen Escape and bounds checks.
+
+### Fixed touch targets under text scaling learned 2026-10-23
+Lesson learned: Tailwind `min-h-11` is rem-based, so an accessibility text-scale preference that reduces the root font size can shrink a nominal 44px touch target below 44 CSS pixels. Prevention: use fixed `min-h-[44px]` and `min-w-[44px]` for controls with a measured 44px minimum; do not infer touch size from the utility name. Runbook/checklist: measure `getBoundingClientRect()` at 390x844 with the active text-scale preference, check visible/keyboard focus for destructive row actions, then verify desktop and print layout are unchanged. Evidence: SecretaryMinutesDocumentSheet full-editor audit initially measured 39.3px at mobile and passed after switching to fixed 44px utilities.
+
+### Temporary Vite audit fixture assets learned 2026-10-23
+Lesson learned: a temporary Vite HTML fixture without an icon emits a favicon 404, which appears as a browser error even when the component renders correctly. Prevention: include a data URI favicon in scratch audit entry pages so failed-asset checks report application failures only. Runbook/checklist: assert the intended fixture loaded, collect console errors and failed responses, inspect the exact URL before classifying the error, and keep the fixture icon request self-contained. Evidence: AnnotationViewer audit passed eight light/dark desktop/mobile expanded/collapsed captures with no failed assets after adding the data URI icon.
+
+- Lesson learned: Hiding an active PDF reader with `display: none` during mobile pane changes makes PDF.js lose its scrolling offset parent and emit browser errors. Prevention: keep the inactive reader mounted, `visibility: hidden`, absolutely positioned, and zero-sized on mobile, then restore its normal position and dimensions at desktop breakpoints. Runbook/checklist: exercise PDF↔panel switching at 390x844, verify the reader instance remains mounted and can be shown again, and check console errors; inspect print media separately because PDF.js can react to viewport changes.
+
+### PDF upload validation learned 2026-10-23
+Lesson learned: browser-provided MIME type can be empty or inconsistent for selected files, so accepting a PDF by MIME type alone can reject valid files, while accepting extensions alone may admit disguised non-PDFs. Prevention: accept a `.pdf` suffix or `application/pdf`, enforce the advertised byte limit independently, clear invalid selection, and test both rejected types and a synthetic accepted PDF through the resulting FormData path. Evidence: FinalPaperUpload focused tests passed 3/3.
+
+### Asynchronous status badge accessibility learned 2026-10-23
+Lesson learned: status-only badges should announce queued, processing, and terminal updates through a polite status region while keeping the shared visual variant and score thresholds. Prevention: cover each state plus both numeric boundary values in focused tests and verify visible light/dark contrast at desktop and mobile sizes. Evidence: OriginalityBadge focused tests passed 6/6 and four theme/viewport captures passed.
+
+### Plagiarism source palette theme tokens learned 2026-10-23
+Lesson learned: domain highlights can preserve unique source identity without fixed hex colors by assigning each source a stable chart token and using that same token in badges, dots, overlays, and print borders. Prevention: keep source-number mapping deterministic, test all ten token assignments plus modulo fallback, and inspect the overlay at both themes because PDF color blending can reduce badge contrast. Evidence: adapter/palette/workspace tests passed 30/30 and eight PDF visual captures passed.
+
+
+- PlagiarismChecker shared UI migration lesson learned (2026-10-23): Radix TabsContent must remain inside its Tabs root; the page error boundary catches this integration defect, so verify the rendered consumer route. Prevention: measure actual touch target rectangles because the app scales rem values; use a fixed 44px minimum where that requirement applies. Set the persisted CMS accessibility theme in visual fixtures before loading, and verify actual light/dark computed rendering. Checklist: preserve thresholds, role gates, polling and corpus callbacks; assert no overflowing tabs and block mutations in the Playwright fixture. Evidence: focused suite 12/12 and the four-state visual matrix passed.
+
+
+### Report progress semantics learned 2026-10-23
+Lesson learned: semantic red/amber/green text tokens must be chosen independently from background tokens because dark mode's destructive surface token is intentionally darker than its readable text token. Keep numeric report progress accessible through the shared Progress role while preserving existing score bands and source ordering. Prevention: inspect all four theme/viewport renders after switching report score styling; test loading, no-data, queued, processing, failed, and completed outputs. Checklist: use Skeleton for pending content, Spinner with a polite status region for asynchronous processing, Alert for clear failures, and theme tokens for scores and source indicators. Evidence: PlagiarismReport tests passed 6/6 and the four-state Playwright matrix passed.
+
+
+### Submission status badge contract learned 2026-10-23
+Lesson learned: preserve the institutional mapping LOCKED → Approved while status components move to shared semantic Badge variants; the underlying status is distinct from the visible label. Prevention: cover every persisted status and unknown fallback in focused tests. Checklist: verify all actual route consumers and retain existing state labels and palette meaning. Evidence: SubmissionStatusBadge.test.jsx passed 10/10.
+
+
+### Chapter upload dialog migration learned 2026-10-23
+Lesson learned: Radix Dialog must own its generated title association; passing a conflicting custom title id leaves the modal unnamed to assistive technology. Prevention: assert the dialog accessible name in focused tests and browser automation. Checklist: preserve manual outside-click/escape semantics, busy close guards, ADM chapter selection restrictions, deadline closure, required late justification statement/letter, and the exact mutation payload when replacing a bespoke upload dialog. Evidence: UploadChapterModal tests passed 6/6; the light/dark desktop/mobile late-gate matrix passed with no API mutation.
+
+
+### Version history comparison learned 2026-10-23
+Lesson learned: version comparisons must use the selected persisted records, not convincing-looking sample dates/scores or placeholder document panes. Direct code search also exposed an invalid barrel import that prevented the unmounted component from resolving. Prevention: verify service paths and active route consumers before claiming the migration complete. Checklist: use the existing version-history API, make metadata differences explicit, keep document reading in SophisticatedDocumentViewer, and fix mobile table min-content sizing with wrapped fixed columns. Evidence: VersionHistory tests passed 4/4; eight list/comparison captures passed at light/dark desktop/mobile without overflow.
+
+- CreateAcademicNodeDialog shadcn migration lesson learned: Radix Tabs activate through mouse-down/focus and Radix Select opens through pointer-down; jsdom needs scrollIntoView and pointer-capture shims for these primitives. Tests should exercise those user events and still assert the original mutation payloads, while Playwright verifies actual portaled menus and dialogs. YearInput must forward its input id or its external Label htmlFor association silently breaks. Prevention checklist: verify a11y labels against rendered input ids, exercise portaled options, preserve payload assertions, and inspect light/dark desktop/mobile captures.
+
+- TagInput shadcn migration lesson learned: Tailwind rem-based h-11 resolves below 44 CSS pixels when the root font size is reduced, and Popover entrance transforms can make immediate bounding-box checks slightly smaller than the final size. Prevention checklist: measure touch targets after entrance motion settles and use explicit pixel dimensions where institutional 44px minimums must hold independently of root typography. Radix Popover can replace the manual outside-click listener while keeping the input focused with prevented auto-focus and an anchored listbox.
+
+- RouteErrorBoundary UI lesson learned: the shared Alert already exposes role=alert, so wrapping another alert role around it creates duplicate live regions. Compose the global failure view from one Alert inside a Card, keep custom fallback callbacks and retry/navigation behavior untouched, and disclose stack details only in non-production. Prevention checklist: verify one assertive announcement, preserve route-change reset, keep debug details behind a native details/summary control, and audit mobile recovery actions at 44px.
+
+
+### SignaturePad typed-name containment learned 2026-10-23
+Lesson learned: mobile typed signatures can clip when a fixed 36px script font exceeds the canvas width. Prevention: pass the available inner canvas width as CanvasRenderingContext2D.fillText maxWidth, and inspect long names at 390px in both themes. Checklist: keep institutional inks on CSS tokens, associate labels with generated ids, preserve transparent PNG export and pointer drawing callbacks, and measure mobile controls at 44px. Evidence: SignaturePad tests passed 5/5; eight visual captures passed and were inspected.
+
+
+### Reports table migration learned 2026-10-23
+Lesson learned: the shared Table wrapper owns horizontal overflow, so keep print overrides on semantic table rows/cells and preserve the outer responsive scroll region for narrow tables. Prevention: test the portal-based page-size Select with pointer-capture and scrollIntoView shims in jsdom; assert accessible naming and reset behavior, then inspect menu bounds in a real mobile viewport. Checklist: use shared semantic status/warning variants, expose retry on report errors, preserve CSV/print actions, and block all report-changing API calls in visual fixtures. Evidence: ReportsPage tests passed 14/14, six themed captures passed and were inspected.
+
+
+### ProjectsPage mobile filter controls learned 2026-10-23
+Lesson learned: this application reduces the root font size, so Tailwind rem-based `h-11` can render below 44 CSS pixels on mobile even when its nominal scale suggests the target size. Prevention: measure rendered controls in Playwright and use explicit pixel minimum-height utilities for mobile touch targets. Checklist: inspect both Select triggers and action buttons at 390px in light and dark themes, and check portaled menu bounds. Evidence: ProjectsPage tests passed 5/5; six visual captures passed and were inspected.
+
+
+### AuditLogPage Radix entity filter learned 2026-10-23
+Lesson learned: Radix Select items cannot use an empty string for the “all” choice because empty values are reserved for the placeholder state. Prevention: map a stable sentinel such as `all` to the application’s empty filter at the Select boundary. Checklist: confirm query serialization still omits the cleared field and inspect the portaled options on mobile. Evidence: AuditLogPage tests passed 6/6; ten visual captures passed and were inspected.
+
+
+### Certificate loading layout learned 2026-10-23
+Lesson learned: a centered spinner provides accessible activity feedback but leaves document-heavy routes visually blank while their first query resolves. Prevention: use shared Skeleton blocks shaped around the stable page hierarchy, keep a single concise status announcement, and retain a shared Spinner for action-level mutations. Checklist: compare skeleton geometry against the loaded page at desktop and mobile breakpoints and preserve canonical document-viewer entry points. Evidence: CertificatePage tests passed 4/4 and eight themed loading/loaded captures were inspected.
+
+### Shared alert icon spacing learned 2026-10-23
+Lesson learned: the shared Alert primitive positions its icon absolutely and reserves following content space with a direct-sibling selector; adding custom padding overrides can cause the icon to cover the heading. Prevention: let the Alert own icon spacing and avoid overriding its icon-sibling layout unless the content tree is tested at desktop and mobile sizes. Runbook/checklist: capture an error alert in both themes at 1440x900 and 390x844, inspect the icon-to-heading gap, and measure the mobile retry target. Evidence: TeamReviewWorkflowPage refresh-error captures pass after removing the conflicting padding override.
+
+
+### Submission review and team workspace loading consistency learned 2026-10-23
+Lesson learned: a page-level spinner can diverge from shared loading behavior even when its nested workflow already uses shared skeletons. Prevention: audit top-level route wrappers separately from nested team/review components and replace remaining ad-hoc loading states with the shared PageSkeleton. Checklist: exercise unauthenticated/loading, populated and error states at desktop/mobile in light/dark; inspect the canonical document viewer and verify review/committee actions remain role-gated. Evidence: SubmissionReviewPage and TeamsPage focused tests pass 8/8 each, eight four-mode screenshots inspected, and workspace evidence verification passes 34/34.
+
+
+### Committee assignment names in responsive selectors learned 2026-10-23
+Lesson learned: long institutional team names can overflow both narrow card headings and selected values inside Radix Select triggers, even when the page-level overflow audit reports no horizontal document scroll. Prevention: constrain the Select trigger width, put selected text inside a shrinkable truncation wrapper, and allow headings to wrap anywhere inside a min-width-zero flex child. Checklist: inspect the team heading and selected-team selector at 1440px and 390px in both themes with deliberately long synthetic names. Evidence: committee view/page tests pass 13/13 and final four-mode screenshots show safe wrapping/truncation with no browser overflow.
+
+
+2026-10-23 lesson learned: Shared Radix Select supports wrapping long option labels, and query-driven page skeletons should use the existing PageSkeleton variant. When Playwright route inputs include query strings, strip the query from screenshot filenames while retaining it in navigation. Prevention checklist: exercise the actual project-scoped route with a synthetic ID, block writes, and review both desktop and mobile captures.
+
+
+2026-10-23 lesson learned: Radix Tabs activate on pointer/mouse down, so unit tests that directly invoke element.click() can leave the panel unselected; test the primitive's real activation event. Long no-space proposal titles need explicit overflow-wrap plus a visual line limit inside the fixed 16:9 slide; keeping full heading text in the DOM preserves accessible text. Prevention checklist: validate tab panel changes, verify dialogs through document.body when portaled, and inspect the narrowest screen with realistic and pathological long titles.
+
+
+2026-10-23 lesson learned: Project detail routes can redirect archived fixtures into the canonical archive reader, so use an explicitly active synthetic project when verifying ProjectDetailPage. Long no-space title/team/adviser values need wrapping at both the parent flex item and text node; page-level overflow checks alone can miss clipped descendants. Prevention checklist: capture the intended route state, inspect descendants with long fixture values, and retain canonical document-reader routing.
+
+
+2026-10-23 lesson learned: Student project dashboards should use the shared PageSkeleton when user identity is still loading; local one-off spinners create inconsistent loading language. Keep certificate/review success icon colors on semantic tokens for dark theme parity.
+
+
+2026-10-23 lesson learned: Faculty team detail headers need a deliberate mobile stack because two committee actions can otherwise collapse the title column even when text has overflow-wrap. Shared Alert already renders its own icon, so avoid adding a second icon as a child. Prevention checklist: test mobile with both actions visible, and inspect long names in both list and detail contexts.
+
+2026-10-23 lesson learned: The shared ui primitive folder can include entries pending in the migration census even when they already follow Radix and semantic-token patterns. Prevention checklist: inspect each pending wrapper before changing it, run the actual existing ui test directory (rather than assuming one test file per primitive), and classify compliant wrappers reviewed-no-ui.
+
+2026-10-23 lesson learned: The full Vitest partitions can exceed the repository's 120-second watchdog without printing intermediate file summaries; on this Windows host, Vitest also failed renaming a cache artifact under the default sandbox temp root. Prevention checklist: set TEMP and TMP to scratch/vitest-tmp before testing, keep full test gates partitioned below the watchdog, and investigate test worker/cache output when even a moderate partition emits no summaries.
+
+2026-10-23 lesson learned: Route-progress completion callbacks can outlive the route generation that created them, and a watchdog must clear a stalled indicator rather than claim the navigation succeeded. Prevention checklist: tag route and Suspense callbacks with a generation, ignore stale cleanup, test a six-second stalled transition without a completing state, and restore global History/listener hooks when the final progress-bar subscriber unmounts.
+
+2026-10-23 lesson learned: A Gantt progress-editor visual fixture must set `ganttApproval.approved` and the assigned Adviser identity before expecting a 50%→65% commit; otherwise the institutional guard correctly preserves the value. Prevention checklist: assert both the locked student path and approved Adviser path with real fixtures, then keep Playwright container runtime compatibility separate from product behavior. Evidence: AcademicExcelGanttChart 19/19 and InteractiveGanttChart 6/6 passed in the client container; a corrected four-mode browser run is still outstanding because the Alpine image lacks Chromium system libraries.
+
+### Lesson learned — shadcn UI visual audit (2026-10-23)
+- **Lesson:** CMS-V2's container-forwarded Vite endpoint is reachable in Chromium by retaining the trusted localhost origin and mapping it to the container gateway using a Chromium host resolver rule.
+- **Prevention:** Keep Playwright on http://localhost, use the existing cms-client container, and do not weaken private-network protections or change the application origin.
+- **Runbook:** For the Gantt audit, set PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/chromium, PLAYWRIGHT_HOST_RESOLVER_RULES='MAP localhost 172.18.0.1', and run bounded viewport/theme/state shards so each finishes within the 110-second script watchdog.
+- **Checklist:** Confirm zero console/page errors, no horizontal overflow, and locked vs approved progress behavior before recording each state.
+
+### Lesson learned — live dashboard audit and container session lifecycle (2026-10-23)
+- **Lesson learned:** The compose client can retain VITE_API_PROXY_TARGET=http://server:43210 after its server container stops, while a host API process still owns port 43210. Browser tests may then falsely appear as auth or dashboard failures because the missing DNS route blocks /api calls.
+- **Prevention:** Check the host API health and the client container's API DNS path separately before diagnosing authentication or dashboard loading. If a test command session detaches, inspect container processes and terminate only the known test PIDs before retrying.
+- **Runbook:** For current-session-only verification, confirm host.docker.internal:43210/api/health from cms-client, resolve its gateway IP, then map the configured server alias in that running container. Do not make the alias persistent in compose without authorized infrastructure scope.
+- **Checklist:** Use the provided seed report as account data only; keep credentials/tokens out of logs; verify the login response and role dashboard API responses; confirm one main landmark/heading, zero page errors/API failures, and zero viewport overflow; submit no academic workflow mutations.
+
+### Lesson learned — resumable UI audit and bounded client suite (2026-10-24)
+- **Lesson learned:** The responsive audit appends captures only when `LAYOUT_AUDIT_APPEND=1`; an audit launched without it replaces the machine-readable result set, and a watchdog can stop a slow batch before its remaining captures finish. The current audit completed 121 unique route/role/theme/viewport captures after splitting slower manuscript routes.
+- **Prevention:** Inspect the existing result count before each batch, always enable append when continuing, split slow routes into one- or two-route batches, and verify the final route/theme/width matrix and manifest counts before updating docs.
+- **Runbook:** Use the trusted `http://localhost:43211` origin with the local Playwright host access, set append mode and explicit route/role values, and poll each browser session to exit. For the full client suite, run serial `--shard=N/8` partitions and sum files/tests from each successful shard; on this Windows host use an execution context with access to Vitest's temp-folder rename operation.
+- **Checklist:** Confirm all 26 routes, instructor/faculty/student dashboard roles, light/dark, 1440×900/390×844, zero browser errors/overflow, full client shard totals, and refreshed authority/evidence documentation. Keep the per-interaction matrix and unavailable pre-edit performance baseline explicitly open until separately evidenced.
+
+### Lesson learned — destructive validation text contrast (2026-10-24)
+- **Lesson learned:** The standard destructive surface token is intentionally dark in dark mode and is too low-contrast when used directly for small error copy. The auth invalid-form screenshot exposed this despite green field-validation tests.
+- **Prevention:** Use the dedicated `text-destructive-text` foreground token for validation copy and verify actual rendered text/background contrast in both themes; require at least 4.5:1 for normal text.
+- **Runbook:** Capture hover, focus, and invalid form states at 1440×900 and 390×844 in light and dark. Assert actual hover feedback, `aria-invalid`, associated error text, password visibility behavior, no overflow/page errors, and computed text contrast.
+- **Checklist:** Confirm the rendered contrast measurement, inspect light/dark screenshots, run focused auth tests, and refresh the migration inventory and evidence authorities.
+
+### Lesson learned — centralize standalone spinners (2026-10-24)
+- **Lesson learned:** A source sweep counted direct `Loader2` JSX and initially overestimated unstandardized loaders; AST ancestry showed which icons were standalone status feedback and which were correctly inside action buttons.
+- **Prevention:** Classify loader placement structurally before editing. Replace standalone and inline status loaders with the shared `Spinner`; retain the Button's loading feedback and domain action-button indicators.
+- **Runbook:** Parse the current inventory source files with Babel, group each `<Loader2>` by its JSX ancestor chain, then audit each standalone placement. Capture a real delayed request for one shared spinner consumer at both required themes and viewport sizes, and run all affected component suites.
+- **Checklist:** Confirm zero standalone Loader2 nodes, verify only expected button instances remain, capture loading in light/dark desktop/mobile, assert the pending submit action is disabled, and refresh inventory, manifest, and evidence records.
+
+## 2026-10-24 — Live dashboard audit and seeded-state reconciliation
+- **Lesson learned:** The supplied reseed report describes a clean baseline with zero teams/projects, while the authenticated local instructor dashboard displayed 51 total projects and 48 completed. Treat dashboard fixtures as live environment data and do not infer that a report's stated database state still matches the running service.
+- **Prevention:** Record whether each visual audit uses live or synthetic data, and preserve discrepancies for owner follow-up. Do not correct the mismatch through direct database writes or seeder changes during a presentation-only refactor.
+- **Runbook:** For live visual checks, use the provided test account only on the named localhost app, inspect read-only pages, capture light/dark × desktop/mobile, record viewport and overflow metrics, restore the original theme/viewport, sign out, and leave the requested page open.
+- **Checklist:** Confirm the active role and URL, label data as live, avoid mutation actions, validate `scrollWidth <= innerWidth`, restore the browser state, and note any report/runtime data mismatch separately from UI acceptance.
+
+## 2026-10-24 — Faculty submission mobile layout
+- **Lesson learned:** `document.documentElement.scrollWidth` alone can miss a nested horizontal scroller inside `#main-content`. The faculty annotation route's header actions overflowed at 390px even though the document width equaled the viewport.
+- **Prevention:** When reviewing responsive routes, compare each primary scroll container's `scrollWidth` with `clientWidth`, then inspect bounding boxes for action groups and form controls. Keep numeric fields and comment entry in a single-column mobile form where a compact desktop row no longer fits.
+- **Runbook:** Set the browser to 390×844, inspect the visible page and the bottom form section, record document and main-content dimensions, then repeat at 1440×900 and both themes. Do not submit test annotations; restore the requested login page and the original theme after the review.
+- **Checklist:** Verify the mobile button stack, full-width comment entry, no nested horizontal scrolling, unchanged four-column desktop form, targeted tests, build, and saved evidence limitations.
+
+## 2026-10-24 — Shared loading feedback and UI census reconciliation
+- **Lesson learned:** Whole-client raw-tag scans can overcount native controls because file pickers must remain native, while the migration census can undercount rendered UI when wrappers and shared primitives are mislabeled as non-rendering. CSS utility scans can also mistake nested double-pulses for a deliberate loading pattern.
+- **Prevention:** Normalize Windows path separators before comparing the source tree and inventory. Trace wrapper consumers and primitive imports before classifying no-UI. Use the shared `Skeleton` and `Spinner` as the sole animation owners, and announce pending work through one `role=status` region.
+- **Runbook:** Compare all non-test client JS/JSX paths to the census, reconcile every App route alias, inspect raw controls with ancestor context, then run focused Vitest suites with `TEMP` and `TMP` set under `scratch/` when the sandbox blocks default temp-folder renames. Attempt the required light/dark desktop/mobile browser capture and preserve any local-preview access denial as an explicit gate.
+- **Checklist:** Verify 278/278 path parity, classify rendered workflow wrappers/primitives as UI, preserve native file pickers, ensure no duplicate unconditional pulse above shared skeletons, pass focused tests/Prettier, and record browser capture gaps without claiming visual completion.
+
+- Lesson learned: A complete UI migration census must distinguish renderable modules from no-UI infrastructure and search code consumers for forwarding facades and legacy named exports. Prevention checklist: run a repository-wide import/JSX consumer search before classifying a wrapper, remove only confirmed dead adapters, then verify exact equality between source paths, migration inventory, and visual manifest. A localhost Playwright access denial is an unresolved visual gate; do not treat existing screenshots or a live browser accessibility tree as a replacement for the required inspectable capture.
+
+- Lesson learned: On this Windows host, the default Vitest fork pool can time out before importing a focused client test even when there are no lingering Node processes. Prevention/runbook: distinguish worker startup failure from assertion failure; retry the same targeted suite once with --pool=threads --maxWorkers=1 and count only a completed assertion summary. Separately, shell Playwright may be denied access to the running localhost app while the in-app browser remains available; record the failed visual state as unverified and use an authorized browser route before claiming visual completion.
+
+- Lesson learned: ESLint over the entire 276-module client tree can exceed the two-minute Windows watchdog without emitting diagnostics, even when focused changed-file lint is clean. Prevention: keep exact-current full lint as an open gate after a watchdog stop and use bounded file-group runs only when they can be completed without retrying a hanging command. Runbook checklist: record the command and stop time, verify focused lint results separately, avoid an immediate identical rerun, and never describe a timed-out pass as clean.
+
+## 2026-10-24 — Defense minutes UI capability boundary
+- **Lesson learned:** The live-defense minutes modal exposes a mix of write actions, but the API authorizes those actions by project appointment and capability. Instructors have broad oversight except matrix endorsement; secretaries, chairs, and panelists have narrower, distinct access.
+- **Prevention:** Do not wire a generic faculty-visible opener to a mixed-capability dialog until its individual actions are gated to the existing API capability contract. Keep the secretary endorsement prerequisite in front of ADM signatures.
+- **Runbook:** Inspect `authorizeSecretaryCapability`, project appointment data, each modal action, and ADM gate tests before changing reachability. Verify the UI with read-only synthetic fixtures and block non-GET requests during visual capture.
+- **Checklist:** Confirm role/appointment predicates against backend middleware, hide or disable each unauthorized action with an explanation, preserve secretary endorsement ordering, and test that signature tiers remain locked while endorsement is pending.
+
+## 2026-10-24 — Reduced-motion cascade verification
+- **Lesson learned:** Duplicate global selectors can silently override an earlier accessibility media query even when the original rule appears correct in isolation. `.cms-route-enter` had two animation declarations; the later legacy declaration re-enabled motion for users requesting reduced motion.
+- **Prevention:** Search for repeated selectors and animation names after global CSS cleanup. Check computed styles with both default media settings and `prefers-reduced-motion: reduce`, across desktop/mobile and light/dark.
+- **Runbook:** Inspect the final cascade order, run a production build, use a read-only Playwright fixture to record computed animation names under both motion preferences, and save screenshots for the required themes/viewports.
+- **Checklist:** Confirm the route animation runs by default, resolves to `none` under reduced motion, produces no page errors or horizontal overflow, and has one authoritative selector/keyframe definition.
+
+## 2026-10-25 — Paper surface muted text token
+- **Lesson learned:** Shared `muted-foreground` is theme-responsive, but institutional paper surfaces intentionally remain white in dark mode. Applying the global token inside paper can make screen-only hints too light for the fixed white background.
+- **Prevention:** Treat official sheet colors as a separate semantic surface. Use a dedicated theme-invariant paper-muted token for secondary copy and keep screen-only utility text inside the paper contrast review.
+- **Runbook:** Inspect the paper wrapper and dark-mode inoculation selectors, add a semantic token to both theme scopes with the same paper contrast, map it in Tailwind, and verify the token in the rendered paper at desktop/mobile and both themes.
+- **Checklist:** Confirm print and official paper colors remain unchanged, focused component tests pass, production build passes, and screenshots cover light/dark at 1440x900 and 390x844.
+## 2026-10-25 — Shared Dialog centering and isolated consumer checks
+
+- **Lesson learned:** Radix `zoom-in-95` animation owns `transform`; centering a fixed DialogContent only through Tailwind `translate-x/y` transform utilities lets the animation move the open dialog outside the viewport while document scroll width remains unchanged. A dialog bounding-box assertion is stronger than checking page overflow alone.
+- **Prevention:** Keep fixed dialog centering on the independent CSS `translate` property, and inspect dialog bounds while the opening animation is active at 1440x900 and 390x844.
+- **Runbook:** Build production CSS, mount the real DialogContent consumer with synthetic read-only data, check computed `translate` and bounding rectangle against `window.innerWidth/innerHeight`, and run direct consumer suites with per-file isolation.
+- **Checklist:** Confirm the independent center hook, animation-time viewport containment, Escape/focus behavior, role-specific actions, no browser errors, and no workflow mutations. Avoid `--no-isolate` for multi-file dialog sweeps; Radix portals can persist duplicate labels across shared test environments.
+
+## 2026-10-25 — Local preview reachability and production login capture
+- **Lesson learned:** A Vite process can print `ready` while the desktop browser still has no reachable TCP listener. A browser timeout after that banner is not evidence that the route rendered or that UI code failed.
+- **Prevention:** Check the socket and an HTTP response from the intended browser network context before route interaction. If the dev process is isolated, serve the existing production `dist/` bundle from a bounded static server inside the same Playwright process.
+- **Runbook:** Bind the temporary static server to loopback, use a configured local OAuth origin, mock API responses through `page.route`, and allow only the tested synthetic login POST while blocking every other non-GET request. Verify page errors, failed same-origin assets, landmarks, overflow, and visible state before screenshotting.
+- **Checklist:** Store ready and error states for both themes at desktop/mobile; label synthetic production-bundle evidence separately from authenticated route-integrated workflow captures.
+
+## 2026-10-25 — File-only reader metadata safety
+
+- **Lesson learned:** JSX children of a closed Radix Sheet can evaluate eagerly. The canonical viewer's optional submission record was dereferenced in metadata and crashed file-only consumers before they opened Details.
+- **Prevention:** Guard optional metadata and audit both submission-backed and file-only public component forms after replacing conditional panels with portaled components.
+- **Runbook:** Render a real Blob without a submission record, open Details, verify file identity and fallback metadata, run the focused reader suite, and capture modal/Sheet/fullscreen at desktop/mobile in both themes.
+- **Checklist:** Confirm no invented submission data is needed, metadata opens without errors, originality is not fabricated, overlays fit the viewport, and fixture tooltips target the actual item rather than group-only test IDs.
+
+## 2026-10-25 — Production route paper controls and bounded lint
+
+- **Lesson learned:** An isolated white-paper table fixture did not reveal the ADM compliance banner's dark-theme no-print controls. The production secretary route exposed white title/name text on a pale warning surface and a paper button override that hid its label.
+- **Prevention:** Inspect the production host in both themes, scope white-paper controls to the semantic paper-ui palette, and keep legacy paper button selectors from overriding shared Button foregrounds inside that scope.
+- **Runbook:** Use a loopback server for the current production build, intercept GET-only session/API fixtures, open minutes from ProjectDetailPage, verify appointment-based controls, and inspect the secretary ADM gate and row. Measure composited text contrast with opacity; exempt and report disabled controls separately.
+- **Checklist:** Verify instructor/secretary publish access, chair publish lock, member-panelist verdict/aggregation restrictions, unassigned faculty opener absence, no workflow writes, all four theme/viewport combinations, and unchanged endorsement/signature tests.
+- **Lesson learned:** Silent root lint was still processing files. Bounded debug evidence showed steady progress; a subsequent full-scope cached run under bundled Node v24.22.1 passed 798 files with zero errors and 505 warnings in 17 seconds. Aborted runs are not passes; preserve scope/rules and retain the final file-count/exit/timing evidence.
+
+## 2026-10-25 — File-backed visual catalog and final test shards
+
+- **Lesson learned:** The visual manifest's manual supplemental counters included 80 showcase captures, but only 76 PNGs existed. Its module-linked arrays also omitted supplemental file references, so reference counts could not establish a unique screenshot total.
+- **Prevention:** Build a capture catalog from report files and actual PNGs, reject duplicate paths, validate PNG headers and pixel dimensions, and compute all totals from that catalog. Do not equate a screenshot catalog with exhaustive interaction coverage.
+- **Runbook:** Run scratch/shadcn-reconcile-capture-catalog.cjs after new evidence. Fresh production Settings captures replace weak appearance notes and the earlier inconclusive Notifications overflow review. The reconciled catalog contains 536 unique existing PNGs: 364 route and 172 supplemental.
+- **Checklist:** Keep source-module references separate from unique capture counts; label synthetic APIs; inspect new screenshots; preserve old failed runs; aggregate final client shards only when all share the current source fingerprint and collectively cover every expected test file once.
+- **Lesson learned:** The current server workflow passes 13/13 in 51.957 seconds with system Node v24.19.0 and MongoMemoryServer setup diagnostics. A preceding bundled-Node run reached the watchdog without a report; this does not establish an assertion failure or prove the runtime was its cause.
+
+## 2026-10-25 — Live route capture readiness
+
+- **Lesson learned:** Generic body/session readiness can capture a dashboard skeleton while automated geometry checks pass. A successful capture is not loaded-state acceptance.
+- **Prevention checklist:** Require route-specific content readiness and loading-placeholder disappearance; label intended skeleton states separately. Preserve Socket.IO HTTP 400 findings and isolate new capture batches from the accepted catalog.
+- **Runbook:** Eight current-source batches captured 192 states across 48 inputs. Six batches passed automated checks; batches 4 and 6 remain flagged. Inspected top contact sheets 1-3. Continue batches 9-11, deterministic loaded readiness and realtime diagnosis before claiming full acceptance. The exact baseline remains open at the user's request.
+
+## 2026-10-25 — Final suite union and restored development preview
+
+- **Lesson learned:** A worker's progress aggregate can omit a concurrently finishing shard. Use atomic JSON updates and independently verify the complete set after all shard processes terminate.
+- **Runbook:** Recompute the current client/server source fingerprints, re-read all sixteen client reports and the server report, and assert zero failures/pending tests plus exact expected-file parity. Final results: 174 client files/1,029 tests and 13 server workflow tests; maximum client shard time 72.942 seconds.
+- **Prevention:** Do not restart passing shards or claim completion from a partial progress summary. Preserve source fingerprints and raw reports; do not edit product sources during final verification unless a real defect requires a new run.
+- **Lesson learned:** The development client was stopped. Its inspected startup command only runs Vite, so restoring the existing container made http://localhost:43211/login return HTTP 200. All 53 installed direct client dependencies match the lockfile, including Vite 8.3.5.
+- **Checklist:** Treat container state, HTTP/package parity and rendered UI as separate evidence. The live browser/interaction matrix still needs verification, and the user-retained exact performance baseline remains missing. Isolate new visual shard output before using the older responsive audit writer, which contains legacy manual counters.

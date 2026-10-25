@@ -1,0 +1,17 @@
+{
+  "session_id": "2026-10-23_shadcn-chapter-review-panel",
+  "date": "2026-10-23T08:36:00+08:00",
+  "task_category": "shadcn_ui_refactor",
+  "task_summary": "ChapterReviewPanel now uses shared Radix Select, Alert, Button, and Badge primitives with semantic review states and fixed 44px mobile controls, while preserving its revision gate and SophisticatedDocumentViewer path. Panel and Capstone1/Capstone3 consumer suites pass 25/25; scoped ESLint/Prettier and eight responsive Playwright captures pass. No review action was submitted. Inventory: 152/278 source-updated, 5 reviewed-no-ui, 121 pending; full refactor remains active.",
+  "skills_written": [],
+  "skills_patched": [],
+  "verification": [
+    "ChapterReviewPanel and Capstone1CollapsibleSections/Capstone3CollapsibleSections focused suites passed 25/25.",
+    "Scoped ESLint and Prettier passed without warnings.",
+    "Playwright passed eight captures for default and unsent revision form states at light/dark 1440x900 and 390x844; session filtering and Cancel behavior passed.",
+    "Mobile session selector, round tab, approval/revision buttons, and session menu option measured at or above 44px; no horizontal overflow, Vite overlay, failed assets, or browser exceptions.",
+    "Revision form was filled in the synthetic fixture but was not submitted; no institutional review action was sent.",
+    "SophisticatedDocumentViewer remains the document read path and its existing focused test still passes.",
+    "Migration inventory validated at 152 source-updated, 5 reviewed-no-ui, and 121 pending out of 278; final repository gates remain outstanding."
+  ]
+}

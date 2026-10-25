@@ -56,19 +56,16 @@ export default function AppearanceSection() {
             Dynamic Font Scaling
           </Label>
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-            <Select
-              value={zoomLevel}
-              onValueChange={setZoomLevel}
-            >
+            <Select value={zoomLevel} onValueChange={setZoomLevel}>
               <SelectTrigger id="font-size-select" className="w-full sm:max-w-[240px]">
                 <SelectValue placeholder="Choose text size" />
               </SelectTrigger>
               <SelectContent>
-              {ZOOM_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label} — {opt.scale}
-                </SelectItem>
-              ))}
+                {ZOOM_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label} — {opt.scale}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">{currentOption.desc}</p>

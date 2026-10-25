@@ -104,7 +104,11 @@ export default function DefenseScheduleCalendar({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* View Mode Toggle */}
-            <div role="group" aria-label="Schedule view" className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 p-1">
+            <div
+              role="group"
+              aria-label="Schedule view"
+              className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 p-1"
+            >
               <Button
                 aria-pressed={viewMode === 'agenda'}
                 type="button"
@@ -173,7 +177,7 @@ export default function DefenseScheduleCalendar({
               />
               <div className="flex justify-center">
                 <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">
-                Phase 0–4 Timeline
+                  Phase 0–4 Timeline
                 </Badge>
               </div>
             </div>
@@ -202,7 +206,10 @@ export default function DefenseScheduleCalendar({
                       </div>
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={cfg.variant} className="shrink-0 text-[10px] font-semibold">
+                          <Badge
+                            variant={cfg.variant}
+                            className="shrink-0 text-[10px] font-semibold"
+                          >
                             {cfg.label}
                           </Badge>
                           <h5 className="text-left text-sm font-semibold text-foreground">
@@ -300,7 +307,10 @@ export default function DefenseScheduleCalendar({
                         {day}
                       </span>
                       {dayEvents.length > 0 && (
-                        <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] font-bold tabular-nums">
+                        <Badge
+                          variant="secondary"
+                          className="h-5 px-1.5 py-0 text-[10px] font-bold tabular-nums"
+                        >
                           {dayEvents.length}
                         </Badge>
                       )}
