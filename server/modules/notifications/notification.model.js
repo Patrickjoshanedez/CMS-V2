@@ -9,6 +9,7 @@ const NOTIFICATION_TYPES = [
   'team_formation_pending_committee',
   'committee_appointment_required',
   'committee_assigned',
+  'committee_appointed',
   'secretary_assigned',
   // Project / title workflow notifications
   'project_created',
@@ -17,6 +18,9 @@ const NOTIFICATION_TYPES = [
   'title_rejected',
   'title_modification_requested',
   'title_modification_resolved',
+  'title_hearing_scheduled',
+  'defense_scheduled',
+  'defense_unscheduled',
   'adviser_assigned',
   'panelist_assigned',
   'panelist_selected',
@@ -33,6 +37,9 @@ const NOTIFICATION_TYPES = [
   'submission_rejected',
   'submission_locked',
   'manuscript_endorsed_for_defense',
+  'minutes_uploaded',
+  'adm_submitted_for_review',
+  'adm_endorsed',
   'unlock_requested',
   'unlock_resolved',
   'annotation_added',
@@ -48,6 +55,7 @@ const NOTIFICATION_TYPES = [
   'weekly_checkin_waiver_reviewed',
   // Evaluations / grading
   'evaluation_submitted',
+  'evaluation_unlocked',
   'evaluation_released',
   // Certificates
   'certificate_uploaded',

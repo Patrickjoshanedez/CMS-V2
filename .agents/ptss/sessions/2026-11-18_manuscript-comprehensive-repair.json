@@ -1,0 +1,35 @@
+{
+  "session_id": "2026-11-18_manuscript-comprehensive-repair",
+  "date": "2026-11-18",
+  "status": "editorial-repairs-complete-external-evidence-pending",
+  "task_summary": "Comprehensively repaired original Google manuscript after 29-item audit; used statistician summary and raw response workbook; corrected prose, configuration, figures, indices and evidence boundaries.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "sources": [
+    "User-confirmed statistician-verified Result-Stat.docx",
+    "77 complete survey-response records",
+    "Current source defaults for auth, OTP, title similarity and verdicts",
+    "Primary DOI metadata and publisher records"
+  ],
+  "verified": [
+    "All 20 item means and SDs reproduce statistician values",
+    "Overall 4.53 SD0.30 usability and 4.48 SD0.34 satisfaction reproduce after rounding",
+    "117 unique figure labels and 24 data-table labels",
+    "229 index entries matched to exported page labels",
+    "Statistical tables unchanged",
+    "Unrelated image and equation identities preserved",
+    "12 image replacements rendered and selected PDF pages inspected"
+  ],
+  "remaining_external_evidence": [
+    "Completed technical assessment report/certificate and named provider/standard",
+    "Unprovided invitation/selection logs, interview records and institutional permission records"
+  ],
+  "limitations": [
+    "Selected PDF pages visually inspected, not every image independently revalidated",
+    "DOI metadata validation is not full cited-claim authentication",
+    "Generated page lists need regeneration after later manuscript edits"
+  ],
+  "figure_sources": "docs/diagrams/manuscript-review-2026-11-18/",
+  "lessons_learned": [
+    "Lesson learned: supplied raw records can resolve aggregate demographic ambiguity and enable respondent-composite SD checks. Prevention runbook/checklist: distinguish future ISO testing from issued certification, verify references as full headings in page maps, and use tableColumnProperties.width."
+  ]
+}

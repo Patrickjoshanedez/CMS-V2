@@ -8,6 +8,7 @@ Hybrid execution engine:
 """
 from __future__ import annotations
 
+import asyncio
 import gc
 import io
 import logging
@@ -16,7 +17,7 @@ import re
 import time
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -143,7 +144,8 @@ vl_engine = VisionLanguageParser()
 
 def extract_metadata_from_text(first_pages_text: str) -> dict[str, Any]:
     """Heuristic extraction of Title, Abstract, Authors, and Year from front matter."""
-    lines = [line.strip() for line in first_pages_text.splitlines() if line.strip()]
+    cleaned_input = re.sub(r"<!--.*?-->", "", first_pages_text, flags=re.DOTALL)
+    lines = [line.strip() for line in cleaned_input.splitlines() if line.strip()]
     meta: dict[str, Any] = {
         "title": None,
         "abstract": None,
@@ -155,7 +157,7 @@ def extract_metadata_from_text(first_pages_text: str) -> dict[str, Any]:
         return meta
 
     # 1. Year detection (e.g. 2020 - 2030)
-    year_matches = re.findall(r"\b(202[0-9]|201[0-9])\b", first_pages_text)
+    year_matches = re.findall(r"\b(202[0-9]|201[0-9])\b", cleaned_input)
     if year_matches:
         try:
             meta["year"] = int(year_matches[0])
@@ -165,7 +167,7 @@ def extract_metadata_from_text(first_pages_text: str) -> dict[str, Any]:
     # 2. Abstract detection
     abstract_match = re.search(
         r"(?:ABSTRACT|Abstract)[:\s\n]+(.*?)(?=(?:Keywords|KEY WORDS|Chapter|CHAPTER|TABLE OF CONTENTS|1\.\s+Introduction|$))",
-        first_pages_text,
+        cleaned_input,
         re.DOTALL | re.IGNORECASE,
     )
     if abstract_match:
@@ -198,12 +200,12 @@ def extract_metadata_from_text(first_pages_text: str) -> dict[str, Any]:
     return meta
 
 
-def process_pdf_document(pdf_bytes: bytes) -> DocumentParseResponse:
+def process_pdf_document(pdf_bytes: bytes, mode: str = "full") -> DocumentParseResponse:
     """Execute hybrid parsing on uploaded PDF bytes."""
     t_start = time.perf_counter()
 
     try:
-        import fitz  # PyMuPDF
+        import pymupdf as fitz  # PyMuPDF
     except ImportError as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -250,26 +252,29 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentParseResponse:
                     col_count = 2
                     is_multi_column_doc = True
 
-        # Detect tables
+        # Detect tables in full mode (skip O(N^2) table geometry in metadata mode or vector-drawing-heavy pages)
         page_tables = []
-        try:
-            tabs = page.find_tables()
-            if tabs and tabs.tables:
-                for tab in tabs.tables:
-                    df_rows = tab.extract()
-                    if df_rows and len(df_rows) >= 2:
-                        header = df_rows[0]
-                        md_lines = [
-                            "| " + " | ".join(str(cell or "").strip() for cell in header) + " |",
-                            "| " + " | ".join(["---"] * len(header)) + " |",
-                        ]
-                        for row in df_rows[1:]:
-                            md_lines.append("| " + " | ".join(str(cell or "").strip() for cell in row) + " |")
-                        table_md = "\n".join(md_lines)
-                        extracted_tables.append(ExtractedTable(page=page_num, markdown=table_md, rows=df_rows))
-                        page_tables.append(table_md)
-        except Exception as tab_err:
-            logger.debug("Table detection on page %d: %s", page_num, tab_err)
+        if mode != "metadata":
+            try:
+                drawings_count = len(page.get_drawings())
+                if drawings_count <= 120:
+                    tabs = page.find_tables()
+                    if tabs and tabs.tables:
+                        for tab in tabs.tables:
+                            df_rows = tab.extract()
+                            if df_rows and len(df_rows) >= 2:
+                                header = df_rows[0]
+                                md_lines = [
+                                    "| " + " | ".join(str(cell or "").strip() for cell in header) + " |",
+                                    "| " + " | ".join(["---"] * len(header)) + " |",
+                                ]
+                                for row in df_rows[1:]:
+                                    md_lines.append("| " + " | ".join(str(cell or "").strip() for cell in row) + " |")
+                                table_md = "\n".join(md_lines)
+                                extracted_tables.append(ExtractedTable(page=page_num, markdown=table_md, rows=df_rows))
+                                page_tables.append(table_md)
+            except Exception as tab_err:
+                logger.debug("Table detection on page %d: %s", page_num, tab_err)
 
         # Detect math formulas in text
         formula_matches = re.findall(r"(\$\$[^\$]+\$\$|\$[^\$]{3,}\$|\\begin\{equation\}.*?\\end\{equation\})", text, re.DOTALL)
@@ -363,7 +368,10 @@ async def health_check() -> HealthResponse:
     summary="Parse multipart PDF document into normalized Markdown, tables, and LaTeX formulas",
     tags=["Ingestion"],
 )
-async def parse_document(file: UploadFile = File(...)) -> DocumentParseResponse:
+async def parse_document(
+    file: UploadFile = File(...),
+    mode: str = Query("full", description="Parsing mode: 'full' or 'metadata'"),
+) -> DocumentParseResponse:
     """Parse academic PDF documents with multi-column, table, and formula layout extraction."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -385,4 +393,4 @@ async def parse_document(file: UploadFile = File(...)) -> DocumentParseResponse:
             detail="File is empty or too small to be a valid PDF.",
         )
 
-    return process_pdf_document(pdf_bytes)
+    return await asyncio.to_thread(process_pdf_document, pdf_bytes, mode)

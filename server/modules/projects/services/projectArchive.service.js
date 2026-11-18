@@ -9,7 +9,10 @@ import Submission from '../../submissions/submission.model.js';
 import Evaluation from '../../evaluations/evaluation.model.js';
 import submissionService from '../../submissions/submission.service.js';
 import AppError from '../../../utils/AppError.js';
-import { extractPdfMetadata } from '../../../utils/pdfMetadataExtractor.js';
+import {
+  extractMetadataFromText,
+  extractPdfMetadata,
+} from '../../../utils/pdfMetadataExtractor.js';
 import { extractText } from '../../../utils/extractText.js';
 import { rankFuzzyConflicts } from '../../../utils/similarityAudit.js';
 import storageService from '../../../services/storage.index.js';
@@ -2113,10 +2116,11 @@ class ProjectArchiveService {
       const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
 
       const metadataTarget = data?.metadataTarget || 'academic_journal';
-      const primaryExtractionBuffer =
+      const primaryExtractionFile =
         metadataTarget === 'academic_journal'
-          ? academicJournalFile?.buffer || academicPaperFile?.buffer
-          : academicPaperFile?.buffer || academicJournalFile?.buffer;
+          ? academicJournalFile || academicPaperFile
+          : academicPaperFile || academicJournalFile;
+      const primaryExtractionBuffer = primaryExtractionFile?.buffer;
       if (
         (!normalizedTitle ||
           !normalizedAbstract ||
@@ -2126,7 +2130,24 @@ class ProjectArchiveService {
         primaryExtractionBuffer
       ) {
         try {
-          const extracted = await extractPdfMetadata(primaryExtractionBuffer);
+          const primaryMime =
+            primaryExtractionFile?.validatedMime || primaryExtractionFile?.mimetype || '';
+          const isPrimaryDocx =
+            primaryMime ===
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            String(primaryExtractionFile?.originalname || '')
+              .toLowerCase()
+              .endsWith('.docx');
+          const extracted = isPrimaryDocx
+            ? await extractMetadataFromText(
+                await extractText(
+                  primaryExtractionBuffer,
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ),
+                {},
+                { extractionProvider: 'mammoth' },
+              )
+            : await extractPdfMetadata(primaryExtractionBuffer);
           if (!normalizedTitle && extracted?.title?.trim()) {
             normalizedTitle = extracted.title.trim();
           }
@@ -2384,6 +2405,64 @@ class ProjectArchiveService {
         createdSubmissions.find((entry) => entry.type === 'final_academic') || null;
       const finalJournalSubmission =
         createdSubmissions.find((entry) => entry.type === 'final_journal') || null;
+
+      // Best-effort non-fatal vector corpus indexing so browser-uploaded archives feed ChromaDB search
+      const engineUrl = (env.PLAGIARISM_ENGINE_URL || '').replace(/\/+$/, '');
+      if (engineUrl && process.env.NODE_ENV !== 'test') {
+        const indexTargets = createdSubmissions.filter(
+          (entry) =>
+            typeof entry.extractedText === 'string' &&
+            entry.extractedText.trim().length >= MIN_CORPUS_TEXT_LENGTH,
+        );
+        if (indexTargets.length > 0) {
+          const queuedIds = [];
+          const authorLabel =
+            resolvedAuthors.length > 0 ? resolvedAuthors.join(', ') : 'BukSU Capstone Proponents';
+          const indexHeaders = { 'Content-Type': 'application/json' };
+          if (process.env.PLAGIARISM_ENGINE_API_TOKEN) {
+            indexHeaders.Authorization = `Bearer ${process.env.PLAGIARISM_ENGINE_API_TOKEN}`;
+          }
+          await Promise.all(
+            indexTargets.map(async (sub) => {
+              const docId = String(sub._id);
+              try {
+                const res = await fetch(`${engineUrl}/index`, {
+                  method: 'POST',
+                  headers: indexHeaders,
+                  body: JSON.stringify({
+                    document_id: docId,
+                    text: sub.extractedText,
+                    metadata: {
+                      document_id: docId,
+                      title: project.title,
+                      author: authorLabel,
+                      project_id: String(project._id),
+                      year: resolvedPublicationYear || new Date().getFullYear(),
+                      url: env.CLIENT_URL
+                        ? new URL(`/archive/document/${project._id}`, env.CLIENT_URL).toString()
+                        : '',
+                    },
+                  }),
+                  signal: AbortSignal.timeout(5000),
+                });
+                if (res.ok) queuedIds.push(docId);
+              } catch {
+                // Non-fatal: archive upload still succeeds if plagiarism engine is busy/unavailable
+              }
+            }),
+          );
+          if (queuedIds.length > 0) {
+            project.archiveIndexing = {
+              status: 'queued',
+              documentIds: queuedIds,
+              queuedAt: new Date(),
+              completedAt: null,
+              lastError: '',
+            };
+            await project.save({ validateModifiedOnly: true });
+          }
+        }
+      }
 
       return {
         project,

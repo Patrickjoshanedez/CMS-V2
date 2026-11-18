@@ -1,0 +1,13 @@
+{
+  "active_scenario_id": "full-paper-refinement",
+  "completed_subgoals": [
+    "Identify the current full manuscript and confirm the separate research records",
+    "Edit the front matter and five chapters",
+    "Reconcile the tables and citations",
+    "Verify the saved revision"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "Verified saved revision and export.",
+  "progress_delta": 3,
+  "loop_count": 0
+}

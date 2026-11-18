@@ -21,6 +21,7 @@ export function applyTheme(preference) {
   const effective = resolveTheme(preference);
   document.documentElement.classList.toggle('dark', effective === 'dark');
   document.documentElement.classList.remove('light'); // Tailwind uses .dark only — keep DOM clean
+  document.documentElement.style.colorScheme = effective;
 }
 
 export const useThemeStore = create(

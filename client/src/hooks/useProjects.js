@@ -29,6 +29,7 @@ export const projectKeys = {
   archive: () => [...projectKeys.all, 'archive'],
   archiveSearch: (filters) => [...projectKeys.archive(), 'search', filters],
   certificate: (id) => [...projectKeys.detail(id), 'certificate'],
+  approvalSheet: (id) => [...projectKeys.detail(id), 'approval-sheet'],
   reports: (filters) => [...projectKeys.all, 'reports', filters],
   titleCheck: (title, extraParams = {}) => [...projectKeys.all, 'title-check', title, extraParams],
 };
@@ -382,6 +383,20 @@ export function useCertificateUrl(projectId, options = {}) {
     queryFn: async () => {
       const { data } = await projectService.getCertificateUrl(projectId);
       return data.data; // { url, verificationHash, generatedAt }
+    },
+    enabled: !!projectId,
+    staleTime: 30 * 60 * 1000, // 30 min — signed URLs last 1hr
+    ...options,
+  });
+}
+
+/** Get Phase 4 final approval sheet download URL */
+export function useApprovalSheetUrl(projectId, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.approvalSheet(projectId),
+    queryFn: async () => {
+      const { data } = await projectService.getApprovalSheetUrl(projectId);
+      return data.data; // { url, generatedAt }
     },
     enabled: !!projectId,
     staleTime: 30 * 60 * 1000, // 30 min — signed URLs last 1hr

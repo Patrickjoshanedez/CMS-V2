@@ -18,10 +18,11 @@ export const notificationKeys = {
 
 /**
  * Fetch paginated notifications with unread count.
- * Polls every 30 seconds for real-time updates.
+ * Polls every two minutes as a fallback for real-time updates.
  * @param {Object} params - { page, limit }
+ * @param {Object} options - { enabled }
  */
-export function useNotifications(params = { page: 1, limit: 20 }) {
+export function useNotifications(params = { page: 1, limit: 20 }, { enabled = true } = {}) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const queryClient = useQueryClient();
 
@@ -35,7 +36,7 @@ export function useNotifications(params = { page: 1, limit: 20 }) {
       }
       return data;
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && enabled,
     retry: (failureCount, error) => {
       const status = error?.response?.status;
       if (status === 401 || status === 429) return false;

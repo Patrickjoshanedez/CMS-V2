@@ -1,0 +1,75 @@
+# Manuscript consistency audit
+
+## Repair update 18 November 2026
+
+The user subsequently authorized comprehensive manuscript repairs and supplied the survey-response workbook. That workbook confirms 77 complete records: 71 students, five faculty members and one instructor. Recalculated item means, item sample SDs and respondent-composite means/SDs reproduce the statistician summary after rounding. Finding A01's unsupported split is therefore resolved by the additional source, rather than by merging the categories. Submission timestamps span 18 October–16 November 2026; five records contain written feedback.
+
+The original Google Doc now has corrected terminology and technical defaults, grouped development-phase headings, 117 uniquely numbered figures, 24 data-table labels, a rebuilt 229-entry contents/table/figure index, revised survey interpretation, corrected references and two new appendices. Nine illustrative technical-result tables were removed from empirical findings. Four incorrect review figures and eight authentication figures were replaced, preserving all unrelated image/equation identities. Original survey tables are unchanged. Editable replacement figure sources are retained in `docs/diagrams/manuscript-review-2026-11-18/`.
+
+Workspace evidence correction: retained 27 October records establish 32 passed component cases and a completed 48-document synthetic Node lexical experiment (TP24, FP0, TN16, FN8). A separate 25 October snapshot records 1,029 client and 13 server workflow tests passed. These scoped results are restored to Chapters 1, 3–5 and Appendix B; the earlier blanket description of technical testing as planned was too broad. No independent ISO certificate, full 24-case acceptance execution, recruitment denominator or signed research permissions were established in the inspected records. See the [claim-to-evidence ledger](../benchmarks/manuscript-evidence-ledger-2026-11-18.md). Appendix C retains verified survey provenance. DOI metadata checks do not independently authenticate every cited empirical claim. Page lists require regeneration after pagination changes.
+
+The historical findings below describe the audited baseline. See the [repair session](../../.agents/ptss/sessions/2026-11-18_manuscript-comprehensive-repair.json) for verification and remaining evidence boundaries.
+
+Reviewed 18 November 2026. Source: [original Google manuscript](https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit), native revision `AHj4eMSjOlMhHRplPy-eyS2x4rJBc0l5o-Q6DATIu1OzdQ1gfzCC1CfC1ccCE_CgvBB668y4RV1j_lWnXMp_-g`. All five chapters, front matter, native tables, figure descriptions, references and Appendix A were read. No manuscript edits were made during the audit. This report is editorial guidance, not empirical research or software acceptance evidence.
+
+## Authoritative statistical source
+
+The user confirms `C:/Users/patri/Downloads/Result-Stat.docx` was verified by the statistician. Use its supplied summary as the statistical authority:
+
+| Measure | Verified summary |
+| --- | --- |
+| Students | 71; 92.21% |
+| Faculty/Instructor combined | 6; 7.79% |
+| Total | 77; 100.00% |
+| Overall usability | Mean 4.53; SD 0.30; Excellent |
+| Overall satisfaction | Mean 4.48; SD 0.34; Excellent |
+
+All 20 item means, all 20 item standard deviations and both overall mean/SD pairs match manuscript Tables 4.10–4.12. The displayed item means average 4.527 and 4.48, consistent after rounding. This check does not independently recalculate respondent-level SDs; the statistician summary supplies them. It does not split the six academic respondents into five faculty and one instructor.
+
+The interpretation bands also match: 1.00–1.80 Poor; 1.81–2.60 Fair; 2.61–3.40 Good; 3.41–4.20 Very Good; 4.21–5.00 Excellent. The source includes an interpretation-scale footnote citing Ikhlas and Dela Rosa (2023), DOI `10.1007/s43545-023-00654-2`. That attribution is absent from the manuscript bibliography and should be checked and carried through. The summary contains no technical benchmark results, recruitment flow or plagiarism classification experiment.
+
+## Findings and repairs
+
+| ID | Location | Finding | Repair |
+| --- | --- | --- | --- |
+| A01 | Table 4.1; Sections 1.4, 4.1.5, 5.1 | Five faculty plus one instructor is not supplied by the statistician file, which groups six Faculty/Instructor respondents. | Use the combined source category unless another verified demographic record supports the split. Retain 77 total. |
+| A02 | Abstract; Chapters 4–5 | Repeated editorial caveats question survey recomputation and recommend recalculating the summary. The user now confirms the supplied statistician summary is verified. | Attribute and report it normally; remove obsolete editorial distrust. Retain substantive limits on representativeness, causal effects and technical reliability. Do not imply raw responses were reviewed. |
+| A03 | Sections 1.4, 3.2.3.1, 3.8, 5.3.4 | 37 evaluators, 91 planned participants and 77 actual respondents remain unreconciled. A 20% fraction does not itself demonstrate random selection or adequate representation. | Separate pilot/UAT targets from survey invitations and valid responses using actual recruitment records. If claiming stratified random sampling, provide per-stratum populations, selection and obtained counts. |
+| A04 | List of Tables; List of Figures | Template remnants include HIV forecasting, Golf course tricks and Insert Caption instructions. | Remove unrelated entries and regenerate accurate lists after pagination. |
+| A05 | Table of Contents | Missing Chapter 1 number, omitted newer sections, older section titles and stale page references. | Refresh from corrected native headings after final pagination. |
+| A06 | Sections 1.4, 3.4, 3.7 versus Chapters 4–5 | Earlier text claims completed validation, 22 verified algorithms and high accuracy, while later sections say technical execution evidence is unavailable/provisional. | Separate implemented designs, planned tests and measured outcomes. A verified survey does not validate technical performance tables. |
+| A07 | Tables 4.2–4.9 and 4.13 | Nine technical tables contain provisional timings, accuracies or throughput. Security labels such as Optimal are not established by hashing timings. | Replace with documented measurements or remove sample figures from empirical findings and retain clearly labeled planned examples elsewhere. |
+| A08 | FR-01, NFR01 and login descriptions versus Section 3.3.1 and TC-1.1 | 30-day JWT versus 15-minute access and 7-day refresh tokens. | State the tested build's access, refresh and session lifetimes consistently. |
+| A09 | NFR02 versus TC-1.1–TC-1.2 | Verification OTP is 10 minutes in one table and 5 minutes in tests; password-reset authorization also has a 10-minute window. | Distinguish verification OTP lifetime from reset authorization lifetime and reconcile each with implementation. |
+| A10 | Section 3.3.2 versus Section 3.7 and TC-1.4 | Title threshold is 80% versus 65%; workflow implies rejection while test describes flagging and Instructor notification. | Set one configured title-screening rule and distinguish warning, flag and blocking behavior. |
+| A11 | FR-PA-06 and Panel flow versus TC-3.2 | Three defense outcomes versus four including Re-Defense Required. | Reconcile requirements, diagrams, tests and walkthrough descriptions. |
+| A12 | Section 1.4; Figure 4.1; TC-1.8 | Chapters 4–5 are associated with development; four-phase versus five-stage language; Capstone 2–4 test label. | Separate five workflow stages (0–4), three semester courses (1–3), and research development phases. Chapters 4–5 belong to Capstone 3. There is no Capstone 4 course. |
+| A13 | Section 3.7 and Table 3.16 versus Section 5.3.1 | 24 planned cases versus fourteen scenarios in recommendations. | Use the actual inventory or explicitly define a different scenario grouping. |
+| A14 | FR-AD-03/04 diagram discussions | Two editorial notes admit retained diagrams show old team-membership/team-lock processes rather than document review/report inspection. | Replace those figures and remove drafting notes afterward. Their image content was not independently visually confirmed during this audit. |
+| A15 | Section 4.1 opening; Section 4.2.2; parameter-table introduction | References include Tables 4.10, 4.11, 4.12, and 4.11; Tables 4.10, 4.11, and 4.9b; Tables 3.9 through 3.12 for the four parameter tables. | Use demographics 4.1, survey statistics 4.10–4.12 and parameter tables 3.10–3.13. Recheck both endpoints of every range. |
+| A16 | Sections 4.2.3–4.2.4 versus Section 3.3.4/Table 3.13 | Results say the formula/threshold are incomplete although methodology gives 0.50/0.30/0.20 weights and 25% clearance. | Remove stale missing-formula claims. Distinguish documented configuration from validated calibration; explain purposes, units and precedence of 15%, 25%, 75% and 85% gates. |
+| A17 | Role wording throughout | facultyist is gone, but 18 facultys remain, plus faculty/faculty, Faculty faculty Reviews and prohibitions on instructors serving as faculty. | Use Faculty for primary account category and Adviser, Panel/Panelist and Secretary for appointments. Preserve the user's heading Faculty Role (Faculty, Panel, and Secretary). Clarify AD/PA appointment scope in merged requirements. |
+| A18 | Sections 3.1.1–3.1.2 | On-premise hosting conflicts with cloud-based/elastic-provisioning language and an all-JavaScript description despite Python services. Server/worker hardware is not reproducibly specified. | Describe actual deployment and distinguish user-PC requirements from API, embedding, OCR and storage resources. |
+| A19 | FR-08; Section 3.3.3; Figure 4.9; Student report flow | File support alternates DOCX/PDF and DOCX/PDF/TXT; an external analysis service is mentioned despite internal service scope. | Define formats per workflow and distinguish a separate internal service from a third-party service. |
+| A20 | Sections 3.3.1, 3.4.7 and Table 4.6 | Authentication target is under 200 ms but provisional bcrypt cost alone is 240 ms; prose says hashing does not affect latency. | Define measurement boundaries and report the target honestly; remove latency assurances unsupported by tests. |
+| A21 | Section 3.3.4; Tables 3.14–3.15 | BGE-M3 sparse weights and BM25 are conflated. Middleware, queue management and logging are counted alongside algorithms, with complexity claims lacking assumptions. | Identify actual sparse implementation and normalization before fusion; distinguish models, services and algorithms, with verified code paths and complexity assumptions. |
+| A22 | Sections 2.1.8 and 3.4 | Unqualified hash-collision language, logarithmic HNSW guarantees, >98% recall and optimal schedules lack stated conditions/evidence. | Distinguish collisions from overflow, approximate retrieval from guaranteed recall, and feasible scheduling from proven optimality. |
+| A23 | NFR tables; Table 3.16 | without delay, minimal downtime and without performance degradation are not measurable criteria. Test table has expected results but no recorded observations/status. | Define workload, duration and acceptance criteria. Add requirement/test/result mapping, actual outputs, build, date, environment, defects and retests. |
+| A24 | Sections 3.8, 4.1.1 and appendices | Recruitment dates, task-session protocol, instrument review, interview counts and needs-analysis evidence are not supplied. Only a CV appendix appears. | Add/reference available recruitment, instrument, consent/permission, needs-analysis and test records. Record what actually occurred; invent no approvals or procedures. |
+| A25 | Table 3.9 and conceptual data discussion | Four-collection schema references teams without defining Teams; committee, evaluation, minutes and archive relationships are outside the overview. | Mark it explicitly as a limited schema and cross-reference the full design, or extend verified entities/cardinalities/integrity rules. |
+| A26 | Figure captions and requirement diagrams | Figures use 1, 2, 2.1, 7.1, 8.1, 8.2, 9.1 versus Chapter 4's 4.1–4.34. Requirement diagrams lack consistent unique figure numbering. | Adopt a consistent figure convention and caption every diagram uniquely. Preserve equation objects. |
+| A27 | Chapter 3 heading hierarchy | Research development phases 1–2 sit under 3.2.3; phases 3–5 are 3.6–3.8, separated by algorithm sections. | Group the research phases coherently, distinguishing them from institutional workflow stages, then repair dependent references. |
+| A28 | Chapter 2, Table 2.1 and References | Own microservice is compared as if independent prior work. Capability checks need source/date per comparator. Broad novelty/accuracy claims need verification. ISO citations use generic homepage URLs and the scale attribution is missing. | Separate proposed architecture from independent systems; verify claims against primary sources, use exact standard records and include the scale source. Full DOI-by-DOI content verification remains outstanding. |
+| A29 | Chapters 3, 5 and Appendix A | Unfinished Git/GitHub sentence, high-simil, SubmissionSubmission, repeated Design/Build/Test sentence, DiReconciliation and ItIts remain. First CV has empty Educational Attainment and a degree under organization membership. | Repair damaged wording and CV field placement using verified author details. |
+
+## Content to preserve and review limits
+
+Five objectives and five corresponding Chapter 5 conclusions are present. Body table captions are sequential: Table 2.1, Tables 3.1–3.19 and Tables 4.1–4.13. There are 34 native tables including the approval table, 34 Chapter 4 screenshot captions, and all 14 functional plus 14 non-functional AD/PA IDs in the merged Faculty tables. Caption punctuation and front-matter lists still need repair.
+
+The statistician summary supports favorable perceived usability and satisfaction. It does not establish technical reliability, plagiarism detection accuracy, causal time savings or subgroup differences.
+
+This audit covered native text/tables/structure and statistical DOCX content. It did not visually inspect all 98 inline images, certify pagination, execute the application, recalculate raw respondent statistics, or authenticate every bibliography claim. Inline equation images are present where plain-text extraction appears blank; those equations are not classified as missing solely from extraction.
+
+Repair order: reconcile the statistical narrative, settle conflicting technical configuration, replace stale figures, distinguish actual tests from sample benchmarks, repair wording and references, then refresh the contents/lists and inspect the final exported pages.
+
+Primary-source spot checks: [ISO/IEC 25010:2011](https://www.iso.org/standard/35733.html), [ISO/IEC 25010:2023](https://www.iso.org/standard/78176.html), [BGE-M3 paper](https://aclanthology.org/2024.findings-acl.137/). Retain the adopted 2011 edition consistently rather than silently substituting the different 2023 product-quality model.

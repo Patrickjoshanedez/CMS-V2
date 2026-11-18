@@ -114,7 +114,12 @@ export function ManuscriptTemplateWidget({ teamId, isTitleApproved, templateData
             <Lock className="mr-1.5 h-3 w-3" /> Locked in Proposal Stage
           </Button>
           {isInstructor && (
-            <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1 text-xs">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="min-h-[44px] sm:min-h-0 sm:h-8 shrink-0 gap-1 text-xs"
+            >
               <Link
                 to="/settings?tab=administration"
                 title="Configure manuscript template link in instructor settings"
@@ -186,7 +191,7 @@ export function ManuscriptTemplateWidget({ teamId, isTitleApproved, templateData
         {isGoogleDocs ? (
           <Button
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="min-h-[44px] sm:min-h-0 sm:h-8 gap-1.5 text-xs"
             onClick={() => window.open(targetUrl, '_blank', 'noopener,noreferrer')}
           >
             <Sparkles className="h-3.5 w-3.5" /> Use Google Docs Copy
@@ -195,14 +200,19 @@ export function ManuscriptTemplateWidget({ teamId, isTitleApproved, templateData
         ) : (
           <Button
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="min-h-[44px] sm:min-h-0 sm:h-8 gap-1.5 text-xs"
             onClick={() => window.open(rawUrl, '_blank', 'noopener,noreferrer')}
           >
             <Download className="h-3.5 w-3.5" /> Download .DOCX Template
           </Button>
         )}
         {isInstructor && (
-          <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1 text-xs">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="min-h-[44px] sm:min-h-0 sm:h-8 shrink-0 gap-1 text-xs"
+          >
             <Link
               to="/settings?tab=administration"
               title="Configure manuscript template link in instructor settings"

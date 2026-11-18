@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bcrypt from 'bcrypt';
 import User from '../modules/users/user.model.js';
 import Team from '../modules/teams/team.model.js';
 import Project from '../modules/projects/project.model.js';
@@ -79,6 +78,56 @@ const seededAccounts = [
     targetTeam: 'Team Gamma',
     capabilities: ['Team Lead', 'Phase 0 (Open Roster, assembling 4-member team)'],
   },
+  {
+    email: 'student4@student.buksu.edu.ph',
+    firstName: 'Clarisse',
+    middleName: 'Anne',
+    lastName: 'Reyes',
+    role: 'student',
+    title: 'Student (Team Alpha Member)',
+    targetTeam: 'Team Alpha',
+    capabilities: ['Team Member', 'Frontend & UI/UX Developer', 'Capstone Submissions'],
+  },
+  {
+    email: 'secretary@student.buksu.edu.ph',
+    firstName: 'Elena',
+    middleName: 'R.',
+    lastName: 'Mendoza',
+    role: 'faculty',
+    facultyRole: 'panelist',
+    title: 'Defense Secretary',
+    capabilities: ['Defense Minutes', 'Secretary Compliance Verification Gate', 'ADM Endorsement'],
+  },
+  {
+    email: 'panelist2@student.buksu.edu.ph',
+    firstName: 'Marco',
+    middleName: 'L.',
+    lastName: 'Villanueva',
+    role: 'faculty',
+    facultyRole: 'panelist',
+    title: 'Faculty Panelist 2',
+    capabilities: ['Panel Reviews', 'Defense Hearing Scoring', 'Tier 2 ADM Digital Signature'],
+  },
+  {
+    email: 'panelist3@student.buksu.edu.ph',
+    firstName: 'Clarissa',
+    middleName: 'D.',
+    lastName: 'Navarro',
+    role: 'faculty',
+    facultyRole: 'panelist',
+    title: 'Faculty Panelist 3',
+    capabilities: ['Panel Reviews', 'Defense Hearing Scoring', 'Tier 2 ADM Digital Signature'],
+  },
+  {
+    email: 'dean@student.buksu.edu.ph',
+    firstName: 'Roberto',
+    middleName: 'C.',
+    lastName: 'Santos',
+    role: 'faculty',
+    facultyRole: 'adviser',
+    title: 'Dean / Institutional Signatory',
+    capabilities: ['Tier 3 ADM Digital Signature', 'Institutional Oversight', 'Reports Review'],
+  },
 ];
 
 async function seedCanonicalAccounts() {
@@ -90,7 +139,6 @@ async function seedCanonicalAccounts() {
   await mongoose.connect(MONGODB_URI);
   console.log('✅ Connected to MongoDB successfully.');
 
-  const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
   const sectionA = await Section.findOne({ name: { $regex: /Section A|BSIT 4-A/i } });
   const sectionB = await Section.findOne({ name: { $regex: /Section B|BSIT 4-B/i } });
 
@@ -135,38 +183,50 @@ async function seedCanonicalAccounts() {
   const student1 = createdMap.get('student@student.buksu.edu.ph');
   const student2 = createdMap.get('student2@student.buksu.edu.ph');
   const student3 = createdMap.get('student3@student.buksu.edu.ph');
+  const student4 = createdMap.get('student4@student.buksu.edu.ph');
   const adviser = createdMap.get('adviser@student.buksu.edu.ph');
+  const secretary = createdMap.get('secretary@student.buksu.edu.ph');
   const panelChair = createdMap.get('panelchair@student.buksu.edu.ph');
+  const panelist2 = createdMap.get('panelist2@student.buksu.edu.ph');
+  const panelist3 = createdMap.get('panelist3@student.buksu.edu.ph');
 
   if (teamAlpha && student1) {
     student1.teamId = teamAlpha._id;
     await student1.save();
 
+    if (student4) {
+      student4.teamId = teamAlpha._id;
+      await student4.save();
+    }
+
     teamAlpha.leaderId = student1._id;
     if (!teamAlpha.members.some((m) => m.equals(student1._id))) {
       teamAlpha.members[0] = student1._id;
     }
-    if (adviser) teamAlpha.adviserId = adviser._id;
-    if (panelChair && !teamAlpha.panelistIds.some((p) => p.equals(panelChair._id))) {
-      teamAlpha.panelistIds[0] = panelChair._id;
+    if (student4 && !teamAlpha.members.some((m) => m.equals(student4._id))) {
+      if (teamAlpha.members.length < 4) {
+        teamAlpha.members.push(student4._id);
+      } else {
+        teamAlpha.members[1] = student4._id;
+      }
     }
+    if (adviser) teamAlpha.adviserId = adviser._id;
+    if (secretary) teamAlpha.secretaryId = secretary._id;
+    teamAlpha.panelistIds = [panelChair?._id, panelist2?._id, panelist3?._id].filter(Boolean);
     await teamAlpha.save();
-    console.log('✅ Team Alpha bound to student@student.buksu.edu.ph');
+    console.log('✅ Team Alpha bound to student, student4, adviser, secretary & 3 panelists');
 
     const projectAlpha = await Project.findOne({ teamId: teamAlpha._id });
     if (projectAlpha) {
       if (adviser) projectAlpha.adviserId = adviser._id;
-      if (panelChair) {
-        projectAlpha.panelists = projectAlpha.panelists || [];
-        if (projectAlpha.panelists.length > 0) {
-          projectAlpha.panelists[0].userId = panelChair._id;
-          projectAlpha.panelists[0].role = 'chair';
-        } else {
-          projectAlpha.panelists.push({ userId: panelChair._id, role: 'chair' });
-        }
-      }
+      projectAlpha.panelists = [
+        panelChair && { userId: panelChair._id, role: 'chair' },
+        panelist2 && { userId: panelist2._id, role: 'member' },
+        panelist3 && { userId: panelist3._id, role: 'member' },
+        secretary && { userId: secretary._id, role: 'secretary' },
+      ].filter(Boolean);
       await projectAlpha.save();
-      console.log('✅ Project Alpha adviser and panel chair bound.');
+      console.log('✅ Project Alpha adviser, secretary, and 3 panelists bound.');
     }
   }
 

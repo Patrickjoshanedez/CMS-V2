@@ -17,6 +17,8 @@ from indexing algorithms to async processing to browser-efficient UI rendering.
 
 ## Architecture Overview
 
+**Repository source check:** The patterns below include generic MiniLM examples. CMS-V2's current Python path is `engine.py` → `HybridSourceTracker` in `hst_pipeline.py`, with defaults in `config.py` (BGE-M3; lexical/dense/sparse weights 0.50/0.30/0.20). The separate Node scorer uses word k-grams, while Python uses character k-grams. Inspect the active configuration and worker route before documenting a formula, threshold, model, or benchmark; generic examples are not evidence of the deployed method.
+
 ```
 [user submits chapter]
         │

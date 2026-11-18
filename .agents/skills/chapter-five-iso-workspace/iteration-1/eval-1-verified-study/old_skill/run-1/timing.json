@@ -1,0 +1,6 @@
+{
+  "total_tokens": null,
+  "duration_ms": null,
+  "total_duration_seconds": null,
+  "note": "Per-run timing unavailable. Executor reported approximately 65 seconds for the entire three-case batch; excluded from per-run metrics."
+}

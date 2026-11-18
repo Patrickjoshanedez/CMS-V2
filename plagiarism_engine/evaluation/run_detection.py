@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -36,6 +37,9 @@ def get_configured_session() -> requests.Session:
         raise ImportError("The 'requests' package is required. Install via pip install requests.")
 
     session = requests.Session()
+    engine_token = os.getenv("PLAGIARISM_ENGINE_API_TOKEN", "").strip()
+    if engine_token:
+        session.headers["Authorization"] = f"Bearer {engine_token}"
     retries = Retry(
         total=5,
         backoff_factor=1.5,
@@ -47,10 +51,12 @@ def get_configured_session() -> requests.Session:
     return session
 
 
-def index_sources_if_needed(api_url: str, sources_dir: Path, session: requests.Session):
+def index_sources_if_needed(api_url: str, sources_dir: Path, session: requests.Session, *, strict: bool = False):
     """Indexes source documents into the plagiarism engine ChromaDB store via REST API."""
     source_files = list(sources_dir.glob("*.txt"))
     if not source_files:
+        if strict:
+            raise RuntimeError("No source documents found in corpus/sources.")
         return
 
     print(f"[INFO] Syncing {len(source_files)} source documents into Plagiarism Engine corpus...")
@@ -70,11 +76,19 @@ def index_sources_if_needed(api_url: str, sources_dir: Path, session: requests.S
         }
         try:
             res = session.post(f"{api_url}/index/sync", json=payload, timeout=30)
+            if strict:
+                if res.status_code != 200:
+                    raise RuntimeError(f"Indexing {doc_id} returned HTTP {res.status_code}.")
+                index_result = res.json()
+                if index_result.get("document_id") != doc_id or index_result.get("segments_indexed", 0) <= 0:
+                    raise RuntimeError(f"Indexing {doc_id} did not confirm stored segments.")
             if res.status_code in (200, 201, 202):
                 print(f"  Indexed: {doc_id}")
             else:
                 print(f"  Warning: Indexing {doc_id} returned {res.status_code}: {res.text}")
         except Exception as e:
+            if strict:
+                raise
             print(f"  Failed to index {doc_id} via HTTP: {e}")
 
 
@@ -298,10 +312,14 @@ def main():
     parser.add_argument("--api-url", default=os.getenv("PLAGIARISM_API_URL", "http://localhost:8001"), help="FastAPI server URL")
     parser.add_argument("--corpus-dir", type=Path, default=script_dir / "corpus", help="Corpus root directory")
     parser.add_argument("--results-dir", type=Path, default=script_dir / "results", help="Output directory for API JSON results")
-    parser.add_argument("--in-process", action="store_true", help="Force in-process Python execution without HTTP")
+    execution_mode = parser.add_mutually_exclusive_group()
+    execution_mode.add_argument("--in-process", action="store_true", help="Force in-process Python execution without HTTP")
+    execution_mode.add_argument("--require-hybrid-api", action="store_true", help="Require live hybrid API reports and a fresh results directory")
     args = parser.parse_args()
 
     args.results_dir.mkdir(parents=True, exist_ok=True)
+    if args.require_hybrid_api and any(args.results_dir.iterdir()):
+        parser.error("--require-hybrid-api requires an empty --results-dir.")
     sources_dir = args.corpus_dir / "sources"
     suspicious_files = sorted(list((args.corpus_dir / "suspicious").glob("*.txt")))
 
@@ -318,11 +336,15 @@ def main():
             health_check = session.get(f"{args.api_url}/health", timeout=5)
             if health_check.status_code == 200:
                 print(f"[INFO] Connected to Plagiarism Engine API at {args.api_url} (Status: 200 OK)")
-                index_sources_if_needed(args.api_url, sources_dir, session)
+                index_sources_if_needed(args.api_url, sources_dir, session, strict=args.require_hybrid_api)
             else:
+                if args.require_hybrid_api:
+                    raise RuntimeError(f"API health check returned HTTP {health_check.status_code}.")
                 print(f"[WARNING] API at {args.api_url} returned {health_check.status_code}. Falling back to in-process engine.")
                 use_http = False
         except Exception as e:
+            if args.require_hybrid_api:
+                parser.exit(1, f"[ERROR] Live hybrid API setup failed: {e}\n")
             print(f"[WARNING] Cannot connect to HTTP API at {args.api_url} ({e}). Falling back to in-process execution.")
             use_http = False
 
@@ -341,6 +363,18 @@ def main():
             else:
                 report = check_document_in_process_fallback(doc_id, text, sources_dir)
 
+            if args.require_hybrid_api:
+                scores = [report.get(field) for field in (
+                    "composite_score", "dense_score", "sparse_score", "winnowing_score"
+                )]
+                if (
+                    report.get("document_id") != doc_id
+                    or not isinstance(report.get("matches"), list)
+                    or any(type(score) not in (int, float) or not math.isfinite(score)
+                           or not 0 <= score <= 1 for score in scores)
+                ):
+                    raise ValueError("API did not return a valid hybrid report for this document.")
+
             with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2)
             success_count += 1
@@ -348,6 +382,8 @@ def main():
             print(f"  [FAIL] Error analyzing {doc_id}: {e}")
 
     print(f"[COMPLETE] Processed {success_count}/{len(suspicious_files)} documents. Results saved to {args.results_dir}/")
+    if args.require_hybrid_api and success_count != len(suspicious_files):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

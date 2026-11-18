@@ -10,10 +10,12 @@ services:
     container_name: cms-mongodb
     restart: unless-stopped
     init: true
+    command: [ "mongod", "--wiredTigerCacheSizeGB", "0.5" ]
     ports:
       - "${MONGODB_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
+    mem_limit: ${MONGODB_MEMORY_LIMIT:-1g}
     healthcheck:
       test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet" ]
       interval: 10s
@@ -29,11 +31,12 @@ services:
     container_name: cms-redis
     restart: unless-stopped
     init: true
-    command: redis-server --save "" --appendonly no
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    mem_limit: ${REDIS_MEMORY_LIMIT:-320m}
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 3s
@@ -44,96 +47,27 @@ services:
     networks:
       - cms_network
 
-  minio:
-    image: minio/minio:latest
-    container_name: cms-minio
-    restart: unless-stopped
-    init: true
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-s", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 4s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-    logging: *default-logging
-    networks:
-      - cms_network
-
-  minio-init:
-    image: minio/mc:latest
-    container_name: cms-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb myminio/cms-buksu-uploads --ignore-existing;
-      /usr/bin/mc anonymous set download myminio/cms-buksu-uploads || true;
-      exit 0;
-      "
-    logging: *default-logging
-    networks:
-      - cms_network
-
-
-  plagiarism_redis:
-    image: redis:7-alpine
-    container_name: cms-plagiarism-redis
-    restart: unless-stopped
-    init: true
-    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 3s
-      timeout: 2s
-      retries: 5
-      start_period: 2s
-    logging: *default-logging
-    networks:
-      - cms_network
-
-  plagiarism_worker:
+  cms-ocr-engine:
     build:
-      context: ./plagiarism_engine
+      context: ./ocr_engine
       dockerfile: Dockerfile
-      args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
-    container_name: cms-plagiarism-worker
+    container_name: cms-ocr-engine
     restart: unless-stopped
     init: true
-    command: >
-      celery -A plagiarism_engine.tasks.celery_app worker --loglevel=info --concurrency=${PLAGIARISM_WORKER_CONCURRENCY:-2} --max-tasks-per-child=${PLAGIARISM_MAX_TASKS_PER_CHILD:-100} --prefetch-multiplier=${PLAGIARISM_PREFETCH_MULTIPLIER:-1} --queues=plagiarism
-    volumes:
-      - plagiarism_chroma:/app/chroma_store
-      - plagiarism_models:/root/.cache/torch/sentence_transformers
-    cpus: ${PLAGIARISM_WORKER_CPUS:-2.0}
-    mem_limit: ${PLAGIARISM_WORKER_MEMORY_LIMIT:-3g}
+    ports:
+      - "8000:8000"
+    cpus: ${OCR_ENGINE_CPUS:-1.0}
+    mem_limit: ${OCR_ENGINE_MEMORY_LIMIT:-512m}
     environment:
-      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
-      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
-      CHROMA_PERSIST_DIR: /app/chroma_store
-      EMBEDDING_MODEL: all-MiniLM-L6-v2
-      EMBEDDING_DEVICE: ${PLAGIARISM_EMBEDDING_DEVICE:-auto}
-      EMBEDDING_BATCH_SIZE: ${PLAGIARISM_EMBEDDING_BATCH_SIZE:-24}
-      OMP_NUM_THREADS: ${PLAGIARISM_OMP_NUM_THREADS:-2}
-      MKL_NUM_THREADS: ${PLAGIARISM_MKL_NUM_THREADS:-2}
-      TORCH_NUM_THREADS: ${PLAGIARISM_TORCH_NUM_THREADS:-2}
       LOG_LEVEL: INFO
-    depends_on:
-      plagiarism_redis:
-        condition: service_healthy
+      HOST: 0.0.0.0
+      PORT: "8000"
     healthcheck:
-      disable: true
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     logging: *default-logging
     networks:
       - cms_network
@@ -153,14 +87,17 @@ services:
       - "127.0.0.1:8001:8001"
     volumes:
       - plagiarism_chroma:/app/chroma_store
-      - plagiarism_models:/root/.cache/torch/sentence_transformers
-    cpus: ${PLAGIARISM_API_CPUS:-1.5}
+      - plagiarism_models:/app/.cache/huggingface
+    cpus: ${PLAGIARISM_API_CPUS:-2.0}
     mem_limit: ${PLAGIARISM_API_MEMORY_LIMIT:-2g}
     environment:
-      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
-      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
+      PLAGIARISM_ASYNC_BACKEND: inprocess
+      EMBEDDING_MODEL: ${PLAGIARISM_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
       CHROMA_PERSIST_DIR: /app/chroma_store
-      EMBEDDING_DEVICE: ${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      HF_HOME: /app/.cache/huggingface
+      TORCH_HOME: /app/.cache/torch
+      ANONYMIZED_TELEMETRY: "FALSE"
+      EMBEDDING_DEVICE: ${PLAGIARISM_EMBEDDING_DEVICE:-cpu}
       EMBEDDING_BATCH_SIZE: ${PLAGIARISM_EMBEDDING_BATCH_SIZE:-24}
       OMP_NUM_THREADS: ${PLAGIARISM_OMP_NUM_THREADS:-2}
       MKL_NUM_THREADS: ${PLAGIARISM_MKL_NUM_THREADS:-2}
@@ -170,44 +107,13 @@ services:
       APP_CORS_ORIGINS: "http://localhost:43211,http://localhost:43210,http://cms-client:43211,${CLIENT_URL:-}"
       PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:-}
       LOG_LEVEL: INFO
-    depends_on:
-      plagiarism_redis:
-        condition: service_healthy
-      plagiarism_worker:
-        condition: service_started
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
-      interval: 5s
-      timeout: 4s
-      retries: 6
-      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
     logging: *default-logging
-    networks:
-      - cms_network
-
-  plagiarism_ngrok:
-    image: ngrok/ngrok:3-alpine
-    container_name: cms-plagiarism-ngrok
-    restart: unless-stopped
-    init: true
-    profiles:
-      - plagiarism-tunnel
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-      PLAGIARISM_TUNNEL_DOMAIN: ${PLAGIARISM_TUNNEL_DOMAIN:-}
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        test -n "$${NGROK_AUTHTOKEN}" || { echo "NGROK_AUTHTOKEN is required"; exit 1; }
-        if test -n "$${PLAGIARISM_TUNNEL_DOMAIN}"; then
-          exec ngrok http plagiarism_api:8001 --url="https://$${PLAGIARISM_TUNNEL_DOMAIN}" --authtoken="$${NGROK_AUTHTOKEN}" --log=stdout
-        fi
-        exec ngrok http plagiarism_api:8001 --authtoken="$${NGROK_AUTHTOKEN}" --log=stdout
-    depends_on:
-      plagiarism_api:
-        condition: service_healthy
     networks:
       - cms_network
 
@@ -224,15 +130,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
+      cms-ocr-engine:
         condition: service_healthy
       plagiarism_api:
         condition: service_healthy
+    mem_limit: ${SERVER_MEMORY_LIMIT:-1536m}
     environment:
       NODE_ENV: development
       PORT: "43210"
-      STORAGE_MODE: ${STORAGE_MODE:-s3}
-      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/app/uploads}
+      CHOKIDAR_USEPOLLING: "true"
+      STORAGE_MODE: filesystem
+      STORAGE_LOCAL_PATH: /app/uploads
       MONGODB_URI: mongodb://mongodb:27017/cms_v2
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -241,24 +149,18 @@ services:
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
       OTP_EXPIRES_MINUTES: "10"
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: cms-buksu-uploads
-      S3_REGION: us-east-1
-      S3_ACCESS_KEY_ID: minioadmin
-      S3_SECRET_ACCESS_KEY: minioadmin
-      S3_FORCE_PATH_STYLE: "true"
-      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      OCR_ENGINE_URL: http://cms-ocr-engine:8000
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
+      PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:-}
       PLAGIARISM_ENGINE_TIMEOUT: "120000"
       PLAGIARISM_WARNING_THRESHOLD: "30"
       PLAGIARISM_REJECT_THRESHOLD: "50"
       PLAGIARISM_POLL_INTERVAL: "2000"
       PLAGIARISM_POLL_MAX_ATTEMPTS: "60"
       PLAGIARISM_RESULTS_TTL: "7776000"
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
-      PLAGIARISM_OLLAMA_EMBED_MODEL: ${PLAGIARISM_OLLAMA_EMBED_MODEL:-nomic-embed-text-v2-moe:latest}
-      PDF_METADATA_GLM_MODEL: ${PDF_METADATA_GLM_MODEL:-llama3.2:3b}
-      GOTENBERG_URL: ${GOTENBERG_URL:-http://gotenberg:3000}
+      PLAGIARISM_EMBEDDING_MODEL: ${PLAGIARISM_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      OLLAMA_HOST: ""
+      GOTENBERG_URL: ""
     ports:
       - "43210:43210"
       - "5000:43210"
@@ -269,7 +171,7 @@ services:
       - server_node_modules:/app/server/node_modules
       - client_node_modules:/app/client/node_modules
       - shared_node_modules:/app/shared/node_modules
-    command: npm run dev:server
+    command: npm run dev:docker --workspace=server
     healthcheck:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:43210/api/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))" ]
       interval: 10s
@@ -292,6 +194,7 @@ services:
     depends_on:
       server:
         condition: service_healthy
+    mem_limit: ${CLIENT_MEMORY_LIMIT:-1536m}
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:43210/api}
       VITE_API_PROXY_TARGET: http://server:43210
@@ -315,107 +218,11 @@ services:
     networks:
       - cms_network
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cms-ollama
-    restart: unless-stopped
-    init: true
-    ports:
-      - "11434:11434"
-    entrypoint:
-      - /bin/bash
-      - /entrypoint.sh
-    volumes:
-      - ollama_data:/root/.ollama
-      - ./entrypoint.sh:/entrypoint.sh
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 15s
-    logging: *default-logging
-    networks:
-      - cms_network
-
-  gotenberg:
-    image: gotenberg/gotenberg:8
-    container_name: cms-gotenberg
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    logging: *default-logging
-    networks:
-      - cms_network
-
-  ngrok:
-    build:
-      context: ./docker
-      dockerfile: Dockerfile.ngrok
-    image: cms-v2-ngrok
-    container_name: cms-ngrok-dev
-    restart: unless-stopped
-    init: true
-    profiles:
-      - tunnel
-      - ngrok
-    env_file:
-      - path: .env
-        required: false
-      - path: .env.deploy
-        required: false
-      - path: .env.prod
-        required: false
-    environment:
-      NGROK_DOMAIN: ${NGROK_DOMAIN:-furuncular-shavonda-unprevalently.ngrok-free.dev}
-      NGROK_TARGET: ${NGROK_TARGET:-client:43211}
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        if [ -z "$${NGROK_AUTHTOKEN}" ]; then
-          echo "================================================================================"
-          echo "[CMS-V2 NGROK] NGROK_AUTHTOKEN is required but not configured!"
-          echo "1. Get your free token at: https://dashboard.ngrok.com/get-started/your-authtoken"
-          echo "2. Add it to your root .env file:"
-          echo "   NGROK_AUTHTOKEN=your_actual_authtoken_here"
-          echo "3. Restart the tunnel container:"
-          echo "   npm run docker:tunnel"
-          echo "================================================================================"
-          sleep 60
-          exit 1
-        fi
-        TARGET="$${NGROK_TARGET:-client:43211}"
-        CLEAN_DOMAIN="$$(printf '%s' "$${NGROK_DOMAIN}" | sed -e 's|^https\?://||' -e 's|/*$$||')"
-        if [ -n "$$CLEAN_DOMAIN" ]; then
-          echo "Starting ngrok tunnel pointing to $$TARGET with domain $$CLEAN_DOMAIN..."
-          exec ngrok http "$$TARGET" --url="https://$$CLEAN_DOMAIN" --authtoken="$${NGROK_AUTHTOKEN}" --config=/etc/ngrok/ngrok.yml --log=stdout
-        else
-          echo "Starting ngrok tunnel pointing to $$TARGET..."
-          exec ngrok http "$$TARGET" --authtoken="$${NGROK_AUTHTOKEN}" --config=/etc/ngrok/ngrok.yml --log=stdout
-        fi
-    ports:
-      - "4040:4040"
-    networks:
-      - cms_network
-
 volumes:
   mongodb_data:
   redis_data:
-  minio_data:
-    driver: local
   plagiarism_chroma:
-    driver: local
   plagiarism_models:
-    driver: local
-  ollama_data:
     driver: local
   workspace_node_modules:
   server_node_modules:

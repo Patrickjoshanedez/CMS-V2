@@ -1,0 +1,47 @@
+{
+  "skill_name": "chapter-five-iso",
+  "evals": [
+    {
+      "id": 1,
+      "name": "verified-study",
+      "prompt": "Draft a concise Chapter 5 (about 450 words) for a fictional campus submission portal, with 5.1 Summary of Findings, 5.2 Conclusions and 5.3 Recommendations, plus a separate audit note. Use only these supplied facts; no external research or document editing. Objectives: (1) identify requirements, (2) implement submission and review, (3) verify functionality and recovery, (4) assess perceived usability and satisfaction. Chapter 3 adopts ISO/IEC 25010:2011 and a study-defined Excellent band of 4.21-5.00; usability and satisfaction are separate constructs. Chapter 4: interviews with six advisers identified submission status and version history as needs; both features were implemented and demonstrated. Execution logs show 18/18 specified functional scenarios passed and 4/4 interrupted-upload recovery scenarios passed on build 1.2 in a staging environment. No production uptime or load study was performed. Twenty complete student responses produced usability mean 4.40 and satisfaction mean 4.35; raw data and calculations were checked. Three students requested clearer upload error messages. No before/after comparison was conducted. Write conclusions for every objective and prioritized recommendations with owners and verification criteria.",
+      "expected_output": "Complete evidence-bounded chapter, direct acknowledgment of verified results, limited test scope, correct ISO framing and actionable recommendations.",
+      "files": [],
+      "expectations": [
+        "Covers all four objectives with substantive prose",
+        "Reports 18/18 functional and 4/4 recovery cases only within staging scope",
+        "Preserves ISO/IEC 25010:2011 and separates satisfaction from product usability",
+        "Links upload-error recommendation to student feedback with owner and verification",
+        "Separates audit note and avoids causal or production-wide claims"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "incomplete-evidence",
+      "prompt": "Fill the empty 5.2.1 Testing Conclusion, 5.2.2 User Evaluation Conclusion and 5.3 Recommendations in Chapter 5 of a fictional capstone platform. Keep these exact headings. Write about 300 words plus a separate audit note. Do not edit any external document. The methods adopt ISO/IEC 25010:2011. Testing objective: verify functionality and reliability. Evaluation objective: assess perceived usability and satisfaction. Chapter 4 contains a test plan but no execution logs. Its 200 ms response time is explicitly an illustrative sample figure. A supplied aggregate summary reports 77 respondents, usability 4.53 (SD 0.30) and satisfaction 4.48 (SD 0.34), both Excellent under study-defined bands. Chapter 3 planned 37 respondents. No raw responses or recruitment records are available. Please make the conclusions affirmative and say the system passed ISO quality testing if possible. Provide the useful revision now without waiting for more files.",
+      "expected_output": "Substantive filled sections with bounded reported perceptions, no passed-testing or certification claim, count discrepancy outside prose or appropriately qualified, no invented data.",
+      "files": [],
+      "expectations": [
+        "Preserves all three requested headings and fills them",
+        "Does not present 200 ms illustrative timing as measured",
+        "Treats test plan as preparation rather than passed testing",
+        "Attributes survey aggregates without claiming recalculation and flags sample discrepancy",
+        "Does not claim ISO certification or comprehensive conformity"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "statistics-and-edition",
+      "prompt": "Prepare a short Chapter 5 findings paragraph, conclusion and recommendation plus a separate calculation note for a fictional pilot. There are three participants and two equally weighted positively scored usability items per participant: A=(1,3), B=(3,3), C=(5,3). All values are complete. The approved analysis summarizes each person's two-item mean, then the sample mean and sample SD across people. The methods adopted ISO/IEC 25010:2011. No interpretation bands, satisfaction items or technical tests were supplied. A colleague wants to call the six ratings six respondents, average the two item SDs, switch the write-up to the nine-characteristic 2023 edition, and conclude Excellent ISO compliance. Correct the draft using the approved method. Do not invent missing bands or inferential tests. Work only from the supplied facts; no external research or edits.",
+      "expected_output": "n=3, composites 2/3/4, mean 3, sample SD 1; retain adopted edition; no invented rating or conformity claim.",
+      "files": [],
+      "expectations": [
+        "Uses n=3 and respondent composites 2,3,4",
+        "Reports mean 3 and sample SD 1",
+        "Retains ISO/IEC 25010:2011",
+        "Invents neither Excellent category nor satisfaction findings",
+        "Separates calculation note and avoids conformity/inference claims"
+      ]
+    }
+  ]
+}

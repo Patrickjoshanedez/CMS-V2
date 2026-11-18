@@ -1,0 +1,223 @@
+{
+  "version": "1.0.0",
+  "roles": ["student", "instructor", "faculty"],
+  "facultyAppointments": ["adviser", "panelist", "secretary", "chair"],
+  "pages": [
+    {
+      "route": "/dashboard",
+      "component": "client/src/pages/dashboard/DashboardPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard", "SectionHeader"],
+      "notes": "Delegates role dashboards cleanly via KPICards, InstructorDashboard, and FacultyDashboard."
+    },
+    {
+      "route": "/teams",
+      "aliases": ["/team", "/teams/invites/:token/:action"],
+      "component": "client/src/pages/teams/TeamsPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard", "FilterToolbar"],
+      "notes": "StudentTeamDetail uses <h2> team summary card so /teams keeps a single <h1>."
+    },
+    {
+      "route": "/project",
+      "aliases": ["/my-project"],
+      "component": "client/src/pages/projects/MyProjectPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader"],
+      "notes": "Capstone 1-4 tabbed workflow workspace with ProjectDetailsModal."
+    },
+    {
+      "route": "/project/create",
+      "component": "client/src/pages/projects/CreateProjectPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader"],
+      "notes": "1-10 title proposal studio inside max-w-7xl with Save Draft and Submit CTA."
+    },
+    {
+      "route": "/project/approval",
+      "component": "client/src/pages/projects/TitleApprovalPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader"],
+      "notes": "Phase 1 proposal status, pitch deck rehearsal carousel, and approval reveal."
+    },
+    {
+      "route": "/project/submissions",
+      "component": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard"],
+      "notes": "Manages chapters 1-5, Gantt roadmap, ADM tabs, and archive links."
+    },
+    {
+      "route": "/project/submissions/upload",
+      "component": "client/src/pages/submissions/ChapterUploadPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/project/proposal",
+      "component": "client/src/pages/submissions/ProposalCompilationPage.jsx",
+      "roles": ["student"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/project/submissions/:submissionId",
+      "aliases": ["/submissions/:submissionId"],
+      "component": "client/src/pages/submissions/SubmissionDetailPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["SophisticatedDocumentViewer"],
+      "notes": "Aligned on DashboardLayout max-w-7xl."
+    },
+    {
+      "route": "/project/submissions/:submissionId/review",
+      "aliases": ["/submissions/:submissionId/review"],
+      "component": "client/src/pages/submissions/SubmissionReviewPage.jsx",
+      "roles": ["instructor", "faculty"],
+      "primitives": ["SophisticatedDocumentViewer"],
+      "notes": "Embedded SophisticatedDocumentViewer + committee decision moderation."
+    },
+    {
+      "route": "/project/submissions/:submissionId/plagiarism-report",
+      "aliases": [
+        "/submissions/:submissionId/plagiarism-report",
+        "/submissions/:submissionId/plagiarism"
+      ],
+      "component": "client/src/pages/submissions/PlagiarismReportPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader", "SophisticatedDocumentViewer"],
+      "notes": "Unified PageHeader + full-width layout inside max-w-7xl; embedded cover sheet article preserves document title semantics."
+    },
+    {
+      "route": "/projects",
+      "component": "client/src/pages/projects/ProjectsPage.jsx",
+      "roles": ["instructor", "faculty"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard", "FilterToolbar"]
+    },
+    {
+      "route": "/projects/:id",
+      "component": "client/src/pages/projects/ProjectDetailPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["SophisticatedDocumentViewer"]
+    },
+    {
+      "route": "/projects/:projectId/documents/:docIdOrType",
+      "component": "client/src/pages/documents/DocumentEditorPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/projects/:projectId/certificate",
+      "component": "client/src/pages/projects/CertificatePage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader", "SophisticatedDocumentViewer"]
+    },
+    {
+      "route": "/adviser/team-review",
+      "component": "client/src/pages/adviser/TeamReviewWorkflowPage.jsx",
+      "roles": ["faculty"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard"]
+    },
+    {
+      "route": "/secretary-review",
+      "aliases": ["/secretary/review"],
+      "component": "client/src/pages/projects/SecretaryReviewPage.jsx",
+      "roles": ["faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/committee-assignments",
+      "aliases": ["/committee"],
+      "component": "client/src/pages/instructor/CommitteeAssignmentsPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader", "FilterToolbar"],
+      "notes": "Implemented via TeamCommitteeAssignmentsView inside DashboardLayout max-w-7xl."
+    },
+    {
+      "route": "/scheduling-center",
+      "aliases": [
+        "/scheduling",
+        "/defense-schedule",
+        "/instructor/defense-schedule",
+        "/defense-scheduling"
+      ],
+      "component": "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard"]
+    },
+    {
+      "route": "/users",
+      "aliases": ["/admin/users"],
+      "component": "client/src/pages/users/UsersPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/reports",
+      "component": "client/src/pages/reports/ReportsPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader"],
+      "notes": "Print-only header demoted to <h2> with semantic tokens + print:text-black."
+    },
+    {
+      "route": "/admin/audit",
+      "aliases": ["/admin/audit-log"],
+      "component": "client/src/pages/admin/AuditLogPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader", "MetricGrid", "StatCard"]
+    },
+    {
+      "route": "/admin/evaluation-templates",
+      "component": "client/src/pages/admin/EvaluationTemplateBuilderPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/documents/manuscripts",
+      "aliases": ["/documents/templates"],
+      "component": "client/src/pages/documents/TemplateManagementPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/archive",
+      "component": "client/src/pages/archive/ArchiveSearchPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/archive/upload/capstone",
+      "aliases": [
+        "/archive/upload/academic-paper",
+        "/archive/upload/academic-journal",
+        "/reports/bulk-upload"
+      ],
+      "component": "client/src/pages/archive/ExistingCapstoneUploadPage.jsx",
+      "roles": ["instructor"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/plagiarism-checker",
+      "aliases": ["/plagiarism", "/archive/plagiarism"],
+      "component": "client/src/pages/plagiarism/ArchivePlagiarismCheckerPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/notifications",
+      "component": "client/src/pages/notifications/NotificationsPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader", "FilterToolbar"]
+    },
+    {
+      "route": "/profile",
+      "component": "client/src/pages/profile/ProfilePage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    },
+    {
+      "route": "/settings",
+      "component": "client/src/pages/settings/SettingsPage.jsx",
+      "roles": ["student", "instructor", "faculty"],
+      "primitives": ["PageHeader"]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-11-18_gdocs-api-specification-insertion",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Inserted publication-ready API Specification into the BukSU CMS-V2 manuscript Google Doc (19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw): expanded Section 3.3.2 API Endpoint Specification overview paragraph (printed pp. 47-48), added Appendix D (printed pp. 207-220 / PDF pp. 221-234) with D.1 Architectural Overview, D.2 Request-Response Lifecycle (Figure D.1 diagram rendered via Playwright/Mermaid at docs/diagrams/api-request-response-lifecycle.png), D.3 Core Endpoints Reference (96x5 pinned-header Table D.1 covering 9 modules), D.4 Sample Request & Response Payloads (Listings D.1-D.3), and appended matching entries to Table of Contents, List of Tables, and List of Figures.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "artifacts_modified": [
+    "docs/diagrams/api-request-response-lifecycle.mmd",
+    "docs/diagrams/api-request-response-lifecycle.svg",
+    "docs/diagrams/api-request-response-lifecycle.png",
+    ".agents/skills/gdocs-academic-editor/SKILL.md"
+  ],
+  "skills_used": [
+    "gdocs",
+    "gdocs-academic-editor",
+    "mermaid-diagrams",
+    "diagram-maker",
+    "senior-backend",
+    "ptss",
+    "skill-write-or-patch"
+  ],
+  "verified": [
+    "npm run check:endpoints -> SERVER_ENDPOINT_COUNT=229, CLIENT_ENDPOINT_COUNT=209, UNMATCHED_COUNT=0",
+    "gdocs readonly export scratch/after_final.pdf (234 PDF pages): Section 3.3.2 API Endpoint Specification on printed pp. 47-48 (PDF pp. 61-62); Appendix D on printed pp. 207-220 (PDF pp. 221-234); Figure D.1 on p. 208; Table D.1 on pp. 209-216; D.4 & Listings D.1-D.3 on pp. 216-220",
+    "gdocs readonly structure & list-images: 111 total inline images (including kix.ctz606czlgtw for Figure D.1), Appendix C intact before Appendix D, zero split code boxes or orphan Listing headings, TOC/List of Tables/List of Figures rows aligned in Times New Roman 11pt"
+  ],
+  "lessons_learned": [
+    "Lesson learned: Google Docs NORMAL_TEXT default 36 PT indentFirstLine shifts centered Figure/Table captions and indents flush-left code Listing titles unless indentFirstLine, indentStart, and indentEnd are explicitly set to 0 PT; insert-table adds a 1-char spacer paragraph before the table that breaks keepWithNext and cannot be deleted across the table boundary—copy the caption paragraphStyle onto the spacer paragraph and delete the caption's trailing newline [ei_a-1..ei_a] instead.",
+    "Prevention runbook/checklist: Apply updateTableRowStyle (preventOverflow: true) on multi-page reference tables and 1x1 code boxes, size Method columns >= 48 PT so DELETE fits on one line, dump fresh document body JSON immediately before raw index batches, and locate targets dynamically by content rather than hardcoded body offsets."
+  ]
+}

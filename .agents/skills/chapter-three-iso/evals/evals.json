@@ -1,0 +1,17 @@
+{
+  "skill_name": "chapter-three-iso",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Revise and expand this Chapter 3 excerpt: 'Agile is our research design. We will survey 37 people. We surveyed 77 people. ISO requires a mean of 4.21 to pass. All tests passed.' Available facts: developmental-evaluative study, iterative development, instrument explicitly adapted from ISO/IEC 25010:2011, no recruitment ledger or execution logs supplied. Give usable replacement prose and a separate missing-evidence checklist; do not invent completed work.",
+      "expected_output": "Separates design and development, preserves 2011, removes ISO threshold attribution and test-pass claim, flags incompatible counts, and delivers supported prose plus specific gaps.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Expand our proposed technical evaluation method for CMS-V2. We need to test chapter-upload authorization, interrupted uploads, and similarity detection. No acceptance thresholds, labeled corpus, workload, or ethics approval has been set. Write the method and identify decisions still required. Treat 29119-3:2021 as documentation guidance, not certification.",
+      "expected_output": "Gives reproducible planned procedures with inputs, conditions, expected/actual separation and record fields; identifies missing criteria/corpus/workload; invents no approvals or outcomes.",
+      "files": []
+    }
+  ]
+}

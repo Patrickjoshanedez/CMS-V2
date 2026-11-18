@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>CMS — Capstone Management System</title>
     <!-- Google Fonts Preconnect and Non-blocking Stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -29,8 +30,10 @@
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (isDark) {
             document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
           } else {
             document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
           }
         } catch (e) {}
       })();

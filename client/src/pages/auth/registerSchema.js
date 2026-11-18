@@ -1,8 +1,14 @@
 import { z } from 'zod';
-import { studentEmailSchema, passwordSchema } from '@cms/shared';
+import {
+  STRICT_EMAIL_REGEX,
+  isBuksuInstitutionalEmail,
+  isBuksuStudentEmail,
+  passwordSchema,
+} from '@cms/shared';
 
 export const registerSchema = z
   .object({
+    role: z.enum(['student', 'faculty']).default('student'),
     firstName: z
       .string()
       .trim()
@@ -19,14 +25,43 @@ export const registerSchema = z
       .trim()
       .min(2, 'Last name must be at least 2 characters.')
       .max(50, 'Last name must not exceed 50 characters.'),
-    email: studentEmailSchema,
+    email: z
+      .string()
+      .trim()
+      .email('Please enter a valid email address.')
+      .regex(STRICT_EMAIL_REGEX, 'Please enter a valid email address.')
+      .toLowerCase(),
     studentId: z
       .string({ required_error: 'Student ID no. is required.' })
       .trim()
-      .min(1, 'Student ID no. is required.')
-      .max(32, 'Student ID must not exceed 32 characters.'),
+      .max(32, 'Student ID must not exceed 32 characters.')
+      .optional()
+      .default(''),
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password.'),
+  })
+  .superRefine((data, ctx) => {
+    const student = data.role === 'student';
+    if (
+      student
+        ? !isBuksuStudentEmail(data.email)
+        : !isBuksuInstitutionalEmail(data.email) || isBuksuStudentEmail(data.email)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: student
+          ? 'Student registration requires a @student.buksu.edu.ph email address.'
+          : 'Faculty registration requires a @buksu.edu.ph email address.',
+      });
+    }
+    if (student && !data.studentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['studentId'],
+        message: 'Student ID no. is required.',
+      });
+    }
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match.',

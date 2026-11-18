@@ -10,8 +10,10 @@ import pino from 'pino';
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 export class DocumentConversionService {
-  constructor(gotenbergUrl = process.env.GOTENBERG_URL || 'http://localhost:3000') {
-    this.gotenbergUrl = gotenbergUrl.replace(/\/+$/, '');
+  constructor(gotenbergUrl = process.env.GOTENBERG_URL ?? '') {
+    this.gotenbergUrl = String(gotenbergUrl || '')
+      .trim()
+      .replace(/\/+$/, '');
   }
 
   /**
@@ -20,6 +22,10 @@ export class DocumentConversionService {
    * @returns {Promise<boolean>}
    */
   async isAvailable() {
+    if (!this.gotenbergUrl) {
+      return false;
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -41,6 +47,10 @@ export class DocumentConversionService {
    * @returns {Promise<Buffer>} Converted PDF binary buffer.
    */
   async convertDocxToPdf(docxBuffer, filename = 'document.docx') {
+    if (!this.gotenbergUrl) {
+      throw new Error('Gotenberg conversion is disabled (GOTENBERG_URL unset).');
+    }
+
     if (!docxBuffer || (Buffer.isBuffer(docxBuffer) && docxBuffer.length === 0)) {
       throw new Error('DOCX buffer is empty or invalid.');
     }

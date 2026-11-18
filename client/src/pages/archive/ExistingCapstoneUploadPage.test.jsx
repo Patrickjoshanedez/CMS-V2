@@ -30,6 +30,18 @@ vi.mock('@/hooks/useAcademics', () => ({
     data: ['2025-2026', '2024-2025', '2023-2024'],
     isLoading: false,
   }),
+  useCourses: () => ({
+    data: [
+      { _id: 'course-bsit', code: 'BSIT', name: 'BS Information Technology', isActive: true },
+      {
+        _id: 'course-bsemc',
+        code: 'BSEMC',
+        name: 'BS Entertainment and Multimedia Computing',
+        isActive: true,
+      },
+    ],
+    isLoading: false,
+  }),
 }));
 
 const mockUser = { role: 'instructor', name: 'Rozanne Tuesday Flores' };
@@ -150,8 +162,9 @@ describe('ExistingCapstoneUploadPage', () => {
     expect(container.textContent).toContain('Back to Archive');
     expect(container.textContent).toContain('Browse Archive');
     expect(container.textContent).toContain('Document Bundle');
-    expect(container.textContent).toContain('Academic Paper (PDF)');
-    expect(container.textContent).toContain('Academic Journal (PDF)');
+    expect(container.textContent).toContain('Academic Paper (PDF / DOCX)');
+    expect(container.textContent).toContain('Academic Journal (PDF / DOCX)');
+    expect(container.textContent).toContain('Academic Program');
     expect(container.textContent).toContain('Verify Metadata');
   });
 
@@ -572,5 +585,81 @@ describe('ExistingCapstoneUploadPage', () => {
     });
 
     expect(container.textContent).toContain('No academic paper selected yet.');
+  });
+
+  it('supports .docx metadata extraction, sends default courseId, and rejects legacy .doc files', async () => {
+    const { toast } = await import('sonner');
+
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const legacyDoc = new File(['legacy'], 'legacy-paper.doc', {
+      type: 'application/msword',
+    });
+
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [legacyDoc],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('Legacy .doc files are not supported'),
+    );
+    expect(mockExtractPdfMetadata).not.toHaveBeenCalled();
+
+    const docxFile = new File(['PK-docx'], 'IoT_Based_Accident_Detection.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    mockExtractPdfMetadata.mockResolvedValueOnce({
+      metadata: {
+        title: 'IoT-Based Accident Detection and Emergency Alert System',
+        abstract: 'Automated accident detection with GPS and GSM telemetry.',
+        authors: 'Juan Dela Cruz',
+        year: '2020',
+        doi: '',
+        venue: '',
+        keywords: 'IoT, Accident Detection, Smart Vehicles',
+      },
+      confidence: { title: 90, abstract: 85, year: 95 },
+    });
+
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [docxFile],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(mockExtractPdfMetadata).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('IoT_Based_Accident_Detection.docx');
+    expect(container.querySelector('#academicYear').textContent).toContain('2020-2021');
+
+    mockBulkUploadArchive.mockResolvedValueOnce({
+      project: { _id: 'proj-docx-01' },
+    });
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Upload Archived Capstone Bundle'),
+    );
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockBulkUploadArchive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        courseId: 'course-bsit',
+        academicYear: '2020-2021',
+        academicPaperFile: docxFile,
+      }),
+    );
   });
 });

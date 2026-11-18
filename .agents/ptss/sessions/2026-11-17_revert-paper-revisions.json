@@ -1,0 +1,8 @@
+{
+  "session_id": "2026-11-17_revert-paper-revisions",
+  "date": "2026-11-17",
+  "task_summary": "Moved the created refined manuscript to Google Drive bin and returned the user to the original manuscript.",
+  "verification_status": "passed",
+  "verification_notes": "Original revision ID matches the initial snapshot. Google Docs confirmed File moved to bin for the revised copy. Local figure sources are historical and superseded.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit"
+}

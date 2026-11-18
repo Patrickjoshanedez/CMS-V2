@@ -1,0 +1,22 @@
+{
+  "session_id": "2026-11-18_full-manuscript-consistency-audit",
+  "date": "2026-11-18",
+  "task_summary": "Read all manuscript chapters, tables, front matter, references and appendix; compared statistician-verified Result-Stat.docx; saved 29 findings without editing the live manuscript.",
+  "verification_status": "audit-complete-repairs-pending",
+  "statistical_authority": "User confirms Result-Stat.docx was verified by statistician; 71 students plus 6 Faculty/Instructor combined; n=77",
+  "verified": [
+    "20 item means and 20 item SDs match",
+    "Overall usability 4.53 SD0.30 and satisfaction 4.48 SD0.34 match",
+    "34 native tables and 34 Chapter 4 screenshot captions"
+  ],
+  "limitations": [
+    "No full-image/pagination inspection",
+    "No application execution",
+    "No raw response recalculation",
+    "Bibliography primary-source spot checks only"
+  ],
+  "report": "docs/specs/manuscript-consistency-audit-2026-11-18.md",
+  "lessons_learned": [
+    "Lesson learned: preserve statistician-source demographic aggregation and check native equation objects before classifying extracted gaps. Prevention runbook/checklist: verify full range endpoints after numbering changes."
+  ]
+}

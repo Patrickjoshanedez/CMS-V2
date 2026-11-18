@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/Progress';
 import { Spinner } from '@/components/ui/Spinner';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
+import { PageHeader, MetricGrid, StatCard } from '@/components/common';
 import {
   Plus,
   Users,
@@ -28,6 +29,7 @@ import {
   ArrowUpRight,
   Clock,
   ExternalLink,
+  GitBranch,
 } from 'lucide-react';
 
 export const VIEW_MODES = {
@@ -77,65 +79,31 @@ function isArchivedRecord(item) {
   return item.isArchived === true || statusCandidates.includes('archived');
 }
 
-// Compact metric card with tabular numbers and clean design tokens
-function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
-  const tones = {
-    default: 'bg-card text-foreground border-border/60 hover:border-border',
-    accent: 'bg-primary/5 text-primary border-primary/25 hover:border-primary/40',
-    warning: 'bg-warning/5 text-warning-foreground border-warning/25 hover:border-warning/40',
-    success: 'bg-success/5 text-success-foreground border-success/25 hover:border-success/40',
-    info: 'bg-info/5 text-info-foreground border-info/25 hover:border-info/40',
-  };
-
-  return (
-    <div
-      className={cn(
-        'flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-colors',
-        tones[tone] || tones.default,
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/80 shadow-2xs">
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-      <div>
-        <span className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// List card container with balanced padding and custom scrollbar
+// List card container with balanced padding and hairline dividers
 function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem, action }) {
   return (
-    <Card className="flex flex-col rounded-xl border border-border/60 bg-card shadow-xs">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {Icon && (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon className="h-4 w-4" />
-            </div>
-          )}
-          <CardTitle className="text-base font-bold text-foreground">{title}</CardTitle>
+    <Card className="flex flex-col">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border/60 px-5 py-4">
+        <div className="flex min-w-0 items-center gap-2">
+          {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+          <CardTitle className="text-base font-semibold text-foreground">{title}</CardTitle>
         </div>
-        {items.length > 0 && (
-          <Badge variant="outline" className="font-mono text-[11px] tabular-nums">
-            {items.length}
-          </Badge>
-        )}
-        {action}
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <Badge variant="outline" className="text-[11px] tabular-nums">
+              {items.length}
+            </Badge>
+          )}
+          {action}
+        </div>
       </CardHeader>
-      <CardContent className="min-w-0 flex-1 p-4 xl:max-h-[480px] xl:overflow-y-auto custom-scrollbar">
+      <CardContent className="min-w-0 flex-1 p-0 xl:max-h-[480px] xl:overflow-y-auto custom-scrollbar">
         {items.length === 0 ? (
-          <div className="flex px-4 py-8 text-xs text-muted-foreground justify-center text-center">
+          <div className="flex px-5 py-8 text-xs text-muted-foreground justify-center text-center">
             {emptyState}
           </div>
         ) : (
-          <div className="flex flex-col space-y-2.5">
+          <div className="divide-y divide-border/70">
             {items.map((item, idx) => (
               <div key={item._id || idx} className="transition-colors">
                 {renderItem(item, idx)}
@@ -319,66 +287,59 @@ export default function FacultyDashboard({ user }) {
   }
 
   return (
-    <div className="min-w-0 space-y-6 lg:space-y-8">
-      {/* Top Header & Tabs - Linear-Grade Command Bar */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Faculty Overview
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Review assigned teams, submissions, and committee work.
-          </p>
-        </div>
-        <div
-          role="group"
-          aria-label="Committee role"
-          className="grid grid-cols-3 rounded-lg border border-border/60 bg-muted/30 p-1 gap-1 xl:shrink-0"
-        >
-          {FACULTY_VIEW_TABS.map((tab) => {
-            const isActive = mode === tab.mode;
-            return (
-              <Button
-                key={tab.mode}
-                type="button"
-                variant={isActive ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setMode(tab.mode)}
-                aria-pressed={isActive}
-                className="min-h-11 px-2 py-2 text-xs font-semibold sm:px-3.5 sm:text-sm"
-              >
-                {tab.label}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+    <div className="min-w-0 space-y-6">
+      <PageHeader
+        eyebrow="Faculty Workspace"
+        title="Faculty Overview"
+        description="Review assigned teams, submissions, and committee work."
+        actions={
+          <div
+            role="group"
+            aria-label="Committee role"
+            className="grid grid-cols-3 rounded-lg border border-border bg-muted/40 p-1 gap-1"
+          >
+            {FACULTY_VIEW_TABS.map((tab) => {
+              const isActive = mode === tab.mode;
+              return (
+                <Button
+                  key={tab.mode}
+                  type="button"
+                  variant={isActive ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setMode(tab.mode)}
+                  aria-pressed={isActive}
+                  className="min-h-10 px-2.5 py-1.5 text-xs font-medium sm:px-3.5 sm:text-sm"
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+        }
+      />
 
-      {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
+      {/* Top-Positioned Submission & Roster Status Banner */}
       <div
         className={cn(
-          'flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 shadow-xs transition-colors',
+          'flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-colors',
           isPeriodLocked
-            ? 'border-destructive/40 bg-destructive/10 text-destructive'
-            : 'border-success/40 bg-success/10 text-success-foreground',
+            ? 'border-destructive/35 bg-destructive/10 text-destructive-text'
+            : 'border-success/35 bg-success/10 text-success-foreground',
         )}
       >
         <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-primary-foreground shadow-2xs',
-              isPeriodLocked ? 'bg-destructive' : 'bg-success',
-            )}
-          >
-            {isPeriodLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </div>
+          {isPeriodLocked ? (
+            <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+          ) : (
+            <Unlock className="h-4 w-4 shrink-0" aria-hidden="true" />
+          )}
           <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-xs font-semibold uppercase tracking-wider">
               {isPeriodLocked
                 ? 'Team Rosters & Submissions: Locked'
                 : 'Submission & Group Formation: Active'}
             </span>
-            <span className="text-[11px] opacity-85">
+            <span className="text-xs opacity-90">
               {isPeriodLocked
                 ? 'Modifications and team roster changes are restricted by faculty administration.'
                 : 'Students may form groups (1-4 members) and submit manuscript deliverables for panel evaluation.'}
@@ -387,29 +348,91 @@ export default function FacultyDashboard({ user }) {
         </div>
         <Badge
           variant={isPeriodLocked ? 'destructive' : 'success'}
-          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+          className="text-[10px] font-semibold uppercase tracking-wider"
         >
           {isPeriodLocked ? 'Locked' : 'Open'}
         </Badge>
       </div>
 
+      {/* Plain-Language Faculty Role Guide & Quick-Jump Bar */}
+      <div
+        data-testid="faculty-role-guide-bar"
+        className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xs"
+      >
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Committee Role Guide (
+            {FACULTY_VIEW_TABS.find((t) => t.mode === mode)?.label || 'Faculty'})
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {mode === VIEW_MODES.ADVISER &&
+              'Check pending chapter uploads below, leave comments inside the document reader, and track advisee consultations.'}
+            {mode === VIEW_MODES.PANELIST &&
+              'Select an assigned capstone team below to inspect manuscripts, check originality scores, and complete your scoring rubric.'}
+            {mode === VIEW_MODES.SECRETARY &&
+              'Record official defense minutes, publish action directives to the ADM matrix, and complete Phase 4 verification sign-off.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === VIEW_MODES.ADVISER ? 'default' : 'outline'}
+            onClick={() => navigate('/adviser/team-review')}
+            className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+          >
+            <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Open Adviser Queue</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === VIEW_MODES.PANELIST ? 'default' : 'outline'}
+            onClick={() => navigate('/projects')}
+            className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+          >
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Browse Assigned Projects</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === VIEW_MODES.SECRETARY ? 'default' : 'outline'}
+            onClick={() => navigate('/secretary-review')}
+            className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+          >
+            <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Open Secretary Studio</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => navigate('/archive')}
+            className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+          >
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Search Repository Archive</span>
+          </Button>
+        </div>
+      </div>
+
       {mode === VIEW_MODES.ADVISER && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          {/* Micro-Stat Grid for Adviser - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
-            <MicroStat
+          <MetricGrid cols={4}>
+            <StatCard
               icon={Users}
               label="Handled Teams"
               value={assignedProjects.length}
-              tone="accent"
+              tone="primary"
             />
-            <MicroStat
+            <StatCard
               icon={ClipboardCheck}
               label="Pending Reviews"
               value={pendingReviews.length}
               tone={pendingReviews.length > 0 ? 'warning' : 'default'}
             />
-            <MicroStat
+            <StatCard
               icon={Activity}
               label="Active Projects"
               value={
@@ -417,15 +440,15 @@ export default function FacultyDashboard({ user }) {
                   ? counts.activeProjects
                   : assignedProjects.filter((p) => p.projectStatus !== 'archived').length
               }
-              tone="info"
+              tone="primary"
             />
-            <MicroStat
+            <StatCard
               icon={Bell}
               label="Notifications"
               value={ds.recentNotifications?.length ?? 0}
               tone={ds.unreadNotifications > 0 ? 'warning' : 'default'}
             />
-          </div>
+          </MetricGrid>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 items-start">
             <div className="min-w-0 xl:col-span-7 space-y-6">
@@ -438,10 +461,10 @@ export default function FacultyDashboard({ user }) {
                   const isSelected = selectedTeam ? selectedTeam._id === p._id : idx === 0;
                   return (
                     <div
-                      className={`flex flex-col gap-2 cursor-pointer p-2.5 rounded-lg border transition-all ${
+                      className={`flex flex-col gap-2 cursor-pointer px-5 py-3.5 transition-colors ${
                         isSelected
-                          ? 'bg-primary/10 border-primary/40 shadow-xs ring-1 ring-primary/20'
-                          : 'border-transparent hover:bg-muted/20'
+                          ? 'bg-primary/[0.06] border-l-2 border-l-primary'
+                          : 'hover:bg-muted/30'
                       }`}
                       onClick={() => setSelectedTeam(p)}
                     >
@@ -480,10 +503,12 @@ export default function FacultyDashboard({ user }) {
                             href={p.githubUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            📦 GitHub Repo ↗
+                            <GitBranch className="h-3 w-3" aria-hidden="true" />
+                            GitHub Repo
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
                           </a>
                         )}
                         {p.googleDocUrl && (
@@ -491,10 +516,12 @@ export default function FacultyDashboard({ user }) {
                             href={p.googleDocUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            📄 Google Doc ↗
+                            <FileText className="h-3 w-3" aria-hidden="true" />
+                            Google Doc
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
                           </a>
                         )}
                       </div>
@@ -534,7 +561,7 @@ export default function FacultyDashboard({ user }) {
                   return (
                     <div
                       key={r._id}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-lg border border-border/70 bg-card hover:bg-muted/30 transition-all cursor-pointer"
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer"
                       onClick={() =>
                         navigate(reviewDest, {
                           state: { from: `/projects/${targetProjectId}?tab=capstone_2` },
@@ -707,9 +734,11 @@ export default function FacultyDashboard({ user }) {
                                   href={activeTeam.googleDocUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-primary hover:underline font-semibold inline-flex items-center gap-1 text-[11px]"
+                                  className="text-primary hover:underline font-medium inline-flex items-center gap-1.5 text-xs"
                                 >
-                                  📄 Google Docs Manuscript ↗
+                                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Google Docs Manuscript
+                                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
                                 </a>
                               </p>
                             </div>
@@ -724,9 +753,11 @@ export default function FacultyDashboard({ user }) {
                                   href={activeTeam.githubUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-primary hover:underline font-semibold inline-flex items-center gap-1 text-[11px]"
+                                  className="text-primary hover:underline font-medium inline-flex items-center gap-1.5 text-xs"
                                 >
-                                  📦 GitHub Repository ↗
+                                  <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
+                                  GitHub Repository
+                                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
                                 </a>
                               </p>
                             </div>
@@ -753,15 +784,12 @@ export default function FacultyDashboard({ user }) {
                             </Badge>
                           )}
                         </div>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        <div className="divide-y divide-border/70 border-t border-border/60 max-h-48 overflow-y-auto">
                           {(activeTeam.members || activeTeam.memberRoles || []).length > 0 ? (
                             (activeTeam.members || activeTeam.memberRoles || []).map((m, idx) => (
-                              <div
-                                key={m._id || idx}
-                                className="p-2 rounded-md bg-muted/30 border border-border/50 flex flex-col gap-0.5"
-                              >
+                              <div key={m._id || idx} className="py-2 flex flex-col gap-0.5">
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold text-foreground truncate">
+                                  <span className="font-semibold text-foreground truncate">
                                     {m.fullName ||
                                       m.name ||
                                       m.userId?.fullName ||
@@ -770,27 +798,27 @@ export default function FacultyDashboard({ user }) {
                                   {m.isLeader && (
                                     <Badge
                                       variant="outline"
-                                      className="text-[9px] font-bold px-1 py-0 h-4 border-primary/30 text-primary bg-primary/10 shrink-0"
+                                      className="text-[9px] font-semibold px-1.5 py-0 h-4 border-primary/30 text-primary bg-primary/10 shrink-0"
                                     >
                                       Lead
                                     </Badge>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-muted-foreground">
+                                <span className="text-[11px] text-muted-foreground">
                                   {m.role ||
                                     m.traditionalRole ||
                                     m.capstoneTitle ||
                                     'Proponent Member'}
                                 </span>
                                 {m.email && (
-                                  <span className="text-[9px] text-muted-foreground/70 truncate">
+                                  <span className="text-[10px] text-muted-foreground/80 truncate">
                                     {m.email}
                                   </span>
                                 )}
                               </div>
                             ))
                           ) : (
-                            <div className="p-2 rounded bg-muted/20 border border-border/40 text-[11px] text-muted-foreground">
+                            <div className="py-2.5 text-xs text-muted-foreground">
                               {activeTeam.memberCount || 0} enrolled team proponent
                               {(activeTeam.memberCount || 0) === 1 ? '' : 's'}
                             </div>
@@ -836,33 +864,32 @@ export default function FacultyDashboard({ user }) {
 
       {mode === VIEW_MODES.PANELIST && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          {/* Micro-Stat Grid for Panelist - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
-            <MicroStat
+          <MetricGrid cols={4}>
+            <StatCard
               icon={Users}
               label="Handled Panels"
               value={panelTopics.assigned.length}
-              tone="accent"
+              tone="primary"
             />
-            <MicroStat
+            <StatCard
               icon={ClipboardCheck}
               label="Pending Evals"
               value={counts.pendingEvaluations ?? 0}
-              tone="warning"
+              tone={(counts.pendingEvaluations ?? 0) > 0 ? 'warning' : 'default'}
             />
-            <MicroStat
+            <StatCard
               icon={Activity}
               label="Active Topics"
               value={counts.activeProjects ?? 0}
-              tone="info"
+              tone="primary"
             />
-            <MicroStat
+            <StatCard
               icon={Plus}
               label="Available Topics"
               value={panelTopics.available.length}
               tone="default"
             />
-          </div>
+          </MetricGrid>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
             <DenseCardList
@@ -871,7 +898,7 @@ export default function FacultyDashboard({ user }) {
               items={panelTopics.assigned}
               emptyState="You have not been assigned to any panels."
               renderItem={(topic) => (
-                <div className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
+                <div className="flex flex-col items-start gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between hover:bg-muted/25 transition-colors">
                   <div className="flex min-w-0 flex-col">
                     <span className="break-words text-sm font-semibold">
                       {topic.title || 'Untitled'}
@@ -895,7 +922,7 @@ export default function FacultyDashboard({ user }) {
               items={panelTopics.available}
               emptyState={panelistLoading ? 'Loading...' : 'No new topics available to select.'}
               renderItem={(topic) => (
-                <div className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
+                <div className="flex flex-col items-start gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between hover:bg-muted/25 transition-colors">
                   <div className="flex min-w-0 flex-col">
                     <span className="break-words text-sm font-semibold">
                       {topic.title || 'Untitled'}
@@ -923,33 +950,32 @@ export default function FacultyDashboard({ user }) {
 
       {mode === VIEW_MODES.SECRETARY && (
         <div className="flex flex-col space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          {/* Micro-Stat Grid for Secretary - Balanced 4-Column Layout */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 items-stretch">
-            <MicroStat
+          <MetricGrid cols={4}>
+            <StatCard
               icon={Users}
               label="Handled Teams (Secretary)"
               value={counts.secretaryProjects ?? secretaryProjects.length}
-              tone="accent"
+              tone="primary"
             />
-            <MicroStat
+            <StatCard
               icon={FileText}
               label="Pending Minutes"
               value={counts.pendingSecretaryMinutes ?? 0}
-              tone="warning"
+              tone={(counts.pendingSecretaryMinutes ?? 0) > 0 ? 'warning' : 'default'}
             />
-            <MicroStat
+            <StatCard
               icon={AlertCircle}
               label="Pending Endorsement"
               value={counts.pendingSecretaryEndorsement ?? 0}
-              tone="info"
+              tone={(counts.pendingSecretaryEndorsement ?? 0) > 0 ? 'warning' : 'default'}
             />
-            <MicroStat
+            <StatCard
               icon={CheckCircle2}
               label="Endorsed Matrices"
               value={counts.endorsedSecretaryMatrices ?? 0}
-              tone="default"
+              tone="success"
             />
-          </div>
+          </MetricGrid>
 
           {/* Secretary Workspace Split: Teams on Left (7 cols), Studio Banner on Right (5 cols) */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 items-start">
@@ -963,7 +989,7 @@ export default function FacultyDashboard({ user }) {
                   const hasMinutes = project.actionDoneMatrixCount > 0;
                   const isEndorsed = project.admSignatures?.secretary?.endorsed === true;
                   return (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg border border-border/60 bg-background/50 shadow-2xs hover:border-border transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 hover:bg-muted/25 transition-colors">
                       <div className="flex min-w-0 flex-col">
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-semibold text-foreground">

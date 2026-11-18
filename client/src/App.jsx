@@ -306,8 +306,10 @@ const DEV_ROUTES = import.meta.env.DEV
   : [];
 
 export default function App() {
-  const { sessionLoading, fetchUser } = useAuthStore();
+  const sessionLoading = useAuthStore((state) => state.sessionLoading);
+  const fetchUser = useAuthStore((state) => state.fetchUser);
   const theme = useThemeStore((state) => state.theme);
+  const { pathname } = useLocation();
   const hasFetchedSession = useRef(false);
 
   // Restore session on every hard refresh / first load.
@@ -323,8 +325,8 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show a full-screen branded loading screen while we confirm the session.
-  if (sessionLoading) {
+  // The public landing page can render safely during session restoration.
+  if (sessionLoading && pathname !== '/') {
     return (
       <>
         <ThemeSync />

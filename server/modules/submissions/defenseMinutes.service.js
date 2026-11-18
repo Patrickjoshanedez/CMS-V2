@@ -469,9 +469,9 @@ class DefenseMinutesService {
     const milestoneMap = {
       [DEFENSE_TYPES.PROPOSAL]: 'CAPSTONE_1',
       [DEFENSE_TYPES.PROGRESS]: 'CAPSTONE_2',
-      [DEFENSE_TYPES.MIDTERM]: 'CAPSTONE_2',
-      [DEFENSE_TYPES.PAPER]: 'CAPSTONE_3',
+      midterm: 'CAPSTONE_2',
       [DEFENSE_TYPES.FINAL]: 'CAPSTONE_3',
+      paper: 'CAPSTONE_3',
     };
     const milestone = milestoneMap[defenseType] || 'CAPSTONE_1';
 
@@ -522,18 +522,39 @@ class DefenseMinutesService {
     project.actionDoneMatrix.push(...newRows);
     project.admStatus = 'pending_developer_action';
 
-    // Reset secretary endorsement for the new revision cycle
-    if (!project.admSignatures) {
-      project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
-    }
-    project.admSignatures.secretary = {
+    // Reset secretary endorsement for the target milestone revision cycle
+    const resetSecretaryState = () => ({
       endorsed: false,
       endorsedAt: null,
       signatoryName: '',
       notes: '',
       signatureDataUrl: null,
       userId: null,
-    };
+    });
+    if (!project.admSignaturesByMilestone) {
+      project.admSignaturesByMilestone = {};
+    }
+    if (!project.admSignaturesByMilestone[milestone]) {
+      project.admSignaturesByMilestone[milestone] = {
+        adviser: {},
+        instructor: {},
+        panelists: [],
+        chair: {},
+        secretary: resetSecretaryState(),
+      };
+    } else {
+      project.admSignaturesByMilestone[milestone].secretary = resetSecretaryState();
+    }
+    if (typeof project.markModified === 'function') {
+      project.markModified('admSignaturesByMilestone');
+    }
+
+    if (milestone === 'CAPSTONE_1') {
+      if (!project.admSignatures) {
+        project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
+      }
+      project.admSignatures.secretary = resetSecretaryState();
+    }
 
     await project.save();
 

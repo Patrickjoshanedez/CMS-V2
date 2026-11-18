@@ -317,8 +317,9 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                   <span>Similarity Scan Estimate</span>
                 </div>
                 <span className="break-words text-left font-mono text-muted-foreground sm:text-right">
-                  {submission.originalityScore}% estimated non-matching ·{' '}
-                  {Math.max(0, 100 - submission.originalityScore)}% Similarity Match
+                  {Number(Number(submission.originalityScore).toFixed(2))}% estimated non-matching ·{' '}
+                  {Number(Math.max(0, 100 - Number(submission.originalityScore)).toFixed(2))}%
+                  Similarity Match
                 </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

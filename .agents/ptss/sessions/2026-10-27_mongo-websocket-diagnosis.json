@@ -1,0 +1,33 @@
+{
+  "session_id": "2026-10-27_mongo-websocket-diagnosis",
+  "date": "2026-10-27",
+  "task_category": "runtime_diagnosis_and_handoff",
+  "task_summary": "Confirmed restricted localhost execution causes the apparent Mongo/WebSocket failures; approved probes and focused suites pass. Delivered Luna directions for test-runner reliability and the remaining authenticated client expiry/reconnect gap.",
+  "artifact": "docs/specs/luna-mongo-websocket-recovery.md",
+  "verification_status": "partial",
+  "verification": {
+    "restricted_probe": "HTTP connect EACCES; cached MongoDB 8.2.6 version succeeds but startup asserts",
+    "approved_probe": "HTTP/WebSocket success; same MongoDB binary ready in 4813ms",
+    "socket_suite": "5/5 passed with approved localhost execution",
+    "document_api_suite": "6/6 passed, total 64.79s with approved localhost execution",
+    "live_transport": "Backend 43210 and Vite 43211 WebSocket opening and missing-token rejection verified",
+    "browser_expiry_and_tunnel": "not executed",
+    "repository_evidence": "33/34; unrelated concurrent Chapter 4 external Google Doc URL is classified as a local file, so the existing evidence validator rejects that entry. New recovery document references and PTSS integrity passed.",
+    "format_and_syntax": "recovery/audit documents and manifest formatting passed; probe syntax and git diff whitespace checks passed"
+  },
+  "skills_patched": ["verification-loop"],
+  "completed_subgoals": [
+    "paired permission probes",
+    "approved focused suites",
+    "live transport probe",
+    "Luna handoff"
+  ],
+  "remaining_subgoals": [
+    "Luna implements and verifies authenticated expiry/reconnect",
+    "evaluation and approval integrations",
+    "authenticated browser/tunnel checks"
+  ],
+  "last_action_result": "Reopened audit task 08 client recovery requirement; test infrastructure root cause has a verified execution workaround.",
+  "progress_delta": 4,
+  "loop_count": 0
+}

@@ -329,7 +329,7 @@ ProjectCohortCard.propTypes = {
     titleProposals: PropTypes.array,
     teamId: PropTypes.shape({
       name: PropTypes.string,
-      leaderId: PropTypes.string,
+      leaderId: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
       members: PropTypes.array,
       section: PropTypes.string,
     }),

@@ -1,0 +1,10 @@
+{
+  "eval_name": "reported-results",
+  "prompt": "Write short Chapter 4 findings/discussion from supplied aggregate usability 4.53 SD .30 and satisfaction 4.48 SD .34 among reported 77 respondents; approved band Excellent 4.21-5.00; raw data absent. 200ms benchmark is illustrative. Existing draft says significant improvement and full ISO compliance. Provide usable revised prose and separate gaps, preserve adopted 2011 edition.",
+  "assertions": [
+    "Uses supplied aggregates without inventing recalculation",
+    "Excludes 200ms as measured performance and unsupported significance/conformity",
+    "Provides substantive findings and distinguishes study bands from ISO thresholds"
+  ],
+  "eval_id": 3
+}

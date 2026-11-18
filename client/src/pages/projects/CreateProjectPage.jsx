@@ -21,6 +21,7 @@ import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDialog';
 import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
 import useAutosave from '@/hooks/useAutosave';
+import { PageHeader } from '@/components/common';
 import SaveStatusIndicator from '@/components/common/SaveStatusIndicator';
 import { QueryClientContext } from '@tanstack/react-query';
 import { useCreateProject, useUpdateTitle, projectKeys } from '@/hooks/useProjects';
@@ -1257,24 +1258,14 @@ export default function CreateProjectPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6 text-foreground">
-        {/* 1. Header Toolbar & Action Bar */}
-        <div className="flex flex-col justify-between gap-5 border-b border-border/60 pb-5 xl:flex-row xl:items-start">
-          <div className="space-y-1.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/project')}
-              className="-ml-2 h-7 gap-1 px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Back to My Capstone</span>
-            </Button>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Capstone 1: Title proposals
-              </h1>
+      <div className="min-w-0 space-y-6 text-foreground">
+        <PageHeader
+          eyebrow="Phase 1 · Proposal Studio"
+          icon={FileText}
+          title="Capstone 1: Title proposals"
+          description={`Academic Year ${team?.academicYear || form.academicYear} · ${resolvedSectionName}. Draft up to 10 title proposals for committee review.`}
+          meta={
+            <>
               {isEditMode && (
                 <Badge
                   variant="outline"
@@ -1284,64 +1275,74 @@ export default function CreateProjectPage() {
                 </Badge>
               )}
               <SaveStatusIndicator status={saveStatus} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Academic Year {team?.academicYear || form.academicYear} · {resolvedSectionName}. Draft
-              up to 10 title proposals for committee review.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0 [&>button]:min-h-11 [&>button]:flex-1 sm:[&>button]:flex-none">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleSaveProposalDraft(activeProposalIndex)}
-              disabled={savingDraftIndex !== null}
-              className="h-9 gap-1.5 border-border bg-card text-xs text-foreground shadow-xs hover:bg-accent"
-            >
-              {savingDraftIndex !== null ? (
-                <Spinner className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <Save className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-              Save Draft
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSubmit}
-              disabled={createProject.isPending || updateTitleMutation.isPending || isLiveScanning}
-              aria-describedby={hasSimilarityConflict ? 'similarity-conflict-banner' : undefined}
-              title={
-                isLiveScanning
-                  ? 'Verifying title similarity...'
-                  : hasSimilarityConflict
-                    ? `Note: Similar title detected above ${titleThreshold}% threshold. Proposal will be submitted as flagged for committee defense review.`
-                    : undefined
-              }
-              className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createProject.isPending || updateTitleMutation.isPending ? (
-                <Spinner className="h-3.5 w-3.5" />
-              ) : isLiveScanning ? (
-                <>
+            </>
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2 shrink-0 [&>button]:min-h-11">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/project')}
+                className="gap-1.5 text-xs"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Back to My Capstone</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSaveProposalDraft(activeProposalIndex)}
+                disabled={savingDraftIndex !== null}
+                className="gap-1.5 border-border bg-card text-xs text-foreground shadow-xs hover:bg-accent"
+              >
+                {savingDraftIndex !== null ? (
+                  <Spinner className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <Save className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                )}
+                Save Draft
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSubmit}
+                disabled={
+                  createProject.isPending || updateTitleMutation.isPending || isLiveScanning
+                }
+                aria-describedby={hasSimilarityConflict ? 'similarity-conflict-banner' : undefined}
+                title={
+                  isLiveScanning
+                    ? 'Verifying title similarity...'
+                    : hasSimilarityConflict
+                      ? `Note: Similar title detected above ${titleThreshold}% threshold. Proposal will be submitted as flagged for committee defense review.`
+                      : undefined
+                }
+                className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createProject.isPending || updateTitleMutation.isPending ? (
                   <Spinner className="h-3.5 w-3.5" />
-                  Verifying Similarity...
-                </>
-              ) : isEditMode ? (
-                <>
-                  {isRevisionMode ? 'Submit Revised Proposals' : 'Update Proposals'}{' '}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </>
-              ) : (
-                <>
-                  Submit for Committee Review <ArrowRight className="h-3.5 w-3.5" />
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+                ) : isLiveScanning ? (
+                  <>
+                    <Spinner className="h-3.5 w-3.5" />
+                    Verifying Similarity...
+                  </>
+                ) : isEditMode ? (
+                  <>
+                    {isRevisionMode ? 'Submit Revised Proposals' : 'Update Proposals'}{' '}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </>
+                ) : (
+                  <>
+                    Submit for Committee Review{' '}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </>
+                )}
+              </Button>
+            </div>
+          }
+        />
 
         {isRevisionMode && (
           <Alert

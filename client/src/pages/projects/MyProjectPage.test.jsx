@@ -44,6 +44,13 @@ vi.mock('@/hooks/useProjects', () => ({
   useRequestTitleModification: () => ({ mutate: vi.fn(), isPending: false }),
   useAssignAdviser: () => ({ mutate: vi.fn(), isPending: false }),
   useAssignPanelists: () => ({ mutate: vi.fn(), isPending: false }),
+  useApproveTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRejectTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAddTitleComment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/hooks/useUsers', () => ({
+  useUsers: () => ({ data: { users: [] }, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useTeams', () => ({
@@ -240,6 +247,28 @@ describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {
     // Contextual callout guiding users to Submissions page should be present
     expect(container.textContent).toContain('Chapters 4–5 & Final Manuscript Submissions');
     expect(container.textContent).toContain('Go to Submissions');
+  });
+
+  it('renders clear upload and submission directions inside the capstone_1 tab', async () => {
+    mockSearchParams = new URLSearchParams('tab=capstone_1');
+    mockProjectData.titleStatus = 'approved';
+    mockProjectData.capstonePhase = 1;
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    const banner = container.querySelector('[data-testid="capstone1-upload-directions-banner"]');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain(
+      'How to Upload & Submit Capstone 1 Documents (Chapters 1–3 & Proposal)',
+    );
+    expect(banner.textContent).toContain('Upload Chapter Now');
+    expect(banner.textContent).toContain('Open Submissions Workspace');
   });
 
   it('renders dedicated Action Done Matrix in adm tab', async () => {

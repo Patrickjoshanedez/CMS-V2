@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -34,6 +35,7 @@ import {
   UserPlus,
   Calendar,
   GraduationCap,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -64,6 +66,7 @@ import TeamRosterCard, {
 import { formatName } from '../utils/teamFormatters';
 
 export default function StudentTeamDetail({ team, userId }) {
+  const navigate = useNavigate();
   const teamManager = useTeamManager({ user: { _id: userId } });
   const [now] = useState(() => Date.now());
   const [showRolesGuide, setShowRolesGuide] = useState(false);
@@ -122,7 +125,12 @@ export default function StudentTeamDetail({ team, userId }) {
   });
 
   const lockTeam = useLockTeam({
-    onSuccess: () => toast.success('Team finalized successfully.'),
+    onSuccess: () =>
+      toast.success('Team finalized! Ready for Phase 1 Title Proposals.', {
+        action: !project
+          ? { label: 'Start Proposals', onClick: () => navigate('/project/create') }
+          : undefined,
+      }),
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
   });
@@ -190,13 +198,13 @@ export default function StudentTeamDetail({ team, userId }) {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Global Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-5">
+      {/* Team Workspace Summary Bar */}
+      <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 className="min-w-0 break-all text-2xl font-bold tracking-tight text-foreground">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+            <h2 className="min-w-0 break-words text-lg font-semibold tracking-tight text-foreground sm:text-xl">
               {team.name || 'Team Workspace'}
-            </h1>
+            </h2>
             {team.isLocked ? (
               <Badge variant="secondary" className="gap-1.5">
                 <Lock className="h-3 w-3 inline-block" />
@@ -323,6 +331,35 @@ export default function StudentTeamDetail({ team, userId }) {
                 Ready for Proposal Submission
               </Badge>
             )}
+          {team.isLocked &&
+            (!project ? (
+              isLeader && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/project/create')}
+                  data-testid="proceed-to-proposals-btn"
+                  className="min-h-11 sm:min-h-9 gap-1.5 text-xs font-semibold shadow-xs"
+                >
+                  <span>Proceed to Title Proposals</span>
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              )
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  navigate(isTitleApproved ? '/project?tab=capstone_1' : '/project/approval')
+                }
+                data-testid="open-title-workspace-btn"
+                className="min-h-11 sm:min-h-9 gap-1.5 text-xs font-semibold"
+              >
+                <span>
+                  {isTitleApproved ? 'Open Capstone 1 Workspace' : 'Open Title Proposals'}
+                </span>
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            ))}
         </div>
       </div>
 

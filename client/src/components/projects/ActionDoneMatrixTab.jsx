@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/authStore';
 import buksuLogo from '@/assets/buksu-logo.png';
 import SecretaryMinutesDocumentSheet from '@/components/secretary/SecretaryMinutesDocumentSheet';
 import SignaturePad from '@/components/ui/SignaturePad';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import {
   Printer,
   Upload,
@@ -149,6 +150,33 @@ export default function ActionDoneMatrixTab({
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploadingMinutes, setIsUploadingMinutes] = useState(false);
+  const [approvalPreviewOpen, setApprovalPreviewOpen] = useState(false);
+  const [approvalSheetUrl, setApprovalSheetUrl] = useState(null);
+  const [isFetchingApprovalSheet, setIsFetchingApprovalSheet] = useState(false);
+
+  const handleOpenApprovalSheet = async () => {
+    if (!projectId) return;
+    setIsFetchingApprovalSheet(true);
+    try {
+      const { data } = await projectService.getApprovalSheetUrl(projectId);
+      const url = data?.data?.url;
+      if (url) {
+        setApprovalSheetUrl(url);
+        setApprovalPreviewOpen(true);
+      } else {
+        toast.error(
+          'Final Approval Sheet is not available until all Phase 4 ADM signatures are completed.',
+        );
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        'Final Approval Sheet is not available until all Phase 4 ADM signatures are completed.';
+      toast.error(msg);
+    } finally {
+      setIsFetchingApprovalSheet(false);
+    }
+  };
 
   // Secretary Endorsement Modal
   const [isEndorsementModalOpen, setIsEndorsementModalOpen] = useState(false);
@@ -823,7 +851,11 @@ export default function ActionDoneMatrixTab({
                 </Button>
 
                 {canAddRow && (
-                  <Button size="sm" onClick={handleAddRow} className="gap-1.5 text-xs h-8">
+                  <Button
+                    size="sm"
+                    onClick={handleAddRow}
+                    className="min-h-[44px] sm:min-h-0 sm:h-8 gap-1.5 text-xs"
+                  >
                     <Plus className="h-3.5 w-3.5" />
                     Add Row
                   </Button>
@@ -838,6 +870,19 @@ export default function ActionDoneMatrixTab({
                   <Printer className="h-3.5 w-3.5" />
                   Print / Export Document
                 </Button>
+                {targetMilestone === 'CAPSTONE_3' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenApprovalSheet}
+                    disabled={isFetchingApprovalSheet}
+                    className="gap-1.5 text-xs h-8"
+                    data-testid="adm-approval-sheet-btn"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {isFetchingApprovalSheet ? 'Loading...' : 'Approval Sheet'}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1580,6 +1625,19 @@ export default function ActionDoneMatrixTab({
               </DialogContent>
             </Dialog>
           </>
+        )}
+        {approvalPreviewOpen && approvalSheetUrl && (
+          <SophisticatedDocumentViewer
+            open={approvalPreviewOpen}
+            onOpenChange={setApprovalPreviewOpen}
+            fileUrl={approvalSheetUrl}
+            submission={{
+              title: 'Final Approval Sheet',
+              fileName: 'Final_Approval_Sheet.pdf',
+              fileType: 'application/pdf',
+              chapter: 'Approval Sheet',
+            }}
+          />
         )}
       </TabsContent>
     </Tabs>

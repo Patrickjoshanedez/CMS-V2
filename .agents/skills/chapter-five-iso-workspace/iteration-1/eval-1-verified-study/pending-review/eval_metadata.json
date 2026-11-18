@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "assertions": [
+    "Covers all four objectives with substantive prose",
+    "Reports 18/18 functional and 4/4 recovery cases only within staging scope",
+    "Preserves ISO/IEC 25010:2011 and separates satisfaction from product usability",
+    "Links upload-error recommendation to student feedback with owner and verification",
+    "Separates audit note and avoids causal or production-wide claims"
+  ],
+  "prompt": "Draft a concise Chapter 5 (about 450 words) for a fictional campus submission portal, with 5.1 Summary of Findings, 5.2 Conclusions and 5.3 Recommendations, plus a separate audit note. Use only these supplied facts; no external research or document editing. Objectives: (1) identify requirements, (2) implement submission and review, (3) verify functionality and recovery, (4) assess perceived usability and satisfaction. Chapter 3 adopts ISO/IEC 25010:2011 and a study-defined Excellent band of 4.21-5.00; usability and satisfaction are separate constructs. Chapter 4: interviews with six advisers identified submission status and version history as needs; both features were implemented and demonstrated. Execution logs show 18/18 specified functional scenarios passed and 4/4 interrupted-upload recovery scenarios passed on build 1.2 in a staging environment. No production uptime or load study was performed. Twenty complete student responses produced usability mean 4.40 and satisfaction mean 4.35; raw data and calculations were checked. Three students requested clearer upload error messages. No before/after comparison was conducted. Write conclusions for every objective and prioritized recommendations with owners and verification criteria."
+}

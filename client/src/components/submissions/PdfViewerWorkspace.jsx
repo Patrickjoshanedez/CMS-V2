@@ -847,7 +847,12 @@ export function PdfViewerWorkspace({
 }
 
 PdfViewerWorkspace.propTypes = {
-  pdfUrl: PropTypes.string.isRequired,
+  pdfUrl: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.instanceOf(Uint8Array),
+    PropTypes.object,
+  ]),
+  pdfData: PropTypes.oneOfType([PropTypes.instanceOf(Uint8Array), PropTypes.object]),
   highlights: PropTypes.arrayOf(PropTypes.object),
   plagiarismMatches: PropTypes.arrayOf(PropTypes.object),
   activeHighlightId: PropTypes.string,

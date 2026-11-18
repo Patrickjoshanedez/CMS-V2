@@ -138,29 +138,46 @@ class EmbeddingModel:
             self._max_length,
         )
 
-        # Attempt to load native FlagEmbedding BGEM3FlagModel if available
-        try:
-            from FlagEmbedding import BGEM3FlagModel
+        # Load native FlagEmbedding BGEM3FlagModel only for BGE-M3; otherwise use SentenceTransformer directly
+        # so smaller models (e.g. all-MiniLM-L6-v2) preserve their true embedding dimensions (384-dim).
+        if "bge-m3" in model_name.lower():
+            try:
+                from FlagEmbedding import BGEM3FlagModel
 
-            use_fp16 = resolved_device == "cuda"
-            self._flag_model = BGEM3FlagModel(
-                model_name,
-                use_fp16=use_fp16,
-                device=resolved_device,
-            )
-            self._use_flag_model = True
-            self._embedding_dim = 1024
-            logger.info("BGEM3FlagModel successfully initialized with dense and sparse heads.")
-        except Exception as flag_err:
-            logger.info(
-                "FlagEmbedding unavailable or fallback requested (%s); loading via SentenceTransformer.",
-                flag_err,
-            )
+                use_fp16 = resolved_device == "cuda"
+                self._flag_model = BGEM3FlagModel(
+                    model_name,
+                    use_fp16=use_fp16,
+                    device=resolved_device,
+                )
+                self._use_flag_model = True
+                self._embedding_dim = 1024
+                logger.info("BGEM3FlagModel successfully initialized with dense and sparse heads.")
+            except Exception as flag_err:
+                logger.info(
+                    "FlagEmbedding unavailable or fallback requested (%s); loading via SentenceTransformer.",
+                    flag_err,
+                )
+
+        if not self._use_flag_model:
             try:
                 from sentence_transformers import SentenceTransformer
 
                 self._model = SentenceTransformer(model_name, device=resolved_device)
                 if hasattr(self._model, "max_seq_length"):
+                    # Never exceed the transformer's actual positional embedding table
+                    # (e.g. all-MiniLM-L6-v2 supports <= 512 tokens even if BGE_M3_MAX_LENGTH=8192).
+                    safe_limit = getattr(self._model, "max_seq_length", 512) or 512
+                    try:
+                        auto_cfg = getattr(getattr(self._model[0], "auto_model", None), "config", None)
+                        pos_limit = getattr(auto_cfg, "max_position_embeddings", None)
+                        model_type = str(getattr(auto_cfg, "model_type", "")).lower()
+                        if isinstance(pos_limit, int) and pos_limit > 0:
+                            usable_pos = pos_limit - 2 if model_type in ("roberta", "xlm-roberta", "camembert") else pos_limit
+                            safe_limit = usable_pos
+                    except Exception:
+                        pass
+                    self._max_length = min(self._max_length, safe_limit)
                     self._model.max_seq_length = self._max_length
                 self._embedding_dim = self._model.get_sentence_embedding_dimension()
             except Exception as st_err:

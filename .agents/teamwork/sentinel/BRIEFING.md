@@ -1,55 +1,40 @@
-# BRIEFING — 2026-09-28T06:10:21Z
+# BRIEFING — 2026-11-13T17:25:35Z
 
 ## Mission
-Sentinel monitoring and lifecycle management for remediating all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA), theming, responsive design, and anti-patterns/AI slop findings across BukSU CMS-V2.
+Coordinate and monitor project execution for system-wide UI redesign, workflow verification across all roles, and UX optimization.
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\sentinel
-- Orchestrator: d8288cc2-e882-4a97-ae40-8dec8ef90eac
-- Victory Auditor: be9f834d-f899-4182-8e50-059e6d5adc49
-- Current Orchestrator: b8a30a3e-a462-41dd-b781-cc39cedbcaf3
-- Current Victory Auditor: [to be spawned on victory claim]
-- Cron 1 (Progress Reporting): Active (Task task-18, expression: */8 * * * *)
-- Cron 2 (Liveness Check): Active (Task task-20, expression: */10 * * * *)
-- Task 3 Orchestrator: 1714716d-2fa0-43f0-bb45-4ec063aeb453
-- Task 3 Victory Auditor: [to be spawned on victory claim]
-- Task 3 Cron 1 (Progress Reporting): Active (Task task-20, expression: */8 * * * *)
-- Task 3 Cron 2 (Liveness Check): Active (Task task-22, expression: */10 * * * *)
+- Working directory: c:\Users\patri\dev\CMS-V2
+- State folder: c:\Users\patri\dev\CMS-V2\.agents\teamwork\sentinel\
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- You MUST NOT write code, analyze problems, or make any technical decisions. Keep your context ultra-light.
-- Do not modify client/src/components/secretary/SecretaryMinutesDocumentSheet.jsx.
-- Task 2 Constraint: Do not modify or regress client/src/components/projects/ActionDoneMatrixTab.jsx.
-- Task 2 Constraint: Preserve all digital signature verification and ADM sync capabilities in SecretaryMinutesDocumentSheet.jsx.
-- Task 3 Constraint: Remediate 22 interface quality, accessibility, theming, responsive, and anti-slop findings across 5 phases.
-- Task 3 Constraint: Consolidate document viewing strictly into canonical SophisticatedDocumentViewer.jsx; eliminate PaginatedDocumentViewer and ReadonlyPDFViewer.
-- Task 3 Constraint: Verification battery must pass (client tests, check:endpoints, validate:agentic, Playwright visual feedback loop).
+- Route: General (teamwork_orchestrator)
+- Full UI Redesign according to modern web standards, optimize element scaling and layouts
+- Full workflow integrity across all roles (Student, Instructor, Faculty committee: Adviser, Panelist, Secretary, Chair)
+- Paper deliverables and printing format (@media print) support
+- Dedicated seed accounts and real-scenario browser navigation verification without simulated finishes
 
-## Routing Decision
-- **Chosen Path**: General (`teamwork_preview_orchestrator`)
-- **Rationale**: Multi-part system-wide remediation project across 5 phases touching multiple components, routes, styles, and architecture. Explicitly requested full agent team.
-- **Pre-flight Dependency Audit**: None required for General path.
+## Active Orchestrator
+- Active orchestrator: ed92d340-7260-43d5-8952-0ac19a527b4f
+- Orchestrator state folder: c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1/
 
 ## User Context
-- **Last user request**: Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA), theming, responsive design, and anti-patterns/AI slop findings identified during the system-wide audit of BukSU Capstone Management System V2 (CMS-V2) across all 5 remediation phases.
+- **Last user request**: Approved task prompt received. UI redesign, component sizing optimization, role workflows, deliverables & printing formats, and seed account browser verification.
 - **Pending clarifications**: none
-- **Delivered results**:
-  - Task 1: Form RU-F-033 margin collapse and logo clipping fix completed and verified.
-  - Task 2: Form OVPAA-F-INS-032 3-sheet arrangement and print overflow fix completed and verified.
+- **Delivered results**: none
 
 ## Project Status
 - **Phase**: in progress
 
 ## Victory Audit Status
+- **Auditor**: to be spawned on victory claim
 - **Triggered**: no
 - **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
-- c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative record of user intent
-- c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\sentinel\BRIEFING.md — Sentinel persistent briefing
-- c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\orchestrator_1\plan.md — Orchestrator coordination plan
-
+- c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user intent and approved task prompt
+- c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1\ — Orchestrator state directory

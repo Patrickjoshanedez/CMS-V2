@@ -23,7 +23,7 @@ import {
  * Create a project with a team and an assigned panelist.
  * The evaluation service checks project.panelistIds to authorize panelists.
  */
-async function createProjectWithPanelist(studentId, adviserId, panelistId) {
+async function createProjectWithPanelist(studentId, adviserId, panelistId, instructorId) {
   const team = await Team.create({
     name: 'Eval Test Team',
     leaderId: studentId,
@@ -31,9 +31,11 @@ async function createProjectWithPanelist(studentId, adviserId, panelistId) {
     isLocked: true,
     academicYear: '2024-2025',
   });
-  await User.findByIdAndUpdate(studentId, { teamId: team._id });
+  await User.findByIdAndUpdate(studentId, { teamId: team._id, instructorId });
 
-  const { course, section } = await createCourseAndSection(panelistId || studentId);
+  const { course, section } = await createCourseAndSection(instructorId);
+  team.sectionId = section._id;
+  await team.save();
   const payload = createValidProjectPayload(team._id, course._id, section._id, [studentId]);
   payload.title = 'Test Capstone for Evaluation';
   payload.abstract = 'Testing evaluation grading.';
@@ -91,7 +93,12 @@ describe('Evaluations API — /api/evaluations', () => {
     panelist = p.user;
 
     // Create project with the panelist assigned and adviser set
-    const result = await createProjectWithPanelist(student._id, adviser._id, panelist._id);
+    const result = await createProjectWithPanelist(
+      student._id,
+      adviser._id,
+      panelist._id,
+      instructor._id,
+    );
     project = result.project;
 
     // Re-fetch student so teamId is populated
@@ -371,6 +378,35 @@ describe('Evaluations API — /api/evaluations', () => {
   /* ────── POST /:projectId/:defenseType/release ────── */
 
   describe('POST /:projectId/:defenseType/release — Release evaluations', () => {
+    it('rejects a different instructor without releasing grades or progressing the project', async () => {
+      const foreign = await createAuthenticatedUserWithRole('instructor', {
+        email: 'eval-foreign-instructor@test.com',
+      });
+      const evaluation = await Evaluation.create({
+        projectId: project._id,
+        panelistId: panelist._id,
+        defenseType: DEFENSE_TYPES.PROPOSAL,
+        criteria: [{ name: 'Proposal defense', maxScore: 100, score: 90 }],
+        totalScore: 90,
+        maxTotalScore: 100,
+        percentage: 90,
+        status: EVALUATION_STATUSES.SUBMITTED,
+      });
+
+      const response = await foreign.agent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('NOT_ASSIGNED_INSTRUCTOR');
+      await expect(
+        Evaluation.findById(evaluation._id).then((record) => record.status),
+      ).resolves.toBe(EVALUATION_STATUSES.SUBMITTED);
+      await expect(
+        Project.findById(project._id).then((record) => record.defenseSchedule.verdict),
+      ).resolves.toBe(null);
+    });
+
     it('releases final grades without archiving before the final ADM and manuscripts are cleared', async () => {
       const evaluation = await Evaluation.create({
         projectId: project._id,

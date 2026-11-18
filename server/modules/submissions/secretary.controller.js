@@ -132,9 +132,9 @@ export const extractMinutesToADM = async (req, res, next) => {
     const parsedDocument = parseSecretaryMinutesDocument(rawText);
     let parsedData = parsedDocument.admRows || [];
 
-    // Fallback to Ollama or heuristic if parsedData is empty
-    if (!parsedData || parsedData.length === 0) {
-      const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
+    // Fallback to Ollama (when configured) or deterministic parser if parsedData is empty
+    const ollamaHost = (process.env.OLLAMA_HOST ?? '').trim();
+    if ((!parsedData || parsedData.length === 0) && ollamaHost) {
       const ollamaModel = process.env.PDF_METADATA_GLM_MODEL || 'llama3.2:3b';
 
       try {

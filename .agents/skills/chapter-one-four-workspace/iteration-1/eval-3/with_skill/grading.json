@@ -1,0 +1,28 @@
+{
+  "expectations": [
+    {
+      "text": "Uses supplied aggregates without inventing recalculation",
+      "passed": true,
+      "evidence": "were not independently recalculated"
+    },
+    {
+      "text": "Excludes 200ms as measured performance and unsupported significance/conformity",
+      "passed": true,
+      "evidence": "excluded from measured performance findings"
+    },
+    {
+      "text": "Provides substantive findings and distinguishes study bands from ISO thresholds",
+      "passed": true,
+      "evidence": "not an ISO passing threshold"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Parent qualitatively reviewed full outputs; quoted anchors verified programmatically. Small synthetic cases; not a blinded benchmark."
+  }
+}

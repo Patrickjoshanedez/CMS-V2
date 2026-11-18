@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
@@ -46,7 +47,7 @@ import { metadataService } from '@/services/metadataService';
 import { plagiarismService } from '@/services/plagiarismService';
 import { getSocket } from '@/services/socket';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
-import { useAcademicYears } from '@/hooks/useAcademics';
+import { useAcademicYears, useCourses } from '@/hooks/useAcademics';
 import { useAuthStore } from '@/stores/authStore';
 import { usePlagiarismScanStore } from '@/stores/plagiarismScanStore';
 import { ROLES } from '@cms/shared';
@@ -61,6 +62,32 @@ const INITIAL_FORM = {
   venue: '',
   keywords: '',
   academicYear: '',
+  courseId: '',
+};
+
+const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ARCHIVE_FILE_ACCEPT = `application/pdf,.pdf,${DOCX_MIME_TYPE},.docx`;
+const ARCHIVE_MAX_SIZE_MB = 50;
+
+const isSupportedArchiveDocument = (file) => {
+  if (!file) return { valid: false, isPdf: false, isDocx: false, isLegacyDoc: false };
+  const fileType = String(file.type || '').toLowerCase();
+  const fileName = String(file.name || '').toLowerCase();
+  const isPdf =
+    fileType === 'application/pdf' ||
+    (!fileType && fileName.endsWith('.pdf')) ||
+    fileName.endsWith('.pdf');
+  const isDocx = fileType === DOCX_MIME_TYPE || fileName.endsWith('.docx');
+  const isLegacyDoc = !isDocx && (fileType === 'application/msword' || fileName.endsWith('.doc'));
+  return { valid: isPdf || isDocx, isPdf, isDocx, isLegacyDoc };
+};
+
+const formatFileSizeLabel = (bytes = 0) => {
+  const num = Number(bytes) || 0;
+  if (num >= 1024 * 1024) {
+    return `${(num / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(num / 1024).toFixed(1)} KB`;
 };
 
 const INITIAL_FILES = {
@@ -445,6 +472,7 @@ export default function ExistingCapstoneUploadPage() {
   const { user } = useAuthStore();
   const { mutateAsync: bulkUploadArchive, isPending } = useBulkUploadArchive();
   const { data: academicYears = [], isLoading: yearsLoading } = useAcademicYears();
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
 
   const [files, setFiles] = useState(INITIAL_FILES);
   const [form, setForm] = useState(INITIAL_FORM);
@@ -468,6 +496,23 @@ export default function ExistingCapstoneUploadPage() {
 
   const currentYear = new Date().getFullYear();
   const defaultAcademicYear = useMemo(() => `${currentYear}-${currentYear + 1}`, [currentYear]);
+  const activeCourses = useMemo(
+    () => (Array.isArray(courses) ? courses.filter((c) => c && c.isActive !== false) : []),
+    [courses],
+  );
+  const academicYearOptions = useMemo(() => {
+    const yearsSet = new Set(Array.isArray(academicYears) ? academicYears.filter(Boolean) : []);
+    if (yearsSet.size === 0) yearsSet.add(defaultAcademicYear);
+    for (let y = currentYear + 1; y >= 2005; y -= 1) {
+      yearsSet.add(`${y}-${y + 1}`);
+    }
+    if (form.academicYear && /^\d{4}-\d{4}$/.test(form.academicYear)) {
+      yearsSet.add(form.academicYear);
+    }
+    const inferredFromYear = toAcademicYear(form.year);
+    if (inferredFromYear) yearsSet.add(inferredFromYear);
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [academicYears, currentYear, defaultAcademicYear, form.academicYear, form.year]);
   const hasDocumentForRescan = Boolean(files.academicPaperFile || files.academicJournalFile);
 
   useEffect(() => {
@@ -478,6 +523,15 @@ export default function ExistingCapstoneUploadPage() {
       }
     }
   }, [academicYears, form.academicYear]);
+
+  useEffect(() => {
+    if (!form.courseId && activeCourses.length > 0) {
+      const preferredCourse = activeCourses[0];
+      if (preferredCourse?._id) {
+        setForm((prev) => (prev.courseId ? prev : { ...prev, courseId: preferredCourse._id }));
+      }
+    }
+  }, [activeCourses, form.courseId]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -574,16 +628,17 @@ export default function ExistingCapstoneUploadPage() {
       (pdfFile === files.academicJournalFile ? 'Academic Journal' : 'Academic Paper');
 
     if (!pdfFile) {
-      toast.error('Select an academic paper or journal PDF first.');
+      toast.error('Select an academic paper or journal document first.');
       return;
     }
 
-    const fileType = String(pdfFile.type || '').toLowerCase();
-    const fileName = String(pdfFile.name || '').toLowerCase();
-    const isPdf = fileType === 'application/pdf' || (!fileType && fileName.endsWith('.pdf'));
-
-    if (!isPdf) {
-      toast.error('Only PDF files are supported for OCR extraction.');
+    const docCheck = isSupportedArchiveDocument(pdfFile);
+    if (!docCheck.valid) {
+      toast.error(
+        docCheck.isLegacyDoc
+          ? 'Legacy .doc files are not supported. Please upload a PDF or Word (.docx) file.'
+          : 'Only PDF and Word (.docx) files are supported for metadata extraction.',
+      );
       return;
     }
 
@@ -818,6 +873,23 @@ export default function ExistingCapstoneUploadPage() {
     const selectedFile = event.target.files?.[0] || null;
     if (!selectedFile) return;
 
+    const docCheck = isSupportedArchiveDocument(selectedFile);
+    if (!docCheck.valid) {
+      toast.error(
+        docCheck.isLegacyDoc
+          ? 'Legacy .doc files are not supported. Please upload a PDF or Word (.docx) file.'
+          : 'Only PDF and Word (.docx) files are supported.',
+      );
+      event.target.value = '';
+      return;
+    }
+
+    if (selectedFile.size > ARCHIVE_MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`File exceeds maximum archive size (${ARCHIVE_MAX_SIZE_MB} MB).`);
+      event.target.value = '';
+      return;
+    }
+
     setFiles((prev) => ({ ...prev, academicPaperFile: selectedFile }));
 
     if (!files.academicJournalFile) {
@@ -831,6 +903,23 @@ export default function ExistingCapstoneUploadPage() {
   const handleAcademicJournalSelect = async (event) => {
     const selectedFile = event.target.files?.[0] || null;
     if (!selectedFile) return;
+
+    const docCheck = isSupportedArchiveDocument(selectedFile);
+    if (!docCheck.valid) {
+      toast.error(
+        docCheck.isLegacyDoc
+          ? 'Legacy .doc files are not supported. Please upload a PDF or Word (.docx) file.'
+          : 'Only PDF and Word (.docx) files are supported.',
+      );
+      event.target.value = '';
+      return;
+    }
+
+    if (selectedFile.size > ARCHIVE_MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`File exceeds maximum archive size (${ARCHIVE_MAX_SIZE_MB} MB).`);
+      event.target.value = '';
+      return;
+    }
 
     setFiles((prev) => ({ ...prev, academicJournalFile: selectedFile }));
 
@@ -907,12 +996,13 @@ export default function ExistingCapstoneUploadPage() {
       return;
     }
 
-    const fileType = String(targetFile.type || '').toLowerCase();
-    const fileName = String(targetFile.name || '').toLowerCase();
-    const isPdf = fileType === 'application/pdf' || (!fileType && fileName.endsWith('.pdf'));
-
-    if (!isPdf) {
-      toast.error('Only PDF files are supported for plagiarism scanning.');
+    const docCheck = isSupportedArchiveDocument(targetFile);
+    if (!docCheck.valid) {
+      toast.error(
+        docCheck.isLegacyDoc
+          ? 'Legacy .doc files are not supported. Please upload a PDF or Word (.docx) file.'
+          : 'Only PDF and Word (.docx) files are supported for plagiarism scanning.',
+      );
       return;
     }
 
@@ -983,7 +1073,11 @@ export default function ExistingCapstoneUploadPage() {
   };
 
   const resetPageState = () => {
-    setForm(INITIAL_FORM);
+    setForm({
+      ...INITIAL_FORM,
+      academicYear: academicYears[0] || '',
+      courseId: activeCourses[0]?._id || '',
+    });
     setFiles(INITIAL_FILES);
     setConfidenceScores({});
     setExtractionStatus('idle');
@@ -1026,16 +1120,19 @@ export default function ExistingCapstoneUploadPage() {
     }
 
     const publicationYear = Number(form.year);
+    const cappedKeywords = splitKeywordString(form.keywords).slice(0, 10).join(', ');
 
     const payload = {
-      title: form.title.trim(),
-      abstract: form.abstract.trim(),
+      title: form.title.trim().slice(0, 300),
+      abstract: form.abstract.trim().slice(0, 5000),
       authors: form.authors,
-      publicationYear: Number.isFinite(publicationYear) ? publicationYear : undefined,
-      doi: form.doi.trim(),
-      publicationVenue: form.venue.trim(),
-      keywords: form.keywords,
+      publicationYear:
+        Number.isFinite(publicationYear) && publicationYear >= 1900 ? publicationYear : undefined,
+      doi: form.doi.trim().slice(0, 255),
+      publicationVenue: form.venue.trim().slice(0, 255),
+      keywords: cappedKeywords,
       academicYear: targetAcademicYear,
+      courseId: form.courseId || activeCourses[0]?._id || undefined,
       academicPaperFile: files.academicPaperFile,
       academicJournalFile: files.academicJournalFile,
       metadataTarget,
@@ -1074,38 +1171,35 @@ export default function ExistingCapstoneUploadPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto min-w-0 max-w-5xl space-y-6 lg:space-y-8 [&_button]:min-h-[45px]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+      <div className="min-w-0 space-y-6 lg:space-y-8 [&_button]:min-h-[45px]">
+        <PageHeader
+          eyebrow="Research Repository"
+          icon={Archive}
+          title="Archive Capstone Documents"
+          description="Upload a paper, a journal, or both. Extract document details to help fill the form."
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => navigate('/archive')}
-                className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground h-8 px-2"
+                className="min-h-11 gap-2 shrink-0"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Back to Archive
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/archive')}
+                className="min-h-11 gap-2 shrink-0"
+              >
+                <Archive className="h-4 w-4" aria-hidden="true" />
+                Browse Archive
+              </Button>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Archive Capstone Documents
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Upload a paper, a journal, or both. Extract document details to help fill the form.
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/archive')}
-            className="min-h-11 gap-2 shrink-0 self-start sm:self-auto"
-          >
-            <Archive className="h-4 w-4" />
-            Browse Archive
-          </Button>
-        </div>
+          }
+        />
 
         <Card className="shadow-lg">
           <CardHeader className="border-b pb-6">
@@ -1122,9 +1216,10 @@ export default function ExistingCapstoneUploadPage() {
 
           <CardContent className="space-y-8 p-4 sm:p-6 xl:p-8">
             <Alert variant="info" className="border-primary/20 bg-primary/5">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertDescription className="text-sm">
-                Upload at least one PDF: the full academic paper, the condensed journal, or both.
+              <Info className="h-4 w-4 text-primary" aria-hidden="true" />
+              <AlertDescription id="bundle-format-hint" className="text-sm">
+                Upload at least one PDF or Word (.docx) file up to {ARCHIVE_MAX_SIZE_MB} MB: the
+                full academic paper, the condensed journal, or both.
               </AlertDescription>
             </Alert>
 
@@ -1133,7 +1228,9 @@ export default function ExistingCapstoneUploadPage() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-2">
                   <h3 className="text-lg font-semibold text-foreground">1. Upload Bundle Files</h3>
-                  <span className="text-xs text-muted-foreground">At least one PDF required</span>
+                  <span className="text-xs text-muted-foreground">
+                    At least one PDF or DOCX required (max {ARCHIVE_MAX_SIZE_MB} MB)
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -1142,9 +1239,9 @@ export default function ExistingCapstoneUploadPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-primary shrink-0" />
+                          <FileText className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                           <p className="text-sm font-semibold text-foreground">
-                            Academic Paper (PDF)
+                            Academic Paper (PDF / DOCX)
                           </p>
                         </div>
                         {extractionSource === 'Academic Paper' && (
@@ -1165,13 +1262,16 @@ export default function ExistingCapstoneUploadPage() {
                         {files.academicPaperFile ? (
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <FileCheck className="h-4 w-4 text-primary shrink-0" />
+                              <FileCheck
+                                className="h-4 w-4 text-primary shrink-0"
+                                aria-hidden="true"
+                              />
                               <div className="min-w-0">
                                 <p className="font-medium text-foreground truncate text-xs sm:text-sm">
                                   {files.academicPaperFile.name}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground">
-                                  {(files.academicPaperFile.size / 1024).toFixed(1)} KB • Attached
+                                  {formatFileSizeLabel(files.academicPaperFile.size)} • Attached
                                 </p>
                               </div>
                             </div>
@@ -1183,7 +1283,7 @@ export default function ExistingCapstoneUploadPage() {
                               className="min-h-11 min-w-11 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
                               title="Remove Academic Paper"
                             >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+                              <Trash2 className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Remove
                             </Button>
                           </div>
                         ) : (
@@ -1197,7 +1297,9 @@ export default function ExistingCapstoneUploadPage() {
                     <input
                       ref={academicPaperInputRef}
                       type="file"
-                      accept="application/pdf,.pdf"
+                      aria-label="Academic Paper file"
+                      aria-describedby="bundle-format-hint"
+                      accept={ARCHIVE_FILE_ACCEPT}
                       className="hidden"
                       onChange={handleAcademicPaperSelect}
                     />
@@ -1213,7 +1315,7 @@ export default function ExistingCapstoneUploadPage() {
                         extractionSource === 'Academic Paper' ? (
                           <Spinner className="h-4 w-4" />
                         ) : (
-                          <Upload className="h-4 w-4" />
+                          <Upload className="h-4 w-4" aria-hidden="true" />
                         )}
                         {files.academicPaperFile ? 'Change Paper' : 'Select Paper & Auto-Extract'}
                       </Button>
@@ -1225,9 +1327,9 @@ export default function ExistingCapstoneUploadPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <Files className="h-5 w-5 text-primary shrink-0" />
+                          <Files className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                           <p className="text-sm font-semibold text-foreground">
-                            Academic Journal (PDF)
+                            Academic Journal (PDF / DOCX)
                           </p>
                         </div>
                         {extractionSource === 'Academic Journal' && (
@@ -1248,13 +1350,16 @@ export default function ExistingCapstoneUploadPage() {
                         {files.academicJournalFile ? (
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <FileCheck className="h-4 w-4 text-primary shrink-0" />
+                              <FileCheck
+                                className="h-4 w-4 text-primary shrink-0"
+                                aria-hidden="true"
+                              />
                               <div className="min-w-0">
                                 <p className="font-medium text-foreground truncate text-xs sm:text-sm">
                                   {files.academicJournalFile.name}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground">
-                                  {(files.academicJournalFile.size / 1024).toFixed(1)} KB • Attached
+                                  {formatFileSizeLabel(files.academicJournalFile.size)} • Attached
                                 </p>
                               </div>
                             </div>
@@ -1266,7 +1371,7 @@ export default function ExistingCapstoneUploadPage() {
                               className="min-h-11 min-w-11 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 text-xs shrink-0"
                               title="Remove Academic Journal"
                             >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+                              <Trash2 className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Remove
                             </Button>
                           </div>
                         ) : (
@@ -1280,7 +1385,9 @@ export default function ExistingCapstoneUploadPage() {
                     <input
                       ref={academicJournalInputRef}
                       type="file"
-                      accept="application/pdf,.pdf"
+                      aria-label="Academic Journal file"
+                      aria-describedby="bundle-format-hint"
+                      accept={ARCHIVE_FILE_ACCEPT}
                       className="hidden"
                       onChange={handleAcademicJournalSelect}
                     />
@@ -1626,341 +1733,393 @@ export default function ExistingCapstoneUploadPage() {
                   </p>
                 </div>
 
-                <div className="space-y-5">
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Title', 'title')}
-                    <Input
-                      id="title"
-                      name="title"
-                      value={form.title}
-                      onChange={handleInputChange}
-                      placeholder="e.g. Enhancing OCR Performance..."
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('title')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'title' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Title Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('title')}
-                        disabled={Boolean(feedbackBusyByField.title)}
-                      >
-                        {feedbackBusyByField.title ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Title Feedback
-                      </Button>
+                <div className="space-y-6">
+                  {/* Fieldset 1: Document Publication Identity */}
+                  <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                    <legend className="text-sm font-semibold text-foreground px-2">
+                      Document Publication Identity
+                    </legend>
+                    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                      {renderLabelWithConfidence('Title', 'title')}
+                      <Input
+                        id="title"
+                        name="title"
+                        value={form.title}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Enhancing OCR Performance..."
+                      />
+                      <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleRescanField('title')}
+                          disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                        >
+                          {activeRescanField === 'title' && extractionStatus === 'extracting' ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Rescan Title Only
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleFeedbackForField('title')}
+                          disabled={Boolean(feedbackBusyByField.title)}
+                        >
+                          {feedbackBusyByField.title ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                          )}
+                          Send Title Feedback
+                        </Button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Abstract', 'abstract')}
-                    <Textarea
-                      id="abstract"
-                      name="abstract"
-                      value={form.abstract}
-                      onChange={handleInputChange}
-                      placeholder="Provide a brief summary of the paper..."
-                      className="min-h-[140px] resize-y"
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('abstract')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'abstract' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Abstract Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('abstract')}
-                        disabled={Boolean(feedbackBusyByField.abstract)}
-                      >
-                        {feedbackBusyByField.abstract ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Abstract Feedback
-                      </Button>
+                    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                      {renderLabelWithConfidence('Authors', 'authors')}
+                      <Input
+                        id="authors"
+                        name="authors"
+                        value={form.authors}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Jane Doe, John Smith"
+                      />
+                      <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleRescanField('authors')}
+                          disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                        >
+                          {activeRescanField === 'authors' && extractionStatus === 'extracting' ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Rescan Authors Only
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleFeedbackForField('authors')}
+                          disabled={Boolean(feedbackBusyByField.authors)}
+                        >
+                          {feedbackBusyByField.authors ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                          )}
+                          Send Authors Feedback
+                        </Button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Authors', 'authors')}
-                    <Input
-                      id="authors"
-                      name="authors"
-                      value={form.authors}
-                      onChange={handleInputChange}
-                      placeholder="e.g. Jane Doe, John Smith"
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('authors')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'authors' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Authors Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('authors')}
-                        disabled={Boolean(feedbackBusyByField.authors)}
-                      >
-                        {feedbackBusyByField.authors ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Authors Feedback
-                      </Button>
-                    </div>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                        {renderLabelWithConfidence('Publication Year', 'year')}
+                        <Input
+                          id="year"
+                          name="year"
+                          value={form.year}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 2023"
+                        />
+                        <div className="flex flex-col gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleRescanField('year')}
+                            disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                          >
+                            {activeRescanField === 'year' && extractionStatus === 'extracting' ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Rescan Year Only
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleFeedbackForField('year')}
+                            disabled={Boolean(feedbackBusyByField.year)}
+                          >
+                            {feedbackBusyByField.year ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <MessageSquarePlus className="h-3.5 w-3.5" />
+                            )}
+                            Send Year Feedback
+                          </Button>
+                        </div>
+                      </div>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Publication Year', 'year')}
-                    <Input
-                      id="year"
-                      name="year"
-                      value={form.year}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 2023"
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('year')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'year' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Year Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('year')}
-                        disabled={Boolean(feedbackBusyByField.year)}
-                      >
-                        {feedbackBusyByField.year ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Year Feedback
-                      </Button>
-                    </div>
-                  </div>
+                      <div className="space-y-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="academicYear" className="font-medium">
+                            Academic Year
+                          </Label>
+                          <Select
+                            value={form.academicYear ?? ''}
+                            onValueChange={(value) =>
+                              setForm((prev) => ({ ...prev, academicYear: value }))
+                            }
+                            disabled={yearsLoading}
+                          >
+                            <SelectTrigger id="academicYear">
+                              <SelectValue placeholder="Select academic year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {academicYearOptions.map((year) => (
+                                <SelectItem key={year} value={year}>
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <Label htmlFor="academicYear" className="font-medium">
-                        Academic Year
-                      </Label>
+                        <div className="space-y-2">
+                          <Label htmlFor="courseId" className="font-medium">
+                            Academic Program
+                          </Label>
+                          <Select
+                            value={form.courseId ?? ''}
+                            onValueChange={(value) =>
+                              setForm((prev) => ({ ...prev, courseId: value }))
+                            }
+                            disabled={coursesLoading || activeCourses.length === 0}
+                          >
+                            <SelectTrigger id="courseId" className="h-auto min-h-10 py-2 text-left">
+                              <SelectValue
+                                placeholder={
+                                  activeCourses.length === 0
+                                    ? 'No active courses found'
+                                    : 'Select degree program'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeCourses.map((course) => (
+                                <SelectItem key={course._id} value={course._id}>
+                                  {course.code} — {course.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Links archived documents to a degree program filter in Research Archive.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <Select
-                      value={form.academicYear || undefined}
-                      onValueChange={(value) =>
-                        setForm((prev) => ({ ...prev, academicYear: value }))
-                      }
-                      disabled={yearsLoading}
-                    >
-                      <SelectTrigger id="academicYear" aria-label="Academic Year">
-                        <SelectValue placeholder="Select academic year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {academicYears.length === 0 && (
-                          <SelectItem value={defaultAcademicYear}>{defaultAcademicYear}</SelectItem>
-                        )}
-                        {academicYears.map((year) => (
-                          <SelectItem key={year} value={year}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  </fieldset>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('DOI', 'doi')}
-                    <Input
-                      id="doi"
-                      name="doi"
-                      value={form.doi}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 10.1016/..."
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('doi')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'doi' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan DOI Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('doi')}
-                        disabled={Boolean(feedbackBusyByField.doi)}
-                      >
-                        {feedbackBusyByField.doi ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send DOI Feedback
-                      </Button>
+                  {/* Fieldset 2: Content Summary & Classification */}
+                  <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                    <legend className="text-sm font-semibold text-foreground px-2">
+                      Content Summary & Classification
+                    </legend>
+                    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                      {renderLabelWithConfidence('Abstract', 'abstract')}
+                      <Textarea
+                        id="abstract"
+                        name="abstract"
+                        value={form.abstract}
+                        onChange={handleInputChange}
+                        placeholder="Provide a brief summary of the paper..."
+                        className="min-h-[140px] resize-y"
+                      />
+                      <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleRescanField('abstract')}
+                          disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                        >
+                          {activeRescanField === 'abstract' && extractionStatus === 'extracting' ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Rescan Abstract Only
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleFeedbackForField('abstract')}
+                          disabled={Boolean(feedbackBusyByField.abstract)}
+                        >
+                          {feedbackBusyByField.abstract ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                          )}
+                          Send Abstract Feedback
+                        </Button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Publication Venue', 'venue')}
-                    <Input
-                      id="venue"
-                      name="venue"
-                      value={form.venue}
-                      onChange={handleInputChange}
-                      placeholder="e.g. Remote Sensing, NeurIPS, IEEE Trans. PAMI, arXiv"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Specific journal, conference proceedings, or preprint repository (not
-                      publisher or city).
-                    </p>
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('venue')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'venue' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Venue Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('venue')}
-                        disabled={Boolean(feedbackBusyByField.venue)}
-                      >
-                        {feedbackBusyByField.venue ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Venue Feedback
-                      </Button>
+                    <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                      {renderLabelWithConfidence('Keywords', 'keywords')}
+                      <Input
+                        id="keywords"
+                        name="keywords"
+                        value={form.keywords}
+                        onChange={handleInputChange}
+                        placeholder="E.g. OCR, Machine Learning, Transformers"
+                      />
+                      <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleRescanField('keywords')}
+                          disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                        >
+                          {activeRescanField === 'keywords' && extractionStatus === 'extracting' ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Rescan Keywords Only
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="justify-start gap-2"
+                          onClick={() => handleFeedbackForField('keywords')}
+                          disabled={Boolean(feedbackBusyByField.keywords)}
+                        >
+                          {feedbackBusyByField.keywords ? (
+                            <Spinner className="h-3.5 w-3.5" />
+                          ) : (
+                            <MessageSquarePlus className="h-3.5 w-3.5" />
+                          )}
+                          Send Keywords Feedback
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  </fieldset>
 
-                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                    {renderLabelWithConfidence('Keywords', 'keywords')}
-                    <Input
-                      id="keywords"
-                      name="keywords"
-                      value={form.keywords}
-                      onChange={handleInputChange}
-                      placeholder="E.g. OCR, Machine Learning, Transformers"
-                    />
-                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleRescanField('keywords')}
-                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
-                      >
-                        {activeRescanField === 'keywords' && extractionStatus === 'extracting' ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        Rescan Keywords Only
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="justify-start gap-2"
-                        onClick={() => handleFeedbackForField('keywords')}
-                        disabled={Boolean(feedbackBusyByField.keywords)}
-                      >
-                        {feedbackBusyByField.keywords ? (
-                          <Spinner className="h-3.5 w-3.5" />
-                        ) : (
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                        )}
-                        Send Keywords Feedback
-                      </Button>
+                  {/* Fieldset 3: Bibliographic & Indexing Details */}
+                  <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                    <legend className="text-sm font-semibold text-foreground px-2">
+                      Bibliographic & Indexing Details
+                    </legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                        {renderLabelWithConfidence('DOI', 'doi')}
+                        <Input
+                          id="doi"
+                          name="doi"
+                          value={form.doi}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 10.1016/..."
+                        />
+                        <div className="flex flex-col gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleRescanField('doi')}
+                            disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                          >
+                            {activeRescanField === 'doi' && extractionStatus === 'extracting' ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Rescan DOI Only
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleFeedbackForField('doi')}
+                            disabled={Boolean(feedbackBusyByField.doi)}
+                          >
+                            {feedbackBusyByField.doi ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <MessageSquarePlus className="h-3.5 w-3.5" />
+                            )}
+                            Send DOI Feedback
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                        {renderLabelWithConfidence('Publication Venue', 'venue')}
+                        <Input
+                          id="venue"
+                          name="venue"
+                          value={form.venue}
+                          onChange={handleInputChange}
+                          placeholder="e.g. Remote Sensing, NeurIPS, IEEE Trans. PAMI, arXiv"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Specific journal, conference proceedings, or preprint repository (not
+                          publisher or city).
+                        </p>
+                        <div className="flex flex-col gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleRescanField('venue')}
+                            disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
+                          >
+                            {activeRescanField === 'venue' && extractionStatus === 'extracting' ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Rescan Venue Only
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="justify-start gap-2"
+                            onClick={() => handleFeedbackForField('venue')}
+                            disabled={Boolean(feedbackBusyByField.venue)}
+                          >
+                            {feedbackBusyByField.venue ? (
+                              <Spinner className="h-3.5 w-3.5" />
+                            ) : (
+                              <MessageSquarePlus className="h-3.5 w-3.5" />
+                            )}
+                            Send Venue Feedback
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </fieldset>
                 </div>
               </div>
 

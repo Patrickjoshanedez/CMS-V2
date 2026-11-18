@@ -1,27 +1,32 @@
-## 2026-09-28T06:14:06Z
-You are survey_explorer_1.
-Your working directory is: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\survey_explorer_1
-Your parent is: orchestrator_1 (Conversation ID: 1714716d-2fa0-43f0-bb45-4ec063aeb453)
-Original user request file: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md
+# DISPATCH — survey_explorer_1
 
-MANDATORY FIRST STEP: Read ORIGINAL_REQUEST.md (specifically the section under timestamp ## 2026-09-28T06:10:21Z).
+## Mission: UI Redesign, Sizing Optimization & Paper Deliverables / Printing Format Scope Survey (R1, R3)
 
-Your objective is to conduct a technical survey and exploration of Phase 1 and Phase 2:
-1. Phase 1: Document Viewer Consolidation & Dead Code Pruning
-   - Search the entire client codebase for any references, imports, or usages of `PaginatedDocumentViewer.jsx` and `ReadonlyPDFViewer.jsx`.
-   - Inspect `client/src/components/documents/SophisticatedDocumentViewer.jsx` to verify its contract, props, and export structure.
-   - Identify all files importing `PaginatedDocumentViewer` or `ReadonlyPDFViewer`, and all test files/mocks referencing them.
-   - Search authentication components (under `client/src/pages/auth/` or `client/src/components/auth/`) for redundant duplicate inline `style={{ color }}` tags.
-2. Phase 2: Mobile Ergonomics & Touch Target Normalization
-   - Inspect `client/src/components/projects/GoogleScholarSidebar.jsx`, `client/src/components/projects/PrototypeGallery.jsx`, and `client/src/components/dashboard/TeamCommitteeAssignmentsView.jsx` (verify exact file locations).
-   - Locate all interactive buttons, auxiliary controls, modal dismiss buttons, and accordion triggers.
-   - Check current dimensions, classes, and touch target sizes. Identify where `min-h-[44px] min-w-[44px]` (or equivalent touch padding/bounding box) must be added for WCAG 2.1 SC 2.5.5 / WCAG 2.2 SC 2.5.8 compliance.
+- **Role**: UI and Print Scope Explorer (`teamwork_explorer`)
+- **Parent Conversation ID**: ed92d340-7260-43d5-8952-0ac19a527b4f
+- **State Folder**: c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_1\
+- **Working Directory**: c:\Users\patri\dev\CMS-V2
+- **Original Request File**: c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md
+- **Reference Skills**:
+  - `c:\Users\patri\dev\CMS-V2\.agents\skills\cms-ui-consistency-library\SKILL.md`
+  - `c:\Users\patri\dev\CMS-V2\.agents\skills\cognitive-ergonomics-ux\SKILL.md`
+  - `c:\Users\patri\dev\CMS-V2\.agents\skills\modern-web-guidance\SKILL.md`
 
-Deliver your survey findings in:
-`c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\survey_explorer_1\handoff.md`
-Include:
-- Exact file paths and line numbers
-- Component AST context and current implementation
-- Specific list of files to modify, delete, and test
-- Recommended surgical changes and risks
-When done, notify orchestrator_1 via `send_message`.
+## Instructions:
+1. Read `c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md` and the reference skills.
+2. Conduct an exhaustive exploration across `client/src/` (pages, components, layouts, forms, tables, modals, cards, navigation, sidebars).
+3. Identify all areas where component sizing is oversized, typography or spacing is inconsistent, layouts break or clip on standard desktop viewports (1440x900) or mobile (390x844), or modern web standards are violated.
+4. Survey all paper requirements, deliverables, forms, approval sheets, Action Done Matrix forms, and manuscript documents across the capstone lifecycle.
+5. Inspect print stylesheets (`@media print`), print view buttons, and layout handling for printing across all document and form components. Identify clipping, missing headers/footers, unstyled page breaks, or overflow issues.
+6. Compile your findings into `.agents/teamwork/survey_explorer_1/survey_report.md` with:
+   - Exhaustive inventory of UI components/pages needing sizing and modern styling overhaul.
+   - Exhaustive inventory of paper deliverables and print stylesheet gaps.
+   - Concrete file paths, line ranges, and actionable remediation recommendations.
+7. Deliver a self-contained `handoff.md` and notify the parent orchestrator via `send_message`.
+
+
+## 2026-11-13T17:27:53Z
+You are survey_explorer_1. Read your instructions in c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_1\DISPATCH.md and c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md.
+Conduct an exhaustive survey of UI redesign, sizing optimization, component scaling, spacing, layout integrity across all views, and paper deliverables / printing formats across BukSU CMS-V2.
+Write your comprehensive findings to c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_1\survey_report.md and your handoff to c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_1\handoff.md.
+When finished, notify your parent orchestrator via send_message with the path to your handoff report.

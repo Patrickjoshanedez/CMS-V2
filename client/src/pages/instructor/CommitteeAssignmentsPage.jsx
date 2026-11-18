@@ -9,7 +9,7 @@ import TeamCommitteeAssignmentsView from '@/components/users/TeamCommitteeAssign
 export default function CommitteeAssignmentsPage() {
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 max-w-[1600px] mx-auto min-w-0 w-full">
+      <div className="min-w-0 w-full space-y-6">
         <TeamCommitteeAssignmentsView />
       </div>
     </DashboardLayout>

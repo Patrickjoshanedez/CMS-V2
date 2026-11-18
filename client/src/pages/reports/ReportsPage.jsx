@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -512,23 +513,23 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="reports-dashboard-container min-w-0 space-y-6 lg:space-y-8 max-w-7xl mx-auto pb-12 print:pb-0">
+      <div className="reports-dashboard-container min-w-0 space-y-6 lg:space-y-8 pb-12 print:pb-0">
         {/* Printable Institutional Report Header (Only visible on physical print/PDF) */}
         <div className="reports-print-header hidden print:block">
-          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+          <div className="flex items-center justify-between border-b-2 border-foreground pb-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-700">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground print:text-black">
                 Bukidnon State University • College of Technologies
               </p>
-              <h1 className="text-xl font-black text-slate-950 mt-0.5">
+              <h2 className="text-xl font-bold text-foreground print:text-black mt-0.5">
                 Department of Information Technology — Capstone Analytics &amp; Institutional Report
-              </h1>
-              <p className="text-xs text-slate-600 mt-1">
+              </h2>
+              <p className="text-xs text-muted-foreground print:text-black mt-1">
                 Academic Year: <strong>{filters.year || 'All Cohorts'}</strong> • Section:{' '}
                 <strong>{filters.section || 'All Sections (BSIT 4A - 4D)'}</strong>
               </p>
             </div>
-            <div className="text-right text-[10px] text-slate-600">
+            <div className="text-right text-[10px] text-muted-foreground print:text-black">
               <p>
                 Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
               </p>
@@ -539,51 +540,47 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Page Executive Header */}
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b border-border/80 pb-5 print:hidden">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">
-              Capstone Analytics &amp; Reports
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Review cohort progress, research areas, faculty workload, and archived projects.
-            </p>
-          </div>
-
-          {/* Quick Action Export Buttons */}
-          <div className="reports-quick-actions flex flex-wrap items-center gap-3 self-start sm:self-auto print:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={records.length === 0}
-              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
-            >
-              <Download className="h-3.5 w-3.5 text-primary" />
-              <span>Export CSV</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportExcel}
-              disabled={records.length === 0}
-              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
-            >
-              <Download className="h-3.5 w-3.5 text-success-foreground" />
-              <span>Excel</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              disabled={records.length === 0}
-              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Print</span>
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Institutional Reporting"
+          icon={FileText}
+          title="Capstone Analytics & Reports"
+          description="Review cohort progress, research areas, faculty workload, and archived projects."
+          className="print:hidden"
+          actions={
+            <div className="reports-quick-actions flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={records.length === 0}
+                className="gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" />
+                <span>Export CSV</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                disabled={records.length === 0}
+                className="gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-success-foreground" />
+                <span>Excel</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                disabled={records.length === 0}
+                className="gap-1.5"
+              >
+                <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Print</span>
+              </Button>
+            </div>
+          }
+        />
 
         {/* 1. Cohort KPI Summary Ribbon (4 Reconciled Executive Metrics) */}
         <CohortKPIRibbon

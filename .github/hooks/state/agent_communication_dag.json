@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-25T13:13:25.618843Z",
+  "generated_at": "2026-11-18T14:17:04.802677Z",
   "metadata": {
     "agent_count": 11,
     "edges_count": 8,
@@ -99,6 +99,16 @@
   "edges": [
     {
       "source": "orchestrator",
+      "target": "100x code reviewer",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "product-design-handoff",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
       "target": "coder",
       "bidirectional": false
     },
@@ -119,17 +129,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "product-design-handoff",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "thinker pro",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "100x code reviewer",
       "bidirectional": false
     },
     {

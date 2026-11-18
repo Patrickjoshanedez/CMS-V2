@@ -2,6 +2,7 @@ import { useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { FilterToolbar, PageHeader } from '@/components/common';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -174,9 +175,32 @@ function getNotificationTarget(notification, role) {
   const projectId = metadata.projectId || metadata.project?._id || metadata.projectId;
   const chapter = metadata.chapter;
   const defenseType = metadata.defenseType;
+  const requestedTab = metadata.tab;
+
+  if (
+    notification.type === 'adm_endorsed' ||
+    notification.type === 'adm_submitted_for_review' ||
+    requestedTab === 'adm'
+  ) {
+    return role !== ROLES.STUDENT && projectId
+      ? `/projects/${encodeURIComponent(projectId)}?tab=adm`
+      : '/project?tab=adm';
+  }
+
+  if (requestedTab && projectId) {
+    return role !== ROLES.STUDENT
+      ? `/projects/${encodeURIComponent(projectId)}?tab=${encodeURIComponent(requestedTab)}`
+      : `/project?tab=${encodeURIComponent(requestedTab)}`;
+  }
 
   if (role !== ROLES.STUDENT && projectId && PROJECT_NOTIFICATION_TYPES.has(notification.type)) {
-    return `/projects?projectId=${encodeURIComponent(projectId)}`;
+    const targetTab =
+      notification.type === 'phase_advanced'
+        ? TAB_BY_DEFENSE[defenseType] || (metadata.newPhase ? `capstone_${metadata.newPhase}` : '')
+        : '';
+    return targetTab
+      ? `/projects/${encodeURIComponent(projectId)}?tab=${encodeURIComponent(targetTab)}`
+      : `/projects/${encodeURIComponent(projectId)}`;
   }
 
   if (notification.type === 'team_invite') {
@@ -640,99 +664,101 @@ export default function NotificationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-6xl space-y-6">
-        {/* Header Ribbon */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Notifications</h1>
+      <div className="min-w-0 space-y-6 lg:space-y-8">
+        <PageHeader
+          eyebrow="Inbox"
+          icon={Bell}
+          title="Notifications"
+          description={
+            isLoading
+              ? 'Loading your notifications…'
+              : unreadCount > 0
+                ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}.`
+                : 'You are completely caught up.'
+          }
+          meta={
+            unreadCount > 0 ? (
+              <Badge variant="default" className="text-xs px-2 py-0.5 font-mono">
+                {unreadCount} unread
+              </Badge>
+            ) : null
+          }
+          actions={
+            <>
               {unreadCount > 0 && (
-                <Badge variant="default" className="text-xs px-2 py-0.5 font-mono">
-                  {unreadCount} unread
-                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllRead}
+                  disabled={markAllAsRead.isPending}
+                  className="gap-1.5"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Mark all read
+                </Button>
               )}
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              {isLoading
-                ? 'Loading your notifications…'
-                : unreadCount > 0
-                  ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}.`
-                  : 'You are completely caught up.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
-            {unreadCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleMarkAllRead}
-                disabled={markAllAsRead.isPending}
-                className="gap-1.5 text-xs shadow-xs"
-              >
-                <CheckCheck className="h-4 w-4" />
-                Mark all read
-              </Button>
-            )}
-            {rawNotifications.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenClearAllConfirm}
-                disabled={clearAll.isPending}
-                className="text-destructive hover:text-destructive gap-1.5 text-xs shadow-xs border-destructive/30 hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-                Clear all
-              </Button>
-            )}
-          </div>
-        </div>
+              {rawNotifications.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenClearAllConfirm}
+                  disabled={clearAll.isPending}
+                  className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Clear all
+                </Button>
+              )}
+            </>
+          }
+        />
 
         {/* Filter Toolbar: Category Tabs + Search */}
-        <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 xl:grid-cols-[minmax(0,1fr)_14rem] xl:items-center">
-          {/* Category Tabs */}
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            {CATEGORY_TABS.map((tab) => (
-              <Button
-                key={tab.id}
-                type="button"
-                variant={activeTab === tab.id ? 'secondary' : 'ghost'}
-                aria-pressed={activeTab === tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setPage(1);
-                }}
-                className="min-h-11 whitespace-nowrap rounded-lg px-3 py-2 text-xs sm:min-h-9"
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
+        <FilterToolbar
+          top={
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_16rem] xl:items-center">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                {CATEGORY_TABS.map((tab) => (
+                  <Button
+                    key={tab.id}
+                    type="button"
+                    variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+                    aria-pressed={activeTab === tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setPage(1);
+                    }}
+                    className="min-h-10 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs sm:min-h-9"
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
 
-          {/* Search Box */}
-          <div className="relative w-full xl:w-56">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notifications..."
-              className="h-11 sm:h-9 pl-8 pr-7 text-sm bg-background"
-            />
-            {searchQuery && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-1 top-1/2 size-8 min-h-8 min-w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Clear notification search"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
+              <div className="relative w-full xl:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search notifications..."
+                  className="pl-9 pr-8 text-sm"
+                />
+                {searchQuery && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-1 top-1/2 size-8 min-h-8 min-w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear notification search"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        />
 
         {/* Loading Skeletons */}
         {isLoading && (

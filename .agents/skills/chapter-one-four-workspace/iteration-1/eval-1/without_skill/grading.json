@@ -1,0 +1,28 @@
+{
+  "expectations": [
+    {
+      "text": "Removes first-ever and 80% outcome claims",
+      "passed": true,
+      "evidence": "no percentage improvement is currently established"
+    },
+    {
+      "text": "Provides substantive Chapter 1 and Chapter 2 prose with objectives",
+      "passed": true,
+      "evidence": "Proposed specific objectives are"
+    },
+    {
+      "text": "Treats abstracts as limited evidence and identifies a scoped gap without invented citations",
+      "passed": true,
+      "evidence": "supplied abstracts provide neither"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Parent qualitatively reviewed full outputs; quoted anchors verified programmatically. Small synthetic cases; not a blinded benchmark."
+  }
+}

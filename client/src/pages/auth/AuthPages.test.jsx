@@ -28,6 +28,14 @@ describe('AuthPages', () => {
   let originalActions;
 
   beforeEach(() => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     const state = useAuthStore.getState();
     originalActions = Object.fromEntries(
       [
@@ -60,6 +68,7 @@ describe('AuthPages', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     localStorage.clear();
     useAuthStore.setState(originalActions);
@@ -93,6 +102,37 @@ describe('AuthPages', () => {
     expect(screen.getByText('Step 2 of 2')).toBeVisible();
     expect(screen.getByLabelText('Institutional Email *')).toBeVisible();
     expect(actions.register).not.toHaveBeenCalled();
+  });
+
+  it('registers faculty without requesting a student ID', async () => {
+    renderRoutes(
+      [{ pathname: '/register' }],
+      [
+        <Route key="register" path="/register" element={<RegisterPage />} />,
+        <Route key="verify" path="/verify-otp" element={<RouteState />} />,
+      ],
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Faculty' }));
+    fireEvent.change(screen.getByLabelText('First name *'), { target: { value: 'Ana' } });
+    fireEvent.change(screen.getByLabelText('Last name *'), { target: { value: 'Santos' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Credentials' }));
+    await screen.findByLabelText('Institutional Email *');
+    expect(screen.queryByLabelText('Student ID no. *')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Institutional Email *'), {
+      target: { value: 'ana@buksu.edu.ph' },
+    });
+    fireEvent.change(screen.getByLabelText('Password *'), { target: { value: 'Password123' } });
+    fireEvent.change(screen.getByLabelText('Confirm password *'), {
+      target: { value: 'Password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await waitFor(() =>
+      expect(actions.register).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'faculty', email: 'ana@buksu.edu.ph' }),
+      ),
+    );
+    expect(actions.register.mock.calls[0][0]).not.toHaveProperty('studentId');
+    expect(await screen.findByText(/ana@buksu.edu.ph/)).toBeVisible();
   });
 
   it('validates recovery email before sending a code', async () => {
@@ -202,6 +242,7 @@ describe('AuthPages', () => {
     await waitFor(() =>
       expect(actions.resetPassword).toHaveBeenCalledWith({
         email: 'student@student.buksu.edu.ph',
+        code: '123456',
         newPassword: 'Password123',
       }),
     );

@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import PageSkeleton from '@/components/ui/PageSkeleton';
@@ -178,45 +179,36 @@ export default function ArchiveSearchPage() {
 
   return (
     <DashboardLayout>
-      <div data-testid="archive-search-page" className="mx-auto w-full max-w-6xl space-y-6">
-        {/* Top Minimalist Academic Header & Centered Search Bar */}
-        <div className="pt-2 pb-4 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-            <div className="space-y-1 text-left">
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                <BookOpen className="w-6 h-6 text-primary shrink-0" />
-                BukSU Research Archive
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
-                Search approved capstone titles and archived manuscripts.
-              </p>
-            </div>
+      <div data-testid="archive-search-page" className="min-w-0 space-y-6 lg:space-y-8">
+        <PageHeader
+          eyebrow="Repository"
+          icon={BookOpen}
+          title="BukSU Research Archive"
+          description="Search approved capstone titles and archived manuscripts."
+          actions={
+            isInstructor ? (
+              <Button
+                onClick={() =>
+                  navigate('/archive/upload/capstone', { state: { fromArchive: true } })
+                }
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Archive Documents (OCR)
+              </Button>
+            ) : null
+          }
+        />
 
-            {isInstructor && (
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  onClick={() =>
-                    navigate('/archive/upload/capstone', { state: { fromArchive: true } })
-                  }
-                  className="min-h-[44px] gap-2 shadow-xs"
-                >
-                  <Upload className="w-4 h-4" />
-                  Archive Documents (OCR)
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <GoogleScholarSearchBar
-            query={query}
-            onQueryChange={setQuery}
-            scope={scope}
-            onScopeChange={setScope}
-            onSearch={() => setPage(1)}
-            onClear={clearQuery}
-            totalResults={pagination.total}
-          />
-        </div>
+        <GoogleScholarSearchBar
+          query={query}
+          onQueryChange={setQuery}
+          scope={scope}
+          onScopeChange={setScope}
+          onSearch={() => setPage(1)}
+          onClear={clearQuery}
+          totalResults={pagination.total}
+        />
 
         {/* Main Content Layout with Fixed Desktop Sidebar & Mobile Drawer */}
         <div className="flex flex-col md:flex-row gap-6 items-start">

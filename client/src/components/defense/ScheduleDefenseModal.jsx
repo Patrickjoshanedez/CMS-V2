@@ -314,222 +314,237 @@ export default function ScheduleDefenseModal({
             </div>
           )}
 
-          {/* Defense Round & Type */}
+          {/* Fieldset 1: Hearing Classification & Round */}
           {!isTitleReviewHearing && (
+            <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+              <legend className="text-xs font-semibold text-foreground px-2">
+                Hearing Classification &amp; Round
+              </legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="defense-type"
+                    className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                  >
+                    <Layers className="h-3.5 w-3.5 text-primary" />
+                    Defense Type
+                  </Label>
+                  <Select value={defenseType} onValueChange={setDefenseType}>
+                    <SelectTrigger id="defense-type" className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="proposal">Title/Proposal Defense (Capstone 1)</SelectItem>
+                      <SelectItem value="progress">
+                        Prototype / Progress Defense (Capstone 2)
+                      </SelectItem>
+                      <SelectItem value="final">Final Manuscript Defense (Capstone 3)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="defense-round"
+                    className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    Defense Round
+                  </Label>
+                  <Select value={round} onValueChange={setRound}>
+                    <SelectTrigger id="defense-round" className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1st">1st Round (Standard Defense)</SelectItem>
+                      <SelectItem value="2nd">2nd Round (Re-defense)</SelectItem>
+                      <SelectItem value="3rd">3rd Round (Final Attempt)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </fieldset>
+          )}
+
+          {/* Fieldset 2: Schedule & Venue Logistics */}
+          <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+            <legend className="text-xs font-semibold text-foreground px-2">
+              Schedule &amp; Venue Logistics
+            </legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label
-                  htmlFor="defense-type"
+                  htmlFor="defense-date"
                   className="text-xs font-semibold text-foreground flex items-center gap-1.5"
                 >
-                  <Layers className="h-3.5 w-3.5 text-primary" />
-                  Defense Type
+                  <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                  {isTitleReviewHearing ? 'Hearing Date' : 'Defense Date'}
                 </Label>
-                <Select value={defenseType} onValueChange={setDefenseType}>
-                  <SelectTrigger id="defense-type" className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="proposal">Title/Proposal Defense (Capstone 1)</SelectItem>
-                    <SelectItem value="progress">
-                      Prototype / Progress Defense (Capstone 2)
-                    </SelectItem>
-                    <SelectItem value="final">Final Manuscript Defense (Capstone 3)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="defense-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className="h-9 text-xs"
+                />
               </div>
 
               <div className="space-y-1.5">
                 <Label
-                  htmlFor="defense-round"
+                  htmlFor="defense-time"
                   className="text-xs font-semibold text-foreground flex items-center gap-1.5"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Defense Round
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Time Slot
                 </Label>
-                <Select value={round} onValueChange={setRound}>
-                  <SelectTrigger id="defense-round" className="h-9 text-xs">
+                <Select value={time} onValueChange={setTime}>
+                  <SelectTrigger id="defense-time" className="h-9 text-xs font-mono">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1st">1st Round (Standard Defense)</SelectItem>
-                    <SelectItem value="2nd">2nd Round (Re-defense)</SelectItem>
-                    <SelectItem value="3rd">3rd Round (Final Attempt)</SelectItem>
+                    {TIME_PRESETS.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          )}
 
-          {/* Date & Time Slot */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="defense-date"
-                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-              >
-                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                {isTitleReviewHearing ? 'Hearing Date' : 'Defense Date'}
-              </Label>
-              <Input
-                id="defense-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="h-9 text-xs"
-              />
+            {/* Popular Time Slot Chips */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
+                Quick Slots:
+              </span>
+              {POPULAR_TIME_CHIPS.map((t) => (
+                <Button
+                  type="button"
+                  key={t}
+                  onClick={() => setTime(t)}
+                  variant={time === t ? 'secondary' : 'outline'}
+                  aria-pressed={time === t}
+                  className="h-7 rounded-md px-2 py-0.5 text-[10px] font-mono"
+                >
+                  {t.split(' - ')[0]}
+                </Button>
+              ))}
             </div>
 
+            {/* Venue Selector */}
             <div className="space-y-1.5">
               <Label
-                htmlFor="defense-time"
+                htmlFor="defense-venue"
                 className="text-xs font-semibold text-foreground flex items-center gap-1.5"
               >
-                <Clock className="h-3.5 w-3.5 text-primary" />
-                Time Slot
+                <MapPin className="h-3.5 w-3.5 text-primary" />
+                Venue &amp; Location
               </Label>
-              <Select value={time} onValueChange={setTime}>
-                <SelectTrigger id="defense-time" className="h-9 text-xs font-mono">
+              <Select value={venue} onValueChange={setVenue}>
+                <SelectTrigger id="defense-venue" className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIME_PRESETS.map((slot) => (
-                    <SelectItem key={slot} value={slot}>
-                      {slot}
+                  {VENUE_PRESETS.map((v) => (
+                    <SelectItem key={v} value={v}>
+                      {v}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </fieldset>
 
-          {/* Popular Time Slot Chips */}
-          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
-              Quick Slots:
-            </span>
-            {POPULAR_TIME_CHIPS.map((t) => (
-              <Button
-                type="button"
-                key={t}
-                onClick={() => setTime(t)}
-                variant={time === t ? 'secondary' : 'outline'}
-                aria-pressed={time === t}
-                className="h-7 rounded-md px-2 py-0.5 text-[10px] font-mono"
-              >
-                {t.split(' - ')[0]}
-              </Button>
-            ))}
-          </div>
+          {/* Fieldset 3: Stakeholders & Committee Alignment */}
+          <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+            <legend className="text-xs font-semibold text-foreground px-2">
+              Stakeholders &amp; Committee Alignment
+            </legend>
+            {!isTitleReviewHearing && (
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="defense-client"
+                  className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                >
+                  <Building className="h-3.5 w-3.5 text-primary" />
+                  Target Client / Industry Partner
+                </Label>
+                <Input
+                  id="defense-client"
+                  type="text"
+                  placeholder="e.g. Dr. Sales G. Aribe Jr."
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="h-9 text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  A designated section for client recommendations will appear on the
+                  Secretary&apos;s Minutes (OVPAA-F-INS-032).
+                </p>
+              </div>
+            )}
 
-          {/* Venue Selector */}
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="defense-venue"
-              className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-            >
-              <MapPin className="h-3.5 w-3.5 text-primary" />
-              Venue &amp; Location
-            </Label>
-            <Select value={venue} onValueChange={setVenue}>
-              <SelectTrigger id="defense-venue" className="h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VENUE_PRESETS.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Target Client / Industry Partner */}
-          {!isTitleReviewHearing && (
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="defense-client"
-                className="text-xs font-semibold text-foreground flex items-center gap-1.5"
-              >
-                <Building className="h-3.5 w-3.5 text-primary" />
-                Target Client / Industry Partner
-              </Label>
-              <Input
-                id="defense-client"
-                type="text"
-                placeholder="e.g. Dr. Sales G. Aribe Jr."
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="h-9 text-xs"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                A designated section for client recommendations will appear on the Secretary&apos;s
-                Minutes (OVPAA-F-INS-032).
-              </p>
-            </div>
-          )}
-
-          {/* Hearing Committee Notification Roster Snapshot */}
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <Users className="h-3 w-3 text-primary" /> Hearing Committee Roster
-              </span>
-              <Badge
-                variant={hasFullCommittee ? 'success' : 'warning'}
-                className="h-4 px-1.5 text-[9px] font-bold"
-              >
-                {hasFullCommittee
-                  ? 'Committee Complete'
-                  : isTitleReviewHearing && !hasSecretary
-                    ? 'Missing Secretary'
-                    : `${panelistCount}/3 Panelists`}
-              </Badge>
-            </div>
-            <div className="text-[11px] text-foreground space-y-0.5 font-mono">
-              <p>
-                <strong className="text-muted-foreground font-sans">Adviser:</strong>{' '}
-                {project?.adviserId?.firstName ? (
-                  `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                ) : isTitleReviewHearing ? (
-                  <span className="text-muted-foreground font-sans italic">
-                    To be chosen after approval based on field
-                  </span>
-                ) : (
-                  <span className="text-warning-foreground font-sans italic">Unassigned</span>
-                )}
-              </p>
-              <p>
-                <strong className="text-muted-foreground font-sans">Panelists:</strong>{' '}
-                {panelistCount > 0 ? (
-                  project.panelistIds.map((p, i) => (
-                    <span
-                      key={p._id || i}
-                      className="after:content-[',_'] last:after:content-none font-sans"
-                    >
-                      {p.firstName ? `${p.firstName} ${p.lastName}` : `Panelist ${i + 1}`}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-warning-foreground font-sans italic">0 appointed</span>
-                )}
-              </p>
-              {(isTitleReviewHearing || project?.secretaryId) && (
+            {/* Hearing Committee Notification Roster Snapshot */}
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Users className="h-3 w-3 text-primary" /> Hearing Committee Roster
+                </span>
+                <Badge
+                  variant={hasFullCommittee ? 'success' : 'warning'}
+                  className="h-4 px-1.5 text-[9px] font-bold"
+                >
+                  {hasFullCommittee
+                    ? 'Committee Complete'
+                    : isTitleReviewHearing && !hasSecretary
+                      ? 'Missing Secretary'
+                      : `${panelistCount}/3 Panelists`}
+                </Badge>
+              </div>
+              <div className="text-[11px] text-foreground space-y-0.5 font-mono">
                 <p>
-                  <strong className="text-muted-foreground font-sans">Secretary:</strong>{' '}
-                  {project?.secretaryId?.firstName ? (
-                    `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
-                  ) : (
-                    <span className="text-warning-foreground font-sans italic">
-                      Unassigned (Required)
+                  <strong className="text-muted-foreground font-sans">Adviser:</strong>{' '}
+                  {project?.adviserId?.firstName ? (
+                    `${project.adviserId.firstName} ${project.adviserId.lastName}`
+                  ) : isTitleReviewHearing ? (
+                    <span className="text-muted-foreground font-sans italic">
+                      To be chosen after approval based on field
                     </span>
+                  ) : (
+                    <span className="text-warning-foreground font-sans italic">Unassigned</span>
                   )}
                 </p>
-              )}
+                <p>
+                  <strong className="text-muted-foreground font-sans">Panelists:</strong>{' '}
+                  {panelistCount > 0 ? (
+                    project.panelistIds.map((p, i) => (
+                      <span
+                        key={p._id || i}
+                        className="after:content-[',_'] last:after:content-none font-sans"
+                      >
+                        {p.firstName ? `${p.firstName} ${p.lastName}` : `Panelist ${i + 1}`}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-warning-foreground font-sans italic">0 appointed</span>
+                  )}
+                </p>
+                {(isTitleReviewHearing || project?.secretaryId) && (
+                  <p>
+                    <strong className="text-muted-foreground font-sans">Secretary:</strong>{' '}
+                    {project?.secretaryId?.firstName ? (
+                      `${project.secretaryId.firstName} ${project.secretaryId.lastName}`
+                    ) : (
+                      <span className="text-warning-foreground font-sans italic">
+                        Unassigned (Required)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          </fieldset>
         </form>
 
         {/* Pinned Action Footer */}

@@ -205,6 +205,13 @@ export const approveTitleSchema = z.object({
     .optional()
     .nullable(),
   approveWithRevision: z.boolean().optional().default(false),
+  hearingSchedule: z
+    .object({
+      date: z.string().trim().min(1, 'Hearing date is required'),
+      time: z.string().trim().min(1).max(100).optional(),
+      venue: z.string().trim().min(1).max(200).optional(),
+    })
+    .optional(),
 });
 
 /* ───── Reject title (instructor action) ───── */

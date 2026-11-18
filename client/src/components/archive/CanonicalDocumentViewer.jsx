@@ -1149,7 +1149,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
               {viewMode === 'integrity' && pdfBlobUrl ? (
                 <div
-                  className="w-full max-w-5xl bg-card rounded-lg shadow-md border border-border overflow-hidden transition-all flex flex-col h-[calc(100vh-8.5rem)]"
+                  className="w-full max-w-full bg-card rounded-lg shadow-md border border-border overflow-hidden transition-all flex flex-col h-[calc(100vh-8.5rem)]"
                   style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
                 >
                   <PdfViewerWorkspace
@@ -1166,7 +1166,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 </div>
               ) : (
                 <div
-                  className="w-full max-w-5xl"
+                  className="w-full max-w-full"
                   style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
                 >
                   <SophisticatedDocumentViewer
@@ -1272,9 +1272,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
                 {/* Title & Proponents */}
                 <div className="space-y-4 text-center">
-                  <h1 className="text-xl sm:text-2xl font-bold font-serif leading-snug tracking-tight text-foreground">
+                  <h2 className="text-xl sm:text-2xl font-bold font-serif leading-snug tracking-tight text-foreground">
                     {project.title}
-                  </h1>
+                  </h2>
 
                   <div className="text-sm font-medium text-muted-foreground space-y-1">
                     <p className="text-foreground font-semibold">

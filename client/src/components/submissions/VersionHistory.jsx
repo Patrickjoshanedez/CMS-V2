@@ -177,7 +177,7 @@ const VersionHistory = ({ submissionId }) => {
       )}
 
       <Dialog open={showCompare} onOpenChange={setShowCompare}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-6xl overflow-y-auto">
+        <DialogContent className="max-h-[min(90dvh,54rem)] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Compare versions</DialogTitle>
             <DialogDescription>

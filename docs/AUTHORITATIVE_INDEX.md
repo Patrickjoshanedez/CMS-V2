@@ -1,5 +1,40 @@
 # CMS-V2 Authoritative Document Index & Order of Precedence
 
+18 November 2026 · [System performance masterplan](specs/system-performance-masterplan.md) (level 5). Proposed user-journey budgets, measured build asset sizes, and a phased optimization and verification plan.
+
+18 November Objective 4 isolated verification: [isolated multi-container verification report](benchmarks/objective-4-isolated-verification-2026-11-18.md) and [JSON bundle](benchmarks/objective-4-isolated-verification-2026-11-18.json) (level 4/5) document 24/24 passing live acceptance cases (`TC-1.1` through `TC-5.4`), authenticated hybrid plagiarism benchmarking (`PlagDet = 0.7153` on PAN `n = 10`; `100.00%` recall and `88.89%` F1 on 48 direct-API cases including `8/8` manual paraphrases; `4/4` HTTP 401 auth and `3/3` validator negative checks), 3 live container outage/recovery cycles plus `24+6` burst execution, 8 live bugs fixed, and `94/94` post-edit server unit tests (`229/209` endpoints, `0` unmatched). Discloses `all-MiniLM-L6-v2` (384-dim CPU) runtime vs `BAAI/bge-m3` design target, synthetic corpus scope, direct-API `quoted_control` sensitivity, and non-certification boundaries while retaining the 27 October 2026 lexical/component baseline for provenance.
+
+18 November evidence correction: [claim-to-evidence ledger](benchmarks/manuscript-evidence-ledger-2026-11-18.md) (level 5) scopes completed component, regression and lexical results. [Session provenance](../.agents/ptss/sessions/2026-11-18_workspace-research-evidence.json) is level 6. The earlier blanket planned-testing description is superseded by these scoped retained results.
+
+18 November comprehensive manuscript repair: the original linked Google Doc was edited at the user's request using the statistician summary and 77 complete response records. See the [updated audit](specs/manuscript-consistency-audit-2026-11-18.md), [editable figure sources](diagrams/manuscript-review-2026-11-18/) and [repair provenance](../.agents/ptss/sessions/2026-11-18_manuscript-comprehensive-repair.json). Editorial repairs do not establish a completed technical assessment or certification.
+
+18 November manuscript review: [consistency audit](specs/manuscript-consistency-audit-2026-11-18.md) records 29 repair items against the original manuscript and user-confirmed statistician summary. Editorial guidance only. [Session provenance](../.agents/ptss/sessions/2026-11-18_full-manuscript-consistency-audit.json).
+
+The [Diagram Maker skill](../.agents/skills/diagram-maker/SKILL.md) guides research and software figure authoring.
+
+The November 17 paper and diagram revisions were reverted at the user's request. The created review copy is in Google Drive bin. Use the [original manuscript](https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit). Revision entries below and local generated workflow figures are superseded. [Reversion record](../.agents/ptss/sessions/2026-11-17_revert-paper-revisions.json).
+
+The [free hosting guide](deployment/FREE_HOSTING.md) covers an existing computer and student-funded cloud hosting for a pilot. Its [verification record](../.agents/ptss/sessions/2026-11-16_free-deployment-guide.json) identifies the checked configuration and provider limits.
+
+> Abstract drafting: [30 October session record](../.agents/ptss/sessions/2026-10-30_project-workspace-abstract.json) records the source checks for the chat-delivered abstract. It summarizes the developmental-evaluative/Agile Scrum method, selected component tests, lexical benchmark and 71-student survey; it introduces no new empirical findings.
+
+> Chapter 4 major revision: [revision record](../.agents/ptss/sessions/2026-10-27_chapter-four-revision.json) and [retained technical evidence](benchmarks/chapter-four-revision-evidence-2026-10-27.json) support the revised Google Doc at the existing output link. It now uses current scoring formulas and six figures, reports 32 passing component cases and the scoped 48-text lexical experiment, and preserves all 20 survey-item results. Full semantic-service and 14-scenario acceptance measurements remain separate work.
+
+> Mongo/WebSocket follow-up: [Luna recovery directions](specs/luna-mongo-websocket-recovery.md) records paired permission probes, MongoDB 8.2.6 startup success, socket tests 5/5 and document API tests 6/6 with approved localhost execution. Local backend and Vite WebSocket transports work; task 08's client authenticated expiry/reconnect flow remains open. This supersedes the previous blanket environment-blocked description for these two suites.
+
+> Chapter 4 rubric draft: [separate Google Doc](https://docs.google.com/document/d/1DbVtv7_7hA4eRse4bqtS2cGDyRqgdcSfJb7AriIvI5g/edit) and [session record](../.agents/ptss/sessions/2026-10-27_chapter-four-rubric.json). The draft follows the supplied criteria, reports the 71 completed student responses, and marks technical benchmark outcomes as unavailable because source figures were illustrative.
+
+> Chapter 5 minor revision: [session record](../.agents/ptss/sessions/2026-10-27_chapter-five-minor-revision.json) records consistent M/SD notation, a shorter synthesis and a user-assessed functionality conclusion. Illustrative benchmarks remain excluded; the original manuscript and survey remain unchanged.
+
+> Chapter 5 revision supersedes the initial research draft: [revision session](../.agents/ptss/sessions/2026-10-27_chapter-five-revision.json). User confirmed technical figures were illustrative; the revised three-section chapter excludes them, includes respondent-level standard deviations, and removes editorial artifacts. Original manuscript and survey unchanged.
+
+> 27 October Chapter 5 draft: [research session record](../.agents/ptss/sessions/2026-10-27_chapter-five-survey.json) links the separate Google Doc and records survey arithmetic and evidence limits. This is historical research support, not verified implementation or release evidence.
+
+> 27 October system flaw audit: [Luna medium repair guide](specs/system-flaw-audit-luna-medium.md) records 13 prioritized findings and their repair status. All 13 source/test-fixture repairs are implemented. Focused authorization, committee, plagiarism, refresh rotation, and OCR worker suites pass; socket and MongoMemoryServer-backed integration runs remain environment-blocked. Full release gates are unrun, so this is not release acceptance.
+> Task 01 follow-up: reset-password now requires the verified caller-supplied OTP and atomically consumes it; the client forwards the code. Focused server tests 5/5, client auth tests 7/7, ESLint and Prettier pass. Broader integration and release gates remain unrun.
+
+> Faculty registration correction: Student/Faculty selection, matching institutional domains, conditional Student ID and explicit safe API roles are implemented. Fourteen client tests and twelve server unit tests pass, as do eight theme/viewport browser cases, focused lint and the 4,859-module production build. The database-backed auth test stalled in setup and is not counted. API health is currently 200; SMTP authentication fails, so real OTP delivery needs valid owner-provided configuration. Previous full-suite fingerprints precede this source change; broad refactor acceptance and the retained exact performance baseline remain open. Evidence: scratch/qa-evidence/faculty-registration/verified-summary.json.
+
 > Fixture repair checkpoint: batch 9 passes 24; batch 10 completes 24 but realtime remains flagged; focused editor passes four modes. See the current verification report for limitations.
 
 > 25 October loaded-state follow-up: Loaded-state diagnostic follow-up: revised audit captures a fully loaded instructor dashboard (desktop light image inspected), but its batch remains flagged for Socket.IO Session ID unknown. Batch 11 passes all eight theme/viewport captures. Batches 9 and 10 terminate with 12 captures each; the document-editor diagnostic shows an empty synthetic API response leaves only the Back control, rather than a persistent skeleton. Batch 10 also records invalid PDF structure from a fixture response. Fix fixture contracts and verify document-reader contract before retrying. No product code changed; full test fingerprints remain valid. Exact baseline stays open.
@@ -289,3 +324,25 @@ Repository-wide lint completion follow-up (24 October 2026): cached single-threa
 
 
 Loading showcase capture follow-up (24 October 2026): saved four light/dark desktop/mobile states showing Skeleton, Spinner, and determinate/indeterminate Progress. The manifest now records 304 route states plus 118 supplemental states (422 total). Workflow-specific pending actions and full interaction coverage remain open. See the [verification report](specs/shadcn-ui-implementation-verification.md) and [evidence inventory](EVIDENCE_INVENTORY.md).
+
+The [refined full manuscript](https://docs.google.com/document/d/1CxnDHJ9JKOuMpUsYELVv3mt7IeKEKbik46a-2-HVKbg/edit) integrates the survey and technical evidence. [Verification record](../.agents/ptss/sessions/2026-11-17_full-paper-refinement.json).
+
+The separate workflow revision and its artwork were retired after the manuscript rollback.
+
+2026-11-18 Definition of Terms expansion: 10 entries expanded to 43 alphabetized operational definitions; native equations and surrounding sections preserved. [Session provenance, authority level 6](../.agents/ptss/sessions/2026-11-18_expand-definition-of-terms.json).
+
+2026-11-18 table formatting: 34 manuscript data tables standardized; native content preservation and exported PDF spot checks passed. [Session provenance, authority level 6](../.agents/ptss/sessions/2026-11-18_workspace-7-tables.json).
+
+Figure 2 and Figure 2.1 were restored to their original images. [Record](../.agents/ptss/sessions/2026-11-17_restore-methodology-figures.json).
+
+The original manuscript was restored to its 16 November 2026, 12:54 version. All 43 engineering figures and the surrounding text matched the pre-edit snapshot.
+
+Chapter 5 supporting guidance (authority level 5): [chapter-five-iso](../.agents/skills/chapter-five-iso/SKILL.md), with a chapter template and acceptance scenarios. Institutional manuscript requirements take precedence. Creation provenance: .agents/ptss/sessions/2026-11-17_chapter-5-skill-set.json (level 6).
+
+2026-11-17 Chapter 5 revision: original manuscript edited in place; supporting Chapter 5 skill remains level 5. Session provenance (level 6): .agents/ptss/sessions/2026-11-17_edit-original-chapter-five.json. Native readback passed; PDF layout not verified because export returned 403.
+
+Chapter Five skill v1.1 (2026-11-17): .agents/skills/chapter-five-iso/SKILL.md and evals/evals.json provide writing guidance and three evaluation prompts. Generated review: .agents/skills/chapter-five-iso-workspace/review.html. Independent comparison is pending due to runner usage limit; no performance improvement is claimed.
+
+Chapter 1-4 supporting skills (authority level 5): [Chapter 1](../.agents/skills/chapter-one-iso/SKILL.md), [Chapter 2](../.agents/skills/chapter-two-iso/SKILL.md), [Chapter 3](../.agents/skills/chapter-three-iso/SKILL.md), [Chapter 4](../.agents/skills/chapter-four-iso/SKILL.md). [Shared ISO and evidence contract](../.agents/skills/chapter-one-four-common.md). Synthetic skill evaluation records live in .agents/skills/chapter-one-four-workspace/ and are not research findings.
+
+> 18 November database-schema manuscript edit: [session record](../.agents/ptss/sessions/2026-11-18_database-schema-insertion.json) documents native Table 3.9, subsequent Chapter 3 table renumbering, and visual PDF verification. Authority level 6: editing provenance.

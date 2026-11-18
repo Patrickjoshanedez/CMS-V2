@@ -1,0 +1,24 @@
+{
+  "session_id": "2026-11-12_seed-database",
+  "date": "2026-11-12",
+  "task_summary": "Paused at Stage 7 HITL gate, obtained explicit user confirmation to wipe and reseed cms-mongodb (cms_v2), and executed seed, seed:canonical, and seed:archive:pdfs inside cms-server.",
+  "task_category": "database_seeding",
+  "files_modified": [
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/index.jsonl",
+    ".agents/ptss/sessions/2026-11-12_seed-database.json"
+  ],
+  "skills_triggered": ["mongoose-mongodb"],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Honored Stage 7 HITL gate and confirmed destructive wipe + standard stack seed (seed, seed:canonical, seed:archive:pdfs) inside cms-server against mongodb://mongodb:27017/cms_v2.",
+    "Left all seeder scripts under server/seeders/* untouched per protected-file boundaries."
+  ],
+  "lessons_learned": [
+    "Lesson learned: running seed, seed:canonical, and seed:archive:pdfs inside cms-server avoids host-side Mongo URI/port mismatches and populates AcademicYear, BSIT Course, 5 Sections, 58 Users, 12 Teams, 11 Projects, 12 Submissions, and 20 Evaluations cleanly."
+  ],
+  "open_threads": [],
+  "verification_status": "passed",
+  "verification_notes": "All 3 seeder scripts exited 0; cms_v2 counts verified (58 users, 12 teams, 11 projects, 12 submissions, 20 evaluations, 1 course, 5 sections, 1 academicyear); workspace_guardrail.py passed."
+}

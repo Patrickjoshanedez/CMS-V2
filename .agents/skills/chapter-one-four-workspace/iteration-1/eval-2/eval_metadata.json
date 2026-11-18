@@ -1,0 +1,10 @@
+{
+  "eval_name": "methodology-and-edition",
+  "prompt": "Expand Chapter 3 methodology. Developmental-evaluative study using Agile; planned 37 participants; summary says 77, no recruitment records. Existing instrument adopts ISO/IEC 25010:2011. Draft calls it ISO 2023 certified and says Excellent means passed all tests. Give method paragraph, reproducible test-record pattern, and gap note. No actual tests supplied.",
+  "assertions": [
+    "Preserves 2011 basis and removes certification claim",
+    "Flags 37 versus 77 without inventing recruitment",
+    "Separates research design from development and expected from actual tests"
+  ],
+  "eval_id": 2
+}

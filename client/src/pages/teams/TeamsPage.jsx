@@ -2,7 +2,8 @@ import { ROLES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageSkeleton from '@/components/ui/PageSkeleton';
-import { useMyTeam } from '@/hooks/useTeams';
+import { PageHeader } from '@/components/common';
+import { InstructorTemplateConfigModal } from '@/components/teams/InstructorTemplateConfigModal';
 import FacultyTeamsView from './components/FacultyTeamsView';
 import StudentTeamView from './components/StudentTeamView';
 
@@ -19,8 +20,6 @@ export default function TeamsPage() {
   const isStudent = user?.role === ROLES.STUDENT;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const pageTitle = isStudent ? 'My Team' : user?.role === ROLES.ADVISER ? 'My Teams' : 'Teams';
-  const { data: myTeamData } = useMyTeam({ enabled: Boolean(isStudent) });
-  const hasStudentTeam = Boolean(isStudent && myTeamData);
 
   if (!user) {
     return (
@@ -33,17 +32,20 @@ export default function TeamsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Render page title banner only when not in active student team workspace (Entity-Driven H1 pattern) */}
-        {!hasStudentTeam && (
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{pageTitle}</h1>
-            <p className="text-muted-foreground">
-              {isStudent
-                ? 'Manage your team and invite members.'
-                : 'View and manage capstone teams.'}
-            </p>
-          </div>
-        )}
+        <PageHeader
+          eyebrow={isStudent ? 'Student Workspace' : 'Team Directory'}
+          title={pageTitle}
+          description={
+            isStudent
+              ? 'Manage your group roster, standardized capstone roles, and working links.'
+              : 'Monitor proponent groupings, verify locked rosters, and coordinate committees.'
+          }
+          actions={
+            !isStudent && isInstructor ? (
+              <InstructorTemplateConfigModal academicYear="2025-2026" />
+            ) : null
+          }
+        />
 
         {isStudent ? (
           <StudentTeamView user={user} />

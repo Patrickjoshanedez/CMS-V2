@@ -1,0 +1,48 @@
+{
+  "session_id": "2026-10-27_chapter-four-revision",
+  "date": "2026-10-27",
+  "task_summary": "Revised the separate Chapter 4 Google Doc in response to the 54/100 verdict using actual source formulas, diagrams, interface fixtures, a retained lexical experiment and focused component verification.",
+  "task_category": "research",
+  "files_modified": [
+    "server/tests/unit/submission.review-flow.test.js",
+    ".agents/skills/plagiarism-engine/SKILL.md",
+    "docs/benchmarks/chapter-four-revision-evidence-2026-10-27.json",
+    "docs/AUTHORITATIVE_INDEX.md",
+    "docs/EVIDENCE_INVENTORY.md",
+    "docs/classification-manifest.json",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "google-docs",
+    "anti-slop",
+    "plagiarism-engine",
+    "verification-loop",
+    "workspace-evidence-maintenance",
+    "ptss"
+  ],
+  "skills_written": [],
+  "skills_patched": [
+    {
+      "name": "plagiarism-engine",
+      "change": "Distinguish generic MiniLM examples from the current BGE-M3 HST path and Node word-based scorer."
+    }
+  ],
+  "key_decisions": [
+    "Revise the existing separate Google Doc; preserve original source manuscript and survey.",
+    "Preserve all 20 item rows and respondent-level survey calculations.",
+    "Report 32 component passes separately from 14 planned role scenarios.",
+    "Use retained lexical results with matching library-source hashes; do not relabel them as semantic-service measurements.",
+    "Replace repeated auditor commentary with actual implementation and methodological scope."
+  ],
+  "lessons_learned": [
+    "Lesson learned: review examples can name the wrong model and scoring method. Prevention runbook/checklist: trace active source, record defaults and formulas, preserve experiment provenance, and check figure layout before delivery."
+  ],
+  "open_threads": [
+    "A measured BGE-M3 hybrid-service benchmark remains necessary for semantic precision/recall and latency claims.",
+    "The fourteen role-based end-to-end acceptance scenarios remain a separate campaign; the 32 component passes do not certify them.",
+    "The source Chapter 3 test-count wording requires author reconciliation; the original manuscript was not edited."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "All 32 selected cases pass across seven suites after a single stale approval fixture was repaired to include required coverage/score evidence. Both shards finished below 110 seconds. ESLint reports zero errors and three existing unused-variable warnings. Evidence/authority validation passes 34/34 checks using bundled Python; the npm wrapper cannot launch the Windows Python alias. Native readback preserves the original survey table and confirms six images/five tables with no insertion markers or rejected auditor phrases. All ten rendered pages were inspected; headers repeat, tables and captions fit, and the technical and survey findings remain legible. No full-system release acceptance is claimed.",
+  "output_url": "https://docs.google.com/document/d/1DbVtv7_7hA4eRse4bqtS2cGDyRqgdcSfJb7AriIvI5g/edit"
+}

@@ -123,16 +123,13 @@ export default function ArchivePlagiarismCheckerPage() {
 
   return (
     <DashboardLayout>
-      {/* Responsive layout: hero + upload form */}
-      <div className="mx-auto w-full max-w-5xl min-w-0">
-        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-8">
-          {/* Top Left on Desktop / Step 1 on Mobile: Scan Hero */}
-          <div className="order-1 min-w-0 xl:col-start-1 xl:row-start-1">
-            <ScanHero />
-          </div>
+      {/* Responsive layout: unified page header + 2-column workspace */}
+      <div className="min-w-0 space-y-6 lg:space-y-8">
+        <ScanHero />
 
-          {/* Top Right on Desktop / Step 2 on Mobile (Prioritized above fold): Upload Card */}
-          <div className="order-2 min-w-0 xl:col-start-2 xl:row-start-1">
+        <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-8">
+          {/* Upload Card (Prioritized above fold on mobile & right column on desktop) */}
+          <div className="order-1 min-w-0 xl:order-2 xl:col-start-2 xl:row-start-1">
             <Card className="min-w-0 rounded-xl p-6 shadow-xs">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
               <p className="mb-4 text-xs text-muted-foreground">
@@ -169,8 +166,8 @@ export default function ArchivePlagiarismCheckerPage() {
             </Card>
           </div>
 
-          {/* Bottom Left on Desktop / Step 3 on Mobile: Collapsible How It Works */}
-          <div className="order-3 min-w-0 xl:col-start-1 xl:row-start-2">
+          {/* Guidance & Disclaimer Column */}
+          <div className="order-2 min-w-0 space-y-4 xl:order-1 xl:col-start-1 xl:row-start-1">
             <Card className="overflow-hidden rounded-xl shadow-xs">
               <Collapsible open={howItWorksOpen} onOpenChange={setHowItWorksOpen}>
                 <CollapsibleTrigger asChild>
@@ -235,10 +232,7 @@ export default function ArchivePlagiarismCheckerPage() {
                 </CollapsibleContent>
               </Collapsible>
             </Card>
-          </div>
 
-          {/* Bottom Right on Desktop / Step 4 on Mobile: Disclaimer */}
-          <div className="order-4 min-w-0 xl:col-start-2 xl:row-start-2">
             <Alert
               variant="info"
               className="p-3 text-[11px] [&>svg~*]:pl-5 [&>svg]:left-3 [&>svg]:top-3"

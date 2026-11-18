@@ -2,7 +2,11 @@ import Submission from '../submissions/submission.model.js';
 import PlagiarismResult from './plagiarism.model.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { enqueuePlagiarismJob } from '../../jobs/queue.js';
-import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
+import {
+  removeDocumentFromPlagiarismEngine,
+  runPlagiarismCheckSync,
+  syncDocumentToPlagiarismEngine,
+} from '../../jobs/plagiarism.job.js';
 import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
 import env from '../../config/env.js';
@@ -150,7 +154,9 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     .trim()
     .toLowerCase();
   const allowManualMockOverride =
-    requestedMode === 'mock' && [ROLES.INSTRUCTOR, ROLES.ADVISER].includes(req.user?.role);
+    process.env.NODE_ENV === 'test' &&
+    requestedMode === 'mock' &&
+    [ROLES.INSTRUCTOR, ROLES.ADVISER].includes(req.user?.role);
 
   const { submission } = await submissionService.getSubmissionViewContext(
     submissionId,
@@ -347,6 +353,22 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
     text: extractedText,
   });
 
+  try {
+    await syncDocumentToPlagiarismEngine({
+      submissionId: submission._id.toString(),
+      text: extractedText,
+      title:
+        submission.documentTitle || `${submission.type} Chapter ${submission.chapter ?? ''}`.trim(),
+      projectId: submission.projectId.toString(),
+      chapter: submission.chapter,
+      type: submission.type,
+    });
+  } catch (syncError) {
+    console.warn(
+      `[plagiarism.controller] HST vector sync skipped for ${submission._id}: ${syncError.message}`,
+    );
+  }
+
   const indexedAt = new Date().toISOString();
 
   const existingResult = await PlagiarismResult.findOne({ submissionId: submission._id })
@@ -406,6 +428,14 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
 
   await Submission.findByIdAndUpdate(submission._id, { extractedText: null });
   await removeSubmissionFingerprints(submission._id.toString());
+
+  try {
+    await removeDocumentFromPlagiarismEngine(submission._id.toString());
+  } catch (removeError) {
+    console.warn(
+      `[plagiarism.controller] HST vector delete skipped for ${submission._id}: ${removeError.message}`,
+    );
+  }
 
   const removedFromCorpusAt = new Date().toISOString();
 

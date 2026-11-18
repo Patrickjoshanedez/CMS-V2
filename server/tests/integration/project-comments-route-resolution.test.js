@@ -100,6 +100,7 @@ describe('Projects comments route resolution', () => {
     const accessToken = generateAccessToken({
       userId: user._id.toString(),
       role: user.role,
+      sessionVersion: user.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/users', userRoutes);
@@ -127,6 +128,7 @@ describe('Projects comments route resolution', () => {
     const accessToken = generateAccessToken({
       userId: user._id.toString(),
       role: user.role,
+      sessionVersion: user.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/projects', projectRoutes);
@@ -191,6 +193,7 @@ describe('Projects comments route resolution', () => {
     const intruderToken = generateAccessToken({
       userId: intruder._id.toString(),
       role: intruder.role,
+      sessionVersion: intruder.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/projects', projectRoutes);
@@ -227,6 +230,7 @@ describe('Projects comments route resolution', () => {
     const facultyToken = generateAccessToken({
       userId: instructor._id.toString(),
       role: instructor.role,
+      sessionVersion: instructor.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/projects', projectRoutes);
@@ -280,6 +284,7 @@ describe('Projects comments route resolution', () => {
     const accessToken = generateAccessToken({
       userId: instructor._id.toString(),
       role: instructor.role,
+      sessionVersion: instructor.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/users', userRoutes);
@@ -325,6 +330,7 @@ describe('Projects comments route resolution', () => {
     const accessToken = generateAccessToken({
       userId: instructor._id.toString(),
       role: instructor.role,
+      sessionVersion: instructor.sessionVersion ?? 0,
     });
 
     const request = createRouteHarness('/api/users', userRoutes);

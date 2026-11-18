@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import { SUBMISSION_STATUSES } from '@cms/shared';
 import Fingerprint from '../models/fingerprint.model.js';
 import Project from '../modules/projects/project.model.js';
 import Submission from '../modules/submissions/submission.model.js';
@@ -308,7 +309,7 @@ export function generateFingerprints(text, options = {}) {
 /**
  * Core deterministic plagiarism calculation using MongoDB inverted index lookups.
  */
-export async function calculatePlagiarism(studentText, submissionId) {
+export async function calculatePlagiarism(studentText, submissionId, excludeProjectId = null) {
   const rawStudentText = String(studentText || '');
   const cleanedStudentText = applyExclusions(rawStudentText);
   const totalDocumentWords = countWords(cleanedStudentText);
@@ -336,6 +337,7 @@ export async function calculatePlagiarism(studentText, submissionId) {
 
   const uniqueHashes = [...new Set(studentFingerprints.map((item) => String(item.hash)))];
   const submissionObjectId = toObjectId(submissionId);
+  const projectObjectId = toObjectId(excludeProjectId);
 
   const candidateQuery = {
     'hashes.hash': { $in: uniqueHashes },
@@ -364,7 +366,17 @@ export async function calculatePlagiarism(studentText, submissionId) {
     .filter((value) => value)
     .map((value) => value.toString());
 
-  const sourceSubmissions = await Submission.find({ _id: { $in: sourceSubmissionIds } })
+  const sourceSubmissionQuery = {
+    _id: { $in: sourceSubmissionIds },
+    status: {
+      $nin: [SUBMISSION_STATUSES.REVISIONS_REQUIRED, SUBMISSION_STATUSES.REJECTED],
+    },
+  };
+  if (projectObjectId) {
+    sourceSubmissionQuery.projectId = { $ne: projectObjectId };
+  }
+
+  const sourceSubmissions = await Submission.find(sourceSubmissionQuery)
     .select('_id projectId chapter documentTitle fileName')
     .lean();
 
@@ -382,7 +394,7 @@ export async function calculatePlagiarism(studentText, submissionId) {
 
   for (const source of candidates) {
     const sourceId = source?.submissionId?.toString();
-    if (!sourceId) continue;
+    if (!sourceId || !submissionMap.has(sourceId)) continue;
 
     const sourceHashes = Array.isArray(source?.hashes) ? source.hashes : [];
     const matchedBlocks = [];

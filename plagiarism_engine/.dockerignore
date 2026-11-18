@@ -1,0 +1,15 @@
+# Ignore local dev envs, test artifacts, caches, and databases
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.env
+.env.*
+tests/
+evaluation/
+chroma_store/
+.git/
+*.log

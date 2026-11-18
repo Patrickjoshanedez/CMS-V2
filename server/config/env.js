@@ -707,10 +707,8 @@ const env = Object.freeze({
   // Plagiarism (native engine)
   PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
   PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
-  PLAGIARISM_FORCE_MOCK_SCORE: parseBoolean(
-    process.env.PLAGIARISM_FORCE_MOCK_SCORE,
-    isDevelopmentEnv,
-  ),
+  PLAGIARISM_FORCE_MOCK_SCORE:
+    parseBoolean(process.env.PLAGIARISM_FORCE_MOCK_SCORE, false) && currentNodeEnv === 'test',
 
   // PDF metadata extraction and similarity audit
   PDF_METADATA_CACHE_TTL_MS: parseInt(process.env.PDF_METADATA_CACHE_TTL_MS, 10) || 600000,
@@ -770,6 +768,7 @@ const env = Object.freeze({
 
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
+  MAX_ARCHIVE_UPLOAD_SIZE_MB: parseInt(process.env.MAX_ARCHIVE_UPLOAD_SIZE_MB, 10) || 50,
   MAX_PROTOTYPE_SIZE_MB: parseInt(process.env.MAX_PROTOTYPE_SIZE_MB, 10) || 50,
 
   // Agent runtime dynamic configuration

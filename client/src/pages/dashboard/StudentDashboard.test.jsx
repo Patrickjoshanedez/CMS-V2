@@ -137,6 +137,9 @@ describe('StudentDashboard (DashboardPage for Student Role)', () => {
 
     expect(container.textContent).toContain('Action Required');
     expect(container.textContent).toContain('Complete Profile');
+    expect(
+      container.querySelector('[data-testid="student-profile-incomplete-banner"]'),
+    ).toBeTruthy();
   });
 
   it('renders active cockpit when student belongs to a team and has project progress', () => {

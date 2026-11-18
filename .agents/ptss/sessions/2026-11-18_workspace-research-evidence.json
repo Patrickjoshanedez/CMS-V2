@@ -1,0 +1,27 @@
+{
+  "session_id": "2026-11-18_workspace-research-evidence",
+  "date": "2026-11-18",
+  "status": "completed-scoped-evidence-restored",
+  "task_summary": "Searched retained workspace evidence and corrected manuscript blanket planned-testing statements using completed component, historical regression and synthetic lexical records.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "evidence_ledger": "docs/benchmarks/manuscript-evidence-ledger-2026-11-18.md",
+  "verified": [
+    "Two raw reports:16+16 cases passed,zero failures",
+    "48 lexical per-case records recomputed TP24 FP0 TN16 FN8",
+    "Seven test file hashes and Node scoring sources match retained record",
+    "Historical25 October regression snapshot1029 client/13 server passed",
+    "210-page PDF export;229 mapped index entries;zero native page-reference mismatches",
+    "All144 image/equation objects and non-index table content preserved",
+    "Workspace evidence checks34/34 passed"
+  ],
+  "limitations": [
+    "No independent ISO certificate established",
+    "Synthetic lexical experiment excludes BGE-M3 and extraction",
+    "Full24-case acceptance matrix not established as executed",
+    "Signed research/recruitment records not found in bounded inspected locations",
+    "Redundant optional whole-PDF text rescan stopped at120secondwatchdog; main210-page export and229-entry map already completed,AppendixB page visually inspected. Diagnosis: repeated pypdf extraction of image-heavy210-page file; no retry needed."
+  ],
+  "lessons_learned": [
+    "Lesson learned: search retained workspace evidence before declaring technical records missing. Prevention runbook/checklist: inspect inventory, raw reports, dates, source hashes and timing boundaries; distinguish scoped completed testing from certification."
+  ]
+}

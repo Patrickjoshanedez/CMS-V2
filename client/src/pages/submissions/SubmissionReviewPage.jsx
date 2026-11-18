@@ -184,10 +184,11 @@ function ReviewerRoleBanner({ role, workspace }) {
 /* ────────── Originality Score Bar ────────── */
 
 function OriginalityBar({ score }) {
-  const num = Number(score);
+  const hasScore = score !== null && score !== undefined && score !== '';
+  const num = hasScore ? Number(score) : NaN;
   const valid = Number.isFinite(num) && num >= 0;
-  const originality = valid ? Math.min(100, Math.max(0, num)) : 0;
-  const similarity = Math.max(0, 100 - originality);
+  const originality = valid ? Math.min(100, Math.max(0, Number(num.toFixed(2)))) : 0;
+  const similarity = valid ? Number(Math.max(0, 100 - originality).toFixed(2)) : 0;
 
   // BukSU Capstone threshold: similarity < 25% (originality >= 75%) is compliant
   const isCompliant = originality >= 75;
@@ -897,7 +898,7 @@ export default function SubmissionReviewPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full gap-1.5 text-xs h-8"
+                      className="min-h-[44px] sm:min-h-0 sm:h-8 w-full gap-1.5 text-xs"
                       disabled={!activeSubmissionId}
                       onClick={() =>
                         navigate(`/project/submissions/${activeSubmissionId}/plagiarism-report`)
@@ -909,7 +910,7 @@ export default function SubmissionReviewPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full gap-1.5 text-xs h-8 text-muted-foreground hover:text-foreground"
+                        className="min-h-[44px] sm:min-h-0 sm:h-8 w-full gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                         disabled={scanArchive.isPending}
                         onClick={() => scanArchive.mutate(activeSubmissionId)}
                       >
@@ -935,7 +936,7 @@ export default function SubmissionReviewPage() {
                     <Button
                       type="button"
                       variant="default"
-                      className="w-full gap-2 shadow-xs h-8.5 text-xs"
+                      className="min-h-[44px] sm:min-h-0 sm:h-8.5 w-full gap-2 shadow-xs text-xs"
                       onClick={() => setViewerOpen(true)}
                       disabled={!activeRound}
                     >
@@ -943,7 +944,11 @@ export default function SubmissionReviewPage() {
                       Fullscreen Viewer
                     </Button>
                     {teamGoogleDocUrl && (
-                      <Button asChild variant="outline" className="w-full gap-2 text-xs h-8">
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="min-h-[44px] sm:min-h-0 sm:h-8 w-full gap-2 text-xs"
+                      >
                         <a href={teamGoogleDocUrl} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-3.5 w-3.5 text-primary" />
                           Open Team Google Doc
@@ -951,7 +956,11 @@ export default function SubmissionReviewPage() {
                       </Button>
                     )}
                     {activeSubmissionId && (
-                      <Button asChild variant="outline" className="w-full gap-2 text-xs h-8">
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="min-h-[44px] sm:min-h-0 sm:h-8 w-full gap-2 text-xs"
+                      >
                         <a
                           href={`/api/submissions/${activeSubmissionId}/file?download=true`}
                           download={activeRound?.fileName || 'manuscript.docx'}

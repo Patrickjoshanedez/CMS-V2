@@ -1,0 +1,10 @@
+## Revised Chapter 1 prose
+The institutional workflow note identifies email and paper as submission channels. These channels establish the context for investigating how submission versions and review records are coordinated. The note does not establish the frequency of missing documents, processing delays, or user difficulties. Consequently, the problem is framed as a need to examine coordination requirements and develop a system responsive to those requirements; an 80% reduction in work time is not an established outcome.
+
+The general objective is to develop and evaluate a submission-management system for the documented institutional context. Proposed specific objectives are: (1) document submission and review requirements through examination of workflow records and stakeholder consultation, producing a traceable requirements list; (2) implement submission and version-tracking functions against approved requirements, producing implementation artifacts and requirement-linked test records; and (3) evaluate selected user tasks through an approved task protocol and questionnaire, producing task outcomes and descriptive ratings. These procedures require approval before becoming research commitments.
+
+## Revised Chapter 2 synthesis
+The supplied abstract for Study A describes version tracking in one university, whereas Study B describes similarity matching. Together, they identify distinct capabilities relevant to managing submissions and examining textual overlap. Neither abstract supplies evaluation outcomes sufficient to establish effectiveness, and Study B supplies no error rates. The bounded gap is that these materials do not establish how the capabilities address the present institution’s requirements or how their effectiveness should be evaluated locally. They do not establish first-ever novelty.
+
+## Separate gap note
+Obtain local coordination evidence, approve objective-method links, and retrieve full bibliographic records and texts for Studies A and B. Abstract-only access limits comparison; source labels here are provisional identifiers, not invented citations.

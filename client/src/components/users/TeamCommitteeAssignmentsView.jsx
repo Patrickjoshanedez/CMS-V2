@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Users, UserCheck, Search, AlertCircle, CheckCircle2, X, ExternalLink } from 'lucide-react';
+import { FilterToolbar, PageHeader } from '@/components/common';
 import {
   Card,
   CardContent,
@@ -291,122 +292,114 @@ export default function TeamCommitteeAssignmentsView() {
 
   return (
     <div className="min-w-0 space-y-6 lg:space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col gap-1 border-b pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Committee Assignments
-          </h1>
-          <Badge variant="secondary" className="text-xs font-normal">
-            Faculty Coordination
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Appoint Capstone Advisers, Secretaries, and Defense Panelists to verified student research
-          teams.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Faculty Coordination"
+        icon={UserCheck}
+        title="Committee Assignments"
+        description="Appoint Capstone Advisers, Secretaries, and Defense Panelists to verified student research teams."
+      />
 
       {/* ============================================================ */}
       {/* 1. CONSOLIDATED FILTER & SEARCH TOOLBAR */}
       {/* ============================================================ */}
-      <Card>
-        <CardContent className="flex flex-col items-start justify-between gap-3 p-3 pt-3 xl:flex-row">
-          {/* Left Side: Search + Academic Year + Section */}
-          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto flex-1">
-            <div className="relative w-full min-w-0 xl:flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search team name, leader, or code..."
-                aria-label="Search team name, leader, or code"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 min-h-11 text-base sm:text-sm bg-background/50 border-border/60"
-              />
+      <FilterToolbar
+        top={
+          <div className="flex flex-col items-stretch justify-between gap-2.5 lg:flex-row lg:items-center">
+            {/* Left Side: Search + Academic Year + Section + Status */}
+            <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
+              <div className="relative w-full min-w-[180px] sm:flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search team name, leader, or code..."
+                  aria-label="Search team name, leader, or code"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 text-base sm:text-sm"
+                />
+              </div>
+
+              <Select
+                value={academicYear}
+                onValueChange={(value) => {
+                  setAcademicYear(value);
+                  setSectionId('');
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Filter by academic year"
+                  className="w-full min-w-[115px] text-xs sm:w-auto"
+                >
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      AY {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={sectionId} disabled={!academicYear} onValueChange={setSectionId}>
+                <SelectTrigger
+                  aria-label="Filter by section"
+                  className="w-full min-w-[110px] text-xs sm:w-auto"
+                >
+                  <SelectValue placeholder="Sections" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections.map((sec) => (
+                    <SelectItem key={sec._id} value={sec._id}>
+                      {formatSectionWithCode(sec)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger
+                  aria-label="Filter by committee status"
+                  className="w-full min-w-[125px] text-xs sm:w-auto"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="needs-assignment">Needs Assignment</SelectItem>
+                  <SelectItem value="assigned">Complete Committee</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <Select
-              value={academicYear}
-              onValueChange={(value) => {
-                setAcademicYear(value);
-                setSectionId('');
-              }}
-            >
-              <SelectTrigger
-                aria-label="Filter by academic year"
-                className="min-h-11 w-full min-w-[120px] text-xs sm:w-auto"
-              >
-                <SelectValue placeholder="All Academic Years" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    AY {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={sectionId} disabled={!academicYear} onValueChange={setSectionId}>
-              <SelectTrigger
-                aria-label="Filter by section"
-                className="min-h-11 w-full min-w-[120px] text-xs sm:w-auto"
-              >
-                <SelectValue placeholder="All Sections" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map((sec) => (
-                  <SelectItem key={sec._id} value={sec._id}>
-                    {formatSectionWithCode(sec)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger
-                aria-label="Filter by committee status"
-                className="min-h-11 w-full min-w-[130px] text-xs sm:w-auto"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="needs-assignment">Needs Assignment</SelectItem>
-                <SelectItem value="assigned">Complete Committee</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Right Side: Quick Team Select */}
+            <div className="flex w-full shrink-0 items-center justify-end gap-2 border-t border-border/60 pt-2.5 lg:w-auto lg:border-t-0 lg:pt-0">
+              <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+                Jump to:
+              </span>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger
+                  aria-label="Jump to team"
+                  className="w-full min-w-0 max-w-xs text-xs font-medium sm:w-64"
+                >
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                    <SelectValue placeholder="No teams available" />
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredTeams.map((team) => {
+                    const memberCount = (team.members || []).length;
+                    return (
+                      <SelectItem key={team._id} value={team._id}>
+                        {team.name || 'Untitled Team'} ({memberCount}/4 Members)
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-
-          {/* Right Side: Quick Team Select */}
-          <div className="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-2 lg:pt-0">
-            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-              Jump to:
-            </span>
-            <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-              <SelectTrigger
-                aria-label="Jump to team"
-                className="min-h-11 w-full min-w-0 max-w-xs text-xs font-medium sm:w-72"
-              >
-                <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
-                  <SelectValue placeholder="No teams available" />
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                {filteredTeams.map((team) => {
-                  const memberCount = (team.members || []).length;
-                  return (
-                    <SelectItem key={team._id} value={team._id}>
-                      {team.name || 'Untitled Team'} ({memberCount}/4 Members)
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
       {/* Loading & Error States */}
       {isTeamsLoading && (
@@ -636,7 +629,10 @@ export default function TeamCommitteeAssignmentsView() {
                       project.
                     </CardDescription>
                   </div>
-                  <Badge variant="outline" className="font-normal text-xs">
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 whitespace-nowrap font-normal text-xs"
+                  >
                     {totalAppointed} / 5 Appointed
                   </Badge>
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -160,44 +161,32 @@ export default function SecretaryReviewPage() {
   return (
     <DashboardLayout>
       <div className="min-w-0 space-y-6 lg:space-y-8">
-        {/* Institutional Top Header */}
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between no-print">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <FileSignature className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Secretary Review
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review defense minutes and Action Done Matrix compliance.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                refetchProjects();
-                refetchProjectDetails();
-              }}
-              className="min-h-11 gap-2 text-sm"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className="min-h-11 gap-2 text-sm"
-            >
-              Faculty Overview
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Committee Secretary"
+          icon={FileSignature}
+          title="Secretary Review"
+          description="Review defense minutes and Action Done Matrix compliance."
+          className="no-print"
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  refetchProjects();
+                  refetchProjectDetails();
+                }}
+                className="gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/dashboard')}>
+                Faculty Overview
+              </Button>
+            </>
+          }
+        />
 
         {/* Studio Split Workspace */}
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-12">

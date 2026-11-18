@@ -12,6 +12,7 @@ import { emitToUser, emitToProject } from '../../services/socket.service.js';
 import cacheService from '../../services/cache.service.js';
 import AppError from '../../utils/AppError.js';
 import { assertProjectWritable } from '../projects/services/projectCore.service.js';
+import { assertAssignedInstructorForTeam } from '../academics/instructorAuthorization.js';
 import {
   ROLES,
   EVALUATION_STATUSES,
@@ -387,9 +388,14 @@ class EvaluationService {
    * @param {string} defenseType - 'proposal' or 'final'
    * @returns {Object} { releasedCount }
    */
-  async releaseEvaluations(projectId, defenseType) {
+  async releaseEvaluations(projectId, defenseType, actor) {
+    if (actor?.role !== ROLES.INSTRUCTOR) {
+      throw new AppError('Only course instructors can release evaluations.', 403, 'FORBIDDEN');
+    }
+
     const project = await Project.findById(projectId).populate('teamId');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    await assertAssignedInstructorForTeam(project.teamId, actor._id);
     assertProjectWritable(project);
 
     // --- Grade Leakage Prevention Guard ---

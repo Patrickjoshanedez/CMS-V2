@@ -19,7 +19,7 @@ export const BGE_M3_MODEL_SPECS = {
   memoryFootprint: '~1.2 GB',
   cpuThreadClamp: 2,
 };
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+const OLLAMA_HOST = (process.env.OLLAMA_HOST ?? '').trim();
 const ARCHIVE_SCAN_MAX_DOCS = Math.max(
   5,
   Number.parseInt(process.env.PLAGIARISM_ARCHIVE_SCAN_MAX_DOCS || '40', 10) || 40,
@@ -251,6 +251,10 @@ const filterSignificantIntervals = (text, intervals = [], minWords = 8, minChars
 };
 
 const createOllamaClient = async () => {
+  if (!OLLAMA_HOST) {
+    throw new Error('Ollama semantic embedding is disabled (OLLAMA_HOST unset).');
+  }
+
   const ollamaModule = await import('ollama');
 
   const OllamaClient = ollamaModule?.Ollama || ollamaModule?.default?.Ollama;

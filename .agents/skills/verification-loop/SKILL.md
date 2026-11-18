@@ -49,6 +49,8 @@ Before retrying a stalled MongoMemoryServer suite, check that a compatible `mong
 
 For a large client suite that exceeds the watchdog, use Vitest `--shard=N/M` to partition the same complete suite, keep one shard process at a time on Windows, and give each shard its own workspace-local `TEMP`/`TMP` folder. Parallel shards may contend for CPU, module transforms, or temporary cache files. Record only terminal shard summaries as passes, account for every shard, and verify all expected test files are covered before declaring the full suite complete.
 
+When a cached MongoDB binary prints its version but aborts at startup with `fassert()`, compare an isolated plain HTTP/WebSocket localhost probe and a bounded Mongo startup under the same permissions. On this Windows runtime, restricted execution produced `connect EACCES` and a MongoDB assertion, while approved localhost execution started the same 8.2.6 binary and passed both focused suites. Do not infer a corrupt binary or require a version downgrade from the assertion alone. Request approval for the exact isolated probe/targeted suite when permissions are the demonstrated cause; never disable host security policy.
+
 ## Docker Container Dependency Sync Pattern
 ```bash
 # When installing new packages, sync both host and container:
@@ -89,6 +91,9 @@ For stable screenshots of Radix dialogs and other animated surfaces, wait until 
 For live route captures, body text length and session readiness do not establish loaded content. Wait for route-specific loaded landmarks and the disappearance of its loading placeholder before accepting a loaded-state screenshot; label deliberate skeleton captures separately. Keep Socket.IO transport failures visible as runtime findings rather than silently dropping them from failed-response checks. Review actual screenshots before treating a successful automation exit as visual acceptance.
 
 ## Usage Triggers
+
+For Radix RadioGroup tests mounted inside a form, jsdom needs a ResizeObserver shim for its bubble input sizing. Stub that browser API in the focused test setup and restore globals after each test; retain the real radio controls so account-selection behavior is actually exercised.
+
 - "verify"
 - "prove it works"
 - "run tests"

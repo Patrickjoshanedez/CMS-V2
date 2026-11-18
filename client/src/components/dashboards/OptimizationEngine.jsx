@@ -38,9 +38,9 @@ const OptimizationEngine = ({
   const suggestions = optimization?.suggestions || [];
 
   return (
-    <Card aria-busy={loading} className="shadow-sm">
-      <CardHeader className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
+    <Card aria-busy={loading} className="shadow-sm overflow-hidden">
+      <CardHeader className="flex flex-col flex-wrap gap-3 p-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-xl font-bold tracking-tight">Workload Suggestions</CardTitle>
             <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wider">

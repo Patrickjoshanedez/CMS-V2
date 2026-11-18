@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -1323,95 +1324,105 @@ function CreateUserForm({ onCancel }) {
             </AlertDescription>
           </Alert>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
-              <Input
-                id="firstName"
-                placeholder="Juan"
-                value={formData.firstName}
-                onChange={handleChange('firstName')}
-                required
-                minLength={2}
-                maxLength={50}
-                disabled={createUser.isPending}
-              />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+            <legend className="text-sm font-semibold text-foreground px-2">
+              Personal Identity
+            </legend>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Juan"
+                  value={formData.firstName}
+                  onChange={handleChange('firstName')}
+                  required
+                  minLength={2}
+                  maxLength={50}
+                  disabled={createUser.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middleName">Middle Name</Label>
+                <Input
+                  id="middleName"
+                  placeholder="Dela"
+                  value={formData.middleName}
+                  onChange={handleChange('middleName')}
+                  maxLength={50}
+                  disabled={createUser.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Cruz"
+                  value={formData.lastName}
+                  onChange={handleChange('lastName')}
+                  required
+                  minLength={2}
+                  maxLength={50}
+                  disabled={createUser.isPending}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="middleName">Middle Name</Label>
-              <Input
-                id="middleName"
-                placeholder="Dela"
-                value={formData.middleName}
-                onChange={handleChange('middleName')}
-                maxLength={50}
-                disabled={createUser.isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
-              <Input
-                id="lastName"
-                placeholder="Cruz"
-                value={formData.lastName}
-                onChange={handleChange('lastName')}
-                required
-                minLength={2}
-                maxLength={50}
-                disabled={createUser.isPending}
-              />
-            </div>
-          </div>
+          </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="user@buksu.edu.ph"
-                value={formData.email}
-                onChange={handleChange('email')}
-                required
-                disabled={createUser.isPending}
-              />
+          <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+            <legend className="text-sm font-semibold text-foreground px-2">
+              Account Credentials & Role Access
+            </legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@buksu.edu.ph"
+                  value={formData.email}
+                  onChange={handleChange('email')}
+                  required
+                  disabled={createUser.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Minimum 8 characters"
+                  value={formData.password}
+                  onChange={handleChange('password')}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  disabled={createUser.isPending}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={formData.password}
-                onChange={handleChange('password')}
-                required
-                minLength={8}
-                maxLength={128}
-                disabled={createUser.isPending}
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
-            <Select
-              value={formData.role}
-              onValueChange={(role) => setFormData((previous) => ({ ...previous, role }))}
-              disabled={createUser.isPending}
-            >
-              <SelectTrigger id="role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIMARY_ROLE_VALUES.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(role) => setFormData((previous) => ({ ...previous, role }))}
+                disabled={createUser.isPending}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIMARY_ROLE_VALUES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </fieldset>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button
@@ -1563,14 +1574,13 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 lg:space-y-8 max-w-7xl mx-auto min-w-0 w-full">
-        {/* Page header */}
-        <div className="flex flex-col gap-1 border-b border-border/60 pb-5">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">User Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage academic structures, user accounts, and access.
-          </p>
-        </div>
+      <div className="min-w-0 w-full space-y-6 lg:space-y-8">
+        <PageHeader
+          eyebrow="Administration"
+          icon={Users}
+          title="User Management"
+          description="Manage academic structures, user accounts, and access."
+        />
 
         {/* Primary Sub-Navigation: Horizontal Pill Tabs */}
         <Tabs value={activePanel} onValueChange={setActivePanel} className="space-y-6">

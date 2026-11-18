@@ -1,0 +1,17 @@
+{
+  "skill_name": "chapter-one-iso",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Revise and expand this Chapter 1 paragraph: 'Our capstone system eliminates plagiarism and saves all instructors 80% of their time.' Available evidence: the approved design centralizes manuscript submissions and displays similarity matches. No time study or detection evaluation has been performed. Provide revised prose and a separate gap report. Follow ISO patterns without changing the approved scope.",
+      "expected_output": "Substantive bounded prose about intended workflow and academic review; no asserted 80% saving or elimination of plagiarism; separate evidence gaps and evaluation needs.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Audit Chapter 1 objectives: build the app, make it effective, and prove it is ISO certified. The proposal covers student submissions and adviser review at one university; evaluation is planned through task testing and a usability questionnaire. Suggest precise objectives, explain what is lacking, and improve phrasing without inventing thresholds or expanding the project to other universities.",
+      "expected_output": "Objectives aligned to implementation, task testing, and perceived usability; no certification claim or arbitrary targets; explicit scope and method gaps.",
+      "files": []
+    }
+  ]
+}

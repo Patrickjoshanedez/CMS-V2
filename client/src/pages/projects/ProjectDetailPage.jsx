@@ -7,7 +7,7 @@ import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/Tabs';
-import { useProject } from '@/hooks/useProjects';
+import { useProject, useAdvancePhase } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useProjectEvaluations } from '@/hooks/useEvaluations';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
@@ -36,6 +36,7 @@ import {
 import ModificationReviewCard from '@/components/projects/ModificationReviewCard';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
+import PhaseGateChecklistCard from '@/components/projects/PhaseGateChecklistCard';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
 import Capstone2CollapsibleSections from '@/components/projects/Capstone2CollapsibleSections';
 import Capstone3CollapsibleSections from '@/components/projects/Capstone3CollapsibleSections';
@@ -171,6 +172,19 @@ export default function ProjectDetailPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search || ''), [location.search]);
 
   const { data: project, isLoading, error, refetch } = useProject(projectId);
+  const advancePhaseMutation = useAdvancePhase({
+    onSuccess: () => {
+      toast.success('Project advanced to the next capstone phase!');
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.message ||
+          'Unable to advance capstone phase yet.',
+      );
+    },
+  });
 
   // Subscribe to project room for real-time live synchronization
   useEffect(() => {
@@ -386,6 +400,18 @@ export default function ProjectDetailPage() {
             onViewFullDocument={handleOpenFullDocument}
             hasFullDocument={Boolean(fullDocumentSub)}
             onRefresh={() => refetch()}
+            className="mb-6 no-print"
+          />
+
+          <PhaseGateChecklistCard
+            project={project}
+            submissions={submissionsList}
+            evaluations={evaluationData?.evaluations}
+            isInstructor={isInstructor}
+            onTabChange={handleTabChange}
+            onNavigate={navigate}
+            onAdvancePhase={() => advancePhaseMutation.mutate(project._id)}
+            isAdvancing={advancePhaseMutation.isPending}
             className="mb-6 no-print"
           />
 

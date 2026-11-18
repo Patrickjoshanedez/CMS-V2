@@ -376,4 +376,55 @@ describe('SophisticatedDocumentViewer', () => {
 
     expect(el.textContent).not.toContain('Revision Diff (+/-)');
   });
+
+  it('does not fetch /submissions/archive-document/file when an in-memory archive DOCX blob is provided', async () => {
+    api.get.mockClear();
+    const docxBlob = new Blob(['PK\u0003\u0004synthetic-docx'], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    await renderViewer({
+      submission: {
+        _id: 'archive-document',
+        isArchive: true,
+        fileName: 'IoT_Based.docx',
+        fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        fileSize: 24,
+        version: 1,
+        originalityScore: 100,
+      },
+      fileBlob: docxBlob,
+      fileName: 'IoT_Based.docx',
+      embedded: true,
+      isArchive: true,
+      showArchiveIdentity: true,
+    });
+
+    const requestedUrls = api.get.mock.calls.map((c) => c[0]);
+    expect(requestedUrls.some((url) => String(url).includes('archive-document'))).toBe(false);
+  });
+
+  it('passes a string pdfUrl (not Uint8Array) to PdfViewerWorkspace when rendering in-memory archive PDFs', async () => {
+    const pdfBlob = new Blob(['%PDF-1.7 synthetic'], { type: 'application/pdf' });
+    pdfBlob.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(16));
+
+    const el = await renderViewer({
+      submission: {
+        _id: 'archive-document',
+        isArchive: true,
+        fileName: 'GS-PI.pdf',
+        fileType: 'application/pdf',
+        fileSize: 16,
+        version: 1,
+      },
+      fileBlob: pdfBlob,
+      fileName: 'GS-PI.pdf',
+      embedded: true,
+      isArchive: true,
+    });
+
+    const workspace = el.querySelector('[data-testid="mock-pdf-viewer-workspace"]');
+    expect(workspace).not.toBeNull();
+    expect(typeof workspace.getAttribute('data-pdf-url')).toBe('string');
+  });
 });

@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 920" width="1400" height="920">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#3B6EC6" />
+    </marker>
+    <style>
+      .title { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 32px; font-weight: 700; fill: #111827; text-anchor: middle; }
+      .subtitle { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 15px; font-weight: 600; fill: #4B5563; text-anchor: middle; }
+      .actor-label { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 600; fill: #1F2937; text-anchor: middle; }
+      .sub-label { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 12.5px; font-weight: 400; fill: #4B5563; text-anchor: middle; }
+      .box-text { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 500; fill: #1F2937; text-anchor: middle; }
+      .box-sub { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 400; fill: #4B5563; text-anchor: middle; }
+      .edge-label { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 500; fill: #1F2937; text-anchor: middle; }
+      .footer-note { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 12px; font-weight: 500; fill: #6B7280; text-anchor: middle; }
+      .blue-stroke { stroke: #3B6EC6; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .blue-fill-white { stroke: #3B6EC6; stroke-width: 1.75; fill: #FFFFFF; stroke-linecap: round; stroke-linejoin: round; }
+      .card-rect { stroke: #4B79C8; stroke-width: 1.75; fill: #FFFFFF; }
+      .connector { stroke: #3B6EC6; stroke-width: 1.65; fill: none; }
+    </style>
+  </defs>
+
+  <!-- Crisp pure white canvas -->
+  <rect x="0" y="0" width="1400" height="920" fill="#FFFFFF" />
+
+  <!-- Title Block -->
+  <text x="700" y="54" class="title">System Architecture Diagram</text>
+  <text x="700" y="78" class="subtitle">Project Workspace: BukSU Capstone Management System with Plagiarism Checker</text>
+
+  <!-- ==================== TIER 1: ACTORS, AUTH & WEB PORTAL ==================== -->
+
+  <!-- Top-Left Actor: Students (3-person silhouette matching example style) -->
+  <g transform="translate(132, 114)">
+    <!-- Back-right person -->
+    <circle cx="88" cy="24" r="10.5" class="blue-fill-white" />
+    <path d="M 70 55 C 70 41, 106 41, 106 55 L 106 67 L 70 67 Z" class="blue-fill-white" />
+    <!-- Back-left person -->
+    <circle cx="38" cy="24" r="10.5" class="blue-fill-white" />
+    <path d="M 20 55 C 20 41, 56 41, 56 55 L 56 67 L 20 67 Z" class="blue-fill-white" />
+    <!-- Front center person -->
+    <circle cx="63" cy="19" r="12" class="blue-fill-white" />
+    <path d="M 55 31 L 63 39 L 71 31" class="blue-stroke" />
+    <path d="M 41 62 C 41 43, 85 43, 85 62 L 85 74 L 41 74 Z" class="blue-fill-white" />
+  </g>
+  <text x="195" y="212" class="actor-label">Students</text>
+  <text x="195" y="230" class="sub-label">(BSIT / BSEMC Teams)</text>
+
+  <!-- Top-Left Auth Box -->
+  <rect x="330" y="152" width="166" height="72" rx="10" class="card-rect" />
+  <text x="413" y="182" class="box-text">Login &amp; 6-Digit OTP</text>
+  <text x="413" y="201" class="box-text">or Google OAuth</text>
+
+  <!-- Top-Center Web Client Hub (Wireless Waves + Screen Icon matching example style) -->
+  <g transform="translate(652, 92)">
+    <!-- Signal / HTTPS Waves -->
+    <circle cx="48" cy="28" r="5.5" class="blue-fill-white" />
+    <path d="M 35 19 A 16 16 0 0 0 35 37" class="blue-stroke" />
+    <path d="M 26 13 A 25 25 0 0 0 26 43" class="blue-stroke" />
+    <path d="M 61 19 A 16 16 0 0 1 61 37" class="blue-stroke" />
+    <path d="M 70 13 A 25 25 0 0 1 70 43" class="blue-stroke" />
+  </g>
+  <!-- Browser / Web Portal Frame -->
+  <g transform="translate(646, 146)">
+    <rect x="0" y="0" width="108" height="84" rx="7" class="blue-fill-white" />
+    <rect x="7" y="11" width="94" height="58" rx="2" class="blue-stroke" />
+    <line x1="7" y1="22" x2="101" y2="22" class="blue-stroke" />
+    <circle cx="14" cy="16.5" r="1.5" fill="#3B6EC6" />
+    <circle cx="21" cy="16.5" r="1.5" fill="#3B6EC6" />
+    <rect x="44" y="74" width="20" height="4" rx="2" class="blue-stroke" />
+    <!-- Mini dashboard bars inside screen -->
+    <rect x="14" y="29" width="26" height="33" rx="1" class="blue-stroke" />
+    <line x1="47" y1="33" x2="92" y2="33" class="blue-stroke" />
+    <line x1="47" y1="43" x2="84" y2="43" class="blue-stroke" />
+    <line x1="47" y1="53" x2="90" y2="53" class="blue-stroke" />
+  </g>
+  <text x="700" y="251" class="actor-label">Project Workspace Web Client</text>
+  <text x="700" y="269" class="sub-label">(React 18 + Vite SPA • Port 43211)</text>
+
+  <!-- Top-Right Auth Box -->
+  <rect x="904" y="152" width="172" height="72" rx="10" class="card-rect" />
+  <text x="990" y="182" class="box-text">RBAC Login &amp; Session</text>
+  <text x="990" y="201" class="box-text">Verification (JWT)</text>
+
+  <!-- Top-Right Actor: Faculty & Course Instructor -->
+  <g transform="translate(1152, 110)">
+    <circle cx="52" cy="24" r="14" class="blue-fill-white" />
+    <path d="M 38 22 C 39 11, 65 10, 66 22" class="blue-stroke" />
+    <path d="M 42 40 L 52 50 L 62 40" class="blue-stroke" />
+    <path d="M 24 77 C 24 53, 80 53, 80 77 L 80 86 L 24 86 Z" class="blue-fill-white" />
+  </g>
+  <text x="1204" y="216" class="actor-label">Faculty &amp; Instructor</text>
+  <text x="1204" y="234" class="sub-label">(Adviser, Secretary, Panel, Coordinator)</text>
+
+  <!-- Tier 1 Connectors -->
+  <!-- Students -> Login Box -->
+  <polyline points="260,136 413,136 413,150" class="connector" marker-end="url(#arrow)" />
+  <!-- Login Box -> Web Client -->
+  <line x1="496" y1="188" x2="643" y2="188" class="connector" marker-end="url(#arrow)" />
+  <text x="570" y="210" class="edge-label">Capstone Proposals</text>
+  <text x="570" y="227" class="edge-label">&amp; Submissions</text>
+
+  <!-- Faculty & Instructor -> Login Box -->
+  <polyline points="1165,136 990,136 990,150" class="connector" marker-end="url(#arrow)" />
+  <!-- Login Box -> Web Client -->
+  <line x1="904" y1="188" x2="757" y2="188" class="connector" marker-end="url(#arrow)" />
+  <text x="830" y="210" class="edge-label">Reviews, Defense</text>
+  <text x="830" y="227" class="edge-label">&amp; Governance</text>
+
+  <!-- Double-line Trunk descending from Web Client & branching to Tier 2 -->
+  <line x1="696" y1="278" x2="696" y2="332" class="connector" />
+  <line x1="704" y1="278" x2="704" y2="332" class="connector" />
+  <line x1="175" y1="332" x2="1225" y2="332" class="connector" />
+  <line x1="175" y1="332" x2="175" y2="372" class="connector" marker-end="url(#arrow)" />
+  <line x1="1225" y1="332" x2="1225" y2="372" class="connector" marker-end="url(#arrow)" />
+  <text x="440" y="322" class="edge-label">Title Check, Chapter Drafts &amp; Late Justification</text>
+  <text x="965" y="322" class="edge-label">Committee Assignment, Rubric &amp; ADM Sign-Off</text>
+
+  <!-- ==================== TIER 2: WORKFLOW PROCESSING & ORCHESTRATION ==================== -->
+
+  <!-- Left Processing Box -->
+  <rect x="85" y="375" width="180" height="122" class="card-rect" />
+  <text x="175" y="405" class="box-text">Submits Title, DOCX</text>
+  <text x="175" y="424" class="box-text">or PDF Manuscripts</text>
+  <text x="175" y="443" class="box-text">&amp; Late Justification</text>
+  <text x="175" y="466" class="box-sub">(HTTP 409 Lock Guard)</text>
+
+  <!-- Left-Center Extraction / OCR / Template Icon (matching document + scan circle style) -->
+  <g transform="translate(362, 376)">
+    <!-- Document icon -->
+    <rect x="6" y="4" width="46" height="62" rx="3" class="blue-fill-white" />
+    <rect x="13" y="13" width="8" height="8" class="blue-stroke" />
+    <line x1="25" y1="17" x2="44" y2="17" class="blue-stroke" />
+    <rect x="13" y="27" width="8" height="8" class="blue-stroke" />
+    <line x1="25" y1="31" x2="44" y2="31" class="blue-stroke" />
+    <rect x="13" y="41" width="8" height="8" class="blue-stroke" />
+    <line x1="25" y1="45" x2="44" y2="45" class="blue-stroke" />
+    <!-- Curved arrow down to scan badge -->
+    <path d="M 28 67 L 28 84 L 54 84 L 54 78 L 66 88 L 54 98 L 54 92 L 20 92 L 20 67 Z" class="blue-fill-white" />
+    <!-- Scan target circle -->
+    <circle cx="88" cy="84" r="21" class="blue-fill-white" />
+    <circle cx="88" cy="84" r="14" class="blue-stroke" />
+    <path d="M 80 78 L 80 74 L 84 74 M 92 74 L 96 74 L 96 78 M 80 90 L 80 94 L 84 94 M 92 94 L 96 94 L 96 90" class="blue-stroke" />
+    <circle cx="88" cy="84" r="4" class="blue-stroke" />
+  </g>
+  <text x="415" y="510" class="box-text">OCR &amp; Title Screening</text>
+  <text x="415" y="528" class="sub-label">(PyMuPDF / PaddleOCR-VL :8000 • Levenshtein)</text>
+
+  <!-- Center Orchestrator Hub (Interlocking Integration Puzzle/API Icon matching centerpiece style) -->
+  <g transform="translate(646, 384)">
+    <path d="M 16 14 L 40 14 C 40 3, 62 3, 62 14 L 88 14 L 88 38 C 99 38, 99 60, 88 60 L 88 86 L 62 86 C 62 75, 40 75, 40 86 L 16 86 L 16 60 C 27 60, 27 38, 16 38 Z" class="blue-fill-white" />
+    <path d="M 23 21 L 43 21 C 43 13, 59 13, 59 21 L 81 21 L 81 41 C 89 41, 89 57, 81 57 L 81 79 L 59 79 C 59 71, 43 71, 43 79 L 23 79 L 23 57 C 31 57, 31 41, 23 41 Z" class="blue-stroke" />
+  </g>
+  <text x="700" y="497" class="actor-label">Express 5 REST API Gateway</text>
+  <text x="700" y="515" class="sub-label">&amp; Hybrid Similarity Engine (:43210 / :8001)</text>
+
+  <!-- Right-Center Clipboard Verification Icon (matching checklist clipboard style) -->
+  <g transform="translate(946, 384)">
+    <rect x="6" y="10" width="76" height="92" rx="5" class="blue-fill-white" />
+    <rect x="13" y="20" width="62" height="75" rx="2" class="blue-stroke" />
+    <!-- Clip top -->
+    <rect x="30" y="3" width="28" height="12" rx="4" class="blue-fill-white" />
+    <circle cx="44" cy="7" r="2.2" fill="#3B6EC6" />
+    <!-- Checklist rows -->
+    <rect x="20" y="30" width="48" height="6" class="blue-stroke" />
+    <rect x="20" y="43" width="48" height="6" class="blue-stroke" />
+    <rect x="20" y="56" width="48" height="6" class="blue-stroke" />
+    <rect x="20" y="69" width="48" height="6" class="blue-stroke" />
+    <rect x="52" y="81" width="16" height="7" class="blue-stroke" />
+  </g>
+  <text x="990" y="510" class="box-text">Unified Reader &amp; Endorsement</text>
+  <text x="990" y="528" class="sub-label">(Myers Diff • Secretary OVPAA-F-INS-032)</text>
+
+  <!-- Right Processing Box -->
+  <rect x="1135" y="375" width="180" height="122" class="card-rect" />
+  <text x="1225" y="405" class="box-text">Appoints Committee,</text>
+  <text x="1225" y="424" class="box-text">Evaluates Defense &amp;</text>
+  <text x="1225" y="443" class="box-text">Signs Multi-Tier ADM</text>
+  <text x="1225" y="466" class="box-sub">(Role-Exclusion Enforced)</text>
+
+  <!-- Tier 2 Connectors -->
+  <line x1="265" y1="436" x2="367" y2="436" class="connector" marker-end="url(#arrow)" />
+  <line x1="414" y1="436" x2="665" y2="436" class="connector" marker-end="url(#arrow)" />
+  <text x="540" y="416" class="edge-label">Winnowing, BGE-M3</text>
+  <text x="540" y="431" class="edge-label">&amp; BM25 Scored</text>
+
+  <line x1="1135" y1="436" x2="1029" y2="436" class="connector" marker-end="url(#arrow)" />
+  <line x1="952" y1="436" x2="743" y2="436" class="connector" marker-end="url(#arrow)" />
+  <text x="847" y="416" class="edge-label">Clearance &amp; Rubric</text>
+  <text x="847" y="431" class="edge-label">Verified</text>
+
+  <!-- Center Downward Flow Tier 2 -> Tier 3 -->
+  <line x1="700" y1="536" x2="700" y2="612" class="connector" marker-end="url(#arrow)" />
+  <text x="795" y="576" class="edge-label">Async Queue Dispatch</text>
+  <text x="795" y="593" class="sub-label">(BullMQ + Redis • Archival)</text>
+
+  <!-- ==================== TIER 3: CORE BACKEND SERVICES, PERSISTENCE & NOTIFICATIONS ==================== -->
+
+  <!-- Bottom-Left Database Cylinder Icon (matching stacked cylinder outline style) -->
+  <g transform="translate(154, 628)">
+    <ellipse cx="48" cy="14" rx="44" ry="13" class="blue-fill-white" />
+    <path d="M 4 14 L 4 86 A 44 13 0 0 0 92 86 L 92 14" class="blue-fill-white" />
+    <path d="M 4 32 A 44 13 0 0 0 92 32" class="blue-stroke" />
+    <path d="M 4 50 A 44 13 0 0 0 92 50" class="blue-stroke" />
+    <path d="M 4 68 A 44 13 0 0 0 92 68" class="blue-stroke" />
+  </g>
+  <text x="202" y="758" class="actor-label">Data, Manuscripts &amp; Vectors</text>
+  <text x="202" y="777" class="actor-label">Stored on Institutional Server</text>
+  <text x="202" y="796" class="sub-label">(MongoDB • MinIO / Storage Vault • ChromaDB HNSW)</text>
+
+  <!-- Bottom-Left Persistence Box -->
+  <rect x="355" y="644" width="186" height="82" class="card-rect" />
+  <text x="448" y="670" class="box-text">Audit Logs, SHA-256</text>
+  <text x="448" y="689" class="box-text">Checksums &amp; Archives</text>
+  <text x="448" y="708" class="box-sub">Stored in Repositories</text>
+
+  <!-- Bottom-Center Core Institutional / Containerized Server Building Icon (matching building style) -->
+  <g transform="translate(646, 618)">
+    <!-- Roof / Pediment -->
+    <polygon points="8,24 54,4 100,24" class="blue-fill-white" />
+    <rect x="14" y="24" width="80" height="74" class="blue-fill-white" />
+    <line x1="6" y1="98" x2="102" y2="98" class="blue-stroke" />
+    <!-- Server rack / institutional window grid -->
+    <rect x="24" y="33" width="12" height="12" class="blue-stroke" />
+    <rect x="42" y="33" width="12" height="12" class="blue-stroke" />
+    <rect x="60" y="33" width="12" height="12" class="blue-stroke" />
+    <rect x="76" y="33" width="10" height="12" class="blue-stroke" />
+    <rect x="24" y="51" width="12" height="12" class="blue-stroke" />
+    <rect x="42" y="51" width="12" height="12" class="blue-stroke" />
+    <rect x="60" y="51" width="12" height="12" class="blue-stroke" />
+    <rect x="76" y="51" width="10" height="12" class="blue-stroke" />
+    <!-- Central portal door -->
+    <rect x="43" y="71" width="22" height="27" class="blue-stroke" />
+    <rect x="24" y="71" width="12" height="12" class="blue-stroke" />
+    <rect x="74" y="71" width="12" height="12" class="blue-stroke" />
+  </g>
+  <text x="700" y="746" class="actor-label">BukSU CMS-V2 Backend</text>
+  <text x="700" y="765" class="actor-label">&amp; Worker Microservices</text>
+  <text x="700" y="784" class="sub-label">(Redis :6379 • Plagiarism :8001 • OCR :8000)</text>
+
+  <!-- Bottom-Right Event Dispatch Icon (Screens + Settings Gear matching example style) -->
+  <g transform="translate(925, 642)">
+    <!-- Back panel -->
+    <rect x="24" y="6" width="72" height="50" rx="4" class="blue-fill-white" />
+    <!-- Front panel -->
+    <rect x="12" y="16" width="72" height="50" rx="4" class="blue-fill-white" />
+    <!-- Gear badge bottom-left -->
+    <circle cx="24" cy="60" r="15" class="blue-fill-white" />
+    <circle cx="24" cy="60" r="6" class="blue-stroke" />
+    <line x1="24" y1="42" x2="24" y2="47" class="blue-stroke" />
+    <line x1="24" y1="73" x2="24" y2="78" class="blue-stroke" />
+    <line x1="6" y1="60" x2="11" y2="60" class="blue-stroke" />
+    <line x1="37" y1="60" x2="42" y2="60" class="blue-stroke" />
+    <line x1="11" y1="47" x2="15" y2="51" class="blue-stroke" />
+    <line x1="33" y1="69" x2="37" y2="73" class="blue-stroke" />
+    <line x1="37" y1="47" x2="33" y2="51" class="blue-stroke" />
+    <line x1="15" y1="69" x2="11" y2="73" class="blue-stroke" />
+  </g>
+  <text x="978" y="746" class="box-text">Real-Time &amp; Email Dispatch</text>
+  <text x="978" y="765" class="sub-label">(Socket.IO Alerts &amp; BullMQ SMTP)</text>
+
+  <!-- Bottom-Right Notification Endpoint Box -->
+  <rect x="1142" y="649" width="176" height="72" rx="10" class="card-rect" />
+  <text x="1230" y="677" class="box-text">Notify Students &amp;</text>
+  <text x="1230" y="695" class="box-text">Faculty on Reviews,</text>
+  <text x="1230" y="713" class="box-text">Similarity &amp; Due Dates</text>
+
+  <!-- Tier 3 Connectors -->
+  <line x1="660" y1="685" x2="544" y2="685" class="connector" marker-end="url(#arrow)" />
+  <line x1="355" y1="685" x2="250" y2="685" class="connector" marker-end="url(#arrow)" />
+  <line x1="740" y1="685" x2="933" y2="685" class="connector" marker-end="url(#arrow)" />
+  <line x1="1024" y1="685" x2="1139" y2="685" class="connector" marker-end="url(#arrow)" />
+
+  <!-- Footer Architectural Scope Bar -->
+  <line x1="85" y1="854" x2="1318" y2="854" stroke="#E5E7EB" stroke-width="1" />
+  <text x="700" y="882" class="footer-note">Containerized Docker Network (cms_network) • BukSU Information Technology Department Scope • Institutional Repository Similarity Screening</text>
+</svg>

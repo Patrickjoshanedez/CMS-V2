@@ -47,6 +47,12 @@ vi.mock('@/hooks/useProjects', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useApprovalSheetUrl: () => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }));
 
 describe('CertificatePage', () => {

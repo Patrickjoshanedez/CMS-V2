@@ -12,14 +12,14 @@ import env from '../config/env.js';
 const maxBytes = 50 * 1024 * 1024; // 50 MB limit
 const pdfMetadataMaxBytes = 50 * 1024 * 1024; // 50 MB limit
 
-const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
+const createMemoryUpload = (fileSizeLimitBytes, maxFiles, maxFields = 10) =>
   multer({
     storage: multer.memoryStorage(),
     limits: {
       fileSize: fileSizeLimitBytes,
       files: maxFiles,
-      fields: 10,
-      parts: maxFiles + 10,
+      fields: maxFields,
+      parts: maxFiles + maxFields,
       fieldNameSize: 100,
       fieldSize: 64 * 1024,
       headerPairs: 200,
@@ -42,8 +42,9 @@ const chapterUpload = createMemoryUpload(maxBytes, 2).fields([
 /**
  * Multer instance for archive bundle uploads:
  * one required academic paper and one optional journal paper.
+ * Supports up to 50 multipart fields for bibliographic metadata, authors, and tags.
  */
-const archiveDualUpload = createMemoryUpload(maxBytes, 2);
+const archiveDualUpload = createMemoryUpload(maxBytes, 2, 50);
 
 /**
  * Larger multer instance for prototype media uploads (images/videos).

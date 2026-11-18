@@ -1,0 +1,10 @@
+{
+  "eval_name": "problem-and-literature",
+  "prompt": "Expand Chapter 1 problem/objectives and Chapter 2 synthesis. Only evidence: institutional workflow note says submissions use email and paper; Study A supplied abstract describes version tracking in one university, no outcomes; Study B supplied abstract describes similarity matching, no error rates. Draft says ours is the first and guarantees 80% faster work. Improve prose, state what is lacking, include traceable objectives and literature gap without inventing citations.",
+  "assertions": [
+    "Removes first-ever and 80% outcome claims",
+    "Provides substantive Chapter 1 and Chapter 2 prose with objectives",
+    "Treats abstracts as limited evidence and identifies a scoped gap without invented citations"
+  ],
+  "eval_id": 1
+}

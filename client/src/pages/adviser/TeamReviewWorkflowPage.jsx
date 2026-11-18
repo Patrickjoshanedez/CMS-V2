@@ -5,6 +5,7 @@ import { dashboardService } from '@/services/dashboardService';
 import { usePrefetchSubmissionReviewWorkspace } from '@/hooks/useSubmissions';
 import { prefetchRoute } from '@/lib/routePrefetch';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { MetricGrid, PageHeader, StatCard } from '@/components/common';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -48,53 +49,27 @@ function formatRelativeTime(dateStr) {
 /* ────────── Stats Row ────────── */
 
 function StatsRow({ awaiting, underReview }) {
-  const metrics = [
-    {
-      label: 'Awaiting Review',
-      value: awaiting.length,
-      icon: Inbox,
-      tone: 'bg-warning/10 text-warning-foreground',
-    },
-    {
-      label: 'In Revision',
-      value: underReview.length,
-      icon: RotateCw,
-      tone: 'bg-info/10 text-info-foreground',
-    },
-    {
-      label: 'Overdue',
-      value: underReview.filter(
-        (item) => typeof item.daysRemaining === 'number' && item.daysRemaining < 0,
-      ).length,
-      icon: AlertTriangle,
-      tone: 'bg-destructive/10 text-destructive-text',
-    },
-    {
-      label: 'Total Active',
-      value: awaiting.length + underReview.length,
-      icon: CheckCircle2,
-      tone: 'bg-success/10 text-success-foreground',
-    },
-  ];
+  const overdueCount = underReview.filter(
+    (item) => typeof item.daysRemaining === 'number' && item.daysRemaining < 0,
+  ).length;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {metrics.map(({ label, value, icon: Icon, tone }) => (
-        <Card key={label} className="border-border/60 shadow-xs">
-          <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}
-            >
-              <Icon className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="font-mono text-2xl font-bold tabular-nums text-foreground">{value}</p>
-              <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <MetricGrid cols={4}>
+      <StatCard label="Awaiting Review" value={awaiting.length} icon={Inbox} tone="warning" />
+      <StatCard label="In Revision" value={underReview.length} icon={RotateCw} tone="primary" />
+      <StatCard
+        label="Overdue"
+        value={overdueCount}
+        icon={AlertTriangle}
+        tone={overdueCount > 0 ? 'destructive' : 'default'}
+      />
+      <StatCard
+        label="Total Active"
+        value={awaiting.length + underReview.length}
+        icon={CheckCircle2}
+        tone="success"
+      />
+    </MetricGrid>
   );
 }
 
@@ -246,29 +221,28 @@ export default function TeamReviewWorkflowPage() {
   return (
     <DashboardLayout>
       <div data-testid="team-review-workflow" className="min-w-0 space-y-6 lg:space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Team Review</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review submissions, manage revisions, and approve chapters for your assigned teams.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="min-h-[44px] gap-2 self-start"
-          >
-            {isFetching ? (
-              <Spinner className="size-4" />
-            ) : (
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            )}
-            Refresh
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Adviser Queue"
+          icon={Inbox}
+          title="Team Review"
+          description="Review submissions, manage revisions, and approve chapters for your assigned teams."
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="gap-2"
+            >
+              {isFetching ? (
+                <Spinner className="size-4" />
+              ) : (
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              )}
+              Refresh
+            </Button>
+          }
+        />
 
         {/* Loading */}
         {isLoading && !workload && (

@@ -1,0 +1,14 @@
+{
+  "active_scenario_id": "chapters-one-four-skills",
+  "completed_subgoals": [
+    "four skills and templates",
+    "shared ISO guide",
+    "paired evaluations",
+    "static review viewer",
+    "registration and validation"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "Created; human feedback optional; repository evidence issues reported",
+  "progress_delta": 4,
+  "loop_count": 0
+}

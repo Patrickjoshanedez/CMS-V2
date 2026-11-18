@@ -51,7 +51,6 @@ export function useSocket() {
 
       // Invalidate notification queries so the list + badge update immediately
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-      queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
 
       const normalizeProjectId = (value) => {
         if (typeof value === 'string' || typeof value === 'number') {
@@ -136,6 +135,7 @@ export function useSocket() {
     /** Dismiss any error toast when connection is restored */
     const handleReconnect = () => {
       toast.dismiss('socket-reconnect-failed');
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     };
 
     socket.on('notification:new', handleNotification);

@@ -1,4 +1,4 @@
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -6,12 +6,12 @@ COPY package*.json ./
 COPY server/package*.json ./server/
 COPY shared/package*.json ./shared/
 
-RUN npm ci --ignore-scripts --workspace=shared --workspace=server --include-workspace-root=false
+RUN npm ci --omit=dev --ignore-scripts --workspace=shared --workspace=server --include-workspace-root=false
 
-COPY server ./server
-COPY shared ./shared
+COPY --chown=node:node server ./server
+COPY --chown=node:node shared ./shared
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 
 # Install Chromium and its dependencies for Puppeteer PDF generation
 RUN apk add --no-cache \
@@ -28,9 +28,7 @@ ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-COPY --from=deps /app /app
-
-RUN chown -R node:node /app
+COPY --from=deps --chown=node:node /app /app
 
 USER node
 

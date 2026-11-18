@@ -1,0 +1,19 @@
+{
+  "session_id": "2026-11-18_system-architecture-diagram-figure-7-1",
+  "date": "2026-11-18T00:45:00Z",
+  "task_summary": "Created editable SVG and high-resolution PNG System Architecture Diagram for Project Workspace (BukSU CMS-V2) matching the user's 3-tier outline visual style, replaced Figure 7.1 (kix.1fmtxvferl8c -> kix.sj9ohg97sp44, 468x308 pt) in live Google Doc 19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw, centered the diagram, removed the stray mid-figure page break so the caption stays with the figure on page 45, and verified zero manuscript regressions.",
+  "task_category": "system_architecture_diagram_and_gdocs_update",
+  "skills_triggered": ["diagram-maker", "gdocs", "gdocs-academic-editor"],
+  "key_decisions": [
+    "Authored editable vector diagram docs/diagrams/system-architecture-project-workspace.svg and rendered 2800x1840 (@2x) PNG docs/diagrams/system-architecture-project-workspace.png via Playwright.",
+    "Aligned diagram components with verified CMS-V2 runtime architecture: React 18 + Vite SPA (:43211), Students/Faculty/Instructor auth & JWT RBAC, Express 5 REST API Gateway (:43210), OCR & Title Screening (PyMuPDF / PaddleOCR-VL :8000 + Levenshtein), Plagiarism Engine (:8001, Winnowing, BGE-M3 & BM25), SophisticatedDocumentViewer (Myers Diff + OVPAA-F-INS-032), BullMQ + Redis (:6379), MongoDB + MinIO/Storage Vault + ChromaDB HNSW, and Socket.IO/SMTP notifications.",
+    "Used gdocs mutate replace-image-safe to replace kix.1fmtxvferl8c without cropping (resulting in kix.sj9ohg97sp44 at 468x308 pt) and removed the stray pageBreak element at [70729..70730] separating the diagram from Figure 7.1. System Architectural Design."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "Inspected local rendered PNG via read_file, verified live doc download (scratch/verified_live_fig7_1.png), exported live PDF and inspected Page 53 (doc page 45) PNG confirming diagram and Figure 7.1 caption appear together, confirmed list-images reports 112 images with kix.sj9ohg97sp44 (468x308 pt), and verify_manuscript_integrity.mjs passed (TOTAL_TABLES=35, FIGURES_4_UNIQUE_COUNT=34, REFERENCES_ENTRY_COUNT=42, MISSING_IN_TEXT_FROM_REFS=0, MISSING_STD_REFS=0, PATTERN_HITS=0).",
+  "open_threads": [],
+  "lessons_learned": [
+    "Lesson learned: gdocs mutate replace-image-safe preserves the existing paragraph's pageBreak and indentStart/indentFirstLine properties; exporting the live Google Doc to PDF and inspecting rendered PNG pages with pdfjs-dist catches orphaned figure captions caused by legacy page breaks between an inline image and its caption."
+  ],
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit"
+}

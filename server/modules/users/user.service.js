@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import User from './user.model.js';
+import RefreshToken from '../auth/refreshToken.model.js';
 import AppError from '../../utils/AppError.js';
 import Section from '../academics/section.model.js';
 import Team from '../teams/team.model.js';
@@ -335,13 +336,34 @@ class UserService {
    * @returns {Object} { user }
    */
   async updateUser(userId, data) {
-    const user = await User.findByIdAndUpdate(userId, data, {
+    const current = await User.findById(userId).select(
+      'role facultyRole isActive isVerified sessionVersion',
+    );
+    if (!current) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const invalidatesSessions =
+      (typeof data.role === 'string' && data.role !== current.role) ||
+      (Object.hasOwn(data, 'facultyRole') && data.facultyRole !== current.facultyRole) ||
+      (typeof data.isVerified === 'boolean' && data.isVerified !== current.isVerified) ||
+      (typeof data.isActive === 'boolean' && data.isActive !== current.isActive);
+    const update = { ...data };
+    if (invalidatesSessions) update.$inc = { ...(update.$inc || {}), sessionVersion: 1 };
+
+    const user = await User.findByIdAndUpdate(userId, update, {
       returnDocument: 'after',
       runValidators: true,
     });
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    if (invalidatesSessions) {
+      await RefreshToken.revokeAllForUser(user._id);
+      const { invalidateUserSockets } = await import('../../services/socket.service.js');
+      invalidateUserSockets(user._id);
     }
 
     return { user };
@@ -356,13 +378,17 @@ class UserService {
   async changeRole(userId, role) {
     const user = await User.findByIdAndUpdate(
       userId,
-      { role },
+      { role, $inc: { sessionVersion: 1 } },
       { returnDocument: 'after', runValidators: true },
     );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    await RefreshToken.revokeAllForUser(user._id);
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(user._id);
 
     return { user };
   }
@@ -565,13 +591,17 @@ class UserService {
   async deleteUser(userId) {
     const user = await User.findByIdAndUpdate(
       userId,
-      { isActive: false },
+      { isActive: false, $inc: { sessionVersion: 1 } },
       { returnDocument: 'after' },
     );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    await RefreshToken.revokeAllForUser(user._id);
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(user._id);
 
     return { user };
   }
@@ -585,13 +615,17 @@ class UserService {
   async activateUser(userId) {
     const user = await User.findByIdAndUpdate(
       userId,
-      { isActive: true },
+      { isActive: true, $inc: { sessionVersion: 1 } },
       { returnDocument: 'after' },
     );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    await RefreshToken.revokeAllForUser(user._id);
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(user._id);
 
     return { user };
   }

@@ -1,0 +1,8 @@
+{
+  "verification_notes": "Two successful native image replacements; readback sourceUri matches each original image URI.",
+  "date": "2026-11-17",
+  "verification_status": "passed",
+  "task_summary": "Restored original Figure 2 and Figure 2.1 images in the refined paper at the user request.",
+  "output_url": "https://docs.google.com/document/d/1CxnDHJ9JKOuMpUsYELVv3mt7IeKEKbik46a-2-HVKbg/edit",
+  "session_id": "2026-11-17_restore-methodology-figures"
+}

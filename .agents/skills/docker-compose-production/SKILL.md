@@ -1095,6 +1095,8 @@ Use docker-compose-production when you need to:
 
 ## Common Pitfalls
 
+For CMS-V2 free-host pilots, check the target CPU architecture against the wheel pinned in the plagiarism Dockerfile. Render the merged Compose configuration and verify that the website binds only to loopback and that the upload directory survives a restart. See [the project hosting guide](../../../docs/deployment/FREE_HOSTING.md).
+
 1. **Using Latest Tags**: Using `latest` or unversioned images can cause unexpected behavior when images are updated; always pin versions.
 
 2. **Ignoring Resource Limits**: Not setting resource limits can allow one service to consume all available resources and crash others.

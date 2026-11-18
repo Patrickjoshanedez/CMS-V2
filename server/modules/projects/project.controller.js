@@ -996,6 +996,170 @@ function broadcastADMUpdate(projectId, event, payload = {}) {
   }
 }
 
+/**
+ * Send tiered ADM baton-pass notifications so the next signatory tier
+ * or the Course Instructor gets a deep-linked prompt as soon as a gate unlocks.
+ */
+async function notifyADMNextTierBaton({
+  project,
+  targetMilestone,
+  currentSignatures,
+  actorId,
+  actionKind,
+  signedRole,
+}) {
+  try {
+    const teamQuery = project.teamId ? Team.findById(project.teamId) : null;
+    const team =
+      teamQuery && typeof teamQuery.select === 'function'
+        ? await teamQuery.select('instructorId').lean()
+        : await teamQuery;
+    const instructorId = team?.instructorId ? String(team.instructorId) : null;
+    const adviserId = project.adviserId ? String(project.adviserId._id || project.adviserId) : null;
+    const secretaryId = project.secretaryId
+      ? String(project.secretaryId._id || project.secretaryId)
+      : null;
+    const actorStr = actorId ? String(actorId) : '';
+    const milestoneLabel = targetMilestone.replace('_', ' ');
+
+    const sendTo = async (candidateIds, payload) => {
+      const recipients = [...new Set(candidateIds.filter(Boolean).map(String))].filter(
+        (uid) => uid !== actorStr,
+      );
+      if (recipients.length === 0) return;
+      const docs = recipients.map((uid) => ({
+        userId: uid,
+        ...payload,
+      }));
+      const created = await Notification.insertMany(docs);
+      created.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+    };
+
+    if (actionKind === 'endorsed') {
+      const tier1Ids = [];
+      if (!currentSignatures?.adviser?.signed && adviserId) tier1Ids.push(adviserId);
+      if (!currentSignatures?.instructor?.signed && instructorId) tier1Ids.push(instructorId);
+      await sendTo(tier1Ids, {
+        type: 'adm_endorsed',
+        title: `${milestoneLabel} ADM Ready for Tier 1 Sign-Off`,
+        message: `Committee Secretary endorsed the ${milestoneLabel} Action Done Matrix for "${project.title}". Apply your Tier 1 signature to pass the baton to the panel.`,
+        metadata: { projectId: project._id, milestone: targetMilestone, tab: 'adm', batonTier: 1 },
+      });
+      return;
+    }
+
+    const completion = getADMCompletion(project, targetMilestone);
+    if (completion.complete) {
+      if (targetMilestone === 'CAPSTONE_3' && !project.isArchived && instructorId) {
+        await sendTo([instructorId], {
+          type: 'adm_endorsed',
+          title: 'ADM v3 Complete — Final Archival Ready',
+          message: `All 3 signatory tiers completed the final ADM for "${project.title}". Verify released final grades to trigger archival.`,
+          metadata: {
+            projectId: project._id,
+            milestone: targetMilestone,
+            tab: 'capstone_3',
+            batonTier: 4,
+          },
+        });
+      } else if (Number(project.capstonePhase || 1) < 3 && instructorId) {
+        await sendTo([instructorId], {
+          type: 'adm_endorsed',
+          title: `${milestoneLabel} ADM Complete — Ready to Advance`,
+          message: `All signatories completed the ${milestoneLabel} ADM for "${project.title}". Check released grades to advance phase.`,
+          metadata: {
+            projectId: project._id,
+            milestone: targetMilestone,
+            tab: 'adm',
+            batonTier: 4,
+          },
+        });
+      }
+      return;
+    }
+
+    const chairAssignment = (project.panelists || []).find(
+      (p) => String(p.role || '').toLowerCase() === 'chair',
+    );
+    const chairId = chairAssignment?.userId
+      ? String(chairAssignment.userId._id || chairAssignment.userId)
+      : null;
+
+    if (signedRole === 'adviser' || signedRole === 'instructor') {
+      if (currentSignatures?.adviser?.signed && currentSignatures?.instructor?.signed) {
+        const panelAssignments = (project.panelists || []).filter((p) => {
+          const r = String(p.role || '').toLowerCase();
+          return r !== 'secretary' && r !== 'chair';
+        });
+        const fallbackPanelistIds = panelAssignments.length
+          ? panelAssignments.map((p) => String(p.userId?._id || p.userId))
+          : (project.panelistIds || []).map((id) => String(id?._id || id));
+        const signedSet = new Set(
+          (currentSignatures.panelists || []).filter((s) => s.signed).map((s) => String(s.userId)),
+        );
+        const pendingPanelIds = fallbackPanelistIds.filter(
+          (id) => id && id !== secretaryId && id !== chairId && !signedSet.has(id),
+        );
+        await sendTo(pendingPanelIds, {
+          type: 'adm_endorsed',
+          title: `${milestoneLabel} ADM Ready for Tier 2 Panel Signature`,
+          message: `Tier 1 (Adviser & Instructor) signed the ${milestoneLabel} ADM for "${project.title}". Please apply your Tier 2 panel member signature.`,
+          metadata: {
+            projectId: project._id,
+            milestone: targetMilestone,
+            tab: 'adm',
+            batonTier: 2,
+          },
+        });
+      } else {
+        const remainingTier1Id = !currentSignatures?.adviser?.signed ? adviserId : instructorId;
+        await sendTo([remainingTier1Id], {
+          type: 'adm_endorsed',
+          title: `${milestoneLabel} ADM Awaiting Tier 1 Counter-Signature`,
+          message: `One Tier 1 signature is recorded on "${project.title}" (${milestoneLabel}). Your Tier 1 signature unlocks Tier 2 panel sign-off.`,
+          metadata: {
+            projectId: project._id,
+            milestone: targetMilestone,
+            tab: 'adm',
+            batonTier: 1,
+          },
+        });
+      }
+      return;
+    }
+
+    if (signedRole === 'panelist' && chairId && !currentSignatures?.chair?.signed) {
+      const panelAssignments = (project.panelists || []).filter((p) => {
+        const r = String(p.role || '').toLowerCase();
+        return r !== 'secretary' && r !== 'chair';
+      });
+      const expectedPanelIds = (
+        panelAssignments.length
+          ? panelAssignments.map((p) => String(p.userId?._id || p.userId))
+          : (project.panelistIds || []).map((id) => String(id?._id || id))
+      ).filter((id) => id && id !== secretaryId && id !== chairId);
+      const signedSet = new Set(
+        (currentSignatures.panelists || []).filter((s) => s.signed).map((s) => String(s.userId)),
+      );
+      if (expectedPanelIds.length > 0 && expectedPanelIds.every((id) => signedSet.has(id))) {
+        await sendTo([chairId], {
+          type: 'adm_endorsed',
+          title: `${milestoneLabel} ADM Ready for Tier 3 Chair Signature`,
+          message: `All regular panelists signed the ${milestoneLabel} ADM for "${project.title}". Please apply your final Chair signature.`,
+          metadata: {
+            projectId: project._id,
+            milestone: targetMilestone,
+            tab: 'adm',
+            batonTier: 3,
+          },
+        });
+      }
+    }
+  } catch {
+    // Non-blocking baton notification
+  }
+}
+
 function resolveTargetMilestone(project, requestedMilestone) {
   if (
     requestedMilestone &&
@@ -1630,6 +1794,23 @@ export const signTieredADM = catchAsync(async (req, res) => {
     await projectService.tryAutoArchiveProject(project._id);
   }
 
+  const normalizedSignedRole =
+    role === 'adviser' || (Number(tier) === 1 && req.user.role !== ROLES.INSTRUCTOR)
+      ? 'adviser'
+      : role === 'instructor' || (Number(tier) === 1 && req.user.role === ROLES.INSTRUCTOR)
+        ? 'instructor'
+        : role === 'chair' || Number(tier) === 3
+          ? 'chair'
+          : 'panelist';
+  await notifyADMNextTierBaton({
+    project,
+    targetMilestone,
+    currentSignatures,
+    actorId: req.user._id,
+    actionKind: 'signed',
+    signedRole: normalizedSignedRole,
+  });
+
   broadcastADMUpdate(project._id, 'adm:signed', {
     milestone: targetMilestone,
     admSignatures: currentSignatures,
@@ -1740,6 +1921,7 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
           projectId: project._id,
           admStatus: project.admStatus,
           milestone: targetMilestone,
+          tab: 'adm',
         },
       }));
       const createdNotifs = await Notification.insertMany(notifications);
@@ -1748,6 +1930,14 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
   } catch {
     // Non-blocking notification
   }
+
+  await notifyADMNextTierBaton({
+    project,
+    targetMilestone,
+    currentSignatures,
+    actorId: req.user._id,
+    actionKind: 'endorsed',
+  });
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

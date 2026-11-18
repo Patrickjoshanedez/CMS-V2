@@ -1,0 +1,20 @@
+{
+  "open_threads": [
+    "Run revised-skill trials and compare with baseline when independent runner is available",
+    "Collect user feedback from review page"
+  ],
+  "skills_written": [],
+  "date": "2026-11-17",
+  "session_id": "2026-11-17_chapter-five-skill-evaluation",
+  "skills_patched": [
+    {
+      "change": "Added evidence-sufficiency guidance, 2011 construct distinction, substantive section checks, and executable evaluation prompts",
+      "name": "chapter-five-iso"
+    }
+  ],
+  "verification_status": "partial",
+  "task_summary": "Improved chapter-five-iso to v1.1 and prepared paired evaluations and review viewer",
+  "skills_triggered": ["skill-creator", "chapter-five-iso"],
+  "verification_notes": "Metadata passes. Three prompts with 15 behavioral checks and static reviewer generated. Revised independent runner blocked by usage limit; comparison not graded. Baseline completed three ungraded outputs; reviewer refreshed. Per-run timing unavailable.",
+  "task_category": "skill"
+}

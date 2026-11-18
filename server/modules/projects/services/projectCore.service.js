@@ -171,7 +171,7 @@ class ProjectCoreService {
     return [...new Set(ids.filter((id) => id && id !== secretaryId))];
   }
 
-  async _hasReleasedPassingEvaluations(project, defenseType) {
+  async _hasReleasedPassingEvaluations(project, defenseType, projectEvaluations) {
     const assignedIds = this._getAssignedDefensePanelistIds(project);
     if (assignedIds.length === 0) return false;
 
@@ -181,10 +181,12 @@ class ProjectCoreService {
         : defenseType === DEFENSE_TYPES.FINAL
           ? [DEFENSE_TYPES.FINAL, 'paper']
           : [DEFENSE_TYPES.PROPOSAL];
-    const evaluations = await Evaluation.find({
-      projectId: project._id,
-      defenseType: { $in: aliases },
-    }).select('panelistId status decision');
+    const evaluations = projectEvaluations
+      ? projectEvaluations.filter((evaluation) => aliases.includes(evaluation.defenseType))
+      : await Evaluation.find({
+          projectId: project._id,
+          defenseType: { $in: aliases },
+        }).select('panelistId status decision');
     const byPanelist = new Map(
       evaluations.map((evaluation) => [String(evaluation.panelistId), evaluation]),
     );
@@ -199,7 +201,7 @@ class ProjectCoreService {
     });
   }
 
-  async _getPhaseExitBlocker(project, phase) {
+  async _getPhaseExitBlocker(project, phase, { evaluations, latestProposal } = {}) {
     const milestone = phase === 1 ? 'CAPSTONE_1' : 'CAPSTONE_2';
     if (!isADMComplete(project, milestone)) {
       return {
@@ -209,7 +211,7 @@ class ProjectCoreService {
     }
 
     const defenseType = phase === 1 ? DEFENSE_TYPES.PROPOSAL : DEFENSE_TYPES.PROGRESS;
-    if (!(await this._hasReleasedPassingEvaluations(project, defenseType))) {
+    if (!(await this._hasReleasedPassingEvaluations(project, defenseType, evaluations))) {
       return {
         code: phase === 1 ? 'PROPOSAL_EVALUATION_REQUIRED' : 'PROGRESS_EVALUATION_REQUIRED',
         message: `Every assigned panelist must submit a passing ${phase === 1 ? 'Capstone 1 proposal' : 'Capstone 2 system'} evaluation, and the instructor must release the grades.`,
@@ -217,9 +219,12 @@ class ProjectCoreService {
     }
 
     if (phase === 1) {
-      const proposal = await Submission.findOne({ projectId: project._id, type: 'proposal' })
-        .sort({ version: -1 })
-        .select('status');
+      const proposal =
+        latestProposal === undefined
+          ? await Submission.findOne({ projectId: project._id, type: 'proposal' })
+              .sort({ version: -1 })
+              .select('status')
+          : latestProposal;
       if (!proposal || !['approved', 'accepted', 'locked'].includes(proposal.status)) {
         return {
           code: 'APPROVED_PROPOSAL_REQUIRED',
@@ -264,8 +269,8 @@ class ProjectCoreService {
     return null;
   }
 
-  async getPhaseExitBlocker(project, phase) {
-    return this._getPhaseExitBlocker(project, phase);
+  async getPhaseExitBlocker(project, phase, evidence) {
+    return this._getPhaseExitBlocker(project, phase, evidence);
   }
 
   /**

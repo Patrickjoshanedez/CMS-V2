@@ -36,13 +36,15 @@ COPY requirements.txt .
 
 # Install into /app/.venv so script shebang paths stay valid in runtime stage
 RUN python -m venv /app/.venv \
-    && /app/.venv/bin/pip install --upgrade pip \
+    && /app/.venv/bin/pip install --no-cache-dir --upgrade pip \
         && cp requirements.txt /tmp/requirements.resolved.txt \
         && if [ "$TORCH_VARIANT" = "cu121" ]; then \
                 sed -i 's|https://download.pytorch.org/whl/cpu|https://download.pytorch.org/whl/cu121|g' /tmp/requirements.resolved.txt; \
-                sed -i 's|^torch==2.3.1.*$|torch==2.3.1+cu121|g' /tmp/requirements.resolved.txt; \
+                sed -i 's|^torch[>=<].*$|torch==2.3.1+cu121|g' /tmp/requirements.resolved.txt; \
+            else \
+                sed -i 's|^torch[>=<].*$|torch==2.3.1+cpu|g' /tmp/requirements.resolved.txt; \
             fi \
-        && /app/.venv/bin/pip install --no-cache-dir -r /tmp/requirements.resolved.txt
+        && /app/.venv/bin/pip install --no-cache-dir --prefer-binary -r /tmp/requirements.resolved.txt
 
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
@@ -59,16 +61,14 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 
-# Copy the virtual environment from the builder stage
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy application source
-# Cache busted 1
-COPY plagiarism_engine/ /app/plagiarism_engine/
+# Copy the virtual environment and application source directly as appuser
+# (avoids slow and layer-bloating recursive chown over /app/.venv)
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --chown=appuser:appuser plagiarism_engine/ /app/plagiarism_engine/
 
 # Create directories for ChromaDB persistence and model cache
 RUN mkdir -p /app/chroma_store /app/.cache/huggingface /app/.cache/torch \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app/chroma_store /app/.cache
 
 # Make the venv the default Python
 ENV PATH="/app/.venv/bin:$PATH" \
@@ -78,12 +78,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
     HF_HOME="/app/.cache/huggingface" \
     TORCH_HOME="/app/.cache/torch"
 
-# Pre-download and cache default sentence transformer AI model (all-MiniLM-L6-v2)
-RUN /app/.venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
-    && chown -R appuser:appuser /app/.cache
-
-# Switch to non-root user
+# Switch to non-root user before pre-downloading default embedding model
 USER appuser
+
+# Pre-download and cache default sentence transformer AI model (all-MiniLM-L6-v2)
+RUN /app/.venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Port the API listens on
 EXPOSE 8001
@@ -94,6 +93,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 # Default command — override in docker-compose.yml per service role
 CMD ["uvicorn", "plagiarism_engine.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
-
-# Dummy cache breaker 1
 

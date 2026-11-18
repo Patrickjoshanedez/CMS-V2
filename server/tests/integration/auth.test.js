@@ -30,6 +30,30 @@ describe('Auth API — /api/auth', () => {
       expect(res.body.data.user.password).toBeUndefined();
     });
 
+    it('registers a faculty account with the faculty role and no student ID', async () => {
+      const res = await request.post('/api/auth/register').send({
+        firstName: 'Ana',
+        lastName: 'Faculty',
+        email: 'ana@buksu.edu.ph',
+        password: 'Password123',
+        role: 'faculty',
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.data.user.role).toBe('faculty');
+      expect(res.body.data.user.isVerified).toBe(false);
+    });
+
+    it('rejects instructor self-registration', async () => {
+      const res = await request.post('/api/auth/register').send({
+        firstName: 'Ana',
+        lastName: 'Faculty',
+        email: 'ana@buksu.edu.ph',
+        password: 'Password123',
+        role: 'instructor',
+      });
+      expect(res.status).toBe(400);
+    });
+
     it('should reject duplicate email with 409', async () => {
       await createVerifiedUser({
         firstName: 'Bob',

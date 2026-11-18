@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import userService from '../../modules/users/user.service.js';
 import User from '../../modules/users/user.model.js';
+import RefreshToken from '../../modules/auth/refreshToken.model.js';
 
 describe('UserService.getMe team roster projection', () => {
   afterEach(() => {
@@ -30,7 +31,10 @@ describe('UserService.getMe team roster projection', () => {
 
     const { user } = await userService.getMe('user-1');
 
-    expect(query.populate).toHaveBeenCalledWith('teamId', 'name isLocked members');
+    expect(query.populate).toHaveBeenCalledWith(
+      'teamId',
+      'name isLocked members memberRoles capstoneEnrollments projectId',
+    );
     expect(user.teamId.memberCount).toBe(2);
     expect(user.teamId.isFull).toBe(false);
     expect(user.teamId.members).toBeUndefined();
@@ -105,5 +109,30 @@ describe('UserService.listUsers role expansion', () => {
     expect(capturedFilter.role.$in).toContain('faculty');
     expect(capturedFilter.role.$in).toContain('adviser');
     expect(capturedFilter.role.$in).toContain('panelist');
+  });
+});
+
+describe('UserService access-session invalidation', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('increments sessionVersion and revokes refresh tokens when the primary role changes', async () => {
+    const currentUser = { role: 'student', facultyRole: null, isActive: true, isVerified: true };
+    const updatedUser = { _id: 'user-1', role: 'faculty', sessionVersion: 1 };
+    vi.spyOn(User, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue(currentUser),
+    });
+    const update = vi.spyOn(User, 'findByIdAndUpdate').mockResolvedValue(updatedUser);
+    const revoke = vi.spyOn(RefreshToken, 'revokeAllForUser').mockResolvedValue(undefined);
+
+    await userService.updateUser('user-1', { role: 'faculty' });
+
+    expect(update).toHaveBeenCalledWith(
+      'user-1',
+      { role: 'faculty', $inc: { sessionVersion: 1 } },
+      { returnDocument: 'after', runValidators: true },
+    );
+    expect(revoke).toHaveBeenCalledWith('user-1');
   });
 });

@@ -115,6 +115,12 @@ vi.mock('@/hooks/useProjects', () => ({
     error: null,
     refetch: vi.fn(),
   }),
+  useApprovalSheetUrl: () => ({
+    data: null,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useSubmissions', () => ({

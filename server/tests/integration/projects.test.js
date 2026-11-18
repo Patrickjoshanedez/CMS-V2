@@ -1260,7 +1260,7 @@ describe('Projects API — /api/projects', () => {
     it('should map LIMIT_FILE_SIZE to FILE_TOO_LARGE when an archive file exceeds max size', async () => {
       const oversizedPdf = Buffer.concat([
         Buffer.from('%PDF-1.4\n'),
-        Buffer.alloc(env.MAX_UPLOAD_SIZE_MB * 1024 * 1024 + 1, 'a'),
+        Buffer.alloc(env.MAX_ARCHIVE_UPLOAD_SIZE_MB * 1024 * 1024 + 1, 'a'),
       ]);
 
       const res = await instructorAgent

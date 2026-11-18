@@ -1,0 +1,35 @@
+{
+  "evals": [
+    {
+      "eval_name": "problem-and-literature",
+      "prompt": "Expand Chapter 1 problem/objectives and Chapter 2 synthesis. Only evidence: institutional workflow note says submissions use email and paper; Study A supplied abstract describes version tracking in one university, no outcomes; Study B supplied abstract describes similarity matching, no error rates. Draft says ours is the first and guarantees 80% faster work. Improve prose, state what is lacking, include traceable objectives and literature gap without inventing citations.",
+      "assertions": [
+        "Removes first-ever and 80% outcome claims",
+        "Provides substantive Chapter 1 and Chapter 2 prose with objectives",
+        "Treats abstracts as limited evidence and identifies a scoped gap without invented citations"
+      ],
+      "eval_id": 1
+    },
+    {
+      "eval_name": "methodology-and-edition",
+      "prompt": "Expand Chapter 3 methodology. Developmental-evaluative study using Agile; planned 37 participants; summary says 77, no recruitment records. Existing instrument adopts ISO/IEC 25010:2011. Draft calls it ISO 2023 certified and says Excellent means passed all tests. Give method paragraph, reproducible test-record pattern, and gap note. No actual tests supplied.",
+      "assertions": [
+        "Preserves 2011 basis and removes certification claim",
+        "Flags 37 versus 77 without inventing recruitment",
+        "Separates research design from development and expected from actual tests"
+      ],
+      "eval_id": 2
+    },
+    {
+      "eval_name": "reported-results",
+      "prompt": "Write short Chapter 4 findings/discussion from supplied aggregate usability 4.53 SD .30 and satisfaction 4.48 SD .34 among reported 77 respondents; approved band Excellent 4.21-5.00; raw data absent. 200ms benchmark is illustrative. Existing draft says significant improvement and full ISO compliance. Provide usable revised prose and separate gaps, preserve adopted 2011 edition.",
+      "assertions": [
+        "Uses supplied aggregates without inventing recalculation",
+        "Excludes 200ms as measured performance and unsupported significance/conformity",
+        "Provides substantive findings and distinguishes study bands from ISO thresholds"
+      ],
+      "eval_id": 3
+    }
+  ],
+  "skill_name": "chapter-one-four"
+}

@@ -28,6 +28,7 @@ import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
+import { assertPlagiarismScanCanClear } from '../plagiarism/plagiarismClearance.js';
 import Section from '../academics/section.model.js';
 import MilestoneDeadline from '../settings/milestoneDeadline.model.js';
 import storageService from '../../services/storage.index.js';
@@ -242,56 +243,6 @@ class SubmissionService {
     );
 
     return updated;
-  }
-
-  async _ensureMockPlagiarismForApproval(submission) {
-    if (!env.PLAGIARISM_FORCE_MOCK_SCORE) {
-      return null;
-    }
-
-    const now = new Date();
-    const mockTaskId = `mock-approval-${submission._id.toString()}`;
-
-    const mockResult = await PlagiarismResult.findOneAndUpdate(
-      { submissionId: submission._id },
-      {
-        $set: {
-          taskId: mockTaskId,
-          status: PLAGIARISM_STATUSES.COMPLETED,
-          similarityPercentage: 0,
-          textMatches: [],
-          checkedAt: now,
-          completedAt: now,
-          warningFlag: false,
-          rawData: {
-            originalityScore: 100,
-            matchedSources: [],
-            mode: 'mock',
-            reason: 'PLAGIARISM_FORCE_MOCK_SCORE enabled during approval',
-          },
-          error: null,
-          errorMessage: null,
-        },
-      },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-    ).lean();
-
-    await Submission.findByIdAndUpdate(submission._id, {
-      originalityScore: 100,
-      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
-      'plagiarismResult.jobId': mockTaskId,
-      'plagiarismResult.error': null,
-      'plagiarismResult.originalityScore': 100,
-      'plagiarismResult.matchedSources': [],
-      'plagiarismResult.processedAt': now,
-    });
-
-    logger.info(
-      { submissionId: submission._id.toString(), taskId: mockTaskId },
-      'Auto-seeded mock plagiarism result for approval flow',
-    );
-
-    return mockResult;
   }
 
   /* ═══════════════════ Shared Private Helpers ═══════════════════ */
@@ -611,6 +562,7 @@ class SubmissionService {
     );
 
     if (!isDocx || submission.convertedPdfKey) return;
+    if (!process.env.GOTENBERG_URL?.trim()) return;
 
     try {
       const jobId = await enqueueDocxConversionJob({
@@ -2872,18 +2824,7 @@ class SubmissionService {
         submission._id,
         plagiarismResult,
       );
-      if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
-        plagiarismResult = await this._ensureMockPlagiarismForApproval(submission);
-      }
-
-      // Require completed plagiarism check before approval
-      if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
-        throw new AppError(
-          'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
-          400,
-          'PLAGIARISM_CHECK_REQUIRED',
-        );
-      }
+      assertPlagiarismScanCanClear(plagiarismResult, 'submission');
 
       // Check similarity threshold
       const threshold = await this._getPlagiarismRejectThreshold();
@@ -3389,17 +3330,7 @@ class SubmissionService {
       submissionId: submission._id,
     }).lean();
     plagiarismResult = await this._reconcileStalePlagiarismResult(submission._id, plagiarismResult);
-    if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
-      plagiarismResult = await this._ensureMockPlagiarismForApproval(submission);
-    }
-
-    if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
-      throw new AppError(
-        'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
-        400,
-        'PLAGIARISM_CHECK_REQUIRED',
-      );
-    }
+    assertPlagiarismScanCanClear(plagiarismResult, 'submission');
 
     const threshold = await this._getPlagiarismRejectThreshold();
     if (plagiarismResult.similarityPercentage > threshold) {

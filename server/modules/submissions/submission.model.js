@@ -181,7 +181,7 @@ const plagiarismResultSchema = new mongoose.Schema(
     },
     scanCoverage: {
       type: String,
-      enum: ['full', 'lexical_only', 'degraded'],
+      enum: ['full', 'lexical_only', 'degraded', 'insufficient_text'],
       default: null,
     },
     semanticStatus: {

@@ -12,23 +12,41 @@ export default function ThemeSelector() {
       label: 'Light',
       icon: Sun,
       description: 'Classic bright interface',
-      preview: 'bg-background border-border',
+      surfaceClass: 'theme-preview-light',
     },
     {
       value: 'dark',
       label: 'Dark',
       icon: Moon,
       description: 'Easier on the eyes',
-      preview: 'bg-foreground border-foreground',
+      surfaceClass: 'theme-preview-dark',
     },
     {
       value: 'system',
       label: 'System',
       icon: Monitor,
       description: 'Follow OS preference',
-      preview: 'bg-muted border-border',
+      surfaceClass: '',
     },
   ];
+
+  const renderSwatchChrome = (surfaceClass) => (
+    <div
+      className={[
+        surfaceClass,
+        'flex h-full w-full flex-col justify-between bg-[hsl(var(--background))] p-2',
+      ].join(' ')}
+    >
+      <div className="flex items-center gap-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />
+        <span className="h-1.5 w-8 rounded-sm bg-[hsl(var(--foreground)/0.25)]" />
+      </div>
+      <div className="grid grid-cols-3 gap-1">
+        <span className="col-span-2 h-4 rounded-sm border border-[hsl(var(--border))] bg-[hsl(var(--card))]" />
+        <span className="h-4 rounded-sm bg-[hsl(var(--muted))]" />
+      </div>
+    </div>
+  );
 
   return (
     <RadioGroup
@@ -50,16 +68,16 @@ export default function ThemeSelector() {
             <RadioGroupItem id={`theme-${opt.value}`} value={opt.value} aria-label={opt.label} />
             {/* Preview swatch */}
             <div
-              className={[
-                'h-12 w-full rounded-md border transition-transform duration-200 group-hover:scale-[1.02]',
-                opt.preview,
-              ].join(' ')}
+              aria-hidden="true"
+              className="h-14 w-full overflow-hidden rounded-md border border-border transition-transform duration-200 group-hover:scale-[1.02]"
             >
-              {opt.value === 'system' && (
-                <div className="grid h-full grid-cols-2 overflow-hidden rounded-[inherit]">
-                  <span className="bg-background" />
-                  <span className="bg-foreground" />
+              {opt.value === 'system' ? (
+                <div className="grid h-full grid-cols-2">
+                  {renderSwatchChrome('theme-preview-light')}
+                  {renderSwatchChrome('theme-preview-dark')}
                 </div>
+              ) : (
+                renderSwatchChrome(opt.surfaceClass)
               )}
             </div>
             <Label htmlFor={`theme-${opt.value}`} className="cursor-pointer font-normal">

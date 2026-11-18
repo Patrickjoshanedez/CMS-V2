@@ -1,0 +1,13 @@
+{
+  "active_scenario_id": "faculty-registration-verified",
+  "completed_subgoals": [
+    "Added role selector and conditional identity field",
+    "Validated domains and safe server role assignment",
+    "Passed 26 focused tests, eight browser states, lint and production build",
+    "Confirmed API health and SMTP delivery failure"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "User selected the original sending account again. Restored SMTP_USER and EMAIL_FROM only, preserved its app password and restarted backend. Fresh authentication-only verification returns healthy: SMTP transport verified successfully. No email sent; credentials remain only in ignored server/.env. Broader UI-refactor acceptance remains open.",
+  "progress_delta": 4,
+  "loop_count": 0
+}

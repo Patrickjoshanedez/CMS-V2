@@ -1,0 +1,29 @@
+{
+  "session_id": "2026-10-27_faculty-registration",
+  "date": "2026-10-27",
+  "task_category": "registration_correction",
+  "task_summary": "Added Student/Faculty registration selection and role-specific institutional email validation, conditional Student ID, safe API role assignment and new Google-account classification.",
+  "changes": [
+    "Student default preserved; faculty requires general BukSU domain and no Student ID",
+    "API accepts only student/faculty self-registration; unverified existing accounts cannot be reclassified",
+    "New staff-domain Google accounts receive faculty role"
+  ],
+  "verification": {
+    "client_files": 2,
+    "client_tests_passed": 14,
+    "server_unit_files": 2,
+    "server_unit_tests_passed": 12,
+    "visual_captures": 8,
+    "lint": "passed in cms-client container",
+    "production_build": "passed; 4859 modules; 107 seconds"
+  },
+  "visual_evidence": "scratch/qa-evidence/faculty-registration/verified-summary.json",
+  "limitations": [
+    "Database-backed auth integration attempt stopped after startup stalled; no integration pass claimed",
+    "Initial client forks could not start; thread rerun passed after adding ResizeObserver shim",
+    "Current API/container healthy, health HTTP 200; historical ECONNRESET not reproduced",
+    "SMTP authentication rejected by provider; live OTP delivery remains blocked by configuration",
+    "Broader UI-refactor acceptance and exact user-retained baseline remain open; older full-suite fingerprints do not cover these new source changes"
+  ],
+  "commit_status": "Earlier shadcn commit verified as 7a75520; this correction is uncommitted"
+}

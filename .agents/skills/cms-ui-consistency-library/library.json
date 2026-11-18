@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "library": "cms-ui-consistency-library",
+  "version": "1.0.0",
+  "updatedAt": "2026-11-13",
+  "shell": {
+    "layoutComponent": "client/src/components/layouts/DashboardLayout.jsx",
+    "maxWidthClass": "max-w-7xl",
+    "headerComponent": "client/src/components/layouts/Header.jsx",
+    "breadcrumbSemantics": "<nav aria-label=\"Breadcrumbs\"><ol>...</ol></nav>",
+    "sidebarComponent": "client/src/components/layouts/Sidebar.jsx"
+  },
+  "primitivesModule": "client/src/components/common/index.js",
+  "primitives": {
+    "PageHeader": {
+      "path": "client/src/components/common/PageHeader.jsx",
+      "props": {
+        "title": "node (required) — renders single page <h1> by default",
+        "eyebrow": "node (optional) — uppercase role/section scope label",
+        "description": "node (optional) — restrained supporting subtitle (text-pretty)",
+        "icon": "elementType (optional) — rendered inside decorative aria-hidden frame",
+        "meta": "node (optional) — inline badges or contextual metadata",
+        "actions": "node (optional) — right-aligned primary/secondary action group",
+        "as": "'h1' | 'h2' (default 'h1')",
+        "className": "string (optional)",
+        "headingProps": "object (optional)"
+      },
+      "rules": [
+        "Use exactly one <PageHeader /> (with default as='h1') per workspace page.",
+        "Never nest a duplicate <h1> inside child detail cards or print headers."
+      ]
+    },
+    "MetricGrid": {
+      "path": "client/src/components/common/MetricGrid.jsx",
+      "props": {
+        "cols": "2 | 3 | 4 | 5 (default 4)",
+        "className": "string (optional)",
+        "children": "StatCard items"
+      },
+      "responsiveClasses": {
+        "2": "grid-cols-1 sm:grid-cols-2",
+        "3": "grid-cols-1 sm:grid-cols-3",
+        "4": "grid-cols-2 lg:grid-cols-4",
+        "5": "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+      }
+    },
+    "StatCard": {
+      "path": "client/src/components/common/StatCard.jsx",
+      "props": {
+        "label": "node (required)",
+        "value": "node (required)",
+        "hint": "node (optional)",
+        "icon": "elementType (optional, decorative aria-hidden='true')",
+        "tone": "'default' | 'primary' | 'success' | 'warning' | 'destructive'",
+        "active": "boolean (sets aria-pressed when interactive)",
+        "onClick": "function (optional — promotes container to native <button>)",
+        "loading": "boolean (renders inline Skeleton)",
+        "testId": "string (optional)"
+      }
+    },
+    "SectionHeader": {
+      "path": "client/src/components/common/SectionHeader.jsx",
+      "props": {
+        "title": "node (required, <h2>)",
+        "description": "node (optional)",
+        "icon": "elementType (optional)",
+        "badge": "node (optional)",
+        "actions": "node (optional)"
+      }
+    },
+    "FilterToolbar": {
+      "path": "client/src/components/common/FilterToolbar.jsx",
+      "props": {
+        "top": "node (primary search, selects, and quick-jump row)",
+        "bottom": "node (optional secondary status chips/tabs)",
+        "className": "string (optional)"
+      }
+    }
+  },
+  "designTokens": {
+    "cssEntry": "client/src/index.css",
+    "requiredColorScheme": "light dark (:root color-scheme: light; .dark color-scheme: dark)",
+    "surfaceTokens": [
+      "bg-background",
+      "text-foreground",
+      "bg-card",
+      "text-card-foreground",
+      "bg-muted",
+      "text-muted-foreground",
+      "border-border",
+      "bg-primary",
+      "text-primary-foreground"
+    ],
+    "semanticStatusTokens": ["text-success", "text-warning", "text-destructive-text"],
+    "forbiddenPatterns": [
+      "Raw slate/gray utility palette on functional components (e.g. bg-slate-950, #020617)",
+      "Page-level width overrides that break shell continuity (max-w-5xl, max-w-6xl, max-w-[1600px], max-w-[1800px])",
+      "Emoji characters in headings or badges",
+      "Ad-hoc document viewers bypassing SophisticatedDocumentViewer"
+    ]
+  },
+  "viewportsAndThemes": {
+    "viewports": [
+      { "name": "desktop", "width": 1440, "height": 900 },
+      { "name": "mobile", "width": 390, "height": 844 }
+    ],
+    "themes": ["light", "dark"]
+  }
+}

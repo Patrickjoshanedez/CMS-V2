@@ -10,6 +10,7 @@ vi.mock('../../modules/projects/services/projectCore.service.js', () => ({
   default: {
     _getProjectOrFail: vi.fn(),
     _assertProjectWritable: vi.fn(),
+    _invalidateProjectCache: vi.fn().mockResolvedValue(undefined),
   },
 }));
 vi.mock('../../modules/projects/services/projectCommittee.service.js', () => ({ default: {} }));
@@ -73,6 +74,7 @@ describe('projectTitleService.approveTitle - Pre-Course Topic Approval & State P
     expect(result.project.capstonePhase).toBe(1);
     expect(result.project.stage).toBe('capstone_1');
     expect(result.project.defenseSchedule).toBeNull();
+    expect(projectCoreService._invalidateProjectCache).toHaveBeenCalledWith(projectId);
   });
 
   it('clears a legacy title-review schedule before Capstone 1 begins', async () => {
@@ -306,6 +308,39 @@ describe('projectTitleService.approveTitle - Pre-Course Topic Approval & State P
         code: 'ROLE_CONFLICT',
       });
       expect(mockProject.save).not.toHaveBeenCalled();
+    });
+
+    it('supports atomic inline hearingSchedule during Instructor title approval when committee is complete', async () => {
+      mockProject.adviserId = null;
+      mockProject.secretaryId = '65e000000000000000000030';
+      mockProject.panelistIds = [
+        '65e000000000000000000040',
+        '65e000000000000000000041',
+        '65e000000000000000000042',
+      ];
+      vi.spyOn(Team, 'findById').mockResolvedValue({
+        _id: mockProject.teamId,
+        isLocked: true,
+      });
+
+      const result = await projectTitleService.approveTitle(projectId, mockInstructor, {
+        proposalId: 0,
+        hearingSchedule: {
+          date: '2026-11-20',
+          time: '10:00 AM - 10:30 AM',
+          venue: 'COT Room 201',
+        },
+      });
+
+      expect(result.project.titleStatus).toBe(TITLE_STATUSES.APPROVED);
+      expect(projectTitleService._notifyTeamMembers).toHaveBeenCalledWith(
+        mockProject.teamId,
+        expect.objectContaining({ type: 'title_hearing_scheduled' }),
+      );
+      expect(projectTitleService._notifyTeamMembers).toHaveBeenCalledWith(
+        mockProject.teamId,
+        expect.objectContaining({ type: 'title_approved' }),
+      );
     });
   });
 });

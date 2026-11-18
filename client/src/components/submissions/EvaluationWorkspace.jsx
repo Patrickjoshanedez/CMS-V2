@@ -666,45 +666,49 @@ export function EvaluationWorkspace({
           ).length === 0 ? (
             <p className="text-xs italic text-neutral-600">No panelist comments recorded.</p>
           ) : (
-            <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
-              <thead>
-                <tr className="bg-neutral-100 border-b border-neutral-300">
-                  <th className="p-2 border-r border-neutral-300 w-16">Page</th>
-                  <th className="p-2 border-r border-neutral-300 w-28">Author / Role</th>
-                  <th className="p-2 border-r border-neutral-300">Comment / Directive</th>
-                  <th className="p-2 w-24">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {highlights
-                  .filter((h) => h.type !== 'plagiarism_exact' && h.type !== 'plagiarism_semantic')
-                  .map((h, i) => (
-                    <tr key={h.id || i} className="border-b border-neutral-200">
-                      <td className="p-2 border-r border-neutral-200 font-mono">
-                        P. {h.position?.pageNumber || 1}
-                      </td>
-                      <td className="p-2 border-r border-neutral-200 font-medium">
-                        {h.authorName || 'Committee'} ({h.authorRole || 'Faculty'})
-                      </td>
-                      <td className="p-2 border-r border-neutral-200">
-                        <p>{h.comment?.text || h.content?.text || 'Annotation'}</p>
-                        {Array.isArray(h.replies) && h.replies.length > 0 && (
-                          <div className="mt-1 pl-2 border-l border-neutral-300 text-[11px] text-neutral-600">
-                            {h.replies.map((r, ri) => (
-                              <p key={ri}>
-                                ↳ <span className="font-semibold">{r.authorName}:</span> {r.text}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-2 uppercase text-[10px] font-semibold">
-                        {h.status || 'Open'}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto rounded-md border border-neutral-300">
+              <table className="w-full min-w-[500px] text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-100 border-b border-neutral-300">
+                    <th className="p-2 border-r border-neutral-300 w-16">Page</th>
+                    <th className="p-2 border-r border-neutral-300 w-28">Author / Role</th>
+                    <th className="p-2 border-r border-neutral-300">Comment / Directive</th>
+                    <th className="p-2 w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {highlights
+                    .filter(
+                      (h) => h.type !== 'plagiarism_exact' && h.type !== 'plagiarism_semantic',
+                    )
+                    .map((h, i) => (
+                      <tr key={h.id || i} className="border-b border-neutral-200">
+                        <td className="p-2 border-r border-neutral-200 font-mono">
+                          P. {h.position?.pageNumber || 1}
+                        </td>
+                        <td className="p-2 border-r border-neutral-200 font-medium">
+                          {h.authorName || 'Committee'} ({h.authorRole || 'Faculty'})
+                        </td>
+                        <td className="p-2 border-r border-neutral-200">
+                          <p>{h.comment?.text || h.content?.text || 'Annotation'}</p>
+                          {Array.isArray(h.replies) && h.replies.length > 0 && (
+                            <div className="mt-1 pl-2 border-l border-neutral-300 text-[11px] text-neutral-600">
+                              {h.replies.map((r, ri) => (
+                                <p key={ri}>
+                                  ↳ <span className="font-semibold">{r.authorName}:</span> {r.text}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2 uppercase text-[10px] font-semibold">
+                          {h.status || 'Open'}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -716,41 +720,43 @@ export function EvaluationWorkspace({
           {localAdmItems.length === 0 ? (
             <p className="text-xs italic text-neutral-600">No Action Done Matrix items logged.</p>
           ) : (
-            <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
-              <thead>
-                <tr className="bg-neutral-100 border-b border-neutral-300">
-                  <th className="p-2 border-r border-neutral-300 w-12">#</th>
-                  <th className="p-2 border-r border-neutral-300 w-16">Page</th>
-                  <th className="p-2 border-r border-neutral-300">Panel Remark / Quoted Issue</th>
-                  <th className="p-2 border-r border-neutral-300">Required Remediation</th>
-                  <th className="p-2 w-24">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {localAdmItems.map((item, idx) => (
-                  <tr key={item._id || idx} className="border-b border-neutral-200">
-                    <td className="p-2 border-r border-neutral-200 font-mono">{idx + 1}</td>
-                    <td className="p-2 border-r border-neutral-200 font-mono">
-                      {item.pageNumber ? `P. ${item.pageNumber}` : '—'}
-                    </td>
-                    <td className="p-2 border-r border-neutral-200 italic">
-                      &ldquo;
-                      {item.commentText || item.remarks || item.panelRemarks || 'Panel remark'}
-                      &rdquo;
-                    </td>
-                    <td className="p-2 border-r border-neutral-200">
-                      {item.expectedAction ||
-                        item.actionTaken ||
-                        item.suggestion ||
-                        'Properly cite original work or rephrase.'}
-                    </td>
-                    <td className="p-2 uppercase text-[10px] font-semibold">
-                      {item.status || 'Pending'}
-                    </td>
+            <div className="overflow-x-auto rounded-md border border-neutral-300">
+              <table className="w-full min-w-[500px] text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-100 border-b border-neutral-300">
+                    <th className="p-2 border-r border-neutral-300 w-12">#</th>
+                    <th className="p-2 border-r border-neutral-300 w-16">Page</th>
+                    <th className="p-2 border-r border-neutral-300">Panel Remark / Quoted Issue</th>
+                    <th className="p-2 border-r border-neutral-300">Required Remediation</th>
+                    <th className="p-2 w-24">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {localAdmItems.map((item, idx) => (
+                    <tr key={item._id || idx} className="border-b border-neutral-200">
+                      <td className="p-2 border-r border-neutral-200 font-mono">{idx + 1}</td>
+                      <td className="p-2 border-r border-neutral-200 font-mono">
+                        {item.pageNumber ? `P. ${item.pageNumber}` : '—'}
+                      </td>
+                      <td className="p-2 border-r border-neutral-200 italic">
+                        &ldquo;
+                        {item.commentText || item.remarks || item.panelRemarks || 'Panel remark'}
+                        &rdquo;
+                      </td>
+                      <td className="p-2 border-r border-neutral-200">
+                        {item.expectedAction ||
+                          item.actionTaken ||
+                          item.suggestion ||
+                          'Properly cite original work or rephrase.'}
+                      </td>
+                      <td className="p-2 uppercase text-[10px] font-semibold">
+                        {item.status || 'Pending'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -764,30 +770,32 @@ export function EvaluationWorkspace({
               No significant plagiarism matches detected.
             </p>
           ) : (
-            <table className="w-full text-left text-xs border border-neutral-300 border-collapse">
-              <thead>
-                <tr className="bg-neutral-100 border-b border-neutral-300">
-                  <th className="p-2 border-r border-neutral-300">Source Title / Reference</th>
-                  <th className="p-2 border-r border-neutral-300 w-44">Authors</th>
-                  <th className="p-2 w-24 text-right">Similarity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plagiarismSources.map((source, sIdx) => (
-                  <tr key={source.id || sIdx} className="border-b border-neutral-200">
-                    <td className="p-2 border-r border-neutral-200 font-medium">
-                      {source.title || 'Archived Paper'}
-                    </td>
-                    <td className="p-2 border-r border-neutral-200 text-neutral-600">
-                      {Array.isArray(source.authors) ? source.authors.join(', ') : 'Unknown'}
-                    </td>
-                    <td className="p-2 text-right font-mono font-bold">
-                      {source.similarityScore || 0}%
-                    </td>
+            <div className="overflow-x-auto rounded-md border border-neutral-300">
+              <table className="w-full min-w-[450px] text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-neutral-100 border-b border-neutral-300">
+                    <th className="p-2 border-r border-neutral-300">Source Title / Reference</th>
+                    <th className="p-2 border-r border-neutral-300 w-44">Authors</th>
+                    <th className="p-2 w-24 text-right">Similarity</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {plagiarismSources.map((source, sIdx) => (
+                    <tr key={source.id || sIdx} className="border-b border-neutral-200">
+                      <td className="p-2 border-r border-neutral-200 font-medium">
+                        {source.title || 'Archived Paper'}
+                      </td>
+                      <td className="p-2 border-r border-neutral-200 text-neutral-600">
+                        {Array.isArray(source.authors) ? source.authors.join(', ') : 'Unknown'}
+                      </td>
+                      <td className="p-2 text-right font-mono font-bold">
+                        {source.similarityScore || 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 

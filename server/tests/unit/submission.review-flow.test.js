@@ -222,7 +222,12 @@ describe('SubmissionService — Faculty Committee Review & Concurrency Flow', ()
         return p;
       });
       vi.spyOn(PlagiarismResult, 'findOne').mockReturnValue({
-        lean: vi.fn().mockResolvedValue({ status: 'completed', overallScore: 5 }),
+        lean: vi.fn().mockResolvedValue({
+          status: 'completed',
+          scanCoverage: 'full',
+          similarityPercentage: 5,
+          overallScore: 5,
+        }),
       });
       vi.spyOn(Section, 'findById').mockResolvedValue({ instructorId: '6aa14c2554d0b79f8e8aa96b' });
       vi.spyOn(Team, 'findById').mockReturnValue({

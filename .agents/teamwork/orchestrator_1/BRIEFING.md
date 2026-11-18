@@ -1,7 +1,7 @@
-# BRIEFING — 2026-09-28T06:51:55Z
+# BRIEFING — 2026-11-13T18:13:20Z
 
 ## Mission
-Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA), theming, responsive design, and anti-patterns/AI slop findings identified during the system-wide audit of BukSU Capstone Management System V2 (CMS-V2) across all 5 remediation phases.
+Redesign the entire UI of this system according to modern web standards, optimize component sizing and UX, and verify that all features, paper deliverables, printing formats, and workflows across all roles (Student, Instructor, Adviser, Panelist, Secretary, Chair) are fully working and tested with seed accounts.
 
 ## 🔒 My Identity
 - Archetype: orchestrator
@@ -9,6 +9,8 @@ Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA),
 - Working directory: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\orchestrator_1
 - Original parent: Sentinel
 - Original parent conversation ID: 4dc46a8f-57da-4a5e-94bb-ac3e93d9e37e
+- Updated Working directory: c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1
+- Active parent conversation ID: ae728e2c-0bf5-4df5-ae63-e0537f564eed
 
 ## 🔒 My Workflow
 - **Pattern**: Project
@@ -34,6 +36,24 @@ Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA),
   7. Final Verification & Quality Battery [pending]
 - **Current phase**: 2 (Milestone 1: Document Viewer Consolidation & Dead Code Pruning)
 - **Current focus**: Reviewers, Challengers, and Forensic Auditor verifying M1 implementation
+- **New Mission Workflow (2026-11-13)**:
+  - Scope document: c:\Users\patri\dev\CMS-V2\.agents\teamwork\PROJECT.md
+  - Step 0: Survey full scope via 3 parallel Explorers (COMPLETED)
+  - Step 1: Decompose & Compile PROJECT.md (COMPLETED)
+  - Step 2: Implementation & E2E Testing Dual Tracks (IN PROGRESS)
+    - sub_orch_m1 (Paper Deliverables & Printing Format Integration)
+    - sub_orch_m2 (UI Sizing, Spacing & Cognitive Ergonomics Overhaul)
+    - sub_orch_m3 (Workflow Integrity, Role Exclusions & Test Fixture Hardening)
+    - sub_orch_m4 (Dedicated Seed Accounts & Seeder Expansion)
+    - sub_orch_e2e (E2E Testing Track Orchestrator)
+  - Step 3: Milestone 5 (Pass 100% E2E test suite + anti-simulation browser verification)
+  - Step 4: Adversarial Coverage Hardening (Tier 5)
+  - Step 5: Full 7-Point Quality Gate & Governance Closure
+- **New Work items**:
+  1. Step 0: Survey full scope (3 Explorers in parallel) [done]
+  2. Step 1: Decompose & Compile PROJECT.md [done]
+  3. Step 2: Implementation & E2E Testing Dual Tracks [in-progress]
+  4. Step 3: Final E2E browser verification across all roles [pending]
 
 ## 🔒 Key Constraints
 - DISPATCH-ONLY orchestrator: NEVER write source code directly, NEVER run tests directly, NEVER investigate at code level.
@@ -42,47 +62,49 @@ Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA),
 - Never reuse a subagent after it has delivered its handoff — always spawn fresh.
 - Always include path to `ORIGINAL_REQUEST.md` in every subagent dispatch prompt.
 - Mandatory integrity warning in Worker dispatch prompts.
+- All UI/UX/styling modifications must follow Playwright visual feedback loop (desktop 1440x900, mobile 390x844, light/dark mode).
+- Follow BukSU canonical academic workflow and role separation rules in AGENTS.md / GEMINI.md.
 
 ## Current Parent
-- Conversation ID: 4dc46a8f-57da-4a5e-94bb-ac3e93d9e37e
-- Updated: 2026-09-28T06:13:00Z
+- Conversation ID: ae728e2c-0bf5-4df5-ae63-e0537f564eed
+- Updated: 2026-11-13T17:26:00Z
 
 ## Key Decisions Made
-- m1_worker_1 completed implementation cleanly with 0 unmatched routes and 60/60 agentic validation checks.
-- Dispatched 2 Reviewers, 2 Challengers, and 1 Forensic Auditor for Milestone 1 gate verification.
+- Decomposed findings from Step 0 survey into living specification `c:\Users\patri\dev\CMS-V2\.agents\teamwork\PROJECT.md`.
+- Dispatched 5 concurrent sub-orchestrators with strictly disjoint write boundaries.
+- All 5 sub-orchestrators verified running: each has initialized its state and dispatched parallel exploratory subagents per Phase 2B.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| survey_explorer_1 | teamwork_preview_explorer | Survey Phase 1 & 2 | completed | 1bda16e6-a8c0-4f62-a321-30a023660d25 |
-| survey_explorer_2 | teamwork_preview_explorer | Survey Phase 3 & 4 | completed | 283d3348-13c7-4f06-8239-9f53f62b16af |
-| survey_explorer_3 | teamwork_preview_explorer | Survey Phase 5 & Testing | completed | 127e8d13-d255-4b0f-b11f-7c01973fe574 |
-| m1_explorer_1 | teamwork_preview_explorer | M1 Dead Code Explorer | completed | e03cef7f-31e2-4dea-af2e-d1c88c6b2ac9 |
-| m1_explorer_2 | teamwork_preview_explorer | M1 Test Mock Explorer | completed | af28764f-0dd8-4dae-a433-81c031824a37 |
-| m1_explorer_3 | teamwork_preview_explorer | M1 Auth Styles Explorer | completed | e6e303ef-18b5-4911-94a0-b52c812b0218 |
-| m1_worker_1 | teamwork_preview_worker | M1 Implementation Worker | completed | 1a6af759-cac0-41a4-b63a-540ca69d184e |
-| m1_reviewer_1 | teamwork_preview_reviewer | M1 Viewer Code Reviewer | in-progress | 5383f450-e405-4db3-9566-c32214b6a990 |
-| m1_reviewer_2 | teamwork_preview_reviewer | M1 Style Reviewer | in-progress | 62c832ee-bd43-4bd1-9eec-c4acd4f6a6f4 |
-| m1_challenger_1 | teamwork_preview_challenger | M1 Build Challenger | in-progress | 71fa1095-f896-4c27-bd10-5c3ac246ae52 |
-| m1_challenger_2 | teamwork_preview_challenger | M1 Governance Challenger | in-progress | 2b01e3cb-f2b6-46c2-b5a1-1e9778ac1efa |
-| m1_auditor_1 | teamwork_preview_auditor | M1 Forensic Auditor | in-progress | 234e1d6e-27bb-4615-99f5-94461a2bd7fe |
+| survey_explorer_1 | teamwork_explorer | UI & Print Scope Survey (R1, R3) | completed | 269b42b2-d6aa-45ad-8a02-4e8000093e85 |
+| survey_explorer_2 | teamwork_explorer | Capstone Workflow Integrity Survey (R2) | completed | ba8ff5af-2c55-42b3-8812-05d9cfb45e0d |
+| survey_explorer_3 | teamwork_spec_miner | Seed Accounts & Test Infra Miner (R4) | completed | 3589d178-234f-4e5a-8b74-77f6ed0295be |
+| sub_orch_m1 | self | M1: Paper Deliverables & Printing Format Integration | in-progress | e3f60e4d-7f0a-4d64-bb81-9c38d8cbf017 |
+| sub_orch_m2 | self | M2: UI Sizing, Spacing & Cognitive Ergonomics | in-progress | fcb4abc4-612c-444c-a031-c0d3c2b99c4c |
+| sub_orch_m3 | self | M3: Workflow Integrity & Test Fixture Hardening | in-progress | e21e94e6-7f74-4af0-9792-2570b7a7be2c |
+| sub_orch_m4 | self | M4: Dedicated Seed Accounts & Seeder Expansion | in-progress | ac34120e-fbbc-48dc-b94d-6089130f98db |
+| sub_orch_e2e | self | E2E Testing Track Orchestrator | in-progress | 1d510dcc-9499-4a34-9b6f-1193ae141e8b |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 12 / 16
-- Pending subagents: 5383f450-e405-4db3-9566-c32214b6a990, 62c832ee-bd43-4bd1-9eec-c4acd4f6a6f4, 71fa1095-f896-4c27-bd10-5c3ac246ae52, 2b01e3cb-f2b6-46c2-b5a1-1e9778ac1efa, 234e1d6e-27bb-4615-99f5-94461a2bd7fe
+- Spawn count: 8 / 16
+- Pending subagents: e3f60e4d-7f0a-4d64-bb81-9c38d8cbf017, fcb4abc4-612c-444c-a031-c0d3c2b99c4c, e21e94e6-7f74-4af0-9792-2570b7a7be2c, ac34120e-fbbc-48dc-b94d-6089130f98db, 1d510dcc-9499-4a34-9b6f-1193ae141e8b
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: 1714716d-2fa0-43f0-bb45-4ec063aeb453/task-18
-- Safety timer: 1714716d-2fa0-43f0-bb45-4ec063aeb453/task-183
+- Heartbeat cron: ed92d340-7260-43d5-8952-0ac19a527b4f/task-34
+- Safety timer: ed92d340-7260-43d5-8952-0ac19a527b4f/task-176
 
 ## Artifact Index
-- `.agents/teamwork/orchestrator_1/DISPATCH.md` — Incoming dispatch instructions
-- `.agents/teamwork/orchestrator_1/BRIEFING.md` — Working memory and status
-- `.agents/teamwork/orchestrator_1/progress.md` — Liveness and iteration tracking
-- `.agents/teamwork/orchestrator_1/plan.md` — High level execution plan
-- `.agents/teamwork/orchestrator_1/GATE_STATUS.md` — Gate check status
-- `.agents/teamwork/PROJECT.md` — Global architecture, feature inventory, milestones, contracts
-- `.agents/teamwork/m1_worker_1/handoff.md` — M1 implementation handoff
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md` — Authoritative User Request
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1\DISPATCH.md` — Dispatch logs
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1\BRIEFING.md` — Working memory and status
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\orchestrator_1\progress.md` — Liveness and status checklist
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\PROJECT.md` — Living project specification & feature inventory
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\sub_orch_m1\DISPATCH.md` — M1 dispatch
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\sub_orch_m2\DISPATCH.md` — M2 dispatch
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\sub_orch_m3\DISPATCH.md` — M3 dispatch
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\sub_orch_m4\DISPATCH.md` — M4 dispatch
+- `c:\Users\patri\dev\CMS-V2\.agents\teamwork\sub_orch_e2e\DISPATCH.md` — E2E track dispatch

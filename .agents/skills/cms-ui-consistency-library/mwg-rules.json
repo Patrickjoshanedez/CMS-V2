@@ -1,0 +1,71 @@
+{
+  "skill": "modern-web-guidance",
+  "version": "2026_11_09-5bcc021b",
+  "guides": [
+    {
+      "id": "accessibility",
+      "focus": "Landmarks, single <h1>, sequential headings, aria-hidden decorative SVGs, aria-label on icon buttons",
+      "enforcedIn": [
+        "client/src/components/common/PageHeader.jsx",
+        "client/src/components/common/StatCard.jsx",
+        "client/src/pages/submissions/PlagiarismReportPage.jsx",
+        "client/src/pages/teams/components/StudentTeamDetail.jsx",
+        "client/src/pages/reports/ReportsPage.jsx"
+      ]
+    },
+    {
+      "id": "improve-text-layout-and-legibility",
+      "focus": "Apply text-wrap: balance specifically to headings (h1, h2, h3) and text-wrap: pretty on descriptions without global * selectors",
+      "enforcedIn": ["client/src/index.css", "client/src/components/common/PageHeader.jsx"]
+    },
+    {
+      "id": "breadcrumbs",
+      "focus": "<nav aria-label='Breadcrumbs'><ol> with aria-current='page', decorative CSS/aria-hidden separators, non-truncated current page label",
+      "enforcedIn": ["client/src/components/layouts/Header.jsx"]
+    },
+    {
+      "id": "form-factor-adaptation",
+      "focus": "overflow-wrap: break-word on body (with whitespace-nowrap on compact UI controls), responsive media bounds, min-block-size >= 44px touch targets, avoid truncating headings",
+      "enforcedIn": [
+        "client/src/index.css",
+        "client/src/components/TextScaleDropdown.jsx",
+        "client/src/components/layouts/Header.jsx",
+        "client/src/components/common/MetricGrid.jsx",
+        "client/src/components/common/StatCard.jsx",
+        "client/src/pages/documents/DocumentEditorPage.jsx"
+      ]
+    },
+    {
+      "id": "dark-mode",
+      "focus": "color-scheme: light | dark parity on root and isolated preview surfaces",
+      "enforcedIn": [
+        "client/index.html",
+        "client/src/index.css",
+        "client/src/stores/themeStore.js",
+        "client/src/components/settings/ThemeSelector.jsx"
+      ]
+    },
+    {
+      "id": "css-layout",
+      "focus": "Intrinsic sizing with min-w-0 inside flex/grid tracks to prevent horizontal overflow",
+      "enforcedIn": [
+        "client/src/components/layouts/DashboardLayout.jsx",
+        "client/src/components/common/MetricGrid.jsx",
+        "client/src/components/users/TeamCommitteeAssignmentsView.jsx"
+      ]
+    },
+    {
+      "id": "responsive-design",
+      "focus": "Consistent container widths (max-w-7xl) and 2x2 mobile / 4-column desktop metric grids",
+      "enforcedIn": [
+        "client/src/components/layouts/DashboardLayout.jsx",
+        "client/src/components/common/MetricGrid.jsx"
+      ]
+    },
+    {
+      "id": "typography",
+      "focus": "Fluid clamp() scale respecting --font-size-multiplier and tabular numbers on KPIs",
+      "enforcedIn": ["client/src/index.css", "client/src/components/common/StatCard.jsx"]
+    }
+  ]
+}

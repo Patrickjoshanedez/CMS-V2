@@ -1,0 +1,34 @@
+{
+  "session_id": "2026-11-18_manuscript-audit-and-gdocs-fixes",
+  "date": "2026-11-18T00:24:00Z",
+  "task_summary": "Audited and fixed live Google Doc (19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw) across Front Matter, Chapters 1-5, References, and Appendices without losing any of 35 native tables, 102 inline images/diagrams, or 34 role-organized screenshots.",
+  "task_category": "manuscript_audit_and_gdocs_repair",
+  "skills_triggered": [
+    "chapter-one-iso",
+    "chapter-two-iso",
+    "chapter-three-iso",
+    "chapter-four-iso",
+    "chapter-five-iso",
+    "gdocs",
+    "gdocs-academic-editor"
+  ],
+  "key_decisions": [
+    "Replaced placeholder front-matter fields (<Title>, <Name 1..4>, <Degree>, template Dedication/Acknowledgments, Word List of Figures instruction) and Appendices placeholder text while leaving Title Page 2026 year intact.",
+    "Reconciled institutional scope across Ch 1, Ch 2 Table 1, Ch 3, Ch 4, and Ch 5 to MinIO S3 storage + SophisticatedDocumentViewer + Myers diff (with optional live Google Docs project links) and institutional-repository-only similarity screening (no open-web scraping).",
+    "Fixed Table 4 Student FR-03/FR-04 and Table 6 Adviser FR-AD-03/FR-AD-04 separation, Admin->Course Instructor lock terminology, Committee Secretary FR-SEC-01..04 (OVPAA-F-INS-032 and Phase 4 ADM gate), Chapter 3 planned vs executed tense (14 test scenarios), IEC/ISO 25010:2011 typo, Table 3.8 Likert scale renaming (resolving Table 4.11 collision), and 37/91/77 sample reconciliation notes.",
+    "Added verified Copyleaks subsection under Section 2.1.6 and new Section 2.1.7 Institutional Digital Repositories and ISO/IEC 25010 Quality Evaluation (renumbering Algorithmic Foundations to 2.1.8) with search_web-verified DOIs.",
+    "Rebuilt 42 APA 7th REFERENCES entries with 100% bidirectional parity against all body citations and zero unverified blogs/placeholders.",
+    "Switched multi-byte prose edits from gdocs sed to exact UTF-16 JSON batch delete-range/insert and gdocs update-table to prevent UTF-8/UTF-16 index drift."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "Final readback (doc_verified_final.txt / doc_verified_raw.json) verified TOTAL_TABLES=35, TOTAL_INLINE_IMAGES=102, FIGURES_4_UNIQUE_COUNT=34, REFERENCES_ENTRY_COUNT=42, MISSING_IN_TEXT_FROM_REFS=0, MISSING_STD_REFS=0, PATTERN_HITS=0, LONG_HEADINGS=0, and 0 unused reference entries.",
+  "open_threads": [
+    "Proponent confirmation of final degree conferral month if required on cover page beyond 2026.",
+    "Re-capturing or replacing legacy Phase 0 Team DFD/Flowchart bitmap images under Adviser FR-AD-03 and FR-AD-04.",
+    "Supplying hardware-scoped execution benchmark logs, labeled similarity evaluation corpus metrics, and anonymized respondent-level survey vectors to upgrade provisional Ch 4 evidence."
+  ],
+  "lessons_learned": [
+    "Lesson learned: gdocs mutate sed calculates range offsets on paragraphs containing multi-byte UTF-8 punctuation or Zotero spans with off-by-N drift across paragraph breaks, and sed |T.R.C| can apply global table replacements across matching single-glyph cells. Prevention runbook checklist: use gdocs update-table (with non-empty cells) for tables, gdocs mutate replace for short single tokens, and gdocs readonly structure --json + descending delete-range/insert in gdocs mutate batch for paragraph rewrites."
+  ],
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit"
+}

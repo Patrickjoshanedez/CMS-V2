@@ -1,0 +1,28 @@
+{
+  "expectations": [
+    {
+      "text": "Preserves 2011 basis and removes certification claim",
+      "passed": true,
+      "evidence": "existing questionnaire adopts ISO/IEC 25010:2011"
+    },
+    {
+      "text": "Flags 37 versus 77 without inventing recruitment",
+      "passed": true,
+      "evidence": "not a reconciled analyzed sample"
+    },
+    {
+      "text": "Separates research design from development and expected from actual tests",
+      "passed": true,
+      "evidence": "Expected outcomes belong to the plan"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Parent qualitatively reviewed full outputs; quoted anchors verified programmatically. Small synthetic cases; not a blinded benchmark."
+  }
+}

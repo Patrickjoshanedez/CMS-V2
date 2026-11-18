@@ -110,8 +110,5 @@ export const assignCommitteeSchema = z.object({
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid secretaryId')
     .optional()
     .nullable(),
-  panelistIds: z
-    .array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid panelistId'))
-    .optional()
-    .default([]),
+  panelistIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid panelistId')).optional(),
 });

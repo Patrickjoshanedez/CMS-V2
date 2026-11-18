@@ -1,0 +1,19 @@
+{
+  "session_id": "2026-11-16_free-deployment-guide",
+  "date": "2026-11-16",
+  "task_summary": "Documented no-rental hosting on an existing x86-64 machine and credit-funded Azure for Students hosting with authenticated HTTPS publication.",
+  "task_category": "deployment_guidance",
+  "skills_triggered": ["docker-compose-production", "workspace-evidence-maintenance"],
+  "skills_patched": ["docker-compose-production"],
+  "decisions": [
+    "Keep the production application and its API, uploads and live updates on one hostname.",
+    "Offer ngrok for a limited review group and Cloudflare Access for a pilot with an existing domain.",
+    "Distinguish time-limited student credit from ongoing free infrastructure."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "Using the nonsecret example and the documented override, Docker Compose resolved six services, one loopback-only port mapping and one private upload bind at /app/uploads. Local guide links resolved. Provider documentation checked. No live deployment or account was created and end-to-end tests were not run.",
+  "lessons_learned": [
+    "The CPU PyTorch wheel pinned by the plagiarism Dockerfile includes a platform-specific version suffix. Verify the architecture before choosing an ARM cloud host."
+  ],
+  "deliverable": "docs/deployment/FREE_HOSTING.md"
+}

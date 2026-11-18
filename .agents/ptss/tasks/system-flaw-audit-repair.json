@@ -1,0 +1,25 @@
+{
+  "active_scenario_id": "system-flaw-audit-repair",
+  "completed_subgoals": [
+    "01 caller-held password-reset proof",
+    "02 storage manuscript permissions",
+    "03 assigned instructor ownership",
+    "04 merged committee validation",
+    "05 exactly three panelists",
+    "06 insufficient-text plagiarism failure",
+    "07 reject fabricated plagiarism clearance",
+    "08 access, refresh, and socket session invalidation",
+    "09 authorize project room subscriptions",
+    "10 atomic refresh-token rotation",
+    "11 correct OCR terminal-attempt handling",
+    "12 enqueue fallback and polling state correctness",
+    "13 valid and bounded socket regression tests"
+  ],
+  "remaining_subgoals": [
+    "Run socket tests on a localhost-WebSocket-capable host",
+    "Run approval, evaluation, and document extraction API suites on a host where MongoMemoryServer starts"
+  ],
+  "last_action_result": "All 13 repair implementations and targeted test updates are present; environment-dependent verification is explicitly blocked.",
+  "progress_delta": 11,
+  "loop_count": 0
+}

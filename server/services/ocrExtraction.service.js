@@ -37,7 +37,12 @@ class OcrExtractionService {
    *   error?: string
    * }>}
    */
-  async parseDocument(fileBuffer, mimeType = 'application/pdf', filename = 'document.pdf') {
+  async parseDocument(
+    fileBuffer,
+    mimeType = 'application/pdf',
+    filename = 'document.pdf',
+    options = {},
+  ) {
     if (!fileBuffer || fileBuffer.length === 0) {
       throw new Error('File buffer is empty or missing.');
     }
@@ -53,7 +58,7 @@ class OcrExtractionService {
     }
 
     // Direct network dispatch to cms-ocr-engine with production timeout
-    const effectiveTimeout = Math.max(10000, Number(this.timeoutMs) || 15000);
+    const effectiveTimeout = Math.max(20000, Number(this.timeoutMs) || 20000);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
@@ -61,9 +66,11 @@ class OcrExtractionService {
       const formData = new FormData();
       const blob = new Blob([fileBuffer], { type: mimeType });
       formData.append('file', blob, filename || 'document.pdf');
+      const modeQuery = options?.mode === 'metadata' ? '?mode=metadata' : '';
 
-      const response = await fetch(`${this.engineUrl}/api/v1/parse-document`, {
+      const response = await fetch(`${this.engineUrl}/api/v1/parse-document${modeQuery}`, {
         method: 'POST',
+        headers: { Connection: 'close' },
         body: formData,
         signal: controller.signal,
       });
@@ -90,8 +97,16 @@ class OcrExtractionService {
       const isTimeout =
         err.name === 'AbortError' || String(err.message).toLowerCase().includes('timeout');
       const reason = isTimeout ? `Timeout after ${effectiveTimeout}ms` : err.message;
+      const errCode = String(err?.cause?.code || err?.code || '').toUpperCase();
+      const isHardOffline =
+        errCode === 'ECONNREFUSED' ||
+        errCode === 'ENOTFOUND' ||
+        String(err.message).includes('OCR engine HTTP 5');
 
-      this._lastFailureTime = Date.now();
+      // Only trip global cooldown when OCR engine is actually unreachable or returning 5xx
+      if (isHardOffline) {
+        this._lastFailureTime = Date.now();
+      }
       console.warn(
         `[OcrExtractionService] Microservice call failed (${reason}). Engaging graceful local fallback.`,
       );

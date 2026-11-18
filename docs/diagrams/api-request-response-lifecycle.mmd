@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant Client as Client (React 18 SPA)
+    participant Router as API Router (Express 5)
+    participant Auth as Auth Middleware
+    participant Controller as Controller & Service
+    participant DB as Database (MongoDB / Mongoose)
+
+    Client->>Router: HTTP Request (Cookie / Bearer JWT + JSON)
+    Router->>Auth: Invoke authenticate(req)
+    Auth->>DB: User.findById(decoded.userId)
+    DB-->>Auth: Return account status & sessionVersion
+
+    alt Invalid, expired, or invalidated JWT
+        Auth-->>Client: 401 Unauthorized (AUTH_REQUIRED / SESSION_INVALIDATED)
+    else Authenticated active session
+        Auth-->>Router: Attach req.user & pass checkMaintenance()
+        Router->>Controller: Enforce authorize(roles) & validate(ZodSchema)
+        alt Insufficient role or schema failure
+            Controller-->>Client: 403 Forbidden / 400 VALIDATION_ERROR
+        else Authorized and validated
+            Controller->>DB: Execute Mongoose query or atomic update
+            DB-->>Controller: Return persisted document(s)
+            Controller-->>Client: 200 OK / 201 Created (JSON Response)
+        end
+    end

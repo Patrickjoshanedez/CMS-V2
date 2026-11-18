@@ -1,0 +1,39 @@
+{
+  "skill_name": "archive-browser-batch-ingestion",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Archive the remaining sample capstone papers from Sample papers/ground_truth_manifest.json by interacting with the CMS-V2 browser UI for each file, verify legacy .doc rejection, and confirm ChromaDB indexes the newly archived papers.",
+      "expected_output": "Runs edge-case and sliced Playwright browser archival batches against /archive/upload/capstone using scripts/browser_batch_archive.mjs, validates BSEMC/BSIT academic programs, handles 40MB+ PDFs and DOCX manuscripts without timeouts or Multer field errors, verifies ChromaDB collection_count > 0, and inspects /archive visually.",
+      "files": ["Sample papers/ground_truth_manifest.json"],
+      "expectations": [
+        "Paginated GET /api/projects/archive/search with limit <= 50 is used before uploading so already-archived titles are skipped cleanly.",
+        "waitUntil: 'domcontentloaded' is used instead of 'networkidle' and batches stay <= 10 papers per run with a <120s watchdog.",
+        "Legacy .doc rejection is tested explicitly via UI toast without crashing the batch.",
+        "ChromaDB /health collection_count > 0 and live /archive viewer rendering are verified after ingestion."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our browser upload on /archive/upload/capstone is failing with MulterError: Too many fields on large 40MB PDFs and ChromaDB collection_count stays 0 even after POST /index returns 202.",
+      "expected_output": "Diagnoses Multer field limit (fields: 50), MAX_ARCHIVE_UPLOAD_SIZE_MB (50MB) separation from normal 25MB uploads, mode=metadata OCR extraction, and in-process IndexRequest / max_position_embeddings fixes from references/troubleshooting-matrix.md.",
+      "files": [],
+      "expectations": [
+        "Checks server/middleware/upload.js fields ceiling and server/config/env.js MAX_ARCHIVE_UPLOAD_SIZE_MB separation.",
+        "Checks plagiarism_engine/plagiarism_engine/main.py _run_inprocess_index uses IndexRequest(...) and embeddings.py clamps max_seq_length to model positional embeddings.",
+        "Re-tests the fix via live browser upload and inspects container logs."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Batch ingest 25 newly collected BSIT and BSEMC capstone PDF/DOCX manuscripts into CMS-V2 through the browser UI using a manifest JSON and verify they appear under their respective program filters in /archive.",
+      "expected_output": "Runs preflight checks for missing Academic Program nodes, executes scripts/browser_batch_archive.mjs in 10-paper slices with incremental JSON checkpointing, and verifies program filters plus PDF/DOCX document rendering in /archive.",
+      "files": [],
+      "expectations": [
+        "Verifies or creates BSIT and BSEMC courses via /api/academics/courses before starting batch uploads.",
+        "Saves incremental results after each uploaded manuscript.",
+        "Confirms PDF and DOCX documents render cleanly inside SophisticatedDocumentViewer."
+      ]
+    }
+  ]
+}

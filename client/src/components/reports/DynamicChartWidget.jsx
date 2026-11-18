@@ -441,7 +441,7 @@ export default function DynamicChartWidget({
             {/* 5. Tabular Matrix View */}
             {currentView === 'table' && (
               <div className="h-full overflow-auto rounded-lg border border-border/70 bg-background/50">
-                <Table className="text-left text-xs">
+                <Table className="min-w-[480px] text-left text-xs">
                   <TableHeader className="sticky top-0 bg-muted/40">
                     <TableRow className="border-b border-border font-semibold text-muted-foreground hover:bg-transparent">
                       <TableHead className="h-auto px-3 py-2.5 uppercase tracking-wider">

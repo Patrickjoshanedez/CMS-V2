@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -312,7 +313,7 @@ export default function ChapterUploadPage() {
     return (
       <DashboardLayout>
         <div
-          className="mx-auto max-w-6xl space-y-6"
+          className="space-y-6"
           aria-busy="true"
           aria-label="Loading chapter submission workspace"
         >
@@ -334,43 +335,63 @@ export default function ChapterUploadPage() {
 
     return (
       <DashboardLayout>
-        <div className="mx-auto max-w-xl py-16 text-center">
-          <div className="rounded-xl border border-dashed border-border bg-card p-10 shadow-xs">
-            {isNoTeam ? (
-              <>
-                <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-warning-foreground" />
-                <h3 className="text-lg font-bold text-foreground">No Team Yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  You must join or create a capstone team before uploading chapter documents.
-                </p>
-                <Button className="mt-5" onClick={() => navigate('/dashboard')}>
-                  Go to Dashboard
-                </Button>
-              </>
-            ) : isNoProject ? (
-              <>
-                <FileText className="mx-auto mb-3 h-10 w-10 text-primary" />
-                <h3 className="text-lg font-bold text-foreground">Create Proposal First</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your team does not have an approved proposal yet. Head to My Capstone to pitch
-                  your title.
-                </p>
-                <Button className="mt-5" onClick={() => navigate('/project')}>
-                  Proceed to My Capstone
-                </Button>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-destructive" />
-                <h3 className="text-lg font-bold text-foreground">Unable to Load Project</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {projectError?.message || 'Failed to retrieve capstone project record.'}
-                </p>
-                <Button className="mt-5" variant="outline" onClick={() => navigate('/project')}>
-                  Back to Project
-                </Button>
-              </>
-            )}
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Deliverable Submission"
+            icon={Upload}
+            title="Upload Chapter Manuscript"
+            description="Prepare and submit your capstone chapter deliverables once your team project is active."
+            actions={
+              <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                Back to Submissions
+              </Button>
+            }
+          />
+          <div className="mx-auto max-w-xl py-8 text-center">
+            <div className="rounded-xl border border-dashed border-border bg-card p-8 shadow-xs">
+              {isNoTeam ? (
+                <>
+                  <AlertTriangle
+                    className="mx-auto mb-3 h-10 w-10 text-warning-foreground"
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-lg font-bold text-foreground">No Team Yet</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    You must join or create a capstone team before uploading chapter documents.
+                  </p>
+                  <Button className="mt-5" onClick={() => navigate('/dashboard')}>
+                    Go to Dashboard
+                  </Button>
+                </>
+              ) : isNoProject ? (
+                <>
+                  <FileText className="mx-auto mb-3 h-10 w-10 text-primary" aria-hidden="true" />
+                  <h2 className="text-lg font-bold text-foreground">Create Proposal First</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Your team does not have an approved proposal yet. Head to My Capstone to pitch
+                    your title.
+                  </p>
+                  <Button className="mt-5" onClick={() => navigate('/project')}>
+                    Proceed to My Capstone
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle
+                    className="mx-auto mb-3 h-10 w-10 text-destructive"
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-lg font-bold text-foreground">Unable to Load Project</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {projectError?.message || 'Failed to retrieve capstone project record.'}
+                  </p>
+                  <Button className="mt-5" variant="outline" onClick={() => navigate('/project')}>
+                    Back to Project
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </DashboardLayout>
@@ -380,14 +401,22 @@ export default function ChapterUploadPage() {
   if (submissionsError) {
     return (
       <DashboardLayout>
-        <div className="mx-auto max-w-2xl py-10">
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {submissionsError?.response?.data?.error?.message ||
-                'Failed to load chapter workflow progression status.'}
-            </AlertDescription>
-          </Alert>
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Deliverable Submission"
+            icon={Upload}
+            title="Upload Chapter Manuscript"
+            description="Submit chapter deliverables for adviser review."
+          />
+          <div className="mx-auto max-w-2xl py-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>
+                {submissionsError?.response?.data?.error?.message ||
+                  'Failed to load chapter workflow progression status.'}
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -396,41 +425,44 @@ export default function ChapterUploadPage() {
   /* ────── Main Workspace ────── */
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-6xl space-y-6 [&_button]:min-h-[45px]">
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/60">
-          <div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mb-2 -ml-2 text-muted-foreground hover:text-foreground gap-1.5"
-              onClick={() => navigate('/project/submissions')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Submissions
-            </Button>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Upload Chapter Manuscript
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Submit deliverables for review on&nbsp;
+      <div className="space-y-6 [&_button]:min-h-[45px]">
+        <PageHeader
+          eyebrow="Deliverable Submission"
+          icon={Upload}
+          title="Upload Chapter Manuscript"
+          description={
+            <>
+              Submit deliverables for review on{' '}
               <span className="break-words font-semibold text-foreground [overflow-wrap:anywhere]">
                 {project.title}
               </span>
               .
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono uppercase bg-muted/40">
-              Capstone Phase {project?.capstonePhase || 1}
-            </Badge>
-            {selectedChapterNumber ? (
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-semibold">
-                {toChapterLabel(selectedChapterNumber)}
+            </>
+          }
+          meta={
+            <>
+              <Badge variant="outline" className="text-xs font-mono uppercase bg-muted/40">
+                Capstone Phase {project?.capstonePhase || 1}
               </Badge>
-            ) : null}
-          </div>
-        </div>
+              {selectedChapterNumber ? (
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-semibold">
+                  {toChapterLabel(selectedChapterNumber)}
+                </Badge>
+              ) : null}
+            </>
+          }
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => navigate('/project/submissions')}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to Submissions
+            </Button>
+          }
+        />
 
         {/* 12-Column Unified Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

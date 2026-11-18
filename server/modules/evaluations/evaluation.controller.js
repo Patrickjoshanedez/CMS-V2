@@ -78,6 +78,7 @@ export const releaseEvaluations = catchAsync(async (req, res) => {
   const { releasedCount } = await evaluationService.releaseEvaluations(
     req.params.projectId,
     req.params.defenseType,
+    req.user,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -105,10 +106,7 @@ export const getProjectEvaluations = catchAsync(async (req, res) => {
 
 /** GET /api/evaluations/:evaluationId — Get a single evaluation */
 export const getEvaluation = catchAsync(async (req, res) => {
-  const { evaluation } = await evaluationService.getEvaluation(
-    req.params.evaluationId,
-    req.user,
-  );
+  const { evaluation } = await evaluationService.getEvaluation(req.params.evaluationId, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

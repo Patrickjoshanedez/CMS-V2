@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import GoogleDocViewer from '@/components/documents/GoogleDocViewer';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -52,33 +53,31 @@ export default function DocumentEditorPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full flex-col space-y-4">
-        {/* Top bar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="shrink-0">
-              <ArrowLeft className="mr-1 h-4 w-4" />
+      <div className="flex h-full flex-col space-y-6">
+        <PageHeader
+          eyebrow="Cloud Editor"
+          icon={FileText}
+          title={doc?.title || 'Document Editor'}
+          description="View and collaborate on your connected Google Docs manuscript inside CMS-V2."
+          meta={
+            doc ? (
+              <>
+                <Badge variant="outline">
+                  {DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
+                </Badge>
+                <Badge variant={canEdit ? 'success' : 'secondary'}>
+                  {canEdit ? 'Edit Mode' : 'View Only'}
+                </Badge>
+              </>
+            ) : null
+          }
+          actions={
+            <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="shrink-0">
+              <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
               Back
             </Button>
-
-            {doc && (
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <FileText aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <h1 className="truncate text-lg font-semibold">{doc.title}</h1>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="outline">
-                    {DOC_TYPE_LABELS[doc.documentType] || doc.documentType}
-                  </Badge>
-                  <Badge variant={canEdit ? 'success' : 'secondary'}>
-                    {canEdit ? 'Edit Mode' : 'View Only'}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+          }
+        />
 
         {/* Loading state */}
         {isLoading && (

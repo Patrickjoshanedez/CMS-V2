@@ -26,7 +26,7 @@
     "docker:tunnel:logs": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/docker-ngrok.ps1 -Action logs",
     "docker:dev:up": "docker compose -f docker-compose.yml up -d --build",
     "docker:dev:down": "docker compose -f docker-compose.yml down",
-    "docker:dev:fast": "docker compose -f docker-compose.yml -f docker-compose.fast.yml up --watch mongodb redis minio minio-init server client",
+    "docker:dev:fast": "docker compose -f docker-compose.yml -f docker-compose.fast.yml up --watch mongodb redis cms-ocr-engine server client",
     "docker:dev:fast:down": "docker compose -f docker-compose.yml -f docker-compose.fast.yml down",
     "docker:dev:rebuild": "docker compose -f docker-compose.yml down --remove-orphans && docker compose -f docker-compose.yml up -d --build",
     "seed": "npm run seed --workspace=server",

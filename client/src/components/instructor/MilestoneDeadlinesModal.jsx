@@ -229,168 +229,189 @@ export default function MilestoneDeadlinesModal({
                 </p>
               </div>
 
-              {/* Batch & Target Scope */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Fieldset 1: Academic Cohort & Scope */}
+              <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+                <legend className="text-xs font-semibold text-foreground px-2">
+                  Academic Cohort &amp; Scope
+                </legend>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="deadline-batch-year" className="text-xs">
+                      Academic Year (Batch)
+                    </Label>
+                    <Select value={batchYear} onValueChange={setBatchYear}>
+                      <SelectTrigger
+                        id="deadline-batch-year"
+                        aria-required="true"
+                        className="h-10 text-sm"
+                      >
+                        <SelectValue placeholder="Select Academic Year..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableBatches.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            AY {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Target Scope</Label>
+                    <RadioGroup
+                      value={targetType}
+                      onValueChange={setTargetType}
+                      aria-label="Target Scope"
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      <Label
+                        htmlFor="deadline-target-batch"
+                        className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
+                      >
+                        <RadioGroupItem id="deadline-target-batch" value="batch" />
+                        Batch-Wide
+                      </Label>
+                      <Label
+                        htmlFor="deadline-target-section"
+                        className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
+                      >
+                        <RadioGroupItem id="deadline-target-section" value="section" />
+                        Section Only
+                      </Label>
+                    </RadioGroup>
+                  </div>
+                </div>
+
+                {/* Section Picker (if Section Only) */}
+                {targetType === 'section' && (
+                  <div className="space-y-1.5 animate-in fade-in-50">
+                    <Label htmlFor="deadline-section" className="text-xs">
+                      Specific Section
+                    </Label>
+                    <Select value={sectionId} onValueChange={setSectionId}>
+                      <SelectTrigger
+                        id="deadline-section"
+                        aria-required="true"
+                        className="h-10 text-sm"
+                      >
+                        <SelectValue placeholder="Select Target Section..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sections.map((sec) => (
+                          <SelectItem key={sec._id} value={String(sec._id)}>
+                            {sec.name} ({sec.code || 'IT'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </fieldset>
+
+              {/* Fieldset 2: Milestone & Deliverable Binding */}
+              <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+                <legend className="text-xs font-semibold text-foreground px-2">
+                  Milestone &amp; Deliverable Binding
+                </legend>
+                {/* Phase selector: title proposal work followed by the three one-semester Capstone courses. */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="deadline-batch-year" className="text-xs">
-                    Academic Year (Batch)
+                  <Label htmlFor="deadline-stage" className="text-xs">
+                    Capstone Stage
                   </Label>
-                  <Select value={batchYear} onValueChange={setBatchYear}>
+                  <Select value={stage} onValueChange={handleStageChange}>
                     <SelectTrigger
-                      id="deadline-batch-year"
+                      id="deadline-stage"
                       aria-required="true"
                       className="h-10 text-sm"
                     >
-                      <SelectValue placeholder="Select Academic Year..." />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableBatches.map((b) => (
-                        <SelectItem key={b} value={b}>
-                          AY {b}
+                      {Object.entries(STAGE_LABELS).map(([val, label]) => (
+                        <SelectItem key={val} value={val}>
+                          {label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
+                {/* Deliverable Selector */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Target Scope</Label>
-                  <RadioGroup
-                    value={targetType}
-                    onValueChange={setTargetType}
-                    aria-label="Target Scope"
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    <Label
-                      htmlFor="deadline-target-batch"
-                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
-                    >
-                      <RadioGroupItem id="deadline-target-batch" value="batch" />
-                      Batch-Wide
-                    </Label>
-                    <Label
-                      htmlFor="deadline-target-section"
-                      className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs font-medium"
-                    >
-                      <RadioGroupItem id="deadline-target-section" value="section" />
-                      Section Only
-                    </Label>
-                  </RadioGroup>
-                </div>
-              </div>
-
-              {/* Section Picker (if Section Only) */}
-              {targetType === 'section' && (
-                <div className="space-y-1.5 animate-in fade-in-50">
-                  <Label htmlFor="deadline-section" className="text-xs">
-                    Specific Section
+                  <Label htmlFor="deadline-deliverable" className="text-xs">
+                    Deliverable Component
                   </Label>
-                  <Select value={sectionId} onValueChange={setSectionId}>
+                  <Select value={deliverable} onValueChange={handleDeliverableChange}>
                     <SelectTrigger
-                      id="deadline-section"
+                      id="deadline-deliverable"
                       aria-required="true"
                       className="h-10 text-sm"
                     >
-                      <SelectValue placeholder="Select Target Section..." />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {sections.map((sec) => (
-                        <SelectItem key={sec._id} value={String(sec._id)}>
-                          {sec.name} ({sec.code || 'IT'})
+                      {availableDeliverables.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.label} {d.postApprovalGated ? '(Post-Approval Gated)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              {/* Phase selector: title proposal work followed by the three one-semester Capstone courses. */}
-              <div className="space-y-1.5">
-                <Label htmlFor="deadline-stage" className="text-xs">
-                  Capstone Stage
-                </Label>
-                <Select value={stage} onValueChange={handleStageChange}>
-                  <SelectTrigger id="deadline-stage" aria-required="true" className="h-10 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(STAGE_LABELS).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                {/* Milestone Title */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="deadline-title" className="text-xs">
+                    Display Title
+                  </Label>
+                  <Input
+                    id="deadline-title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Chapter 1 Final Draft Submission"
+                    className="h-8 text-xs"
+                    required
+                  />
+                </div>
+              </fieldset>
 
-              {/* Deliverable Selector */}
-              <div className="space-y-1.5">
-                <Label htmlFor="deadline-deliverable" className="text-xs">
-                  Deliverable Component
-                </Label>
-                <Select value={deliverable} onValueChange={handleDeliverableChange}>
-                  <SelectTrigger
-                    id="deadline-deliverable"
-                    aria-required="true"
-                    className="h-10 text-sm"
+              {/* Fieldset 3: Cutoff Schedule & Late Policy */}
+              <fieldset className="space-y-3 rounded-lg border border-border/60 p-3.5">
+                <legend className="text-xs font-semibold text-foreground px-2">
+                  Cutoff Schedule &amp; Late Policy
+                </legend>
+                {/* Deadline Date */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="deadline-date" className="text-xs">
+                    Submission Cutoff Date
+                  </Label>
+                  <Input
+                    id="deadline-date"
+                    type="date"
+                    value={deadlineDate}
+                    onChange={(e) => setDeadlineDate(e.target.value)}
+                    className="h-8 text-xs"
+                    required
+                  />
+                </div>
+
+                {/* Allow Late Submissions Toggle */}
+                <div className="flex items-start gap-2 pt-1">
+                  <Checkbox
+                    id="allow-late"
+                    checked={allowLateSubmission}
+                    onCheckedChange={(checked) => setAllowLateSubmission(checked === true)}
+                  />
+                  <Label
+                    htmlFor="allow-late"
+                    className="cursor-pointer select-none text-xs leading-relaxed text-foreground"
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDeliverables.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.label} {d.postApprovalGated ? '(Post-Approval Gated)' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Milestone Title */}
-              <div className="space-y-1.5">
-                <Label htmlFor="deadline-title" className="text-xs">
-                  Display Title
-                </Label>
-                <Input
-                  id="deadline-title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Chapter 1 Final Draft Submission"
-                  className="h-8 text-xs"
-                  required
-                />
-              </div>
-
-              {/* Deadline Date */}
-              <div className="space-y-1.5">
-                <Label htmlFor="deadline-date" className="text-xs">
-                  Submission Cutoff Date
-                </Label>
-                <Input
-                  id="deadline-date"
-                  type="date"
-                  value={deadlineDate}
-                  onChange={(e) => setDeadlineDate(e.target.value)}
-                  className="h-8 text-xs"
-                  required
-                />
-              </div>
-
-              {/* Allow Late Submissions Toggle */}
-              <div className="flex items-start gap-2 pt-1">
-                <Checkbox
-                  id="allow-late"
-                  checked={allowLateSubmission}
-                  onCheckedChange={(checked) => setAllowLateSubmission(checked === true)}
-                />
-                <Label
-                  htmlFor="allow-late"
-                  className="cursor-pointer select-none text-xs leading-relaxed text-foreground"
-                >
-                  Allow late submissions (marked as late with instructor justification flag)
-                </Label>
-              </div>
+                    Allow late submissions (marked as late with instructor justification flag)
+                  </Label>
+                </div>
+              </fieldset>
 
               {/* Action Buttons */}
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-border/40">

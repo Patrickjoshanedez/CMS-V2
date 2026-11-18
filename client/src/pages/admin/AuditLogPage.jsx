@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { MetricGrid, PageHeader, StatCard } from '@/components/common';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -306,120 +307,74 @@ export default function AuditLogPage() {
   return (
     <DashboardLayout>
       <div className="min-w-0 space-y-6 lg:space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
-          <div>
-            <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <ScrollText className="h-5 w-5" />
-              </div>
-              Activity Log
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review account activity, security events, and changes to capstone records.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-[44px]">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={isLoading || logs.length === 0}
-              className="text-xs"
-            >
-              <Download className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-              CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportJSON}
-              disabled={isLoading || logs.length === 0}
-              className="text-xs"
-            >
-              <Code2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-              JSON
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="text-xs font-medium"
-            >
-              {isFetching ? (
-                <Spinner className="mr-1.5 h-3.5 w-3.5" />
-              ) : (
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Refresh
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Security & Governance"
+          icon={ScrollText}
+          title="Activity Log"
+          description="Review account activity, security events, and changes to capstone records."
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={isLoading || logs.length === 0}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportJSON}
+                disabled={isLoading || logs.length === 0}
+              >
+                <Code2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                JSON
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? (
+                  <Spinner className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Refresh
+              </Button>
+            </>
+          }
+        />
 
         {/* Telemetry KPI Ribbon */}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-muted-foreground">Total Events</p>
-                <p className="text-2xl font-bold tracking-tight text-foreground">
-                  {total.toLocaleString()}
-                </p>
-                <p className="text-[11px] text-muted-foreground">System-wide logged actions</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Layers className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-muted-foreground">In Current View</p>
-                <p className="text-2xl font-bold tracking-tight text-foreground">{logs.length}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Page {page} of {totalPages}
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success-foreground">
-                <Activity className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-muted-foreground">Security / Auth</p>
-                <p className="text-2xl font-bold tracking-tight text-foreground">
-                  {telemetry.authCount}
-                </p>
-                <p className="text-[11px] text-muted-foreground">Login & credential events</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning-foreground">
-                <Shield className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium text-muted-foreground">Active Actors</p>
-                <p className="text-2xl font-bold tracking-tight text-foreground">
-                  {telemetry.uniqueActors}
-                </p>
-                <p className="text-[11px] text-muted-foreground">Distinct users in view</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10 text-info-foreground">
-                <Users className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <MetricGrid cols={4}>
+          <StatCard
+            label="Total Events"
+            value={total.toLocaleString()}
+            hint="System-wide logged actions"
+            icon={Layers}
+            tone="primary"
+          />
+          <StatCard
+            label="In Current View"
+            value={logs.length}
+            hint={`Page ${page} of ${totalPages}`}
+            icon={Activity}
+            tone="success"
+          />
+          <StatCard
+            label="Security / Auth"
+            value={telemetry.authCount}
+            hint="Login & credential events"
+            icon={Shield}
+            tone="warning"
+          />
+          <StatCard
+            label="Active Actors"
+            value={telemetry.uniqueActors}
+            hint="Distinct users in view"
+            icon={Users}
+            tone="default"
+          />
+        </MetricGrid>
 
         {/* Filters Card */}
         <Card className="border-border/60 shadow-sm">

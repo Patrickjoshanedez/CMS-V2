@@ -1,0 +1,51 @@
+{
+  "skill_name": "role-user-stories-and-pain-points",
+  "evals": [
+    {
+      "id": 1,
+      "name": "student-my-capstone-upload-directions",
+      "prompt": "A student respondent reported: 'There should be a directions in my capstone tab so handling the capstone documents during uploading or submissions is clear.' Using our skill, identify which React pages/components need updating, what directions must be surfaced without breaking collapsed defaults, and what routes the quick actions should link to.",
+      "expected_output": "Identifies client/src/pages/projects/MyProjectPage.jsx (capstone_1 tab above Capstone1CollapsibleSections) and expanded student chapter grid in Capstone1CollapsibleSections.jsx, keeps initial accordion state collapsed, explains sequential Ch. 1-3 uploads (<=25MB, <25% similarity), and links to /project/submissions and /project/submissions/upload.",
+      "files": [
+        "client/src/pages/projects/MyProjectPage.jsx",
+        "client/src/components/projects/Capstone1CollapsibleSections.jsx"
+      ],
+      "assertions": [
+        "References MyProjectPage.jsx capstone_1 tab and Capstone1CollapsibleSections.jsx",
+        "Preserves initial collapsed state for Capstone1CollapsibleSections",
+        "Surfaces sequential Ch. 1-3 upload directions and links to /project/submissions and /project/submissions/upload"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cross-role-dashboard-feature-discovery",
+      "prompt": "Usability Item 2 ('dashboard makes it easy to locate the features relevant to my role') scored 4.27 and faculty commented the interface should not confuse non-tech-savvy users. Design a cross-role dashboard navigation improvement across Student, Faculty, and Instructor roles without violating Router/unit-test constraints.",
+      "expected_output": "Adds Role Quick-Actions Bar on StudentDashboard (DashboardPage.jsx), plain-language Faculty Role Guide & Quick-Jump Bar across Adviser/Panelist/Secretary views (FacultyDashboard.jsx) without triggering button-label test collisions on 'Review', and static-anchor Instructor quick actions (InstructorDashboard.jsx) avoiding unmocked useNavigate calls.",
+      "files": [
+        "client/src/pages/dashboard/DashboardPage.jsx",
+        "client/src/components/dashboards/FacultyDashboard.jsx",
+        "client/src/components/dashboards/InstructorDashboard.jsx"
+      ],
+      "assertions": [
+        "Covers Student, Faculty (Adviser/Panelist/Secretary), and Instructor dashboards",
+        "Avoids button label collision on 'Review' in FacultyDashboard",
+        "Avoids calling useNavigate directly inside InstructorDashboard because its test renders without MemoryRouter"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "file-management-and-browser-walkthrough",
+      "prompt": "Faculty asked to improve the file management feature and make the system easier to navigate. Plan the improvements in Submissions and Cloud Documents pages and specify a live multi-role browser walkthrough plan using canonical accounts.",
+      "expected_output": "Updates ProjectSubmissionsPage.jsx with Phase Quick-Jump & Upload Guide Bar (#phase-2-capstone-1..#phase-4-capstone-3) and TemplateManagementPage.jsx (/documents/manuscripts) with File Organization & Quick Navigation Bar (sticking to mocked Lucide icons), plus a Playwright walkthrough across student@student.buksu.edu.ph, adviser@student.buksu.edu.ph, and instructor@student.buksu.edu.ph.",
+      "files": [
+        "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+        "client/src/pages/documents/TemplateManagementPage.jsx"
+      ],
+      "assertions": [
+        "Includes phase anchor jumps and Cloud Sync link in ProjectSubmissionsPage.jsx",
+        "Respects the 6 mocked lucide-react icons in TemplateManagementPage.test.jsx",
+        "Defines browser walkthrough steps on http://localhost:43211 using canonical accounts and domcontentloaded"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "session_id": "2026-10-27_smtp-account-restored",
+  "date": "2026-10-27",
+  "task_category": "smtp_configuration",
+  "task_summary": "At the user's request, restored the originally supplied Gmail account and sender address while retaining its app password; restarted the backend.",
+  "verification": {
+    "smtp_status": "healthy",
+    "message": "SMTP transport verified successfully.",
+    "test_email_sent": false
+  },
+  "credential_handling": "Credentials remain only in ignored server/.env; no credential values archived.",
+  "goal_scope": "SMTP authentication blocker resolved; broader UI-refactor acceptance remains open."
+}

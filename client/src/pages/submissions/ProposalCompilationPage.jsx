@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
@@ -239,7 +240,7 @@ export default function ProposalCompilationPage() {
     return (
       <DashboardLayout>
         <div
-          className="mx-auto w-full max-w-5xl space-y-6"
+          className="w-full space-y-6"
           aria-busy="true"
           aria-label="Loading proposal compilation"
         >
@@ -258,25 +259,25 @@ export default function ProposalCompilationPage() {
   if (user.role !== ROLES.STUDENT) {
     return (
       <DashboardLayout>
-        <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-3xl items-center px-6 py-12">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="text-2xl">Proposal Compilation</CardTitle>
-              <CardDescription>Available to students only.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  This screen is intended for the student team that owns the active project.
-                </AlertDescription>
-              </Alert>
-              <Button variant="outline" onClick={() => navigate('/project/submissions')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Phase 2 Deliverable"
+            icon={BookOpen}
+            title="Proposal Compilation"
+            description="Available to students only."
+            actions={
+              <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
                 Back to submissions
               </Button>
-            </CardContent>
-          </Card>
+            }
+          />
+          <Alert>
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              This screen is intended for the student team that owns the active project.
+            </AlertDescription>
+          </Alert>
         </div>
       </DashboardLayout>
     );
@@ -362,7 +363,7 @@ export default function ProposalCompilationPage() {
     return (
       <DashboardLayout>
         <div
-          className="mx-auto w-full max-w-5xl space-y-6"
+          className="w-full space-y-6"
           aria-busy="true"
           aria-label="Loading proposal compilation"
         >
@@ -386,22 +387,26 @@ export default function ProposalCompilationPage() {
 
     return (
       <DashboardLayout>
-        <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-3xl items-center px-6 py-12">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="text-2xl">Proposal Compilation</CardTitle>
-              <CardDescription>We could not load the current project data.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Phase 2 Deliverable"
+            icon={BookOpen}
+            title="Proposal Compilation"
+            description="We could not load the current project data."
+            actions={
+              <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                Back to submissions
+              </Button>
+            }
+          />
+          <Card>
+            <CardContent className="space-y-4 pt-6">
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{message}</AlertDescription>
               </Alert>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate('/project/submissions')}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to submissions
-                </Button>
                 <Button onClick={() => window.location.reload()}>Retry</Button>
               </div>
             </CardContent>
@@ -414,19 +419,23 @@ export default function ProposalCompilationPage() {
   if (!project) {
     return (
       <DashboardLayout>
-        <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-3xl items-center px-6 py-12">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="text-2xl">Proposal Compilation</CardTitle>
-              <CardDescription>Start here once your project is ready.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>No active project was found for your account.</AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Phase 2 Deliverable"
+            icon={BookOpen}
+            title="Proposal Compilation"
+            description="Start here once your project is ready."
+            actions={
+              <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                Back to submissions
+              </Button>
+            }
+          />
+          <Alert>
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>No active project was found for your account.</AlertDescription>
+          </Alert>
         </div>
       </DashboardLayout>
     );
@@ -434,35 +443,27 @@ export default function ProposalCompilationPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-        {/* Page Header */}
-        <div className="space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-1 -ml-2 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate('/project/submissions')}
-          >
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Back to submissions
-          </Button>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Proposal Compilation
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Compile the approved chapter set into a single proposal submission for review.
-              </p>
-            </div>
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Phase 2 Deliverable"
+          icon={BookOpen}
+          title="Proposal Compilation"
+          description="Compile the approved chapter set into a single proposal submission for review."
+          meta={
             <Badge
               variant="outline"
-              className="self-start sm:self-center font-medium border-primary/30 bg-primary/5 text-primary text-xs px-3 py-1"
+              className="font-medium border-primary/30 bg-primary/5 text-primary text-xs px-3 py-1"
             >
               Capstone 2 Proposal
             </Badge>
-          </div>
-        </div>
+          }
+          actions={
+            <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Back to submissions
+            </Button>
+          }
+        />
 
         {/* Project Context & Status Card */}
         <Card className="border-border/60 shadow-xs">

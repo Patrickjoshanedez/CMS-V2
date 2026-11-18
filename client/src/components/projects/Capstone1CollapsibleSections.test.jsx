@@ -498,4 +498,58 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     });
     expect(mockToastSuccess).toHaveBeenCalledWith('Title proposal sent back for revision.');
   });
+
+  it('allows instructor to schedule hearing inline and approve proposal in one atomic submission', async () => {
+    const unscheduledProject = {
+      ...mockProject,
+      titleStatus: 'submitted',
+      defenseSchedule: null,
+    };
+
+    await renderComponent({
+      project: unscheduledProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    const approveBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Approve Proposal as Official Title'),
+    );
+    await act(async () => {
+      approveBtn.click();
+    });
+
+    const toggle = container.querySelector('#inline-schedule-hearing-toggle');
+    expect(toggle).toBeTruthy();
+    await act(async () => {
+      toggle.click();
+    });
+
+    const dateInput = container.querySelector('#inline-hearing-date');
+    expect(dateInput).toBeTruthy();
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit Official Decision'),
+    );
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockApproveTitleMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: unscheduledProject._id,
+        proposalId: 0,
+        hearingSchedule: expect.objectContaining({
+          date: dateInput.value,
+          time: '09:00 AM - 09:30 AM',
+          venue: 'COT Conference Room',
+        }),
+      }),
+    );
+  });
 });

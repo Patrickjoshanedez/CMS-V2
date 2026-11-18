@@ -1,43 +1,47 @@
 {
   "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
-  "session_id": "2026-10-25_shadcn-live-route-checkpoint",
-  "timestamp": "2026-10-25T12:16:14.127Z",
+  "session_id": "2026-11-18_system-performance-masterplan",
+  "timestamp": "2026-11-18T14:26:00.0000000Z",
   "status": "active",
-  "role": "Principal Systems Architect & Lead Security Engineer (Codex)",
+  "role": "Master Systems Architect & Fullstack Verification Engineer (BukSU CMS-V2)",
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
   "git_context": {
     "active_branch": "main",
     "clean_working_tree": false
   },
-  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "asdlc_phase": "STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP",
   "startup_preflight": {
     "ptss_index_inspected": true,
     "technical_context_synced": true,
     "recent_sessions_recalled": [
-      "2026-10-25_shadcn-final-suite-checkpoint",
-      "2026-10-25_shadcn-workflow-route-acceptance",
-      "2026-10-25_shadcn-file-only-viewer"
+      "2026-11-18_gdocs-api-specification-insertion",
+      "2026-11-18_role-user-stories-pain-points-ui-consistency",
+      "2026-11-18_four-phase-transition-optimizations",
+      "2026-11-18_archive-50-sample-papers-browser-skill"
     ],
-    "active_prevention_rules_count": 48
+    "active_prevention_rules_count": 56
   },
   "skills_primed": [
-    "deep-dive-code-search",
-    "i-normalize",
-    "i-frontend-design",
+    "modern-web-guidance",
+    "frontend-patterns",
+    "senior-backend",
+    "mongoose-mongodb",
+    "tanstack-query",
+    "zustand",
+    "enterprise-realtime-cloud",
     "verification-loop",
-    "workspace-evidence-maintenance"
+    "anti-regression-and-ci-governance",
+    "ptss"
   ],
   "playwright_feedback_required": true,
   "verification_baseline": {
     "governance_passed": true,
     "workspace_clean": false
   },
-  "task_summary": "Full current-source client suite passes 174 files/1,029 tests across all sixteen shards; server workflow passes 13/13. Independent file-set/fingerprint verification passes with no failures, pending cases, missing files or duplicates. Stopped cms-client was restored; login HTTP 200, Vite 8.3.5 and all 53 direct dependencies match lockfile. Existing root lint/build/repository gates pass. Remaining: exhaustive current-source visual/runtime interaction matrix and user-retained exact pre-refactor baseline. Isolate legacy visual writer output before running against restored preview.",
-  "active_skills": [
-    "frontend-patterns",
-    "i-normalize",
-    "verification-loop",
-    "workspace-evidence-maintenance"
-  ]
+  "supreme_cognitive_protocols": {
+    "kernel_version": "2.1",
+    "targeted_testing_used": true,
+    "cst_precision_patching": true
+  }
 }

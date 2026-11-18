@@ -116,6 +116,7 @@ export const reviewSubmissionSchema = z.object({
     .max(2000, 'Review note must not exceed 2000 characters')
     .optional()
     .default(''),
+  expectedUpdatedAt: z.string().trim().optional().nullable(),
 });
 
 /**

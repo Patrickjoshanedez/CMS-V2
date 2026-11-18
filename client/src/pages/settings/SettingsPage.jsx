@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Palette, Shield, Bell, Settings2, Info, PenTool } from 'lucide-react';
 import { Spinner } from '@/components/ui/Spinner';
@@ -72,11 +73,13 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6 sm:space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences.</p>
-        </div>
+      <div className="min-w-0 space-y-6 lg:space-y-8">
+        <PageHeader
+          eyebrow="Preferences"
+          icon={Settings2}
+          title="Settings"
+          description="Manage your account settings and preferences."
+        />
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <div className="border-b border-border">

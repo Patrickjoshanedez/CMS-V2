@@ -130,8 +130,24 @@ export async function enqueuePlagiarismJob(payload) {
   const queue = getPlagiarismQueue();
   if (!queue) return null;
 
+  const customJobId = `plag-${payload.submissionId}`;
+  // Clear prior terminal jobs so manual re-scans and recovery checks enqueue cleanly instead of deduplicating against history.
+  if (typeof queue.getJob === 'function') {
+    try {
+      const existingJob = await queue.getJob(customJobId);
+      if (existingJob && typeof existingJob.getState === 'function') {
+        const state = await existingJob.getState();
+        if (state === 'completed' || state === 'failed') {
+          await existingJob.remove();
+        }
+      }
+    } catch {
+      // Ignore lookup/removal errors and proceed to add
+    }
+  }
+
   const job = await queue.add('check', payload, {
-    jobId: `plag-${payload.submissionId}`, // Prevents duplicate jobs for same submission
+    jobId: customJobId, // Prevents duplicate active/waiting jobs for same submission
   });
 
   return job.id;

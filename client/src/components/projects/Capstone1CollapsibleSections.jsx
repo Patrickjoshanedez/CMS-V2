@@ -19,12 +19,15 @@ import {
   Calendar as CalendarIcon,
   UserCheck,
   UserPlus,
+  Upload,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { Textarea } from '@/components/ui/Textarea';
+import { Input } from '@/components/ui/Input';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Label } from '@/components/ui/Label';
 import {
   Select,
@@ -88,10 +91,16 @@ export default function Capstone1CollapsibleSections({
   const [viewerDoc, setViewerDoc] = useState(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  // Defense schedule modal state
+  // Defense schedule modal & atomic quick-schedule state
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isAssignCommitteeOpen, setIsAssignCommitteeOpen] = useState(false);
   const [selectedAdviserId, setSelectedAdviserId] = useState('');
+  const [scheduleHearingInline, setScheduleHearingInline] = useState(false);
+  const [inlineHearingDate, setInlineHearingDate] = useState(
+    () => new Date().toISOString().split('T')[0],
+  );
+  const [inlineHearingTime, setInlineHearingTime] = useState('09:00 AM - 09:30 AM');
+  const [inlineHearingVenue, setInlineHearingVenue] = useState('COT Conference Room');
 
   // Derive title approval status
   const titleApproved =
@@ -238,7 +247,7 @@ export default function Capstone1CollapsibleSections({
       }
 
       if (deliberationVote === 'Approve') {
-        if (!isScheduledOrDone) {
+        if (!isScheduledOrDone && !scheduleHearingInline) {
           if (isInstructor) {
             setIsScheduleModalOpen(true);
           }
@@ -247,12 +256,26 @@ export default function Capstone1CollapsibleSections({
           );
           return;
         }
+        if (!isScheduledOrDone && scheduleHearingInline && !inlineHearingDate) {
+          toast.error('Please enter a title hearing date before submitting.');
+          return;
+        }
 
         await approveTitleMutation.mutateAsync({
           projectId: project._id,
           proposalId: selectedProposalIndex,
           ...(selectedAdviserId ? { adviserId: selectedAdviserId } : {}),
+          ...(!isScheduledOrDone && scheduleHearingInline
+            ? {
+                hearingSchedule: {
+                  date: inlineHearingDate,
+                  time: inlineHearingTime,
+                  venue: inlineHearingVenue,
+                },
+              }
+            : {}),
         });
+        setScheduleHearingInline(false);
         toast.success(`Proposal ${activeProposal.index} officially approved as capstone title!`);
       } else if (deliberationVote === 'Revision') {
         await rejectTitleMutation.mutateAsync({
@@ -279,13 +302,17 @@ export default function Capstone1CollapsibleSections({
   };
 
   // Submissions query for Chapters 1-3 and compiled proposal
-  const { data: submissions = [] } = useProjectSubmissions(project?._id);
+  const { data: rawSubmissions } = useProjectSubmissions(project?._id);
+  const submissions = useMemo(
+    () => (Array.isArray(rawSubmissions) ? rawSubmissions : rawSubmissions?.submissions || []),
+    [rawSubmissions],
+  );
 
   const latestChapters = useMemo(() => {
     const map = new Map();
     if (!Array.isArray(submissions)) return map;
     for (let ch = 1; ch <= 3; ch++) {
-      const chSubs = submissions.filter((s) => s.chapterNumber === ch);
+      const chSubs = submissions.filter((s) => Number(s.chapter ?? s.chapterNumber) === ch);
       if (chSubs.length > 0) {
         chSubs.sort((a, b) => (b.version || 0) - (a.version || 0));
         map.set(ch, chSubs[0]);
@@ -607,6 +634,93 @@ export default function Capstone1CollapsibleSections({
                   </Button>
                 </div>
 
+                {deliberationVote === 'Approve' && !isScheduledOrDone && isInstructor && (
+                  <div
+                    data-testid="inline-atomic-hearing-schedule"
+                    className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-3"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Checkbox
+                        id="inline-schedule-hearing-toggle"
+                        checked={scheduleHearingInline}
+                        onCheckedChange={(checked) => setScheduleHearingInline(Boolean(checked))}
+                      />
+                      <Label
+                        htmlFor="inline-schedule-hearing-toggle"
+                        className="text-xs font-semibold text-foreground cursor-pointer"
+                      >
+                        Schedule Title Proposal Hearing now and approve in one atomic step
+                      </Label>
+                    </div>
+
+                    {scheduleHearingInline && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                        <div className="space-y-1">
+                          <Label
+                            htmlFor="inline-hearing-date"
+                            className="text-[11px] font-medium text-muted-foreground"
+                          >
+                            Hearing Date
+                          </Label>
+                          <Input
+                            id="inline-hearing-date"
+                            type="date"
+                            value={inlineHearingDate}
+                            onChange={(e) => setInlineHearingDate(e.target.value)}
+                            className="h-10 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label
+                            htmlFor="inline-hearing-time"
+                            className="text-[11px] font-medium text-muted-foreground"
+                          >
+                            Time Slot
+                          </Label>
+                          <Select value={inlineHearingTime} onValueChange={setInlineHearingTime}>
+                            <SelectTrigger id="inline-hearing-time" className="h-10 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="08:00 AM - 08:30 AM">
+                                08:00 AM - 08:30 AM
+                              </SelectItem>
+                              <SelectItem value="09:00 AM - 09:30 AM">
+                                09:00 AM - 09:30 AM
+                              </SelectItem>
+                              <SelectItem value="10:00 AM - 10:30 AM">
+                                10:00 AM - 10:30 AM
+                              </SelectItem>
+                              <SelectItem value="01:30 PM - 02:00 PM">
+                                01:30 PM - 02:00 PM
+                              </SelectItem>
+                              <SelectItem value="03:00 PM - 03:30 PM">
+                                03:00 PM - 03:30 PM
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label
+                            htmlFor="inline-hearing-venue"
+                            className="text-[11px] font-medium text-muted-foreground"
+                          >
+                            Venue
+                          </Label>
+                          <Input
+                            id="inline-hearing-venue"
+                            type="text"
+                            value={inlineHearingVenue}
+                            onChange={(e) => setInlineHearingVenue(e.target.value)}
+                            placeholder="COT Conference Room"
+                            className="h-10 text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {deliberationVote === 'Approve' && isInstructor && !project?.adviserId && (
                   <div className="rounded-lg border border-info/30 bg-info/5 p-3 space-y-2">
                     <div className="flex items-center justify-between">
@@ -806,143 +920,156 @@ export default function Capstone1CollapsibleSections({
               </div>
             ) : (
               /* Chapters 1-3 & Compiled Cards Grid for Students */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                {[1, 2, 3].map((ch) => {
-                  const sub = latestChapters.get(ch);
-                  const hasSub = Boolean(sub);
+              <div className="space-y-3 pt-2">
+                <div className="rounded-lg border border-border/60 bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
+                  <strong className="text-foreground">Sequential Upload Directions:</strong> Upload
+                  Chapter 1 first (.docx or .pdf, max 25 MB). Chapter 2 unlocks once Chapter 1 is
+                  approved, and Chapter 3 unlocks once Chapter 2 is approved.
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[1, 2, 3].map((ch) => {
+                    const sub = latestChapters.get(ch);
+                    const hasSub = Boolean(sub);
 
-                  return (
-                    <div
-                      key={ch}
-                      className="rounded-xl border border-border/70 bg-card p-3.5 space-y-2 flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-bold text-foreground line-clamp-1">
-                            {CHAPTER_TITLES[ch]}
-                          </span>
+                    return (
+                      <div
+                        key={ch}
+                        className="rounded-xl border border-border/70 bg-card p-3.5 space-y-2 flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground line-clamp-1">
+                              {CHAPTER_TITLES[ch]}
+                            </span>
+                            {hasSub ? (
+                              <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
+                                v{sub.version || 1}
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] text-muted-foreground shrink-0 border-border/60"
+                              >
+                                Not Uploaded
+                              </Badge>
+                            )}
+                          </div>
+
                           {hasSub ? (
-                            <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
-                              v{sub.version || 1}
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge
+                                variant={
+                                  sub.status === 'approved'
+                                    ? 'success'
+                                    : sub.status === 'rejected'
+                                      ? 'destructive'
+                                      : sub.status === 'pending'
+                                        ? 'warning'
+                                        : 'default'
+                                }
+                                className="text-[10px] font-medium capitalize"
+                              >
+                                {sub.status || 'Pending Review'}
+                              </Badge>
+                              {sub.plagiarismScore !== undefined && (
+                                <span className="text-[11px] font-mono text-muted-foreground">
+                                  {100 - Math.round(sub.plagiarismScore)}% Original
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] text-muted-foreground shrink-0 border-border/60"
-                            >
-                              Not Uploaded
-                            </Badge>
+                            <p className="text-[11px] text-muted-foreground mt-2">
+                              Manuscript pending initial submission by proponents.
+                            </p>
                           )}
                         </div>
 
-                        {hasSub ? (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge
-                              variant={
-                                sub.status === 'approved'
-                                  ? 'success'
-                                  : sub.status === 'rejected'
-                                    ? 'destructive'
-                                    : sub.status === 'pending'
-                                      ? 'warning'
-                                      : 'default'
-                              }
-                              className="text-[10px] font-medium capitalize"
+                        <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2">
+                          {hasSub ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleOpenViewer(sub, CHAPTER_TITLES[ch])}
+                              className="text-xs min-h-10 sm:min-h-7 gap-1.5 text-primary hover:bg-primary/10 px-2"
                             >
-                              {sub.status || 'Pending Review'}
-                            </Badge>
-                            {sub.plagiarismScore !== undefined && (
-                              <span className="text-[11px] font-mono text-muted-foreground">
-                                {100 - Math.round(sub.plagiarismScore)}% Original
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-muted-foreground mt-2">
-                            Manuscript pending initial submission by proponents.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
-                        {hasSub ? (
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                              View in Reader
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/project/submissions/upload?chapter=${ch}`)}
+                              className="text-xs min-h-10 sm:min-h-7 gap-1.5 border-primary/40 text-primary hover:bg-primary/10 px-2.5"
+                            >
+                              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                              Upload Ch. {ch}
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleOpenViewer(sub, CHAPTER_TITLES[ch])}
-                            className="text-xs h-7 gap-1.5 text-primary hover:bg-primary/10 px-2"
+                            onClick={() => navigate('/project/submissions')}
+                            className="text-[11px] text-muted-foreground hover:text-foreground min-h-10 sm:min-h-7 px-2"
                           >
-                            <Eye className="h-3.5 w-3.5" />
-                            View in Reader
+                            Submissions &rarr;
                           </Button>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground italic">
-                            Awaiting upload
-                          </span>
-                        )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Compiled Proposal Card */}
+                  <div className="rounded-xl border border-primary/30 bg-primary/[0.02] p-3.5 space-y-2 flex flex-col justify-between sm:col-span-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <FileCheck className="h-5 w-5 text-primary shrink-0" />
+                        <div>
+                          <h5 className="text-xs font-bold text-foreground">
+                            Compiled Chapters 1–3 Proposal Manuscript
+                          </h5>
+                          <p className="text-[11px] text-muted-foreground">
+                            {compiledProposalSub
+                              ? `Official compiled draft v${compiledProposalSub.version || 1} ready for committee hearing evaluation.`
+                              : 'Compiled once Chapters 1–3 manuscripts are reviewed and approved.'}
+                          </p>
+                        </div>
+                      </div>
+                      {compiledProposalSub && (
+                        <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px] font-mono w-fit">
+                          Compiled v{compiledProposalSub.version || 1}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                      {compiledProposalSub ? (
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => navigate('/project/submissions')}
-                          className="text-[11px] text-muted-foreground hover:text-foreground h-7 px-2"
+                          variant="outline"
+                          onClick={() =>
+                            handleOpenViewer(compiledProposalSub, 'Compiled Proposal Manuscript')
+                          }
+                          className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
                         >
-                          Submissions &rarr;
+                          <Eye className="h-3.5 w-3.5" />
+                          View Full Manuscript
                         </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Compiled Proposal Card */}
-                <div className="rounded-xl border border-primary/30 bg-primary/[0.02] p-3.5 space-y-2 flex flex-col justify-between sm:col-span-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <FileCheck className="h-5 w-5 text-primary shrink-0" />
-                      <div>
-                        <h5 className="text-xs font-bold text-foreground">
-                          Compiled Chapters 1–3 Proposal Manuscript
-                        </h5>
-                        <p className="text-[11px] text-muted-foreground">
-                          {compiledProposalSub
-                            ? `Official compiled draft v${compiledProposalSub.version || 1} ready for committee hearing evaluation.`
-                            : 'Compiled once Chapters 1–3 manuscripts are reviewed and approved.'}
-                        </p>
-                      </div>
-                    </div>
-                    {compiledProposalSub && (
-                      <Badge className="bg-primary/10 text-primary border-primary/30 text-[10px] font-mono w-fit">
-                        Compiled v{compiledProposalSub.version || 1}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
-                    {compiledProposalSub ? (
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          Submissions page compiles approved chapters.
+                        </span>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          handleOpenViewer(compiledProposalSub, 'Compiled Proposal Manuscript')
-                        }
-                        className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => navigate('/project/submissions')}
+                        className="text-xs h-7 gap-1.5"
                       >
-                        <Eye className="h-3.5 w-3.5" />
-                        View Full Manuscript
+                        <span>Manage on Submissions Page</span>
+                        <ExternalLink className="h-3 w-3" />
                       </Button>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">
-                        Submissions page compiles approved chapters.
-                      </span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate('/project/submissions')}
-                      className="text-xs h-7 gap-1.5"
-                    >
-                      <span>Manage on Submissions Page</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
+                    </div>
                   </div>
                 </div>
               </div>

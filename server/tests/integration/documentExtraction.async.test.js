@@ -45,6 +45,14 @@ vi.mock('../../jobs/queue.js', async (importOriginal) => {
             progress: 40,
           };
         }
+        if (jobId === 'mock-failed-job') {
+          return {
+            id: jobId,
+            getState: vi.fn().mockResolvedValue('failed'),
+            failedReason: 'OCR service unavailable',
+            progress: 80,
+          };
+        }
         return null;
       }),
     }),
@@ -75,6 +83,14 @@ vi.mock('../../config/redis.js', async (importOriginal) => {
               confidence: { title: 98, abstract: 95 },
             },
             jobId: 'cached-job-789',
+          });
+        }
+        if (key === 'extraction:job:mock-failed-job') {
+          return JSON.stringify({
+            status: 'processing',
+            progress: 80,
+            jobId: 'mock-failed-job',
+            userId: 'test-user',
           });
         }
         return null;
@@ -137,6 +153,18 @@ describe('Document Extraction Async & Status API', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('processing');
     expect(res.body.progress).toBe(40);
+  });
+
+  it('prefers terminal BullMQ failure over a stale processing cache entry', async () => {
+    const { agent } = await createAuthenticatedUserWithRole('instructor', {
+      email: 'instructor-poll-failed-extract@test.com',
+    });
+
+    const res = await agent.get('/api/documents/extraction-status/mock-failed-job');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('failed');
+    expect(res.body.error).toBe('OCR service unavailable');
   });
 
   it('retrieves cached extraction from Redis', async () => {

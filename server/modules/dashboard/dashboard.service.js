@@ -12,6 +12,7 @@ import Team from '../teams/team.model.js';
 import Project from '../projects/project.model.js';
 import AuditLog from '../audit/audit.model.js';
 import projectService from '../projects/project.service.js';
+import { getADMCompletion } from '../projects/services/admCompletion.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
 import Notification from '../notifications/notification.model.js';
@@ -37,6 +38,36 @@ export function resolveDashboardCapstonePhase(project) {
   const phase = Number(project.capstonePhase);
   if (phase === 4) return 3;
   return Number.isFinite(phase) && phase >= 1 && phase <= 3 ? phase : 1;
+}
+
+/**
+ * Retain only the highest-version submission per (projectId, type, chapter) tuple
+ * so superseded historical revisions never remain in active review queues.
+ * @param {Array<Object>} submissions
+ * @returns {Array<Object>}
+ */
+function deduplicateLatestSubmissions(submissions) {
+  const latestMap = new Map();
+  for (const sub of submissions) {
+    const pid = String(sub.projectId?._id || sub.projectId || '');
+    const key = `${pid}:${sub.type || 'chapter'}:${sub.chapter ?? 0}`;
+    const existing = latestMap.get(key);
+    if (!existing) {
+      latestMap.set(key, sub);
+      continue;
+    }
+    const subVersion = sub.version || 0;
+    const existingVersion = existing.version || 0;
+    const subTime = new Date(sub.submittedAt || sub.createdAt || 0).getTime();
+    const existingTime = new Date(existing.submittedAt || existing.createdAt || 0).getTime();
+    if (
+      subVersion > existingVersion ||
+      (subVersion === existingVersion && subTime > existingTime)
+    ) {
+      latestMap.set(key, sub);
+    }
+  }
+  return Array.from(latestMap.values());
 }
 
 class DashboardService {
@@ -323,12 +354,18 @@ class DashboardService {
       adviserProjectIds.length > 0
         ? Submission.find({
             projectId: { $in: adviserProjectIds },
-            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
             .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
+            .then((subs) =>
+              deduplicateLatestSubmissions(subs).filter(
+                (s) =>
+                  s.status === SUBMISSION_STATUSES.PENDING ||
+                  s.status === SUBMISSION_STATUSES.UNDER_REVIEW,
+              ),
+            )
         : Promise.resolve([]),
       Project.find({ panelistIds: user._id, isArchived: { $ne: true } })
         .populate('teamId', 'name members')
@@ -423,12 +460,18 @@ class DashboardService {
       adviserProjectIds.length > 0
         ? Submission.find({
             projectId: { $in: adviserProjectIds },
-            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
             .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
+            .then((subs) =>
+              deduplicateLatestSubmissions(subs).filter(
+                (s) =>
+                  s.status === SUBMISSION_STATUSES.PENDING ||
+                  s.status === SUBMISSION_STATUSES.UNDER_REVIEW,
+              ),
+            )
         : Promise.resolve([]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
@@ -494,7 +537,7 @@ class DashboardService {
       };
     }
 
-    const submissions = await Submission.find({ projectId: { $in: adviserProjectIds } })
+    const rawSubmissions = await Submission.find({ projectId: { $in: adviserProjectIds } })
       .populate({
         path: 'projectId',
         select: 'title teamId',
@@ -503,6 +546,8 @@ class DashboardService {
       .populate('submittedBy', 'firstName lastName')
       .sort({ submittedAt: -1 })
       .lean();
+
+    const submissions = deduplicateLatestSubmissions(rawSubmissions);
 
     const awaitingReview = submissions.filter((s) => s.status === SUBMISSION_STATUSES.PENDING);
     const underReview = submissions.filter(
@@ -789,6 +834,7 @@ class DashboardService {
       completedProjects,
       submissionStatsArr,
       evaluationStatsArr,
+      activeApprovedProjects,
     ] = await Promise.all([
       Project.countDocuments(),
       Project.countDocuments({ projectStatus: PROJECT_STATUSES.ACTIVE }),
@@ -859,7 +905,122 @@ class DashboardService {
           },
         },
       ]),
+      Project.find({
+        isArchived: { $ne: true },
+        titleStatus: TITLE_STATUSES.APPROVED,
+        capstonePhase: { $in: [1, 2, 3] },
+      })
+        .populate('teamId', 'name')
+        .select(
+          '_id title teamId capstonePhase workflowPhase admStatus admSignatures admSignaturesByMilestone panelists panelistIds secretaryId adviserId defenseSchedule ganttApproval ganttPlan weeklyCheckIns githubRepoUrl prototypes demoVideoUrl systemDefenseApproval capstoneCourse',
+        )
+        .sort({ updatedAt: -1 })
+        .limit(15)
+        .lean(),
     ]);
+
+    const activeProjectIds = activeApprovedProjects.map((p) => p._id);
+    const proposalProjectIds = activeApprovedProjects
+      .filter((project) => Number(project.capstonePhase || 1) === 1)
+      .map((project) => project._id);
+    const [activeEvals, latestProposals] = await Promise.all([
+      activeProjectIds.length > 0
+        ? Evaluation.find({ projectId: { $in: activeProjectIds } })
+            .select('projectId panelistId defenseType status decision')
+            .lean()
+        : [],
+      proposalProjectIds.length > 0
+        ? Submission.aggregate([
+            { $match: { projectId: { $in: proposalProjectIds }, type: 'proposal' } },
+            { $sort: { projectId: 1, version: -1 } },
+            { $group: { _id: '$projectId', status: { $first: '$status' } } },
+          ])
+        : [],
+    ]);
+    const latestProposalByProject = new Map(
+      latestProposals.map((proposal) => [String(proposal._id), proposal]),
+    );
+    const evalsByProject = new Map();
+    for (const ev of activeEvals) {
+      const pid = ev.projectId?.toString();
+      if (!pid) continue;
+      if (!evalsByProject.has(pid)) evalsByProject.set(pid, []);
+      evalsByProject.get(pid).push(ev);
+    }
+
+    const phaseTransitionQueue = await Promise.all(
+      activeApprovedProjects.map(async (project) => {
+        const currentPhase = Number(project.capstonePhase || 1);
+        const milestone =
+          currentPhase === 1 ? 'CAPSTONE_1' : currentPhase === 2 ? 'CAPSTONE_2' : 'CAPSTONE_3';
+        const defenseType =
+          currentPhase === 1 ? 'proposal' : currentPhase === 2 ? 'progress' : 'final';
+        const typeAliases =
+          currentPhase === 1
+            ? ['proposal']
+            : currentPhase === 2
+              ? ['progress', 'midterm']
+              : ['final', 'paper'];
+
+        const admCompletion = getADMCompletion(project, milestone);
+        const projectId = project._id.toString();
+        const projectEvaluations = evalsByProject.get(projectId) || [];
+        const projEvals = projectEvaluations.filter((e) =>
+          typeAliases.includes(String(e.defenseType || '').toLowerCase()),
+        );
+        const assignedPanelistCount = (project.panelistIds || []).length;
+        const submittedCount = projEvals.filter(
+          (e) =>
+            e.status === EVALUATION_STATUSES.SUBMITTED || e.status === EVALUATION_STATUSES.RELEASED,
+        ).length;
+        const unreleasedCount = projEvals.filter(
+          (e) => e.status === EVALUATION_STATUSES.SUBMITTED,
+        ).length;
+        const readyToReleaseGrades =
+          assignedPanelistCount > 0 &&
+          submittedCount >= assignedPanelistCount &&
+          unreleasedCount > 0;
+
+        let blocker = null;
+        if (currentPhase < 3) {
+          blocker = await projectService.getPhaseExitBlocker(project, currentPhase, {
+            evaluations: projectEvaluations,
+            latestProposal: latestProposalByProject.get(projectId) ?? null,
+          });
+        }
+
+        const readyToAdvance = currentPhase < 3 && !blocker;
+        let blockerLabel = blocker?.message || '';
+        if (currentPhase === 3) {
+          if (!admCompletion.complete) {
+            blockerLabel = `Awaiting ADM v3 (${admCompletion.missing.length} pending signatory action(s))`;
+          } else if (readyToReleaseGrades) {
+            blockerLabel = 'Final evaluations submitted — ready to release grades for archival';
+          } else {
+            blockerLabel = 'Final manuscripts & archival readiness in progress';
+          }
+        }
+
+        return {
+          projectId: project._id,
+          projectTitle: project.title || 'Untitled Capstone',
+          teamName: project.teamId?.name || 'Capstone Team',
+          currentPhase,
+          nextPhase: currentPhase < 3 ? currentPhase + 1 : 'archive',
+          defenseType,
+          admComplete: admCompletion.complete,
+          readyToReleaseGrades,
+          readyToAdvance,
+          blockerCode: blocker?.code || null,
+          blockerLabel,
+        };
+      }),
+    );
+
+    phaseTransitionQueue.sort((a, b) => {
+      const score = (item) => (item.readyToAdvance ? 3 : item.readyToReleaseGrades ? 2 : 1);
+      return score(b) - score(a);
+    });
 
     const completionRate = totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
     const subStats = submissionStatsArr[0] || {
@@ -895,6 +1056,7 @@ class DashboardService {
         underReview: subStats.underReview,
         approved: subStats.approved,
       },
+      phaseTransitionQueue,
     };
   }
 
@@ -923,9 +1085,9 @@ class DashboardService {
     const projectIds = allProjects.map((p) => p._id);
 
     // Fetch relevant submissions & draft evaluations in batch
-    const [allSubmissions, draftEvaluations] = await Promise.all([
+    const [rawSubmissions, draftEvaluations] = await Promise.all([
       Submission.find({ projectId: { $in: projectIds } })
-        .select('projectId status revisionDeadline')
+        .select('projectId type chapter version status revisionDeadline submittedAt createdAt')
         .lean(),
       Evaluation.find({
         panelistId: { $in: facultyIds },
@@ -934,6 +1096,8 @@ class DashboardService {
         .select('panelistId projectId')
         .lean(),
     ]);
+
+    const allSubmissions = deduplicateLatestSubmissions(rawSubmissions);
 
     // Index submissions by projectId
     const subsByProject = new Map();
@@ -955,16 +1119,39 @@ class DashboardService {
 
     const now = new Date();
 
+    // Group faculty accounts by normalized full name to merge duplicate seed accounts
+    const facultyGroups = new Map();
+    for (const member of faculty) {
+      const displayName =
+        `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email;
+      const key = displayName.toLowerCase();
+      const existingGroup = facultyGroups.get(key);
+      if (!existingGroup) {
+        facultyGroups.set(key, {
+          displayName,
+          representative: member,
+          memberIds: new Set([member._id.toString()]),
+        });
+      } else {
+        existingGroup.memberIds.add(member._id.toString());
+        if (
+          member.email?.endsWith('@buksu.edu.ph') &&
+          !existingGroup.representative.email?.endsWith('@buksu.edu.ph')
+        ) {
+          existingGroup.representative = member;
+        }
+      }
+    }
+
     const adviserRows = [];
     const panelistRows = [];
     const facultyRows = [];
 
-    for (const member of faculty) {
-      const mId = member._id.toString();
-      const fullName = `${member.firstName} ${member.lastName}`.trim();
+    for (const { displayName, representative, memberIds } of facultyGroups.values()) {
+      const fullName = displayName;
 
       // 1. Advisory projects & metrics
-      const advProjects = allProjects.filter((p) => p.adviserId?.toString() === mId);
+      const advProjects = allProjects.filter((p) => memberIds.has(p.adviserId?.toString()));
       const advSubs = advProjects.flatMap((p) => subsByProject.get(p._id.toString()) || []);
       const advPending = advSubs.filter((s) => s.status === SUBMISSION_STATUSES.PENDING).length;
       const advRevisions = advSubs.filter(
@@ -977,9 +1164,9 @@ class DashboardService {
 
       // 2. Panelist projects & metrics
       const panProjects = allProjects.filter((p) =>
-        p.panelistIds?.some((id) => id?.toString() === mId),
+        p.panelistIds?.some((id) => memberIds.has(id?.toString())),
       );
-      const draftEvals = evalsByPanelist.get(mId) || [];
+      const draftEvals = [...memberIds].flatMap((id) => evalsByPanelist.get(id) || []);
       const panPending = draftEvals.length;
       const panScore = Number((panProjects.length * 1.5 + panPending * 2).toFixed(2));
 
@@ -991,15 +1178,15 @@ class DashboardService {
       const combinedScore = Number((advScore + panScore).toFixed(2));
 
       const baseInfo = {
-        facultyId: member._id,
+        facultyId: representative._id,
         facultyName: fullName,
-        email: member.email,
-        role: member.role,
+        email: representative.email,
+        role: representative.role,
       };
 
       const advRow = {
         ...baseInfo,
-        adviserId: member._id,
+        adviserId: representative._id,
         adviserName: fullName,
         roleType: 'adviser',
         projectCount: advProjects.length,
@@ -1011,7 +1198,7 @@ class DashboardService {
 
       const panRow = {
         ...baseInfo,
-        panelistId: member._id,
+        panelistId: representative._id,
         panelistName: fullName,
         roleType: 'panelist',
         projectCount: panProjects.length,
@@ -1023,7 +1210,7 @@ class DashboardService {
 
       const facRow = {
         ...baseInfo,
-        adviserId: member._id,
+        adviserId: representative._id,
         adviserName: fullName,
         roleType: 'committee',
         adviserProjectCount: advProjects.length,
@@ -1288,12 +1475,18 @@ class DashboardService {
       adviserProjectIds.length > 0
         ? Submission.find({
             projectId: { $in: adviserProjectIds },
-            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
             .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
+            .then((subs) =>
+              deduplicateLatestSubmissions(subs).filter(
+                (s) =>
+                  s.status === SUBMISSION_STATUSES.PENDING ||
+                  s.status === SUBMISSION_STATUSES.UNDER_REVIEW,
+              ),
+            )
         : Promise.resolve([]),
       Project.find(panelistFilter)
         .populate('teamId', 'name members')

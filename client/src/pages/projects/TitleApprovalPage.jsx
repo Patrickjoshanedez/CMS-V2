@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -583,14 +584,12 @@ export default function TitleApprovalPage() {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Title Proposals & Committee Approval
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              BukSU College of Technologies · Phase 1 Title Proposal Review
-            </p>
-          </div>
+          <PageHeader
+            eyebrow="Phase 1 Title Proposal Review"
+            icon={Award}
+            title="Title Proposals & Committee Approval"
+            description="BukSU College of Technologies · Review your submitted capstone title proposals and defense feedback."
+          />
           <EmptyProjectState team={team} />
         </div>
       </DashboardLayout>
@@ -683,44 +682,37 @@ export default function TitleApprovalPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-screen-2xl min-w-0 space-y-6 [&_button]:min-h-[45px]">
-        {/* 1. Header Ribbon */}
-        <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-xs">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-                  Phase 1 · Title review
-                </span>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="break-words text-xs font-medium text-foreground/80 [overflow-wrap:anywhere]">
-                  {cleanTeamName}
-                </span>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs text-muted-foreground">{resolvedSectionName}</span>
-                <span className="text-xs text-muted-foreground">·</span>
-                <span className="text-xs text-muted-foreground">AY {project.academicYear}</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Title proposals and approval
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-3xl leading-relaxed">
-                Review your team’s titles, committee feedback, and approval status.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center shrink-0 [&>button]:min-h-11">
+      <div className="min-w-0 space-y-6 [&_button]:min-h-[45px]">
+        <PageHeader
+          eyebrow="Phase 1 · Title review"
+          icon={Award}
+          title="Title proposals and approval"
+          description="Review your team’s titles, committee feedback, and approval status."
+          meta={
+            <>
+              <span className="break-words font-medium text-foreground [overflow-wrap:anywhere]">
+                {cleanTeamName}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>{resolvedSectionName}</span>
+              <span aria-hidden="true">·</span>
+              <span>AY {project.academicYear}</span>
+            </>
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/project?view=overview')}
                 className="gap-2 text-xs border-border/80 hover:bg-muted"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
                 Back to My Capstone
               </Button>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() =>
                   navigate(`/project/create?edit=true&projectId=${project?._id || ''}`, {
                     state: { edit: true, projectId: project?._id, project },
@@ -728,22 +720,23 @@ export default function TitleApprovalPage() {
                 }
                 className="gap-2 text-xs border-border/80"
               >
-                <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                <RefreshCw className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 Update Proposals
               </Button>
               {isApproved && (
                 <Button
+                  size="sm"
                   onClick={() => navigate('/project?tab=capstone_1')}
                   className="gap-2 shadow-sm"
                 >
-                  <Award className="h-4 w-4" />
+                  <Award className="h-4 w-4" aria-hidden="true" />
                   Proceed to Capstone 1 Workspace
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* 2. Phase 1 Title Defense Progression Stepper & Connected Progress Bar */}
         <Card className="rounded-2xl border-border/70 shadow-xs overflow-hidden">

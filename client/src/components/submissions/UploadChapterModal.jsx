@@ -266,7 +266,7 @@ export default function UploadChapterModal({
         onInteractOutside={(event) => event.preventDefault()}
       >
         {/* Header */}
-        <DialogHeader className="flex shrink-0 flex-row items-start justify-between border-b border-border/60 p-5 pb-4 text-left sm:p-6 sm:pb-4">
+        <DialogHeader className="flex shrink-0 flex-row items-start justify-between border-b border-border/60 p-4 pb-3 text-left sm:px-5 sm:py-3.5">
           <div className="flex items-center gap-3">
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${
@@ -310,7 +310,7 @@ export default function UploadChapterModal({
         {/* Scrollable Form Body */}
         <form
           onSubmit={handleSubmit}
-          className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6"
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-4 pt-3 sm:px-6 sm:pb-4"
         >
           {/* Adviser Remarks Callout (if revising and feedback is present) */}
           {isLocked && adviserFeedback && (
@@ -580,7 +580,7 @@ export default function UploadChapterModal({
               </Label>
               <Textarea
                 id="modal-remarks"
-                rows={3}
+                rows={2}
                 placeholder={
                   isLocked
                     ? 'Summarize the changes made in response to adviser comments (e.g., expanded Section 1.2, revised problem statement).'

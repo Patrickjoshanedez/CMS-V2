@@ -4,7 +4,7 @@ import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import { pdfMetadataUpload } from '../../middleware/upload.js';
-import validateFile from '../../middleware/fileValidation.js';
+import { validateMetadataFile } from '../../middleware/fileValidation.js';
 import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
@@ -31,7 +31,7 @@ router.post(
   authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER, ROLES.FACULTY),
   uploadLimiter,
   pdfMetadataUpload.single('file'),
-  validateFile,
+  validateMetadataFile,
   documentController.extractPdfMetadataHandler,
 );
 
@@ -62,7 +62,7 @@ router.post(
 
 router.get(
   '/projects/:projectId/manuscripts',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
   validate(projectIdParamSchema, 'params'),
   validate(listProjectManuscriptsQuerySchema, 'query'),
   documentController.listProjectManuscripts,
@@ -70,35 +70,35 @@ router.get(
 
 router.get(
   '/projects/:projectId/manuscripts/:documentType/open-link',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
   validate(projectDocumentTypeParamSchema, 'params'),
   documentController.getOpenLink,
 );
 
 router.post(
   '/projects/:projectId/manuscripts/:documentType/sync-permissions',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.INSTRUCTOR),
   validate(projectDocumentTypeParamSchema, 'params'),
   documentController.syncPermissions,
 );
 
 router.post(
   '/projects/:projectId/manuscripts/:documentType/submit-review',
-  authorize(ROLES.ADVISER, ROLES.INSTRUCTOR),
+  authorize(ROLES.FACULTY, ROLES.ADVISER, ROLES.INSTRUCTOR),
   validate(projectDocumentTypeParamSchema, 'params'),
   documentController.submitReview,
 );
 
 router.post(
   '/projects/:projectId/manuscripts/:documentType/sync-comments',
-  authorize(ROLES.ADVISER, ROLES.INSTRUCTOR),
+  authorize(ROLES.FACULTY, ROLES.ADVISER, ROLES.INSTRUCTOR),
   validate(projectDocumentTypeParamSchema, 'params'),
   documentController.syncComments,
 );
 
 router.get(
   '/projects/:projectId/manuscripts/:documentType/comments',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
   validate(projectDocumentTypeParamSchema, 'params'),
   documentController.getArchivedComments,
 );

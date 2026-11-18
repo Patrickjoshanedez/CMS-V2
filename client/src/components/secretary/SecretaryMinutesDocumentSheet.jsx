@@ -1867,7 +1867,7 @@ export default function SecretaryMinutesDocumentSheet({
       >
         <div
           id="secretary-minutes-paper"
-          className="secretary-sheet-paper-container max-w-4xl mx-auto space-y-10"
+          className="secretary-sheet-paper-container max-w-4xl mx-auto space-y-10 overflow-x-auto print:overflow-visible"
         >
           {minutes.pages.map((page, pageIdx) => {
             const isFirstPage = pageIdx === 0;
@@ -2204,7 +2204,7 @@ export default function SecretaryMinutesDocumentSheet({
                     {/* Table: Name of Panel | COMMENTS/SUGGESTIONS */}
                     <div
                       className={cn(
-                        'minutes-table-wrapper pt-2',
+                        'minutes-table-wrapper pt-2 overflow-x-auto print:overflow-visible',
                         isFirstPage && 'min-h-[220px]',
                         !isFirstPage && !isLastPage && 'min-h-[460px]',
                         isLastPage && 'min-h-[160px]',

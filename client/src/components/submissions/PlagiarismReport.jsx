@@ -240,37 +240,39 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
 
         {/* ── Matched sources table ── */}
         {decoratedSources.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Source #</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Match %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {decoratedSources.map((src, idx) => (
-                <TableRow key={src.sourceId || src.sourceKey || idx}>
-                  <TableCell>
-                    <span
-                      className={[
-                        'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[11px] font-semibold',
-                        src.badgeClass,
-                      ].join(' ')}
-                    >
-                      {src.sourceNumber}
-                    </span>
-                  </TableCell>
-                  <TableCell>{src.title || src.sourceId || 'Unknown'}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {typeof src.matchPercentage === 'number'
-                      ? `${src.matchPercentage.toFixed(1)}%`
-                      : '—'}
-                  </TableCell>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[400px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Source #</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Match %</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {decoratedSources.map((src, idx) => (
+                  <TableRow key={src.sourceId || src.sourceKey || idx}>
+                    <TableCell>
+                      <span
+                        className={[
+                          'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[11px] font-semibold',
+                          src.badgeClass,
+                        ].join(' ')}
+                      >
+                        {src.sourceNumber}
+                      </span>
+                    </TableCell>
+                    <TableCell>{src.title || src.sourceId || 'Unknown'}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {typeof src.matchPercentage === 'number'
+                        ? `${src.matchPercentage.toFixed(1)}%`
+                        : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

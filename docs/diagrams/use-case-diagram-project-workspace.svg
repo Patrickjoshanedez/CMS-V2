@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="940" viewBox="0 0 1400 940">
+  <defs>
+    <style>
+      text {
+        font-family: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+        fill: #111827;
+        text-anchor: middle;
+      }
+      .sys-box {
+        fill: #AFC7EB;
+        stroke: #111827;
+        stroke-width: 1.7;
+      }
+      .sys-title {
+        font-size: 19px;
+        font-weight: 700;
+        fill: #0F172A;
+      }
+      .sys-sub {
+        font-size: 12.5px;
+        font-weight: 500;
+        fill: #1E293B;
+      }
+      .uc-oval {
+        fill: #E4D7EA;
+        stroke: #111827;
+        stroke-width: 1.5;
+      }
+      .uc-text {
+        font-size: 14px;
+        font-weight: 600;
+        fill: #111827;
+      }
+      .uc-sub {
+        font-size: 11px;
+        font-weight: 500;
+        fill: #374151;
+      }
+      .actor-head {
+        fill: #DCE7F7;
+        stroke: #111827;
+        stroke-width: 1.6;
+      }
+      .actor-limb {
+        fill: none;
+        stroke: #111111;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .actor-label {
+        font-size: 15px;
+        font-weight: 700;
+        fill: #111827;
+      }
+      .actor-sub {
+        font-size: 11.5px;
+        font-weight: 500;
+        fill: #475569;
+      }
+      .assoc {
+        fill: none;
+        stroke: #111827;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .dep-line {
+        fill: none;
+        stroke: #111827;
+        stroke-width: 1.45;
+        stroke-dasharray: 6 4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .stereotype {
+        font-size: 12.5px;
+        font-weight: 600;
+        fill: #111827;
+      }
+    </style>
+
+    <!-- Open UML V-arrowhead for <<Include>> and <<Extend>> dependencies -->
+    <marker id="uml-open-arrow" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 1.5 1.5 L 10.5 6 L 1.5 10.5" fill="none" stroke="#111827" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+  </defs>
+
+  <!-- Crisp White Background -->
+  <rect x="0" y="0" width="1400" height="940" fill="#FFFFFF" />
+
+  <!-- ==================== SYSTEM BOUNDARY CONTAINER ==================== -->
+  <rect x="260" y="34" width="880" height="868" class="sys-box" />
+  <text x="700" y="64" class="sys-title">Project Workspace (BukSU CMS-V2)</text>
+  <text x="700" y="83" class="sys-sub">Capstone Management System &amp; Hybrid Plagiarism Checker</text>
+
+  <!-- ==================== LEFT ACTORS ==================== -->
+
+  <!-- Actor 1: Student (Proponent Team) -->
+  <g transform="translate(115, 248)">
+    <circle cx="0" cy="-34" r="13" class="actor-head" />
+    <line x1="0" y1="-21" x2="0" y2="10" class="actor-limb" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" class="actor-limb" />
+    <path d="M -18 32 L 0 10 L 18 32" class="actor-limb" />
+    <text x="0" y="54" class="actor-label">Student</text>
+    <text x="0" y="71" class="actor-sub">(Proponent Team)</text>
+  </g>
+
+  <!-- Actor 2: Course Instructor (Coordinator) -->
+  <g transform="translate(115, 674)">
+    <circle cx="0" cy="-34" r="13" class="actor-head" />
+    <line x1="0" y1="-21" x2="0" y2="10" class="actor-limb" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" class="actor-limb" />
+    <path d="M -18 32 L 0 10 L 18 32" class="actor-limb" />
+    <text x="0" y="54" class="actor-label">Course Instructor</text>
+    <text x="0" y="71" class="actor-sub">(Coordinator Role)</text>
+  </g>
+
+  <!-- ==================== RIGHT ACTORS (FACULTY COMMITTEE) ==================== -->
+
+  <!-- Actor 3: Faculty Adviser -->
+  <g transform="translate(1278, 408)">
+    <circle cx="0" cy="-34" r="13" class="actor-head" />
+    <line x1="0" y1="-21" x2="0" y2="10" class="actor-limb" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" class="actor-limb" />
+    <path d="M -18 32 L 0 10 L 18 32" class="actor-limb" />
+    <text x="0" y="54" class="actor-label">Faculty Adviser</text>
+    <text x="0" y="71" class="actor-sub">(Primary Mentor)</text>
+  </g>
+
+  <!-- Actor 4: Panelist & Chair -->
+  <g transform="translate(1278, 542)">
+    <circle cx="0" cy="-34" r="13" class="actor-head" />
+    <line x1="0" y1="-21" x2="0" y2="10" class="actor-limb" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" class="actor-limb" />
+    <path d="M -18 32 L 0 10 L 18 32" class="actor-limb" />
+    <text x="0" y="54" class="actor-label">Panelist &amp; Chair</text>
+    <text x="0" y="71" class="actor-sub">(Defense Committee)</text>
+  </g>
+
+  <!-- Actor 5: Committee Secretary -->
+  <g transform="translate(1278, 674)">
+    <circle cx="0" cy="-34" r="13" class="actor-head" />
+    <line x1="0" y1="-21" x2="0" y2="10" class="actor-limb" />
+    <line x1="-22" y1="-10" x2="22" y2="-10" class="actor-limb" />
+    <path d="M -18 32 L 0 10 L 18 32" class="actor-limb" />
+    <text x="0" y="54" class="actor-label">Committee Secretary</text>
+    <text x="0" y="71" class="actor-sub">(OVPAA-F-INS-032)</text>
+  </g>
+
+  <!-- ==================== ACTOR-TO-USE-CASE ASSOCIATIONS ==================== -->
+
+  <!-- Student -> Row 1, Row 2, Row 3 (Left Column) -->
+  <path d="M 164 248 L 204 248 Q 214 248 214 238 L 214 140 Q 214 130 224 130 L 305 130" class="assoc" />
+  <line x1="164" y1="248" x2="305" y2="248" class="assoc" />
+  <path d="M 164 248 L 204 248 Q 214 248 214 258 L 214 398 Q 214 408 224 408 L 305 408" class="assoc" />
+
+  <!-- Course Instructor -> Row 4, Row 5, Row 6 (Left Column) -->
+  <path d="M 164 674 L 204 674 Q 214 674 214 664 L 214 552 Q 214 542 224 542 L 305 542" class="assoc" />
+  <line x1="164" y1="674" x2="305" y2="674" class="assoc" />
+  <path d="M 164 674 L 204 674 Q 214 674 214 684 L 214 798 Q 214 808 224 808 L 305 808" class="assoc" />
+
+  <!-- Faculty Actors -> Row 3, Row 4, Row 5 (Right Column) -->
+  <line x1="1230" y1="408" x2="1090" y2="408" class="assoc" />
+  <line x1="1230" y1="542" x2="1090" y2="542" class="assoc" />
+  <line x1="1230" y1="674" x2="1090" y2="674" class="assoc" />
+
+  <!-- ==================== USE CASE OVALS (LEFT COLUMN, cx=450) ==================== -->
+
+  <!-- Row 1 Left -->
+  <ellipse cx="450" cy="130" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="126" class="uc-text">Form Team &amp; Propose Titles</text>
+  <text x="450" y="143" class="uc-sub">(Phase 0-1 • Lock &amp; 1-10 Titles)</text>
+
+  <!-- Row 2 Left -->
+  <ellipse cx="450" cy="248" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="244" class="uc-text">Submit Chapters &amp; Prototypes</text>
+  <text x="450" y="261" class="uc-sub">(DOCX/PDF • Gantt &amp; Repo)</text>
+
+  <!-- Row 3 Left -->
+  <ellipse cx="450" cy="408" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="404" class="uc-text">View Similarity, ADM &amp; Archive</text>
+  <text x="450" y="421" class="uc-sub">(Reports, Revisions &amp; Reader)</text>
+
+  <!-- Row 4 Left -->
+  <ellipse cx="450" cy="542" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="538" class="uc-text">Approve Titles &amp; Assign Committee</text>
+  <text x="450" y="555" class="uc-sub">(Enforces Role Exclusion)</text>
+
+  <!-- Row 5 Left -->
+  <ellipse cx="450" cy="674" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="670" class="uc-text">Manage Users, Schedules &amp; Rubrics</text>
+  <text x="450" y="687" class="uc-sub">(Hierarchy, Deadlines &amp; Criteria)</text>
+
+  <!-- Row 6 Left -->
+  <ellipse cx="450" cy="808" rx="145" ry="29" class="uc-oval" />
+  <text x="450" y="804" class="uc-text">Release Grades &amp; Certificates</text>
+  <text x="450" y="821" class="uc-sub">(Final Defense Gate &amp; Completion)</text>
+
+  <!-- ==================== STAGGERED EXTENSION OVAL ==================== -->
+  <!-- Mid-Upper Extension: Attach Late Justification -->
+  <ellipse cx="678" cy="326" rx="118" ry="26" class="uc-oval" />
+  <text x="678" y="323" class="uc-text">Attach Late Justification</text>
+  <text x="678" y="339" class="uc-sub">(Past-Deadline Guard)</text>
+
+  <!-- ==================== USE CASE OVALS (RIGHT COLUMN, cx=940) ==================== -->
+
+  <!-- Row 1 Right -->
+  <ellipse cx="940" cy="130" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="126" class="uc-text">Pre-Scan Title Similarity</text>
+  <text x="940" y="143" class="uc-sub">(Levenshtein &amp; Vector Match)</text>
+
+  <!-- Row 2 Right -->
+  <ellipse cx="940" cy="248" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="244" class="uc-text">Run OCR &amp; Plagiarism Scan</text>
+  <text x="940" y="261" class="uc-sub">(Winnowing, BGE-M3 &amp; PaddleOCR)</text>
+
+  <!-- Row 3 Right -->
+  <ellipse cx="940" cy="408" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="404" class="uc-text">Review Chapters &amp; Sign Tier 1 ADM</text>
+  <text x="940" y="421" class="uc-sub">(Inline Diff, Gantt &amp; Endorsement)</text>
+
+  <!-- Row 4 Right -->
+  <ellipse cx="940" cy="542" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="538" class="uc-text">Evaluate Defense &amp; Sign Tier 2 ADM</text>
+  <text x="940" y="555" class="uc-sub">(Weighted Rubrics &amp; Verdict Input)</text>
+
+  <!-- Row 5 Right -->
+  <ellipse cx="940" cy="674" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="670" class="uc-text">Record Minutes &amp; Endorse ADM Gate</text>
+  <text x="940" y="687" class="uc-sub">(Form OVPAA-F-INS-032 Lock)</text>
+
+  <!-- Row 6 Right -->
+  <ellipse cx="940" cy="808" rx="150" ry="29" class="uc-oval" />
+  <text x="940" y="804" class="uc-text">Archive &amp; Index Approved Paper</text>
+  <text x="940" y="821" class="uc-sub">(MinIO Vault &amp; ChromaDB HNSW)</text>
+
+  <!-- ==================== UML <<Include>> & <<Extend>> DEPENDENCIES ==================== -->
+
+  <!-- Row 1: Form Team & Propose Titles --<<Include>>--> Pre-Scan Title Similarity -->
+  <line x1="595" y1="130" x2="788" y2="130" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="692" y="119" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+
+  <!-- Row 2: Submit Chapters & Prototypes --<<Include>>--> Run OCR & Plagiarism Scan -->
+  <line x1="595" y1="248" x2="788" y2="248" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="692" y="237" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+
+  <!-- Extension: Attach Late Justification --<<Extend>>--> Submit Chapters & Prototypes -->
+  <path d="M 560 326 L 460 326 Q 450 326 450 316 L 450 279" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="505" y="344" class="stereotype">&lt;&lt;Extend&gt;&gt;</text>
+
+  <!-- Vertical Right: Review Chapters & Sign Tier 1 ADM --<<Include>>--> Run OCR & Plagiarism Scan -->
+  <line x1="940" y1="379" x2="940" y2="279" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="992" y="332" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+
+  <!-- Vertical Right: Evaluate Defense & Sign Tier 2 ADM --<<Include>>--> Record Minutes & Endorse ADM Gate -->
+  <line x1="940" y1="571" x2="940" y2="643" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="992" y="611" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+
+  <!-- Row 6 Left -> Row 5 Right: Release Grades & Certificates --<<Include>>--> Record Minutes & Endorse ADM Gate -->
+  <path d="M 535 785 L 535 738 Q 535 728 545 728 L 690 728 Q 700 728 700 718 L 700 684 Q 700 674 710 674 L 788 674" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="618" y="718" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+
+  <!-- Row 6 Horizontal: Release Grades & Certificates --<<Include>>--> Archive & Index Approved Paper -->
+  <line x1="595" y1="808" x2="788" y2="808" class="dep-line" marker-end="url(#uml-open-arrow)" />
+  <text x="692" y="797" class="stereotype">&lt;&lt;Include&gt;&gt;</text>
+</svg>

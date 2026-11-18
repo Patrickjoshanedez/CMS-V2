@@ -25,14 +25,29 @@ router.get('/stats', authenticate, getStats);
 /* ════════ PHASE 2: Adviser Dashboard Routes ════════ */
 
 // Adviser-only: detailed workload tracking
-router.get('/adviser/workload', authenticate, authorize(ROLES.ADVISER), getAdviserWorkload);
+router.get(
+  '/adviser/workload',
+  authenticate,
+  authorize(ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST),
+  getAdviserWorkload,
+);
 
 // Adviser-only: review analytics
-router.get('/adviser/analytics', authenticate, authorize(ROLES.ADVISER), getAdviserAnalytics);
+router.get(
+  '/adviser/analytics',
+  authenticate,
+  authorize(ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST),
+  getAdviserAnalytics,
+);
 
 /* ════════ PHASE 3: Panelist Dashboard Routes ════════ */
 
-router.get('/panelist/topics', authenticate, authorize(ROLES.PANELIST), getPanelistTopics);
+router.get(
+  '/panelist/topics',
+  authenticate,
+  authorize(ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST),
+  getPanelistTopics,
+);
 
 router.post(
   '/panelist/topics/:projectId/select',

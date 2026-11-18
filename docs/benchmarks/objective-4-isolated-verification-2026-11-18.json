@@ -1,0 +1,496 @@
+{
+  "recordedAt": "2026-11-18T00:52:17Z",
+  "title": "Objective 4 Isolated Multi-Container Verification Evidence Bundle (2026-11-18)",
+  "scope": "Isolated Docker Compose stack (-p cms_obj4_iso: mongodb, redis, smtp, ocr_engine, plagiarism_api, server, client) verifying all 24 live acceptance test cases (TC-1.1 through TC-5.4), authenticated hybrid plagiarism engine benchmark (n=48 synthetic + n=10 PAN spans), 3 live plagiarism_api outage/recovery cycles + 24+6 concurrent sustained burst, and post-edit server unit/parity verification.",
+  "environment": {
+    "composeProject": "cms_obj4_iso",
+    "composeFile": "scratch/docker-compose.obj4-iso.yml",
+    "services": [
+      "mongodb:7 (127.0.0.1:27028)",
+      "redis:7-alpine (127.0.0.1:6389)",
+      "smtp sink (127.0.0.1:11080)",
+      "ocr_engine (127.0.0.1:8010)",
+      "plagiarism_api (127.0.0.1:8011)",
+      "server (127.0.0.1:43220)",
+      "client (127.0.0.1:43221)"
+    ],
+    "embeddingModelRuntime": "all-MiniLM-L6-v2",
+    "embeddingDevice": "cpu",
+    "embeddingDimensionRuntime": 384,
+    "configuredDesignTargetModel": "BAAI/bge-m3 (1024-dim)",
+    "plagiarismEngineSettings": {
+      "kgramSize": 50,
+      "windowSize": 100,
+      "topKCandidates": 50,
+      "semanticThreshold": 0.45,
+      "hstSemanticSpanThreshold": 0.78,
+      "hstCompositeFlagThreshold": 0.75
+    }
+  },
+  "acceptanceSuite24": {
+    "sourceArtifact": "scratch/obj4_acceptance_24_results.json",
+    "recordedAt": "2026-11-18T00:36:50.359Z",
+    "totalCases": 24,
+    "passedCases": 24,
+    "failedCases": 0,
+    "uiScreenshots": [
+      "scratch/obj4_ui_screenshots/tc22_viewer_ooxml.png",
+      "scratch/obj4_ui_screenshots/tc22_viewer_diff.png",
+      "scratch/obj4_ui_screenshots/tc53_scheduling_center.png"
+    ],
+    "cases": [
+      {
+        "id": "TC-1.1",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 5774.77,
+        "summary": "Domain rejection (400), @student.buksu.edu.ph registration (201), SMTP OTP verification (200), login cookies & refresh rotation (200)"
+      },
+      {
+        "id": "TC-1.2",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 2497.25,
+        "summary": "Forgot-password OTP dispatch (200), invalid OTP rejection (400 OTP_INVALID), valid reset & login (200); >5m OTP expiry verified alongside unit suite auth.password-reset.test.js"
+      },
+      {
+        "id": "TC-1.3",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 2204.54,
+        "summary": "Team creation, 3 invite acceptances (roster=4), 5th invite rejection (400 TEAM_FULL), role assignments, roster lock (200)"
+      },
+      {
+        "id": "TC-1.4",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 787.37,
+        "summary": "Title similarity pre-check (maxSimilarity=0.96 >= 0.65 threshold), dual-proposal creation (isFlagged=true, similarityScore=96), submission & 6 instructor notifications"
+      },
+      {
+        "id": "TC-1.5",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 2993.09,
+        "summary": "Sequential chapter gate rejection (CHAPTER1_NOT_APPROVED, CAPSTONE2_NOT_COMPLETED), >25MB oversize rejection (413), valid Ch 1 upload (201)"
+      },
+      {
+        "id": "TC-1.6",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 2121.92,
+        "summary": "Past milestone deadline gates: LATE_REMARKS_REQUIRED (400), LATE_JUSTIFICATION_LETTER_REQUIRED (400), valid late upload with signed letter (201, isLate=true), closed late window rejection (400 LATE_SUBMISSION_CLOSED)"
+      },
+      {
+        "id": "TC-1.7",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 1328.47,
+        "summary": "Stale expectedUpdatedAt review conflict (409 CONCURRENT_REVIEW_CONFLICT), duplicate team project (409), concurrent Promise.all chapter uploads atomically versioned [v2, v3]"
+      },
+      {
+        "id": "TC-1.8",
+        "role": "Student",
+        "status": "PASS",
+        "durationMs": 325.66,
+        "summary": "Capstone 2-3 completion, certificate issue (200), public QR hash verification (200), post-archive mutation lock (409 PROJECT_ARCHIVED)"
+      },
+      {
+        "id": "TC-2.1",
+        "role": "Faculty (Adviser)",
+        "status": "PASS",
+        "durationMs": 703.59,
+        "summary": "Workload scoping (scopedCount=2) and unassigned Team B access/review denial (403)"
+      },
+      {
+        "id": "TC-2.2",
+        "role": "Faculty (Adviser)",
+        "status": "PASS",
+        "durationMs": 17946.69,
+        "summary": "Backend Myers revision diff (200), inline annotation create (201), live Playwright verification of SophisticatedDocumentViewer OOXML preview & Word/Sentence/Line Revision Diff UI with 0 page errors"
+      },
+      {
+        "id": "TC-2.3",
+        "role": "Faculty (Adviser)",
+        "status": "PASS",
+        "durationMs": 3558.31,
+        "summary": "Live ChromaDB corpus index + BullMQ HST scan: copied draft scored 61% (S_comp=0.6082, full coverage) -> blocked (400 PLAGIARISM_SCORE_TOO_HIGH); original draft scored 0% -> approved (200)"
+      },
+      {
+        "id": "TC-2.4",
+        "role": "Faculty (Adviser)",
+        "status": "PASS",
+        "durationMs": 744.37,
+        "summary": "Submission approval lock (locked), adviser unlock audit flow (pending), real Socket.IO notification:new push (1 event) & REST inbox verification"
+      },
+      {
+        "id": "TC-2.5",
+        "role": "Faculty (Adviser)",
+        "status": "PASS",
+        "durationMs": 1138.6,
+        "summary": "Gantt plan save & Adviser approval, 2 initialized weekly check-ins reviewed, GitHub repo + staging prototype links, system defense clearance (200)"
+      },
+      {
+        "id": "TC-3.1",
+        "role": "Faculty (Panelist)",
+        "status": "PASS",
+        "durationMs": 238.45,
+        "summary": "Assigned project & plagiarism report read (200); chapter/proposal approval boundary restricted to Adviser (403)"
+      },
+      {
+        "id": "TC-3.2",
+        "role": "Faculty (Panelist)",
+        "status": "PASS",
+        "durationMs": 1023.55,
+        "summary": "Rubric validation: incomplete submit blocked (400), score > max rejected (400), all 3 panelists scored & submitted"
+      },
+      {
+        "id": "TC-3.3",
+        "role": "Faculty (Panelist)",
+        "status": "PASS",
+        "durationMs": 303.22,
+        "summary": "Post-submit edit locked (400), Course Instructor unlock (200 -> draft) with audit notification, panelist re-submit (200)"
+      },
+      {
+        "id": "TC-3.4",
+        "role": "Faculty (Panelist)",
+        "status": "PASS",
+        "durationMs": 0.41,
+        "summary": "Phase 4 Tier 2/3 ADM signature blocked prior to Secretary endorsement (403) and completed after Secretary endorsement"
+      },
+      {
+        "id": "TC-4.1",
+        "role": "Faculty (Secretary)",
+        "status": "PASS",
+        "durationMs": 534.56,
+        "summary": "Non-secretary minute-entry write denied (403), non-secretary ADM publish denied (403), evaluation lock verified, verdict approved_with_minor_revisions recorded"
+      },
+      {
+        "id": "TC-4.2",
+        "role": "Faculty (Secretary)",
+        "status": "PASS",
+        "durationMs": 309.92,
+        "summary": "Proposal minutes published to Action Done Matrix (publishedRows=1, secretaryEndorsedReset=true)"
+      },
+      {
+        "id": "TC-4.3",
+        "role": "Faculty (Secretary)",
+        "status": "PASS",
+        "durationMs": 0.22,
+        "summary": "Premature archive blocked before Secretary endorsement (400 SECRETARY_ENDORSEMENT_REQUIRED); Secretary endorsement succeeded (200)"
+      },
+      {
+        "id": "TC-5.1",
+        "role": "Course Instructor",
+        "status": "PASS",
+        "durationMs": 536.27,
+        "summary": "Primary faculty user creation (201), profile/role update (200), deactivation (200), immediate post-deactivation token invalidation (401)"
+      },
+      {
+        "id": "TC-5.2",
+        "role": "Course Instructor",
+        "status": "PASS",
+        "durationMs": 1764.75,
+        "summary": "Committee conflict-of-interest checks (instructor-as-adviser 400, duplicate panelist 400, adviser-as-panelist 400), valid committee appointment (200), alternate proposal title approval (200)"
+      },
+      {
+        "id": "TC-5.3",
+        "role": "Course Instructor",
+        "status": "PASS",
+        "durationMs": 4557.78,
+        "summary": "System plagiarism thresholds updated (15%/25%), defenses scheduled, consolidated grades accessible after release (200), live Playwright Scheduling Center verified"
+      },
+      {
+        "id": "TC-5.4",
+        "role": "Course Instructor",
+        "status": "PASS",
+        "durationMs": 530.28,
+        "summary": "Auto-archive verified (isArchived=true, duplicate archive returns 400 ALREADY_ARCHIVED), report endpoint 114.25ms (<10,000ms SLA), archive search hit=1"
+      }
+    ]
+  },
+  "hybridPlagiarismBenchmark": {
+    "sourceArtifacts": [
+      "scratch/obj4_hybrid_benchmark_results.json",
+      "scratch/iso_eval_reports/metrics.json"
+    ],
+    "recordedAt": "2026-11-17T22:41:46Z",
+    "authNegativeChecks": {
+      "total": 4,
+      "rejectedWith401": 4,
+      "cases": ["index_no_token", "check_no_token", "check_wrong_token", "index_wrong_token"]
+    },
+    "validatorNegativeChecks": {
+      "total": 3,
+      "rejected": 3,
+      "cases": [
+        { "case": "non_empty_results_dir", "returncode": 2 },
+        { "case": "wrong_document_id", "returncode": 1 },
+        { "case": "invalid_score_string", "returncode": 1 }
+      ]
+    },
+    "panEvaluationCorpus": {
+      "evaluatedDocuments": 10,
+      "threshold": 0.25,
+      "lexicalOnly": {
+        "precision": 1.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "granularity": 1.0,
+        "plagdet": 0.0,
+        "tpChars": 0,
+        "fpChars": 0,
+        "fnChars": 5265
+      },
+      "semanticMiniLmCpu": {
+        "precision": 1.0,
+        "recall": 0.5951,
+        "f1": 0.7153,
+        "granularity": 1.0,
+        "plagdet": 0.7153,
+        "tpChars": 3188,
+        "fpChars": 0,
+        "fnChars": 2077
+      },
+      "hybridComposite": {
+        "precision": 1.0,
+        "recall": 0.5951,
+        "f1": 0.7153,
+        "granularity": 1.0,
+        "plagdet": 0.7153,
+        "tpChars": 3188,
+        "fpChars": 0,
+        "fnChars": 2077
+      }
+    },
+    "synthetic48DirectApi": {
+      "sourceCount": 8,
+      "caseCount": 48,
+      "threshold": 0.25,
+      "scoreField": "composite_score",
+      "confusionMatrix": { "tp": 32, "fp": 8, "tn": 8, "fn": 0 },
+      "precision": 0.8,
+      "recall": 1.0,
+      "specificity": 0.5,
+      "f1": 0.8889,
+      "accuracy": 0.8333,
+      "noteOnQuotedControl": "Calling FastAPI POST /check-sync directly bypasses Node server/services/plagiarism.service.js applyExclusions quote/boilerplate stripping, so all 8 quoted_control inputs matched their indexed sources (FP=8, mean composite 63.18%), whereas Node-layer applyExclusions yielded 8/8 TN in the 2026-10-27 lexical control baseline.",
+      "perCategoryAt25Percent": {
+        "verbatim": {
+          "n": 8,
+          "tp": 8,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "meanCompositePercent": 85.08,
+          "meanDensePercent": 100.0,
+          "meanSparsePercent": 100.0,
+          "meanWinnowingPercent": 70.16,
+          "oct27LexicalBaselineMeanPercent": 98.39
+        },
+        "partial_reuse": {
+          "n": 8,
+          "tp": 8,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "meanCompositePercent": 48.05,
+          "meanDensePercent": 77.22,
+          "meanSparsePercent": 85.51,
+          "meanWinnowingPercent": 15.55,
+          "oct27LexicalBaselineMeanPercent": 56.74
+        },
+        "sentence_reordering": {
+          "n": 8,
+          "tp": 8,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "meanCompositePercent": 65.08,
+          "meanDensePercent": 97.19,
+          "meanSparsePercent": 100.0,
+          "meanWinnowingPercent": 31.84,
+          "oct27LexicalBaselineMeanPercent": 84.11
+        },
+        "manual_paraphrase": {
+          "n": 8,
+          "tp": 8,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0,
+          "meanCompositePercent": 40.24,
+          "meanDensePercent": 84.27,
+          "meanSparsePercent": 74.77,
+          "meanWinnowingPercent": 0.0,
+          "oct27LexicalBaselineMeanPercent": 0.0
+        },
+        "independent_control": {
+          "n": 8,
+          "tp": 0,
+          "fp": 0,
+          "tn": 8,
+          "fn": 0,
+          "meanCompositePercent": 0.0,
+          "meanDensePercent": 0.0,
+          "meanSparsePercent": 0.0,
+          "meanWinnowingPercent": 0.0,
+          "oct27LexicalBaselineMeanPercent": 0.0
+        },
+        "quoted_control": {
+          "n": 8,
+          "tp": 0,
+          "fp": 8,
+          "tn": 0,
+          "fn": 0,
+          "meanCompositePercent": 63.18,
+          "meanDensePercent": 69.62,
+          "meanSparsePercent": 94.97,
+          "meanWinnowingPercent": 46.6,
+          "oct27LexicalBaselineMeanPercent": 0.0
+        }
+      },
+      "latencyRoundtripMs": { "min": 44.54, "median": 121.35, "mean": 120.4, "max": 200.76 },
+      "latencyEngineMs": { "min": 40.86, "median": 115.95, "mean": 115.05, "max": 192.51 }
+    }
+  },
+  "outageRecoveryAndSustainedBurst": {
+    "sourceArtifact": "scratch/obj4_recovery_results.json",
+    "recordedAt": "2026-11-18T00:42:22.976Z",
+    "completedAt": "2026-11-18T00:45:23.306Z",
+    "baseline": {
+      "scanCoverage": "full",
+      "semanticStatus": "completed",
+      "compositeScore": 0.3186
+    },
+    "cycles": [
+      {
+        "cycle": 1,
+        "outageScanCoverage": "degraded",
+        "blockedApprovalCode": "PLAGIARISM_SCAN_DEGRADED",
+        "recoveredScanCoverage": "full",
+        "recoveredCompositeScore": 0.3186,
+        "postRecoveryApprovalStatus": 200
+      },
+      {
+        "cycle": 2,
+        "outageScanCoverage": "degraded",
+        "blockedApprovalCode": "PLAGIARISM_SCAN_DEGRADED",
+        "recoveredScanCoverage": "full",
+        "recoveredCompositeScore": 0.3186,
+        "postRecoveryApprovalStatus": 200
+      },
+      {
+        "cycle": 3,
+        "outageScanCoverage": "degraded",
+        "blockedApprovalCode": "PLAGIARISM_SCAN_DEGRADED",
+        "recoveredScanCoverage": "full",
+        "recoveredCompositeScore": 0.3186,
+        "postRecoveryApprovalStatus": 200
+      }
+    ],
+    "sustainedBurst": {
+      "concurrentCheckSyncCount": 24,
+      "concurrentCheckSyncSuccesses": 24,
+      "concurrentWallMs": 16064.13,
+      "checkSyncLatencyMs": {
+        "min": 13909.56,
+        "median": 14995.42,
+        "p95": 16031.73,
+        "max": 16042.6
+      },
+      "bullmqRescansCount": 6,
+      "bullmqAllFullCoverage": true,
+      "bullmqOverallScore": 32,
+      "bullmqElapsedMs": [547.06, 889.94, 1037.32, 625.0, 954.85, 1005.43]
+    }
+  },
+  "postEditVerificationRuns": {
+    "focusedServerBatchA": {
+      "files": [
+        "server/modules/submissions/__tests__/submission.service.plagiarism.test.js",
+        "server/tests/unit/plagiarism-clearance.test.js",
+        "server/tests/unit/submission.review-flow.test.js",
+        "server/tests/unit/plagiarism.coverage.test.js",
+        "server/tests/unit/plagiarism.exclusions.test.js",
+        "server/tests/unit/plagiarism.resilience.test.js"
+      ],
+      "filesPassed": 6,
+      "testsPassed": 53,
+      "testsFailed": 0
+    },
+    "focusedServerBatchB": {
+      "files": [
+        "server/tests/unit/institutionalWorkflow.reliability.test.js",
+        "server/tests/unit/defenseMinutes.test.js",
+        "server/tests/unit/projectArchiveCertificateIndex.test.js",
+        "server/tests/unit/projectTitleFinalApprovalGate.test.js",
+        "server/tests/unit/submission.revision-diff.test.js",
+        "server/tests/unit/team.lock-formation-gate.test.js",
+        "server/tests/unit/titleSimilarity.util.test.js",
+        "server/tests/unit/plagiarism.worker-short-text.test.js",
+        "server/tests/unit/plagiarism.denoising.test.js"
+      ],
+      "filesPassed": 9,
+      "testsPassed": 41,
+      "testsFailed": 0
+    },
+    "combinedFocusedServerTests": { "filesPassed": 15, "testsPassed": 94, "testsFailed": 0 },
+    "endpointParity": { "serverEndpoints": 229, "clientEndpoints": 209, "unmatchedCount": 0 }
+  },
+  "defectsResolvedDuringLiveVerification": [
+    {
+      "id": "BUG-1",
+      "file": "server/modules/submissions/submission.validation.js",
+      "defect": "reviewSubmissionSchema stripped expectedUpdatedAt during Zod validation, bypassing optimistic concurrency checks.",
+      "fix": "Added optional/nullable expectedUpdatedAt field to reviewSubmissionSchema so stale reviews return 409 CONCURRENT_REVIEW_CONFLICT."
+    },
+    {
+      "id": "BUG-2",
+      "file": "server/jobs/plagiarism.job.js & server/modules/plagiarism/plagiarism.controller.js",
+      "defect": "Approved/indexed submissions synced only MongoDB Winnowing fingerprints and omitted ChromaDB vector indexing via authenticated syncDocumentToPlagiarismEngine.",
+      "fix": "Wired authenticated ChromaDB sync/removal into indexSubmissionInCorpus, removeSubmissionFromCorpus, and shouldIndexSubmission, and preserved positive lexical fallback scores."
+    },
+    {
+      "id": "BUG-3",
+      "file": "plagiarism_engine/plagiarism_engine/database.py & hst_pipeline.py",
+      "defect": "Compiled proposals and final manuscripts self-matched earlier chapters of the same capstone project inside ChromaDB.",
+      "fix": "Added exclude_project_id filtering in ChromaStore.query_candidates and HST pipeline execution."
+    },
+    {
+      "id": "BUG-4",
+      "file": "server/services/plagiarism.service.js, server/services/fingerprintIndex.service.js, & server/jobs/plagiarism.job.js",
+      "defect": "Node corpus queries included same-project chapters and rejected/revision-required drafts from other teams, allowing rejected plagiarized submissions to boomerang as false corpus sources.",
+      "fix": "Excluded same-projectId records and submissions in revisions_required or rejected status from corpus matching."
+    },
+    {
+      "id": "BUG-5",
+      "file": "server/modules/notifications/notification.model.js",
+      "defect": "NOTIFICATION_TYPES enum lacked 8 active notification event types (including evaluation_unlocked, committee_appointed, adm_endorsed), causing Mongoose ValidationError during evaluation unlock (TC-3.3).",
+      "fix": "Added all 8 missing enum values to NOTIFICATION_TYPES."
+    },
+    {
+      "id": "BUG-6",
+      "file": "server/modules/submissions/defenseMinutes.service.js",
+      "defect": "publishToADM mapped defense types dynamically without literal midterm/paper keys while DEFENSE_TYPES.MIDTERM='progress' and PAPER='final', misrouting Capstone 2/3 ADM rows to CAPSTONE_1 and clearing global secretary endorsement.",
+      "fix": "Added explicit midterm: 'CAPSTONE_2' and paper: 'CAPSTONE_3' mappings and scoped secretary endorsement reset per milestone."
+    },
+    {
+      "id": "BUG-7",
+      "file": "server/modules/projects/services/projectTitle.service.js",
+      "defect": "tryAutoArchiveProject -> _assertPlagiarismCleared failed with 400 PLAGIARISM_SCORE_REQUIRED because submission.plagiarismResult stores overallScore/originalityScore rather than similarityPercentage.",
+      "fix": "Normalized similarityPercentage before delegating to assertPlagiarismScanCanClear (preserving plagiarismClearance.js untouched)."
+    },
+    {
+      "id": "BUG-8",
+      "file": "server/jobs/queue.js",
+      "defect": "BullMQ retained completed/failed plagiarism jobs for 1h/24h under custom jobId plag-${submissionId}, silently deduplicating subsequent manual Archive Re-scan requests.",
+      "fix": "Updated enqueuePlagiarismJob to remove existing completed/failed jobs before queueing the new scan."
+    }
+  ],
+  "methodologicalBoundariesAndNonCertification": [
+    "Isolated multi-container verification proves functional, concurrency, RBAC, and outage/recovery behavior in cms_obj4_iso; it is an internal engineering verification and does not constitute third-party ISO/IEC 25010 or ISO/IEC/IEEE 29119-3 certification.",
+    "The live plagiarism container executed EMBEDDING_MODEL=all-MiniLM-L6-v2 (384-dim CPU runtime fallback) rather than the configured 1024-dim BAAI/bge-m3 GPU model.",
+    "Both plagiarism evaluation datasets (n=48 synthetic six-condition cases and n=10 PAN span documents) are bounded synthetic/evaluation corpora rather than an institutional census of historical student theses.",
+    "Direct calls to FastAPI POST /check-sync bypass Node's applyExclusions preprocessor and therefore flag quoted_control cases unless routed through the Node submission pipeline."
+  ]
+}

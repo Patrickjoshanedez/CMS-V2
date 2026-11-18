@@ -1,0 +1,24 @@
+# Selecting a diagram by the reader's question
+
+| Reader's question | Diagram | What to encode and verify |
+| --- | --- | --- |
+| How was the study conducted? | Methodology or study design flowchart | Show recruitment or sampling, collection, analysis, and interpretation in their actual order. Show parallel strands and where they meet in a mixed-methods study. Use future tense or a clear label for planned activities. |
+| How are the concepts related? | Conceptual framework, logic model, or causal DAG | Name constructs and label the kind of relationship. Distinguish resources, activities, outputs, and outcomes. Use directed causal edges only where the study proposes them. A causal DAG must be acyclic. |
+| Which records entered the analysis? | Participant or literature screening flow | Show counts at each stage, reasons for exclusions, duplicates, and final inclusion. Reconcile counts using the same unit at each step. Use a requested PRISMA or trial template appropriate to the study. |
+| What data can be stored? | Conceptual ERD, logical schema, physical schema, or document model | Choose the level. Read keys, nullability, uniqueness, association tables, embedded objects, and references. Derive each end's minimum and maximum from constraints. For MongoDB, distinguish embedded arrays from references and label constraints enforced only by application code. |
+| Who may do what? | UML use case | Place actors outside the system boundary and goals inside. Associate actors directly with goals. Use include for required reused behavior and extend for a conditional extension. |
+| Who acts next and what can change the outcome? | Activity diagram, swimlane, BPMN, or process flowchart | Use lanes for responsibilities, decisions with explicit outcomes, and distinct fork/join and decision/merge semantics. In BPMN use sequence flow within a pool and message flow between pools. Show a handoff, revision loop, or timeout when supported. |
+| What data crosses the boundary? | Context diagram or leveled DFD | Name processes with verbs and flows with the data carried. Route external entities and stores through processes. Match the parent process's external inputs and outputs when decomposing it. |
+| How is the system organized? | C4 context, container, component, UML package, composite structure, or component diagram | Choose one level of detail. Label external systems, responsibilities, interfaces, and dependency direction. A runtime container can be an application or data store. |
+| Where does it run and which tools implement it? | Deployment, network topology, or development stack | Map artifacts and services onto execution environments. Show protocols, queues, persistence, and trust boundaries where relevant. In a stack view group technologies by responsibility and draw only real relationships. |
+| How does one request execute? | UML sequence, communication, interaction overview, or timing diagram | Use lifelines and ordered messages for a scenario. Distinguish synchronous calls from asynchronous events. Show guards, responses, retries, or deadlines when they affect the outcome. |
+| Which states and transitions are legal? | State machine | Label transitions with triggers and guards. Trace initial and terminal states, permitted reversals, and blocked transitions. Model concurrent regions only for genuinely independent state. |
+| Which types and instances relate? | UML class, object, or profile diagram | Choose types or a concrete snapshot. Distinguish associations, composition, inheritance, and dependencies. Use stereotypes and constraints for extensions to a modeling language. |
+| How is software built, released, or maintained? | CI/CD pipeline, dependency graph, Git graph, Gantt, or architecture decision tree | Draw artifacts, dependencies, parallel jobs, milestones, decisions, and approval gates with distinct semantics. Derive order from prerequisites. |
+
+## Four small acceptance examples
+
+- **Research.** A protocol screens 100 records, removes 12 duplicates and excludes 30 of the remainder. A screening diagram should show 88 screened and 58 retained. If the source leaves a later eligibility stage open, keep that count open.
+- **Database.** A required project reference on each submission and no unique constraint permit multiple submissions for one project. A project can have zero submissions. A Mermaid ERD can express this as `PROJECT ||--o{ SUBMISSION : receives`.
+- **Workflow.** A reviewer may accept a draft or request revisions. Both outcomes leave the decision node. Revision leads to resubmission and another review. Acceptance alone reaches the approved state.
+- **Architecture.** If an API enqueues a job and a worker writes the result, show the API, queue, worker, and result store. Label enqueue, consume, and write individually. The topology must preserve the worker's responsibility for the write.

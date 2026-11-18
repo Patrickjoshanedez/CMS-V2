@@ -1073,6 +1073,13 @@ describe('CreateProjectPage', () => {
               title: 'Populated Candidate 1',
               description:
                 'Problem Statement:\nExisting gap in literature.\n\nProposed Solution:\nAutomated rubric system.',
+              pitchDeck: {
+                problemStatement: 'Existing gap in literature.',
+                proposedSolution: 'Automated rubric system.',
+                uniqueContribution: 'Unified capstone tracking workflow.',
+                targetUsers: 'IT capstone teams and faculty.',
+                expectedImpact: 'Faster thesis review turnaround.',
+              },
               capstoneType: ['Software Engineering & Web Applications'],
               sdgTags: ['SDG 4: Quality Education'],
             },

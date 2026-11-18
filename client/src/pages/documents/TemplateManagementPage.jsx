@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -37,6 +38,12 @@ const DOC_TYPE_LABELS = {
   [DOCUMENT_TYPES.PROPOSAL]: 'Full Proposal',
   [DOCUMENT_TYPES.FINAL_ACADEMIC]: 'Final (Academic)',
   [DOCUMENT_TYPES.FINAL_JOURNAL]: 'Final (Journal)',
+};
+
+const REVIEW_STATUS_LABELS = {
+  pending: 'Pending Review',
+  pending_review: 'Pending Review',
+  review_submitted: 'Review Submitted',
 };
 
 function UploadForm({ onSubmit, isLoading, canUpload }) {
@@ -164,23 +171,27 @@ function ManuscriptRow({
   const navigate = useNavigate();
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 space-y-2">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <h3 className="truncate font-semibold">{manuscript.title}</h3>
+    <Card className="min-w-0">
+      <CardContent className="min-w-0 p-4">
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex min-w-0 items-start gap-2">
+              <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <h3 className="min-w-0 flex-1 break-words font-semibold leading-snug">
+                {manuscript.title}
+              </h3>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">
                 {DOC_TYPE_LABELS[manuscript.documentType] || manuscript.documentType}
               </Badge>
-              <Badge variant="secondary">{manuscript.reviewStatus || 'pending_review'}</Badge>
+              <Badge variant="secondary">
+                {REVIEW_STATUS_LABELS[manuscript.reviewStatus] || 'Pending Review'}
+              </Badge>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -226,8 +237,22 @@ function ManuscriptRow({
   );
 }
 
+const OBJECT_ID_PATTERN = /^[a-fA-F0-9]{24}$/;
+
+/**
+ * Extract the backend API error message cleanly across `{ error: { message } }` and flat `{ message }` envelopes.
+ *
+ * @param {unknown} error
+ * @param {string} fallback
+ * @returns {string}
+ */
+export function getDocumentApiErrorMessage(error, fallback) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
 export default function TemplateManagementPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projectId, setProjectId] = useState(() => searchParams.get('projectId')?.trim() || '');
 
@@ -274,34 +299,36 @@ export default function TemplateManagementPage() {
     [user?.role],
   );
 
+  const hasValidProjectId = OBJECT_ID_PATTERN.test(projectId);
+
   const {
     data,
     isLoading,
     error: listError,
   } = useProjectManuscripts(projectId, {
-    enabled: !!projectId,
+    enabled: hasValidProjectId,
   });
 
   const uploadMutation = useUploadManuscript(projectId, {
     onSuccess: () => toast.success('Manuscript uploaded successfully.'),
     onError: (error) =>
-      toast.error(error?.response?.data?.message || 'Failed to upload manuscript.'),
+      toast.error(getDocumentApiErrorMessage(error, 'Failed to upload manuscript.')),
   });
 
   const syncPermissionsMutation = useSyncManuscriptPermissions(projectId, {
     onSuccess: () => toast.success('Permissions synchronized.'),
     onError: (error) =>
-      toast.error(error?.response?.data?.message || 'Failed to sync permissions.'),
+      toast.error(getDocumentApiErrorMessage(error, 'Failed to sync permissions.')),
   });
 
   const syncCommentsMutation = useSyncManuscriptComments(projectId, {
     onSuccess: () => toast.success('Comments synchronized.'),
-    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to sync comments.'),
+    onError: (error) => toast.error(getDocumentApiErrorMessage(error, 'Failed to sync comments.')),
   });
 
   const submitReviewMutation = useSubmitManuscriptReview(projectId, {
     onSuccess: () => toast.success('Review submitted and comments archived.'),
-    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to submit review.'),
+    onError: (error) => toast.error(getDocumentApiErrorMessage(error, 'Failed to submit review.')),
   });
 
   const manuscripts = data?.manuscripts || [];
@@ -309,13 +336,12 @@ export default function TemplateManagementPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Manuscript Review Workspace</h1>
-          <p className="text-muted-foreground">
-            Open this page from a project to auto-fill context, or enter a project ID manually to
-            upload manuscripts, open review links, and manage sync.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Cloud Documents"
+          icon={FileText}
+          title="Manuscript Review Workspace"
+          description="Open this page from a project to auto-fill context, or enter a project ID manually to upload manuscripts, open review links, and manage sync."
+        />
 
         <Card>
           <CardHeader>
@@ -325,19 +351,65 @@ export default function TemplateManagementPage() {
               and can still be edited manually.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="projectId">Project ID</Label>
-            <Input
-              id="projectId"
-              value={projectId}
-              onChange={handleProjectIdChange}
-              placeholder="Paste a project ID"
-            />
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="projectId">Project ID</Label>
+              <Input
+                id="projectId"
+                value={projectId}
+                onChange={handleProjectIdChange}
+                placeholder="Paste a project ID"
+              />
+            </div>
+            <div
+              data-testid="file-management-nav-bar"
+              className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/30 p-3"
+            >
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Tip: Open this workspace directly from your project&apos;s Submissions page to
+                auto-fill the Project ID, or use the shortcuts below to manage chapter files and
+                archive records.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    navigate(
+                      hasValidProjectId
+                        ? `/project/submissions?projectId=${projectId}`
+                        : '/project/submissions',
+                    )
+                  }
+                  className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+                >
+                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Go to Chapter Submissions</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    navigate(user?.role === ROLES.STUDENT ? '/project?tab=capstone_1' : '/projects')
+                  }
+                  className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>
+                    {user?.role === ROLES.STUDENT
+                      ? 'Go to My Capstone'
+                      : 'Browse Projects Directory'}
+                  </span>
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <UploadForm
-          canUpload={canUpload && !!projectId}
+          canUpload={canUpload && hasValidProjectId}
           onSubmit={(payload) => uploadMutation.mutate(payload)}
           isLoading={uploadMutation.isPending}
         />
@@ -351,18 +423,30 @@ export default function TemplateManagementPage() {
           </Alert>
         )}
 
-        {projectId && isLoading && <PageSkeleton variant="detail" />}
-
-        {projectId && listError && (
-          <Alert variant="destructive">
+        {projectId && !hasValidProjectId && (
+          <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {listError?.response?.data?.message || 'Failed to load manuscripts for this project.'}
+              Enter a valid 24-character project ID to load manuscripts for that project.
             </AlertDescription>
           </Alert>
         )}
 
-        {projectId && !isLoading && !listError && manuscripts.length === 0 && (
+        {hasValidProjectId && isLoading && <PageSkeleton variant="detail" />}
+
+        {hasValidProjectId && listError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {getDocumentApiErrorMessage(
+                listError,
+                'Failed to load manuscripts for this project.',
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasValidProjectId && !isLoading && !listError && manuscripts.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="mb-3 h-12 w-12 text-muted-foreground/50" />
@@ -375,7 +459,7 @@ export default function TemplateManagementPage() {
         )}
 
         {manuscripts.length > 0 && (
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             {manuscripts.map((manuscript) => (
               <ManuscriptRow
                 key={manuscript._id}

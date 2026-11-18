@@ -60,41 +60,43 @@ const VersionCompare = ({ version1, version2 }) => {
           <CardTitle className="text-base">Version metadata</CardTitle>
         </CardHeader>
         <CardContent className="min-w-0">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[30%] break-words whitespace-normal">Property</TableHead>
-                <TableHead className="w-[35%] break-words whitespace-normal">
-                  <Badge variant="outline">Version {version1.version}</Badge>
-                </TableHead>
-                <TableHead className="w-[35%] break-words whitespace-normal">
-                  <Badge variant="outline">Version {version2.version}</Badge>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {comparisonRows.map((row) => (
-                <TableRow key={row.label} data-changed={row.changed || undefined}>
-                  <TableHead
-                    scope="row"
-                    className="break-words whitespace-normal font-medium text-foreground"
-                  >
-                    {row.label}
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[480px] table-fixed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[30%] break-words whitespace-normal">Property</TableHead>
+                  <TableHead className="w-[35%] break-words whitespace-normal">
+                    <Badge variant="outline">Version {version1.version}</Badge>
                   </TableHead>
-                  <TableCell
-                    className={`break-words whitespace-normal ${row.changed ? 'bg-muted/30' : ''}`}
-                  >
-                    {row.version1}
-                  </TableCell>
-                  <TableCell
-                    className={`break-words whitespace-normal ${row.changed ? 'bg-primary/5 font-medium' : ''}`}
-                  >
-                    {row.version2}
-                  </TableCell>
+                  <TableHead className="w-[35%] break-words whitespace-normal">
+                    <Badge variant="outline">Version {version2.version}</Badge>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {comparisonRows.map((row) => (
+                  <TableRow key={row.label} data-changed={row.changed || undefined}>
+                    <TableHead
+                      scope="row"
+                      className="break-words whitespace-normal font-medium text-foreground"
+                    >
+                      {row.label}
+                    </TableHead>
+                    <TableCell
+                      className={`break-words whitespace-normal ${row.changed ? 'bg-muted/30' : ''}`}
+                    >
+                      {row.version1}
+                    </TableCell>
+                    <TableCell
+                      className={`break-words whitespace-normal ${row.changed ? 'bg-primary/5 font-medium' : ''}`}
+                    >
+                      {row.version2}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

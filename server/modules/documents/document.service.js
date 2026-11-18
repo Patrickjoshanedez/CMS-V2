@@ -74,7 +74,7 @@ class DocumentService {
     return {
       manuscripts: manuscripts.map((manuscript) => ({
         ...manuscript,
-        openLink: this._resolveOpenLink(user, manuscript),
+        openLink: this._resolveOpenLink(user, manuscript, project),
       })),
       pagination: {
         page,
@@ -93,7 +93,7 @@ class DocumentService {
     this._assertCanView(user, project);
 
     const manuscript = await this._getManuscriptOrFail(projectId, documentType);
-    const openLink = this._resolveOpenLink(user, manuscript);
+    const openLink = this._resolveOpenLink(user, manuscript, project);
     if (!openLink) {
       throw new AppError(
         'Manuscript link is not available for this document.',
@@ -215,29 +215,82 @@ class DocumentService {
       throw new AppError('Project team not found.', 404, 'TEAM_NOT_FOUND');
     }
 
+    const panelistUserIds = this._extractPanelistIds(project);
+
     const [students, adviser, panelists] = await Promise.all([
       User.find({ _id: { $in: team.members } }).select('email firstName middleName lastName'),
       project.adviserId
         ? User.findById(project.adviserId).select('email firstName middleName lastName')
         : null,
-      project.panelistIds?.length
-        ? User.find({ _id: { $in: project.panelistIds } }).select(
-            'email firstName middleName lastName',
-          )
+      panelistUserIds.length
+        ? User.find({ _id: { $in: panelistUserIds } }).select('email firstName middleName lastName')
         : [],
     ]);
 
     return { students, adviser, panelists };
   }
 
-  _resolveOpenLink(user, manuscript) {
+  /**
+   * Collect unique panelist user IDs from both legacy `panelistIds` and structured `panelists`.
+   *
+   * @param {Object} project
+   * @returns {Array} Deduplicated panelist ObjectIds/strings
+   */
+  _extractPanelistIds(project) {
+    const unique = new Map();
+    for (const id of project?.panelistIds || []) {
+      if (id) {
+        unique.set(String(id), id);
+      }
+    }
+    for (const entry of project?.panelists || []) {
+      if (entry?.userId) {
+        unique.set(String(entry.userId), entry.userId);
+      }
+    }
+    return Array.from(unique.values());
+  }
+
+  _isAssignedPanelist(userId, project) {
+    const userIdStr = String(userId);
+    const inLegacy = (project?.panelistIds || []).some(
+      (panelistId) => String(panelistId) === userIdStr,
+    );
+    if (inLegacy) {
+      return true;
+    }
+    return (project?.panelists || []).some(
+      (entry) => entry?.userId && String(entry.userId) === userIdStr,
+    );
+  }
+
+  _isAssignedSecretary(userId, project) {
+    const userIdStr = String(userId);
+    if (project?.secretaryId && String(project.secretaryId) === userIdStr) {
+      return true;
+    }
+    return (project?.panelists || []).some(
+      (entry) => entry?.userId && entry.role === 'secretary' && String(entry.userId) === userIdStr,
+    );
+  }
+
+  _resolveOpenLink(user, manuscript, project = null) {
     const link =
       manuscript.externalDocUrl || manuscript.driveEditLink || manuscript.driveWebViewLink;
     if (!link) {
       return null;
     }
 
-    if (user.role === ROLES.PANELIST) {
+    const isAssignedAdviser = project?.adviserId && String(project.adviserId) === String(user._id);
+    const isPreviewOnlyFaculty =
+      user.role === ROLES.PANELIST ||
+      (user.role === ROLES.FACULTY &&
+        project &&
+        !isAssignedAdviser &&
+        (this._isAssignedPanelist(user._id, project) ||
+          this._isAssignedSecretary(user._id, project)));
+
+    if (isPreviewOnlyFaculty) {
       return this._toGooglePreviewUrl(link);
     }
 
@@ -271,14 +324,14 @@ class DocumentService {
   _assertCanView(user, project) {
     const teamIdMatches = user.teamId && String(user.teamId) === String(project.teamId);
     const isAssignedAdviser = project.adviserId && String(project.adviserId) === String(user._id);
-    const isAssignedPanelist = (project.panelistIds || []).some(
-      (panelistId) => String(panelistId) === String(user._id),
-    );
+    const isAssignedSecretary = this._isAssignedSecretary(user._id, project);
+    const isAssignedPanelist = this._isAssignedPanelist(user._id, project);
 
     if (
       user.role === ROLES.INSTRUCTOR ||
       teamIdMatches ||
       isAssignedAdviser ||
+      isAssignedSecretary ||
       isAssignedPanelist
     ) {
       return;
@@ -330,7 +383,9 @@ class DocumentService {
   }
 
   async _getProjectOrFail(projectId) {
-    const project = await Project.findById(projectId).select('title teamId adviserId panelistIds');
+    const project = await Project.findById(projectId).select(
+      'title teamId adviserId secretaryId panelistIds panelists',
+    );
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }

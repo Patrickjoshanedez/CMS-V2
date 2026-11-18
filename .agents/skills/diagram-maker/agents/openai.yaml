@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagram Maker"
+  short_description: "Draw research, data, workflow, and software diagrams"
+  default_prompt: "Use $diagram-maker to draw an editable diagram from my source material."

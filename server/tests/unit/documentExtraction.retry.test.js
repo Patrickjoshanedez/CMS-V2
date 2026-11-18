@@ -51,7 +51,7 @@ describe('Document Extraction Worker Retry & Recovery Resilience', () => {
         userId: 'user-123',
       },
       opts: { attempts: 2 },
-      attemptsMade: 1, // First attempt failed, one more left
+      attemptsMade: 0, // BullMQ exposes zero completed attempts while attempt 1 runs
       updateProgress: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -90,7 +90,7 @@ describe('Document Extraction Worker Retry & Recovery Resilience', () => {
         userId: 'user-123',
       },
       opts: { attempts: 2 },
-      attemptsMade: 2, // Final attempt reached
+      attemptsMade: 1, // One attempt completed; this is attempt 2 of 2
       updateProgress: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -100,11 +100,15 @@ describe('Document Extraction Worker Retry & Recovery Resilience', () => {
     expect(storageService.deleteFile).toHaveBeenCalledWith('temp-extractions/test-file.pdf');
 
     // Permanent failure cached in Redis
-    expect(mockRedis.setex).toHaveBeenCalledWith(
-      'extraction:job:job-retry-2',
-      3600,
-      expect.stringContaining('"status":"failed"'),
+    const terminalCacheWrite = mockRedis.setex.mock.calls.find(
+      ([key, , value]) =>
+        key === 'extraction:job:job-retry-2' && JSON.parse(value).status === 'failed',
     );
+    expect(terminalCacheWrite).toBeDefined();
+    expect(JSON.parse(terminalCacheWrite[2])).toMatchObject({
+      status: 'failed',
+      userId: 'user-123',
+    });
 
     // Final error emitted to user
     expect(socketService.emitToUser).toHaveBeenCalledWith(
@@ -129,7 +133,7 @@ describe('Document Extraction Worker Retry & Recovery Resilience', () => {
         userId: 'user-456',
       },
       opts: { attempts: 1 },
-      attemptsMade: 1,
+      attemptsMade: 0,
       updateProgress: vi.fn().mockResolvedValue(undefined),
     };
 

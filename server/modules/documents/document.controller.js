@@ -174,17 +174,18 @@ export const getArchivedComments = catchAsync(async (req, res) => {
 
 /**
  * POST /api/documents/extract-pdf-metadata
- * Extracts title, abstract, publication year, authors, and keywords from an uploaded PDF file.
+ * Extracts title, abstract, publication year, authors, and keywords from an uploaded PDF or DOCX file.
  * Expects multipart/form-data with a single 'file' field.
  */
 export const extractPdfMetadata = catchAsync(async (req, res) => {
   if (!req.file) {
-    throw new AppError('No PDF file provided.', 400, 'MISSING_FILE');
+    throw new AppError('No document file provided.', 400, 'MISSING_FILE');
   }
 
   const effectiveMime = req.file.validatedMime || req.file.mimetype;
-  if (effectiveMime !== 'application/pdf') {
-    throw new AppError('Only PDF files are supported.', 400, 'INVALID_FILE_TYPE');
+  const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (effectiveMime !== 'application/pdf' && effectiveMime !== DOCX_MIME) {
+    throw new AppError('Only PDF and Word (.docx) files are supported.', 400, 'INVALID_FILE_TYPE');
   }
 
   const cacheKey = buildPdfCacheKey(req.file.buffer, req.file.originalname);
@@ -203,12 +204,15 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
 
   if (shouldRunAsync) {
     const jobId = `extract-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-    const tempKey = `temp-extractions/${jobId}.pdf`;
+    const tempExt = effectiveMime === DOCX_MIME ? 'docx' : 'pdf';
+    const tempKey = `temp-extractions/${jobId}.${tempExt}`;
+    let tempFileUploaded = false;
 
     try {
       await storageService.uploadFile(req.file.buffer, tempKey, effectiveMime);
+      tempFileUploaded = true;
 
-      await enqueueDocumentExtractionJob(
+      const enqueuedJobId = await enqueueDocumentExtractionJob(
         {
           storageKey: tempKey,
           originalName: req.file.originalname,
@@ -217,15 +221,28 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
         jobId,
       );
 
+      if (typeof enqueuedJobId !== 'string' || enqueuedJobId.trim().length === 0) {
+        throw new Error('Document extraction queue did not return a job ID.');
+      }
+
       return res.status(HTTP_STATUS.ACCEPTED || 202).json({
         success: true,
         status: 'queued',
-        jobId,
+        jobId: enqueuedJobId,
         message: 'Document metadata extraction job enqueued successfully.',
       });
     } catch (enqueueError) {
+      let cleanupError = null;
+      if (tempFileUploaded && typeof storageService.deleteFile === 'function') {
+        try {
+          await storageService.deleteFile(tempKey);
+        } catch (error) {
+          cleanupError = error;
+        }
+      }
+
       console.warn(
-        `[extractPdfMetadata] Async enqueue failed (${enqueueError.message}); falling back to synchronous extraction.`,
+        `[extractPdfMetadata] Async enqueue failed (${enqueueError.message})${cleanupError ? `; temporary upload cleanup failed (${cleanupError.message})` : ''}; falling back to synchronous extraction.`,
       );
     }
   }
@@ -256,6 +273,7 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
   const redis = getRedisClient();
   const requesterId = (req.user?._id || req.user?.id || '').toString();
   const isPrivileged = req.user?.role === 'instructor' || req.user?.role === 'admin';
+  let cachedNonterminal = null;
 
   if (redis) {
     try {
@@ -273,7 +291,10 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
             message: 'You do not have permission to view this extraction job.',
           });
         }
-        return res.status(HTTP_STATUS.OK).json(parsed);
+        if (parsed.status === 'completed' || parsed.status === 'failed') {
+          return res.status(HTTP_STATUS.OK).json(parsed);
+        }
+        cachedNonterminal = parsed;
       }
     } catch (err) {
       console.warn(`[getExtractionStatus] Redis lookup warning: ${err.message}`);
@@ -322,6 +343,10 @@ export const getExtractionStatus = catchAsync(async (req, res) => {
         jobId,
       });
     }
+  }
+
+  if (cachedNonterminal) {
+    return res.status(HTTP_STATUS.OK).json(cachedNonterminal);
   }
 
   throw new AppError('Extraction job not found or expired.', 404, 'EXTRACTION_JOB_NOT_FOUND');

@@ -28,13 +28,34 @@ class AuthService {
    * - Creates the user (password hashed via model pre-save hook)
    * - Generates and emails a verification OTP
    *
-   * @param {Object} data - { firstName, middleName, lastName, email, password, studentId }
+   * @param {Object} data - { firstName, middleName, lastName, email, password, studentId, role }
    * @returns {Object} { user }
    */
-  async register({ firstName, middleName, lastName, email, password, studentId }) {
-    if (process.env.NODE_ENV !== 'test' && !isBuksuStudentEmail(email)) {
+  async register({
+    firstName,
+    middleName,
+    lastName,
+    email,
+    password,
+    studentId,
+    role = 'student',
+  }) {
+    if (!['student', 'faculty'].includes(role)) {
       throw new AppError(
-        'Student registration requires a @student.buksu.edu.ph email address.',
+        'Only Student and Faculty accounts can self-register.',
+        400,
+        'INVALID_REGISTRATION_ROLE',
+      );
+    }
+    const validDomain =
+      role === 'student'
+        ? isBuksuStudentEmail(email)
+        : isBuksuInstitutionalEmail(email) && !isBuksuStudentEmail(email);
+    if (process.env.NODE_ENV !== 'test' && !validDomain) {
+      throw new AppError(
+        role === 'student'
+          ? 'Student registration requires a @student.buksu.edu.ph email address.'
+          : 'Faculty registration requires a @buksu.edu.ph email address.',
         400,
         'INVALID_EMAIL_DOMAIN',
       );
@@ -46,6 +67,13 @@ class AuthService {
     if (existingUser) {
       if (existingUser.isVerified) {
         throw new AppError('An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
+      }
+      if (existingUser.role !== role) {
+        throw new AppError(
+          'This email is already registered under a different account type.',
+          409,
+          'REGISTRATION_ROLE_MISMATCH',
+        );
       }
 
       // If user exists but is not verified, allow "re-registration"
@@ -70,7 +98,8 @@ class AuthService {
       lastName,
       email,
       password,
-      studentId: studentId ? studentId.trim() : '',
+      studentId: role === 'student' && studentId ? studentId.trim() : '',
+      role,
     });
 
     // Generate verification OTP and send via email
@@ -254,12 +283,45 @@ class AuthService {
     if (!user || !user.isActive) {
       throw new AppError('User not found or deactivated.', 401, 'USER_INVALID');
     }
+    if ((storedToken.sessionVersion ?? 0) !== (user.sessionVersion ?? 0)) {
+      throw new AppError(
+        'Your session is no longer valid. Please log in again.',
+        401,
+        'SESSION_INVALIDATED',
+      );
+    }
 
-    // Generate new tokens (rotation)
+    // Persist the successor first so a storage failure cannot consume the
+    // current token without leaving the account a usable refresh session.
     const { accessToken, refreshToken, hashedRefreshToken } = await this.#issueTokens(user);
 
-    // Revoke the old refresh token, linking to the replacement
-    await storedToken.revoke(hashedRefreshToken);
+    // Only one concurrent request can consume this parent token. A loser that
+    // observed the parent before the winner rotated it is a normal race, not a
+    // later replay, so it must not revoke the winner's new session.
+    let claimedToken;
+    try {
+      claimedToken = await RefreshToken.claimForRotation(
+        storedToken._id,
+        hashedToken,
+        hashedRefreshToken,
+      );
+    } catch (error) {
+      try {
+        await RefreshToken.deleteOne({ token: hashedRefreshToken });
+      } catch (cleanupError) {
+        error.successorCleanupError = cleanupError;
+      }
+      throw error;
+    }
+
+    if (!claimedToken) {
+      await RefreshToken.deleteOne({ token: hashedRefreshToken });
+      throw new AppError(
+        'This refresh token was already rotated by another request. Retry with the latest session.',
+        401,
+        'REFRESH_TOKEN_ROTATION_CONFLICT',
+      );
+    }
 
     return { accessToken, refreshToken };
   }
@@ -271,6 +333,9 @@ class AuthService {
    */
   async logout(userId) {
     await RefreshToken.revokeAllForUser(userId);
+    await User.findByIdAndUpdate(userId, { $inc: { sessionVersion: 1 } });
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(userId);
   }
 
   /**
@@ -299,13 +364,13 @@ class AuthService {
   async resetPassword({ email, code, newPassword }) {
     const normalizedEmail = email?.toLowerCase();
 
-    // Enforce OTP verification before allowing password reset
+    // Require the caller to prove possession of the password-reset OTP.
     const otpRecord = await OTP.findOne({
       email: normalizedEmail,
       type: 'password_reset',
     }).sort({ createdAt: -1 });
 
-    if (!otpRecord || otpRecord.expiresAt < new Date()) {
+    if (!otpRecord || otpRecord.expiresAt <= new Date()) {
       if (otpRecord && otpRecord.expiresAt < new Date()) {
         await OTP.deleteMany({ email: normalizedEmail, type: 'password_reset' });
       }
@@ -316,17 +381,16 @@ class AuthService {
       );
     }
 
-    if (code) {
-      const isCodeMatch = await otpRecord.compareCode(code);
-      if (!isCodeMatch) {
-        throw new AppError('Invalid OTP code.', 400, 'OTP_INVALID');
-      }
-    } else if (!otpRecord.isVerified) {
+    if (!otpRecord.isVerified) {
       throw new AppError(
         'Please verify your OTP before resetting the password.',
         400,
         'OTP_NOT_VERIFIED',
       );
+    }
+
+    if (typeof code !== 'string' || !(await otpRecord.compareCode(code))) {
+      throw new AppError('Invalid OTP code.', 400, 'OTP_INVALID');
     }
 
     // Find the user and update password
@@ -345,14 +409,29 @@ class AuthService {
       );
     }
 
+    // Atomically consume this verified OTP so concurrent reset requests cannot reuse it.
+    const consumedOtp = await OTP.findOneAndDelete({
+      _id: otpRecord._id,
+      email: normalizedEmail,
+      type: 'password_reset',
+      isVerified: true,
+      expiresAt: { $gt: new Date() },
+    });
+    if (!consumedOtp) {
+      throw new AppError('OTP has expired or has already been used.', 400, 'OTP_INVALID');
+    }
+
     user.password = newPassword;
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
     await user.save();
 
-    // Consume the verified password_reset OTP
+    // Remove any stale password-reset OTP records for this email.
     await OTP.deleteMany({ email: normalizedEmail, type: 'password_reset' });
 
     // Revoke all existing refresh tokens (force re-login on all devices)
     await RefreshToken.revokeAllForUser(user._id);
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(user._id);
 
     return { user };
   }
@@ -396,10 +475,13 @@ class AuthService {
     }
 
     user.password = newPassword;
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
     await user.save();
 
     // Revoke all refresh tokens (force re-login on other devices)
     await RefreshToken.revokeAllForUser(user._id);
+    const { invalidateUserSockets } = await import('../../services/socket.service.js');
+    invalidateUserSockets(user._id);
   }
 
   /**
@@ -512,6 +594,8 @@ class AuthService {
           email: String(email).toLowerCase(),
           googleId,
           authProvider: 'google',
+          role:
+            isBuksuInstitutionalEmail(email) && !isBuksuStudentEmail(email) ? 'faculty' : 'student',
           isVerified: true, // Google already verified the email
           isActive: true,
         });
@@ -549,13 +633,18 @@ class AuthService {
    * @returns {Promise<{ accessToken: string, refreshToken: string, hashedRefreshToken: string }>}
    */
   async #issueTokens(user) {
-    const tokenPayload = { userId: user._id.toString(), role: user.role };
+    const tokenPayload = {
+      userId: user._id.toString(),
+      role: user.role,
+      sessionVersion: user.sessionVersion ?? 0,
+    };
     const accessToken = generateAccessToken(tokenPayload);
     const refreshTokenString = generateRefreshTokenString();
     const hashed = hashToken(refreshTokenString);
 
     await RefreshToken.create({
       userId: user._id,
+      sessionVersion: user.sessionVersion ?? 0,
       token: hashed,
       expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
     });

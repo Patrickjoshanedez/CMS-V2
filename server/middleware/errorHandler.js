@@ -8,6 +8,8 @@
  *   "error": { "code": "...", "message": "...", "status": 400 }
  * }
  */
+import env from '../config/env.js';
+
 // eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, _next) => {
   // Default values
@@ -22,9 +24,15 @@ const errorHandler = (err, req, res, _next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       statusCode = 413;
       code = 'FILE_TOO_LARGE';
+      const isArchiveSizeRoute =
+        req.originalUrl?.includes('/projects/archive/bulk') ||
+        req.originalUrl?.includes('/documents/extract-pdf-metadata');
+      const activeLimitMb = isArchiveSizeRoute
+        ? env.MAX_ARCHIVE_UPLOAD_SIZE_MB
+        : env.MAX_UPLOAD_SIZE_MB;
       message = req.originalUrl?.includes('/api/users/me/avatar')
         ? 'File size exceeds the 5MB limit for avatars.'
-        : 'File exceeds maximum size (25MB)';
+        : `File exceeds maximum size (${activeLimitMb}MB)`;
     } else if (err.code === 'LIMIT_FILE_COUNT') {
       statusCode = 400;
       code = 'FILE_COUNT_EXCEEDED';

@@ -12,6 +12,7 @@ services:
     container_name: cms-mongodb-prod
     restart: unless-stopped
     init: true
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.5"]
     volumes:
       - mongodb_prod_data:/data/db
     healthcheck:
@@ -33,6 +34,10 @@ services:
       - redis-server
       - --appendonly
       - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
       - --requirepass
       - ${REDIS_PASSWORD:?REDIS_PASSWORD must be non-empty}
     volumes:
@@ -44,6 +49,33 @@ services:
       retries: 6
       start_period: 10s
     logging: *default-logging
+
+  cms-ocr-engine:
+    build:
+      context: ./ocr_engine
+      dockerfile: Dockerfile
+    container_name: cms-ocr-engine-prod
+    restart: unless-stopped
+    init: true
+    environment:
+      LOG_LEVEL: WARNING
+      HOST: 0.0.0.0
+      PORT: "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   server:
     build:
@@ -57,6 +89,8 @@ services:
       mongodb:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      cms-ocr-engine:
         condition: service_healthy
       plagiarism_api:
         condition: service_healthy
@@ -93,13 +127,17 @@ services:
       ALLOW_PRODUCTION_LOCALSTACK_TESTING: ${ALLOW_PRODUCTION_LOCALSTACK_TESTING:-false}
       PUBLIC_EXPOSURE_MODE: ${PUBLIC_EXPOSURE_MODE:-false}
 
-      # === Plagiarism Detection (Production Thresholds) ===
+      # === OCR & Plagiarism Detection (Production Thresholds) ===
+      OCR_ENGINE_URL: http://cms-ocr-engine:8000
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
       PLAGIARISM_WARNING_THRESHOLD: ${PLAGIARISM_WARNING_THRESHOLD:-25}
       PLAGIARISM_REJECT_THRESHOLD: ${PLAGIARISM_REJECT_THRESHOLD:-40}
       PLAGIARISM_ENGINE_TIMEOUT: ${PLAGIARISM_ENGINE_TIMEOUT:-180000}
       PLAGIARISM_POLL_INTERVAL: ${PLAGIARISM_POLL_INTERVAL:-3000}
       PLAGIARISM_POLL_MAX_ATTEMPTS: ${PLAGIARISM_POLL_MAX_ATTEMPTS:-60}
+      PLAGIARISM_EMBEDDING_MODEL: ${PLAGIARISM_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      OLLAMA_HOST: ""
+      GOTENBERG_URL: ""
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
       GOOGLE_AUTH_CLIENT_ID: ${GOOGLE_AUTH_CLIENT_ID:-}
       GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET:-}
@@ -182,97 +220,30 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  ngrok:
-    image: ngrok/ngrok:3.37.3-alpine
-    container_name: cms-ngrok-prod
-    restart: unless-stopped
-    init: true
-    env_file:
-      - .env.prod
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        test -n "$${NGROK_AUTHTOKEN}" || { echo "missing NGROK_AUTHTOKEN"; exit 1; }
-        test -n "$${NGROK_DOMAIN}" || { echo "missing NGROK_DOMAIN"; exit 1; }
-        if test -n "$${NGROK_OAUTH_PROVIDER}"; then
-          set -f
-          set -- ngrok http client:80 "--url=https://$${NGROK_DOMAIN}" "--oauth=$${NGROK_OAUTH_PROVIDER}"
-          oauth_allow_count=0
-
-          if test -n "$${NGROK_OAUTH_ALLOW_EMAILS}"; then
-            for email in $$(printf '%s' "$${NGROK_OAUTH_ALLOW_EMAILS}" | tr ',' ' '); do
-              email=$$(printf '%s' "$$email" | tr -d '[:space:]')
-              if test -n "$$email"; then
-                set -- "$$@" "--oauth-allow-email=$$email"
-                oauth_allow_count=$$((oauth_allow_count + 1))
-              fi
-            done
-          fi
-
-          if test -n "$${NGROK_OAUTH_ALLOW_DOMAINS}"; then
-            for domain in $$(printf '%s' "$${NGROK_OAUTH_ALLOW_DOMAINS}" | tr ',' ' '); do
-              domain=$$(printf '%s' "$$domain" | tr -d '[:space:]')
-              if test -n "$$domain"; then
-                set -- "$$@" "--oauth-allow-domain=$$domain"
-                oauth_allow_count=$$((oauth_allow_count + 1))
-              fi
-            done
-          fi
-
-          test "$$oauth_allow_count" -gt 0 || {
-            echo "missing NGROK_OAUTH_ALLOW_EMAILS or NGROK_OAUTH_ALLOW_DOMAINS for OAuth policy";
-            exit 1;
-          }
-
-          exec "$$@"
-        fi
-
-        if test -n "$${NGROK_BASIC_AUTH}"; then
-          set -- "$$@" "--basic-auth=$${NGROK_BASIC_AUTH}"
-        fi
-        exec ngrok http client:80 --url="https://$${NGROK_DOMAIN}" "$$@"
-    depends_on:
-      - client
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    volumes:
-      - ngrok_prod_data:/var/lib/ngrok
-    tmpfs:
-      - /tmp
-    logging: *default-logging
-
-  # === Plagiarism Detection Services (Production Configuration) ===
+  # === Plagiarism Detection Service (Production Configuration) ===
 
   plagiarism_api:
     build:
       context: ./plagiarism_engine
       dockerfile: Dockerfile
       args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
     container_name: cms-plagiarism-api-prod
     restart: unless-stopped
     init: true
-    depends_on:
-      redis:
-        condition: service_healthy
-      chromadb:
-        condition: service_healthy
+    volumes:
+      - plagiarism_chroma_prod:/app/chroma_store
+      - plagiarism_models_prod:/app/.cache/huggingface
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
+      - PLAGIARISM_ASYNC_BACKEND=inprocess
+      - EMBEDDING_MODEL=${PLAGIARISM_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - CHROMA_PERSIST_DIR=/app/chroma_store
+      - HF_HOME=/app/.cache/huggingface
+      - TORCH_HOME=/app/.cache/torch
       - ANONYMIZED_TELEMETRY=FALSE
       - LOG_LEVEL=WARNING
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
       - LOG_JSON=true
-      - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-cpu}
       - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-16}
       - OMP_NUM_THREADS=${PLAGIARISM_OMP_NUM_THREADS:-2}
       - MKL_NUM_THREADS=${PLAGIARISM_MKL_NUM_THREADS:-2}
@@ -281,11 +252,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.5'
-          memory: 1.5G
+          cpus: '2.0'
+          memory: 2G
         reservations:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 30s
@@ -294,199 +265,8 @@ services:
       start_period: 40s
     logging: *default-logging
 
-  plagiarism_worker:
-    build:
-      context: ./plagiarism_engine
-      dockerfile: Dockerfile
-      args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
-    container_name: cms-plagiarism-worker-prod
-    restart: unless-stopped
-    init: true
-    command: >
-      celery -A plagiarism_engine.tasks worker --loglevel=warning --concurrency=${PLAGIARISM_WORKER_CONCURRENCY:-2} --max-tasks-per-child=${PLAGIARISM_MAX_TASKS_PER_CHILD:-100} --prefetch-multiplier=${PLAGIARISM_PREFETCH_MULTIPLIER:-1}
-    healthcheck:
-      test: [ "CMD-SHELL", "celery -A plagiarism_engine.tasks inspect ping -d celery@$$HOSTNAME || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    depends_on:
-      redis:
-        condition: service_healthy
-      chromadb:
-        condition: service_healthy
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
-      - ANONYMIZED_TELEMETRY=FALSE
-      - LOG_LEVEL=WARNING
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
-      - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
-      - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-16}
-      - OMP_NUM_THREADS=${PLAGIARISM_OMP_NUM_THREADS:-2}
-      - MKL_NUM_THREADS=${PLAGIARISM_MKL_NUM_THREADS:-2}
-      - TORCH_NUM_THREADS=${PLAGIARISM_TORCH_NUM_THREADS:-2}
-      - CELERY_WORKER_PREFETCH_MULTIPLIER=1
-      - C_FORCE_ROOT=true
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 3G
-        reservations:
-          cpus: '1.5'
-          memory: 2G
-    logging: *default-logging
-
-  chromadb:
-    image: chromadb/chroma:0.5.3
-    container_name: cms-chromadb-prod
-    restart: unless-stopped
-    init: true
-    volumes:
-      - chromadb_prod_data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 25s
-    logging: *default-logging
-
-  # === Optional LocalStack for Production-Like Testing ===
-  # Use this when you need to test with S3 locally but exposed publicly via ngrok.
-  # Start with: docker compose -f docker-compose.prod.yml --profile localstack-testing up -d
-
-  localstack:
-    image: localstack/localstack:2.0.2
-    container_name: cms-localstack-prod
-    restart: unless-stopped
-    init: true
-    profiles:
-      - localstack-testing
-    ports:
-      - "127.0.0.1:4566:4566"
-    environment:
-      SERVICES: s3
-      DEBUG: 0
-      DATA_DIR: /var/lib/localstack/data
-      DEFAULT_REGION: ${S3_REGION:-us-east-1}
-    volumes:
-      - localstack_prod_data:/var/lib/localstack
-      - ./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
-    healthcheck:
-      test: [ "CMD", "curl", "-s", "-f", "http://localhost:4566/_localstack/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 8
-      start_period: 15s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    logging: *default-logging
-
-  # LocalStack S3 ngrok tunnel for external access (mobile apps, webhooks)
-  # Provides a public URL for S3 presigned URLs to work from external devices.
-  # Get the URL from: docker logs cms-localstack-ngrok-prod
-  localstack-ngrok:
-    image: ngrok/ngrok:latest
-    container_name: cms-localstack-ngrok-prod
-    restart: unless-stopped
-    init: true
-    profiles:
-      - localstack-testing
-    env_file:
-      - .env.prod
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        test -n "$${NGROK_AUTHTOKEN}" || { echo "missing NGROK_AUTHTOKEN"; exit 1; }
-        if test -n "$${NGROK_LOCALSTACK_DOMAIN}"; then
-          exec ngrok http --domain="$${NGROK_LOCALSTACK_DOMAIN}" localstack:4566 --log=stdout
-        fi
-        exec ngrok http localstack:4566 --log=stdout
-    depends_on:
-      localstack:
-        condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp
-    logging: *default-logging
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cms-ollama-prod
-    restart: unless-stopped
-    init: true
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        ollama serve &
-        OLLAMA_PID=$$!
-
-        echo "Waiting for Ollama API..."
-        until ollama list > /dev/null 2>&1; do
-          sleep 1
-        done
-        echo "Ollama API ready."
-
-        echo "Ensuring model: nomic-embed-text-v2-moe:latest ..."
-        ollama pull nomic-embed-text-v2-moe:latest || echo "WARN: nomic-embed pull failed (non-fatal)"
-
-        echo "Ensuring model: llama3.2:3b ..."
-        ollama pull llama3.2:3b || echo "WARN: llama3.2 pull failed (non-fatal)"
-
-        echo "All AI models ready."
-        wait $$OLLAMA_PID
-    volumes:
-      - ollama_prod_data:/root/.ollama
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 4G
-        reservations:
-          cpus: "0.5"
-          memory: 1G
-
 volumes:
   mongodb_prod_data:
   redis_prod_data:
-  chromadb_prod_data:
-  ngrok_prod_data:
-  localstack_prod_data:
-  ollama_prod_data:
+  plagiarism_chroma_prod:
+  plagiarism_models_prod:

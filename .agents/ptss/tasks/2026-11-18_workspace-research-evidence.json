@@ -1,0 +1,14 @@
+{
+  "active_scenario_id": "2026-11-18_workspace-research-evidence",
+  "completed_subgoals": [
+    "Search local evidence",
+    "Verify raw counts and scope",
+    "Restore scoped completed technical findings",
+    "Archive claim ledger",
+    "Finalize page references and document verification"
+  ],
+  "remaining_subgoals": [],
+  "last_action_result": "210-page export;229 mapped index references;native readback zero mismatches;144 image objects preserved;34/34 evidence checks",
+  "progress_delta": 1,
+  "loop_count": 0
+}

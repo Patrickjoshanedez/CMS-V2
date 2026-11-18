@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { ROLES, TITLE_STATUSES } from '@cms/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader, FilterToolbar } from '@/components/common';
 import { cn } from '@/lib/utils';
 
 /**
@@ -275,97 +276,98 @@ export default function ProjectsPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-w-0 space-y-6 lg:space-y-8 max-w-7xl mx-auto">
-        {/* ========================================================= */}
-        {/* 1. INSTITUTIONAL HEADER & TITLE BAR                       */}
-        {/* ========================================================= */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-xs">
-              <ClipboardCheck className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                  {pageTitle}
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                Review assigned proposals, manuscripts, and defense progress.
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Refresh & Cohort Count */}
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs font-mono text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border/50">
-              <strong className="text-foreground">{metricCounts.total}</strong> active project
-              {metricCounts.total !== 1 ? 's' : ''}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              className="min-h-[44px] text-sm gap-1.5 sm:min-h-0"
-              title="Refresh project listings"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Refresh</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* ========================================================= */}
-        {/* 2. EXECUTIVE KPI METRIC OVERVIEW STRIP (DECLARATIVE)      */}
-        {/* ========================================================= */}
-        {/* ========================================================= */}
-        {/* 3. PRIMARY TASK CATEGORY QUEUE FILTER TABS                */}
-        {/* ========================================================= */}
-        <div
-          role="group"
-          aria-label="Review queue"
-          className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 p-1.5 bg-muted/50 rounded-xl border border-border/60"
-        >
-          {TASK_CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
-            return (
+      <div className="min-w-0 space-y-6">
+        <PageHeader
+          eyebrow="Review Workspace"
+          icon={ClipboardCheck}
+          title={pageTitle}
+          description="Review assigned proposals, manuscripts, and defense progress."
+          actions={
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium tabular-nums">
+                {metricCounts.total} active project{metricCounts.total !== 1 ? 's' : ''}
+              </Badge>
               <Button
-                key={cat.id}
-                type="button"
-                variant={isActive ? 'secondary' : 'ghost'}
+                variant="outline"
                 size="sm"
-                onClick={() => handleSelectCategory(cat.id)}
-                aria-pressed={isActive}
-                className={cn(
-                  'min-h-[44px] sm:min-h-9 min-w-0 justify-start whitespace-normal text-left items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium cursor-pointer select-none',
-                  isActive
-                    ? 'bg-background text-foreground shadow-xs border border-border/80'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
-                )}
-                title={cat.description}
+                onClick={() => refetch()}
+                className="min-h-10 gap-1.5 sm:min-h-9"
+                title="Refresh project listings"
               >
-                <Icon className={cn('h-3.5 w-3.5 shrink-0', cat.iconClass)} />
-                <span>{cat.label}</span>
-                {cat.id === 'action_needed' && metricCounts.actionNeeded > 0 && (
-                  <Badge
-                    variant={cat.badgeVariant}
-                    className="rounded-full px-1.5 py-0 text-[10px] font-bold"
-                  >
-                    {metricCounts.actionNeeded}
-                  </Badge>
-                )}
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Refresh</span>
               </Button>
-            );
-          })}
-        </div>
+            </div>
+          }
+        />
 
-        {/* ========================================================= */}
-        {/* 4. SECONDARY SEARCH, STATUS, AND COHORT CONTROLS          */}
-        {/* ========================================================= */}
-        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+        <FilterToolbar
+          top={
+            <div
+              role="group"
+              aria-label="Review queue"
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              {TASK_CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const isActive = activeCategory === cat.id;
+                return (
+                  <Button
+                    key={cat.id}
+                    type="button"
+                    variant={isActive ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handleSelectCategory(cat.id)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      'min-h-10 sm:min-h-8 gap-1.5 px-3 text-xs sm:text-sm font-medium',
+                      isActive ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                    title={cat.description}
+                  >
+                    <Icon className={cn('h-3.5 w-3.5 shrink-0', cat.iconClass)} />
+                    <span>{cat.label}</span>
+                    {cat.id === 'action_needed' && metricCounts.actionNeeded > 0 && (
+                      <Badge
+                        variant={cat.badgeVariant}
+                        className="rounded-full px-1.5 py-0 text-[10px] font-bold"
+                      >
+                        {metricCounts.actionNeeded}
+                      </Badge>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          }
+          footer={
+            <>
+              <span>
+                Showing <strong className="text-foreground">{projects.length}</strong> of{' '}
+                <strong className="text-foreground">{pagination.total || projects.length}</strong>{' '}
+                projects
+                {activeCategory !== 'all' && (
+                  <span className="ml-1 text-primary">
+                    in {TASK_CATEGORIES.find((c) => c.id === activeCategory)?.label}
+                  </span>
+                )}
+              </span>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={handleResetFilters}
+                  className="h-auto p-0 text-xs"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </>
+          }
+        >
           {/* Search Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by team name, title, or keywords…"
@@ -375,7 +377,7 @@ export default function ProjectsPage() {
                 setPage(1);
               }}
               aria-label="Search projects"
-              className="pl-9 pr-11 min-h-[44px] text-base sm:min-h-0 sm:text-sm bg-card border-border/70"
+              className="pl-9 pr-11 min-h-10 text-sm sm:min-h-9"
             />
             {search && (
               <Button
@@ -386,7 +388,7 @@ export default function ProjectsPage() {
                   setSearch('');
                   setPage(1);
                 }}
-                className="absolute right-1 top-1/2 min-h-[44px] min-w-[44px] -translate-y-1/2 text-muted-foreground hover:text-foreground sm:min-h-9 sm:min-w-9"
+                className="absolute right-1 top-1/2 min-h-9 min-w-9 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 title="Clear search"
                 aria-label="Clear project search"
               >
@@ -395,8 +397,8 @@ export default function ProjectsPage() {
             )}
           </div>
 
-          {/* Status Quick Filter */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Status & Cohort Filters */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <Select
               value={titleStatus || 'all'}
               onValueChange={(value) => {
@@ -406,7 +408,7 @@ export default function ProjectsPage() {
             >
               <SelectTrigger
                 aria-label="Title status"
-                className="min-h-[44px] w-full sm:w-auto sm:min-h-9"
+                className="min-h-10 w-full sm:w-auto sm:min-h-9"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -419,7 +421,6 @@ export default function ProjectsPage() {
               </SelectContent>
             </Select>
 
-            {/* Academic Year Cohort Filter (if multiple available) */}
             {availableAcademicYears.length > 1 && (
               <Select
                 value={academicYear || 'all'}
@@ -430,7 +431,7 @@ export default function ProjectsPage() {
               >
                 <SelectTrigger
                   aria-label="Academic year"
-                  className="min-h-[44px] w-full font-mono sm:w-auto sm:min-h-9"
+                  className="min-h-10 w-full sm:w-auto sm:min-h-9 tabular-nums"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -445,13 +446,12 @@ export default function ProjectsPage() {
               </Select>
             )}
 
-            {/* Reset Filter Button */}
             {hasActiveFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="min-h-[44px] px-3 text-sm text-muted-foreground hover:text-foreground gap-1 sm:min-h-0"
+                className="min-h-10 px-3 text-xs text-muted-foreground hover:text-foreground gap-1 sm:min-h-9"
                 title="Reset all search and category filters"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -459,32 +459,7 @@ export default function ProjectsPage() {
               </Button>
             )}
           </div>
-        </div>
-
-        {/* Results Counter Summary */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground px-1">
-          <span>
-            Showing <strong className="text-foreground">{projects.length}</strong> of{' '}
-            <strong className="text-foreground">{pagination.total || projects.length}</strong>{' '}
-            projects
-            {activeCategory !== 'all' && (
-              <span className="ml-1 text-primary">
-                in {TASK_CATEGORIES.find((c) => c.id === activeCategory)?.label}
-              </span>
-            )}
-          </span>
-          {hasActiveFilters && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              onClick={handleResetFilters}
-              className="min-h-[44px] px-2 text-sm sm:min-h-0"
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
+        </FilterToolbar>
 
         {/* Error Alert */}
         {error && (

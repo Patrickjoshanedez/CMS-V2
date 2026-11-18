@@ -1,27 +1,39 @@
-## 2026-09-28T06:14:07Z
+# DISPATCH — survey_explorer_2
 
-You are survey_explorer_2.
-Your working directory is: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\survey_explorer_2
-Your parent is: orchestrator_1 (Conversation ID: 1714716d-2fa0-43f0-bb45-4ec063aeb453)
-Original user request file: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md
+## Mission: Capstone Lifecycle & Role Workflow Integrity Scope Survey (R2)
 
-MANDATORY FIRST STEP: Read ORIGINAL_REQUEST.md (specifically the section under timestamp ## 2026-09-28T06:10:21Z).
+- **Role**: Capstone Workflow Integrity Explorer (`teamwork_explorer`)
+- **Parent Conversation ID**: ed92d340-7260-43d5-8952-0ac19a527b4f
+- **State Folder**: c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_2\
+- **Working Directory**: c:\Users\patri\dev\CMS-V2
+- **Original Request File**: c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md
+- **Reference Skills**:
+  - `c:\Users\patri\dev\CMS-V2\.agents\skills\capstone-lifecycle-orchestrator\SKILL.md`
 
-Your objective is to conduct a technical survey and exploration of Phase 3 and Phase 4:
-1. Phase 3: Accessible Semantics & Administrative Route Hardening
-   - Inspect `TeamCommitteeAssignmentsView.jsx` (find exact path in `client/src/`) for accordion triggers and icon-only controls. Identify missing `aria-label` and `aria-expanded` attributes.
-   - Locate the instructor workload balancing optimizer component/hook/service (search for "workload" or "optimizer" in client components/pages). Inspect asynchronous state handling, and locate where `aria-busy` and `role="status"` live region announcements are needed.
-   - Inspect `client/src/App.jsx` for route declarations. Identify where client-side redirects for `/committee` -> `/committee-assignments` and `/scheduling` -> `/scheduling-center` should be installed.
-2. Phase 4: Institutional Typography & Anti-Patterns De-Slop Pass
-   - Inspect `BukSULoginSidePanel.jsx` and `LandingPage.jsx` for multi-stop gradient headings and metric fills (`bg-gradient-to-... text-transparent bg-clip-text`). List exact lines and recommend institutional BukSU color tokens.
-   - Inspect `ProjectCohortCard.jsx` and `DefenseSchedulingPage.jsx` for asymmetric `border-l-4` card accents. Map out how to replace them with balanced, accessible status badges or indicator pills.
-   - Inspect `LoginPage.jsx` for Google Identity Services OAuth component initialization and options to enforce `hl="en"`.
+## Instructions:
+1. Read `c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md`, `AGENTS.md`, `GEMINI.md`, and the reference skill.
+2. Trace the entire capstone lifecycle across all 5 canonical phases:
+   - Phase 0: Registration, Team Scaffolding, Roster Locking, Committee Appointment.
+   - Phase 1: Topic Proposals (1..10), Cosine Similarity Pre-scan, Hearing Rubrics, Instructor Approval.
+   - Phase 2: Capstone 1 (Chapters 1-3), Plagiarism Clearance, Adviser Endorsement, Scheduled Defense, Secretary Minutes, ADM v1, Panel Evaluation, Instructor Grade Release.
+   - Phase 3: Capstone 2 (Interactive Gantt Schedule, Weekly Progress, Late Justification Gating, GitHub/Media Evidence, Prototype Clearance, Progress Defense, ADM v2).
+   - Phase 4: Capstone 3 (Chapters 4-5 Compilation, Deep Vector Plagiarism, Final Defense, Secretary Compliance Verification Gate, Multi-Tier ADM v3 Sign-off, Approval Sheet Generation, Archival Indexing, Certificate Issuance).
+3. Verify role separation, permissions, and institutional rules:
+   - Student, Instructor, and Faculty appointments (Adviser, Panelist, Secretary, Chair).
+   - Course Instructor committee exclusion (Instructors cannot be Adviser, Secretary, or Panelists).
+   - Committee composition (1 Adviser, 1 Secretary, 3 Panelists with Panelist 1 as Chair).
+   - Secretary Defense Workflow & ADM Compliance Gate (`project.admSignatures.secretary.endorsed === true` before Tier 1-3 signatures unlock).
+4. Inspect client pages/routes (`client/src/pages/`, `client/src/components/`, `client/src/hooks/`, `client/src/services/`) and backend services/routes (`server/routes/`, `server/services/`, `server/controllers/`, `server/models/`).
+5. Identify any broken workflows, missing UI handlers, outdated business logic, unhandled API states, or bugs that could block real-world execution across any role.
+6. Compile your findings into `.agents/teamwork/survey_explorer_2/survey_report.md` with:
+   - Comprehensive inventory of all workflow steps across each role.
+   - Exact gap analysis (what is working, what has bugs/gaps, what needs revision).
+   - Concrete file paths, line ranges, and actionable fix recommendations.
+7. Deliver a self-contained `handoff.md` and notify the parent orchestrator via `send_message`.
 
-Deliver your survey findings in:
-`c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\.agents\teamwork\survey_explorer_2\handoff.md`
-Include:
-- Exact file paths and line numbers
-- Current code snippets and structural context
-- Recommended surgical changes and token replacements
-- Existing test suites touching these files
-When done, notify orchestrator_1 via `send_message`.
+
+## 2026-11-13T17:27:59Z
+You are survey_explorer_2. Read your instructions in c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_2\DISPATCH.md and c:\Users\patri\dev\CMS-V2\.agents\teamwork\ORIGINAL_REQUEST.md.
+Conduct an exhaustive survey of the Capstone Lifecycle & Role Workflow Integrity across all phases (0 to 4) and all roles (Student, Instructor, and Faculty appointments: Adviser, Panelist, Secretary, Chair).
+Write your comprehensive findings to c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_2\survey_report.md and your handoff to c:\Users\patri\dev\CMS-V2\.agents\teamwork\survey_explorer_2\handoff.md.
+When finished, notify your parent orchestrator via send_message with the path to your handoff report.

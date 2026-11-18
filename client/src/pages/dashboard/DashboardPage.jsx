@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Progress } from '@/components/ui/Progress';
 import { Spinner } from '@/components/ui/Spinner';
+import { PageHeader, MetricGrid, StatCard } from '@/components/common';
 
 const FacultyDashboardV2 = lazy(() => import('@/components/dashboards/FacultyDashboard'));
 const InstructorDashboardV2 = lazy(() => import('@/components/dashboards/InstructorDashboard'));
@@ -15,6 +16,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Bell,
+  BookOpen,
   CheckCircle2,
   Clock3,
   FileText,
@@ -22,11 +24,11 @@ import {
   Rocket,
   ShieldCheck,
   Sparkles,
+  Upload,
   UserCheck,
   UsersRound,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
-import { toast } from 'sonner';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import DefenseScheduleCalendar from '@/components/calendar/DefenseScheduleCalendar';
 
@@ -163,32 +165,17 @@ function StudentDashboard({ user }) {
     return events;
   }, [project]);
 
-  useEffect(() => {
-    if (user.role === ROLES.STUDENT && (!user.sectionId || !user.instructorId)) {
-      toast.info('Complete your profile', {
-        description: 'Please set your section and instructor to get started.',
-        action: { label: 'Go to Profile', onClick: () => navigate('/profile') },
-        duration: 8000,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
-    <div className="space-y-6 lg:space-y-8">
-      {/* Linear-Grade Command Header */}
-      <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 shadow-xs">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {team
-                ? 'Your team and current capstone status.'
-                : 'Complete your profile and form a capstone team to get started.'}
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Student Workspace"
+        title={`Welcome back, ${user.firstName}!`}
+        description={
+          team
+            ? 'Your team, chapter progress, and upcoming capstone milestones.'
+            : 'Complete your profile and form a capstone team to get started.'
+        }
+        actions={
           <div className="flex flex-wrap items-center gap-2">
             {!team && (
               <Badge variant="outline" className="gap-1.5 border-primary/30 text-primary">
@@ -205,8 +192,36 @@ function StudentDashboard({ user }) {
               </Badge>
             )}
           </div>
+        }
+      />
+
+      {user.role === ROLES.STUDENT && (!user.sectionId || !user.instructorId) && (
+        <div
+          role="status"
+          data-testid="student-profile-incomplete-banner"
+          className="flex flex-col gap-3 rounded-xl border border-info/35 bg-info/10 px-4 py-3 text-info-foreground shadow-2xs sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider">
+              Academic Profile Setup Needed
+            </p>
+            <p className="text-xs opacity-90 mt-0.5 leading-relaxed">
+              Please set your academic Section and Course Instructor in your profile to complete
+              Phase 0 setup cleanly.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => navigate('/profile')}
+            className="min-h-11 sm:min-h-9 shrink-0 gap-1.5 border-info/40 bg-background/80 text-xs font-semibold hover:bg-background"
+          >
+            <span>Complete Profile</span>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
         </div>
-      </div>
+      )}
 
       {isLoading && (
         <Card className="rounded-xl border-border/60">
@@ -427,144 +442,158 @@ function StudentDashboard({ user }) {
 
       {!isLoading && team && (
         <>
-          <div className="grid w-full gap-4 sm:grid-cols-2">
-            <DashboardCard
+          <MetricGrid cols={4}>
+            <StatCard
               icon={UsersRound}
-              title="Team Members"
-              metric={team?.memberCount ?? team?.members?.length ?? 0}
-              description={team.name}
-              accent="text-info-foreground"
+              label="Team Members"
+              value={team?.memberCount ?? team?.members?.length ?? 0}
+              hint={team.name}
+              tone="primary"
             />
-            <Card className="rounded-xl border border-border/60 bg-card p-5 shadow-xs transition-colors hover:border-border">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-success">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Progress
-                  </span>
-                </div>
-                <Badge variant="success" className="text-[10px] font-semibold">
-                  {completedChapters}/5 Approved
-                </Badge>
-              </div>
-              <div>
-                <div className="flex items-baseline justify-between">
-                  <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                    {completionPercent}%
-                  </p>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {completedChapters}/{derivedChapterProgress.length || 5} chapters approved
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 gap-1.5 pt-3">
-                  {[1, 2, 3, 4, 5].map((ch) => {
-                    const chapterInfo = derivedChapterProgress.find((c) => c.chapter === ch);
-                    const isApproved = isChapterApprovedLike(chapterInfo?.status);
-                    const isInProgress = [
-                      'pending',
-                      'under_review',
-                      'revisions_required',
-                      'ready_to_upload',
-                    ].includes(chapterInfo?.status);
-                    return (
-                      <div
-                        key={ch}
-                        className={`h-2 rounded-full transition-all ${
-                          isApproved ? 'bg-success' : isInProgress ? 'bg-warning/80' : 'bg-muted/70'
-                        }`}
-                        title={`Chapter ${ch}: ${formatChapterStatus(chapterInfo?.status || 'not_started')}`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
+            <StatCard
+              icon={CheckCircle2}
+              label="Manuscript Progress"
+              value={`${completionPercent}%`}
+              hint={`${completedChapters}/5 chapters approved`}
+              tone={completedChapters >= 5 ? 'success' : 'primary'}
+            />
+            <StatCard
+              icon={Clock3}
+              label="Chapters In Review"
+              value={chaptersInReview}
+              hint={chaptersInReview > 0 ? 'Awaiting adviser feedback' : 'Queue clear'}
+              tone={chaptersInReview > 0 ? 'warning' : 'success'}
+            />
+            <StatCard
+              icon={ShieldCheck}
+              label="Team Readiness"
+              value={team?.isLocked ? 'Ready' : 'Still forming'}
+              hint={user.sectionId && user.instructorId ? 'Profile linked' : 'Profile incomplete'}
+              tone={team?.isLocked ? 'success' : 'default'}
+            />
+          </MetricGrid>
+
+          <div
+            data-testid="student-role-quick-actions"
+            className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xs"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Quick Role Shortcuts
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Jump straight to your capstone directions, chapter uploads, cloud sync, or
+                similarity check.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() =>
+                  navigate(
+                    project?.titleStatus === 'approved'
+                      ? '/project?tab=capstone_1'
+                      : '/project/approval',
+                  )
+                }
+                className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+              >
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>My Capstone &amp; Directions</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/project/submissions')}
+                className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+              >
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Upload &amp; Manage Submissions</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    project?._id
+                      ? `/documents/manuscripts?projectId=${project._id}`
+                      : '/documents/manuscripts',
+                  )
+                }
+                className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Cloud Manuscript Sync</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/plagiarism-checker')}
+                className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Plagiarism &amp; Archive Search</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
-            {/* Left Column: Team Highlights & Important Information (7 cols) */}
-            <div className="order-2 min-w-0 xl:order-1 xl:col-span-7 space-y-6 lg:space-y-8">
-              {/* Team Highlights */}
-              <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
-                <CardHeader className="border-b border-border/60 bg-muted/20 px-4 sm:px-6 py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Team Highlights & Announcements (7 cols) */}
+            <div className="order-2 min-w-0 xl:order-1 xl:col-span-7 space-y-6">
+              {/* Team Roster & Status */}
+              <Card>
+                <CardHeader className="border-b border-border/60 px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info-foreground">
-                        <FolderKanban className="h-4 w-4" />
-                      </div>
+                      <FolderKanban className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <CardTitle className="text-base font-bold text-foreground">
+                        <CardTitle className="text-base font-semibold text-foreground">
                           Team Highlights
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          Key details about your group and collaboration readiness.
+                          {team.name} &bull; {team?.memberCount ?? team?.members?.length ?? 0}{' '}
+                          members enrolled
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant={team.isLocked ? 'warning' : 'success'}>
+                    <Badge variant={team.isLocked ? 'success' : 'warning'}>
                       {team.isLocked ? 'Locked Team' : 'Open Team'}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-4 sm:p-6 space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 p-3.5">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Current Team
-                      </p>
-                      <p className="text-base font-bold text-foreground mt-0.5">{team.name}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs font-medium">
-                      {team?.memberCount ?? team?.members?.length ?? 0} Members Enrolled
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Team Members
-                      </p>
-                      <span className="text-[11px] text-muted-foreground font-medium">
-                        Standardized Capstone Roles
-                      </span>
-                    </div>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      {team.members?.map((member) => {
-                        const memberId = String(member._id || member.id || '');
-                        const assignedRole =
-                          project?.memberRoleAssignments?.find(
-                            (ra) => String(ra.userId?._id || ra.userId) === memberId,
-                          )?.professionalTitle || 'Team Member';
-                        return (
-                          <div
-                            key={member._id}
-                            className="flex flex-col justify-between gap-1.5 rounded-lg border border-border/60 bg-background/50 p-3 shadow-2xs transition-colors hover:border-primary/40"
-                          >
-                            <span className="text-sm font-semibold text-foreground truncate">
-                              {member.firstName} {member.lastName}
-                            </span>
-                            <span className="inline-flex w-fit items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                              {assignedRole}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-border/70">
+                    {team.members?.map((member) => {
+                      const memberId = String(member._id || member.id || '');
+                      const assignedRole =
+                        project?.memberRoleAssignments?.find(
+                          (ra) => String(ra.userId?._id || ra.userId) === memberId,
+                        )?.professionalTitle || 'Team Member';
+                      return (
+                        <div
+                          key={member._id}
+                          className="flex items-center justify-between gap-3 px-5 py-3"
+                        >
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {member.firstName} {member.lastName}
+                          </span>
+                          <Badge variant="outline" className="shrink-0 text-[11px] font-medium">
+                            {assignedRole}
+                          </Badge>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Important Information */}
-              <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
-                <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
+              {/* Recent Updates */}
+              <Card>
+                <CardHeader className="border-b border-border/60 px-5 py-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning-foreground">
-                      <Bell className="h-4 w-4" />
-                    </div>
+                    <Bell className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <CardTitle className="text-base font-bold text-foreground">
+                      <CardTitle className="text-base font-semibold text-foreground">
                         Important Information
                       </CardTitle>
                       <CardDescription className="text-xs">
@@ -573,33 +602,12 @@ function StudentDashboard({ user }) {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <StatusPill
-                      label="Chapters In Review"
-                      value={chaptersInReview}
-                      variant={chaptersInReview > 0 ? 'warning' : 'success'}
-                    />
-                    <StatusPill
-                      label="Profile Setup"
-                      value={user.sectionId && user.instructorId ? 'Complete' : 'Needs action'}
-                      variant={user.sectionId && user.instructorId ? 'success' : 'destructive'}
-                    />
-                    <StatusPill
-                      label="Team Readiness"
-                      value={team?.isLocked ? 'Ready' : 'Still forming'}
-                      variant={team?.isLocked ? 'success' : 'outline'}
-                    />
-                  </div>
-
+                <CardContent className="p-0">
                   {recentNotifications.length > 0 ? (
-                    <div className="space-y-2 pt-1">
+                    <div className="divide-y divide-border/70">
                       {recentNotifications.map((note) => (
-                        <div
-                          key={note._id}
-                          className="rounded-lg border border-border/60 bg-background/50 p-3 shadow-2xs"
-                        >
-                          <p className="text-sm font-semibold text-foreground">
+                        <div key={note._id} className="px-5 py-3.5">
+                          <p className="text-sm font-medium text-foreground">
                             {note.title || 'Notification'}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
@@ -609,7 +617,7 @@ function StudentDashboard({ user }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground pt-1">
+                    <p className="px-5 py-6 text-xs text-muted-foreground">
                       No recent notifications yet.
                     </p>
                   )}
@@ -618,29 +626,35 @@ function StudentDashboard({ user }) {
             </div>
 
             {/* Right Column: Project Status & Defense Calendar (5 cols) */}
-            <div className="order-1 min-w-0 xl:order-2 xl:col-span-5 space-y-6 lg:space-y-8">
+            <div className="order-1 min-w-0 xl:order-2 xl:col-span-5 space-y-6">
               {/* Project Status */}
-              <Card className="rounded-xl border border-border/60 bg-card shadow-xs">
-                <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <Clock3 className="h-4 w-4" />
+              <Card>
+                <CardHeader className="border-b border-border/60 px-5 py-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <Clock3 className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <CardTitle className="text-base font-semibold text-foreground">
+                          Project Status
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Live snapshot of your capstone project and chapter pipeline.
+                        </CardDescription>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-base font-bold text-foreground">
-                        Project Status
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Live snapshot of your capstone project and chapter pipeline.
-                      </CardDescription>
-                    </div>
+                    <Badge
+                      variant={completedChapters >= 5 ? 'success' : 'outline'}
+                      className="shrink-0 text-[10px] font-medium tabular-nums"
+                    >
+                      {completedChapters}/5 Approved
+                    </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-5 space-y-4">
                   {project ? (
                     <>
-                      <div className="space-y-1 rounded-lg border border-border/60 bg-muted/20 p-3.5">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                           Project Title
                         </p>
                         <p className="line-clamp-2 text-sm font-semibold text-foreground">
@@ -652,29 +666,29 @@ function StudentDashboard({ user }) {
                           <span className="text-muted-foreground font-medium">
                             Completion Progress
                           </span>
-                          <span className="font-mono font-bold text-foreground tabular-nums">
+                          <span className="font-semibold text-foreground tabular-nums">
                             {completionPercent}%
                           </span>
                         </div>
                         <Progress
                           value={completionPercent}
                           aria-label={`Completion progress: ${completionPercent}%`}
-                          className="h-2 bg-muted/60"
+                          className="h-2 bg-muted"
                           indicatorClassName="bg-success transition-all duration-500"
                         />
                       </div>
-                      <div className="space-y-2 pt-1">
+                      <div className="divide-y divide-border/70 border-t border-border/70">
                         {derivedChapterProgress.map((chapter) => (
                           <div
                             key={chapter.chapter}
-                            className="flex items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-xs"
+                            className="flex items-center justify-between py-2.5 text-xs"
                           >
                             <span className="font-medium text-foreground">
                               Chapter {chapter.chapter}
                             </span>
                             <Badge
                               variant={getChapterStatusVariant(chapter.status)}
-                              className="text-[10px] font-semibold"
+                              className="text-[10px] font-medium"
                             >
                               {formatChapterStatus(chapter.status)}
                             </Badge>
@@ -688,7 +702,7 @@ function StudentDashboard({ user }) {
                             project?.titleStatus === 'approved' ? '/project' : '/project/approval',
                           )
                         }
-                        className="w-full mt-2 shadow-xs"
+                        className="w-full"
                       >
                         View Project Workspace
                       </Button>
@@ -703,7 +717,7 @@ function StudentDashboard({ user }) {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate('/projects')}
-                        className="w-full shadow-xs"
+                        className="w-full"
                       >
                         Go to Projects
                       </Button>
@@ -721,11 +735,11 @@ function StudentDashboard({ user }) {
 
       {!isLoading && project && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <Card className="lg:col-span-7 rounded-xl border border-border/60 bg-card shadow-xs">
-            <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
-              <div className="flex items-center justify-between">
+          <Card className="lg:col-span-7">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base font-bold text-foreground">
+                  <CardTitle className="text-base font-semibold text-foreground">
                     Submission History With Versioning
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -734,30 +748,27 @@ function StudentDashboard({ user }) {
                   </CardDescription>
                 </div>
                 {submissionHistory.length > 0 && (
-                  <Badge variant="outline" className="font-mono text-[11px] tabular-nums">
+                  <Badge variant="outline" className="text-[11px] tabular-nums">
                     {submissionHistory.length} total
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="max-h-[380px] overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+            <CardContent className="p-0">
+              <div className="max-h-[380px] overflow-y-auto divide-y divide-border/70 custom-scrollbar">
                 {submissionHistory.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-4 text-center">
+                  <p className="text-xs text-muted-foreground py-8 text-center">
                     No submissions recorded yet.
                   </p>
                 )}
 
                 {submissionHistory.slice(0, 12).map((entry) => (
-                  <div
-                    key={entry._id}
-                    className="rounded-lg border border-border/60 bg-background/50 p-3.5 shadow-2xs hover:border-border transition-colors"
-                  >
+                  <div key={entry._id} className="px-5 py-3.5 transition-colors hover:bg-muted/20">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className="text-[10px] font-semibold">
+                      <Badge variant="outline" className="text-[10px] font-medium">
                         {formatSubmissionLabel(entry)}
                       </Badge>
-                      <Badge variant="secondary" className="font-mono text-[10px] tabular-nums">
+                      <Badge variant="secondary" className="text-[10px] tabular-nums">
                         v{entry.version}
                       </Badge>
                       <Badge
@@ -772,20 +783,20 @@ function StudentDashboard({ user }) {
                         </Badge>
                       )}
                       {typeof entry.originalityScore === 'number' && (
-                        <Badge variant="success" className="font-mono text-[10px] tabular-nums">
+                        <Badge variant="success" className="text-[10px] tabular-nums">
                           Originality: {Math.round(entry.originalityScore)}%
                         </Badge>
                       )}
                     </div>
-                    <div className="mt-2 text-[11px] font-medium text-muted-foreground">
-                      {entry.fileName || 'Untitled file'} •{' '}
+                    <div className="mt-1.5 text-xs text-muted-foreground">
+                      {entry.fileName || 'Untitled file'} &bull;{' '}
                       {formatDateTime(entry.submittedAt || entry.updatedAt)}
                     </div>
                   </div>
                 ))}
 
                 {submissionHistory.length > 12 && (
-                  <p className="text-xs font-medium text-muted-foreground pt-1 text-center">
+                  <p className="text-xs font-medium text-muted-foreground py-3 text-center">
                     Showing latest 12 entries out of {submissionHistory.length}.
                   </p>
                 )}
@@ -793,11 +804,11 @@ function StudentDashboard({ user }) {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-5 rounded-xl border border-border/60 bg-card shadow-xs">
-            <CardHeader className="border-b border-border/60 bg-muted/20 px-6 py-4">
-              <div className="flex items-center justify-between">
+          <Card className="lg:col-span-5">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base font-bold text-foreground">
+                  <CardTitle className="text-base font-semibold text-foreground">
                     Team Action Audit Trail
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -805,44 +816,45 @@ function StudentDashboard({ user }) {
                   </CardDescription>
                 </div>
                 {teamActivityTrail.length > 0 && (
-                  <Badge variant="outline" className="font-mono text-[11px] tabular-nums">
+                  <Badge variant="outline" className="text-[11px] tabular-nums">
                     {teamActivityTrail.length} events
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="max-h-[380px] overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+            <CardContent className="p-0">
+              <div className="max-h-[380px] overflow-y-auto divide-y divide-border/70 custom-scrollbar">
                 {teamActivityTrail.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-4 text-center">
+                  <p className="text-xs text-muted-foreground py-8 text-center">
                     No team audit entries recorded yet.
                   </p>
                 )}
 
                 {teamActivityTrail.slice(0, 12).map((entry) => (
-                  <div
-                    key={entry._id}
-                    className="rounded-lg border border-border/60 bg-background/50 p-3.5 shadow-2xs hover:border-border transition-colors"
-                  >
+                  <div key={entry._id} className="px-5 py-3.5 transition-colors hover:bg-muted/20">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className="text-[10px] font-semibold">
+                      <Badge variant="outline" className="text-[10px] font-medium">
                         {formatAuditAction(entry.action)}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px]">
                         {entry.actorRole || 'unknown'}
                       </Badge>
                     </div>
-                    <p className="mt-2 text-xs text-foreground leading-relaxed">
-                      {entry.description || 'No action description.'}
+                    <p className="mt-1.5 text-xs text-foreground leading-relaxed">
+                      {entry.description
+                        ? String(entry.description)
+                            .replace(/\bundefined\b/g, '')
+                            .trim() || 'No action description.'
+                        : 'No action description.'}
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {formatActorName(entry.actor)} • {formatDateTime(entry.createdAt)}
+                      {formatActorName(entry.actor)} &bull; {formatDateTime(entry.createdAt)}
                     </p>
                   </div>
                 ))}
 
                 {teamActivityTrail.length > 12 && (
-                  <p className="text-xs text-muted-foreground pt-1 text-center">
+                  <p className="text-xs text-muted-foreground py-3 text-center">
                     Showing latest 12 entries out of {teamActivityTrail.length}.
                   </p>
                 )}
@@ -868,44 +880,6 @@ function FacultyDashboard({ user }) {
     <Suspense fallback={<PageSkeleton />}>
       <FacultyDashboardV2 user={user} />
     </Suspense>
-  );
-}
-
-function DashboardCard({ icon: Icon, title, metric, description, accent = 'text-primary' }) {
-  return (
-    <Card className="rounded-xl border border-border/60 bg-card p-5 shadow-xs transition-colors hover:border-border">
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/30 ${accent}`}
-        >
-          <Icon className="h-4 w-4" />
-        </div>
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </span>
-      </div>
-      <div>
-        <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
-          {metric}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      </div>
-    </Card>
-  );
-}
-
-function StatusPill({ label, value, variant }) {
-  return (
-    <div className="flex flex-col justify-between rounded-lg border border-border/60 bg-background/50 p-3 shadow-2xs">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      <div className="mt-2">
-        <Badge variant={variant} className="font-medium text-xs">
-          {value}
-        </Badge>
-      </div>
-    </div>
   );
 }
 

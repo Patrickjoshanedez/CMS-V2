@@ -40,6 +40,7 @@ describe('projectService.bulkUploadArchive', () => {
       abstract: 'An abstract about remote sensing.',
       academicYear: '2024-2025',
       publicationYear: 2024,
+      courseId: '6af501754996bfe56492a84a',
       academicPaperFile: mockFile,
     };
 
@@ -51,6 +52,7 @@ describe('projectService.bulkUploadArchive', () => {
     expect(formData.get('title')).toBe('Deep Learning for Remote Sensing');
     expect(formData.get('academicYear')).toBe('2024-2025');
     expect(formData.get('publicationYear')).toBe('2024');
+    expect(formData.get('courseId')).toBe('6af501754996bfe56492a84a');
     expect(config.headers['Content-Type']).toBe('multipart/form-data');
   });
 

@@ -1,0 +1,24 @@
+{
+  "session_id": "2026-11-18_use-case-diagram-project-workspace",
+  "date": "2026-11-18T00:56:00Z",
+  "task_summary": "Created a UML Use Case Diagram for Project Workspace (BukSU CMS-V2) matching the user's StarUML/Draw.io periwinkle system-boundary and lavender-oval style, saved as editable vector SVG and 2800x1880 PNG.",
+  "task_category": "use_case_diagram_creation",
+  "skills_triggered": ["diagram-maker"],
+  "key_decisions": [
+    "Included all five verified institutional actors grounded in shared/constants/roles.js and the manuscript (Student, Course Instructor on left; Faculty Adviser, Panelist & Chair, Committee Secretary on right).",
+    "Modeled 13 domain-verified use cases covering Phase 0-4 workflows, OCR & Hybrid Plagiarism Screening, Attach Late Justification (<<Extend>>), Secretary OVPAA-F-INS-032 ADM Compliance Gate, and MinIO/ChromaDB archival (<<Include>>).",
+    "Rendered 2800x1880 PNG via Playwright (node scratch/render_svg.mjs) and verified zero crossings, clipped labels, or arrow direction errors via read_file."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "Inspected docs/diagrams/use-case-diagram-project-workspace.png via read_file; verified all <<Include>> (base -> included) and <<Extend>> (extension -> base) UML arrow directions and zero crossings.",
+  "open_threads": [
+    "Offer to replace Figure 8.2. Role Use Cases (Overview) (kix.wox76js0kpzc) in Google Doc 19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw if the user approves."
+  ],
+  "lessons_learned": [
+    "Lesson learned: Grouping Student (top-left) and Course Instructor (bottom-left) across upper vs. lower rows while placing Committee actors across matching lower-right rows eliminates horizontal/vertical association crossings cleanly."
+  ],
+  "output_files": [
+    "docs/diagrams/use-case-diagram-project-workspace.svg",
+    "docs/diagrams/use-case-diagram-project-workspace.png"
+  ]
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -224,15 +225,12 @@ export default function EvaluationTemplateBuilderPage() {
   return (
     <DashboardLayout>
       <div data-testid="evaluation-template-builder" className="min-w-0 space-y-6 lg:space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6 text-primary" />
-            Evaluation Rubric Builder
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create grading rubrics and scoring criteria for proposal and final defenses.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Defense Administration"
+          icon={FileSpreadsheet}
+          title="Evaluation Rubric Builder"
+          description="Create grading rubrics and scoring criteria for proposal and final defenses."
+        />
 
         {/* Filter by defense type */}
         <div

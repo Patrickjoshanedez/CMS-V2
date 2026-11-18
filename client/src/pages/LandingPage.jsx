@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Search, BookOpen, ShieldCheck, FileCheck2, Users, Menu } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/Dialog';
 import { useAuthStore } from '@/stores/authStore';
 import buksuLogo from '@/assets/buksu-logo.png';
-import { prefetchRoute, prefetchHandlers } from '@/lib/routePrefetch';
+import { prefetchHandlers } from '@/lib/routePrefetch';
 
 /**
  * BukSU Landing Page — clean, minimal entry surface.
@@ -98,20 +98,6 @@ const FAQS = [
 export default function LandingPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const primaryTo = isAuthenticated ? '/dashboard' : '/register';
-
-  // Anticipatory background pre-caching of primary destination chunks
-  useEffect(() => {
-    const warmTargets = ['/login', '/register', '/dashboard'];
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleHandle = window.requestIdleCallback(
-        () => warmTargets.forEach((target) => prefetchRoute(target)),
-        { timeout: 1500 },
-      );
-      return () => window.cancelIdleCallback(idleHandle);
-    }
-    const timer = setTimeout(() => warmTargets.forEach((target) => prefetchRoute(target)), 600);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-buksu-gold-500/30">

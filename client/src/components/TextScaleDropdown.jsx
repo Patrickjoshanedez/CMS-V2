@@ -32,7 +32,10 @@ export function TextScaleDropdown() {
 
   return (
     <Select value={zoomLevel} onValueChange={setZoomLevel}>
-      <SelectTrigger className="h-9 w-[5.5rem] gap-1 px-2.5" aria-label="Adjust text scaling">
+      <SelectTrigger
+        className="h-9 w-[4.85rem] shrink-0 gap-1 whitespace-nowrap px-2 sm:w-[5.75rem] sm:px-2.5"
+        aria-label="Adjust text scaling"
+      >
         <span aria-hidden="true" className="text-xs font-semibold text-muted-foreground">
           T
         </span>

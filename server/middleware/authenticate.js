@@ -47,6 +47,14 @@ const authenticate = async (req, _res, next) => {
       );
     }
 
+    if ((decoded.sessionVersion ?? -1) !== (user.sessionVersion ?? 0)) {
+      throw new AppError(
+        'Your session is no longer valid. Please log in again.',
+        401,
+        'SESSION_INVALIDATED',
+      );
+    }
+
     // Attach user to request for downstream middleware/controllers
     req.user = user;
     next();

@@ -7,6 +7,11 @@ const refreshTokenSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'User ID is required'],
     },
+    sessionVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     token: {
       type: String,
       required: [true, 'Token is required'],
@@ -63,9 +68,38 @@ refreshTokenSchema.methods.revoke = async function (replacementToken = null) {
  * @returns {Promise<void>}
  */
 refreshTokenSchema.statics.revokeAllForUser = async function (userId) {
-  await this.updateMany(
-    { userId, revokedAt: null },
-    { revokedAt: new Date() },
+  await this.updateMany({ userId, revokedAt: null }, { revokedAt: new Date() });
+};
+
+/**
+ * Atomically consume one unexpired refresh token during rotation.
+ *
+ * @param {string} tokenId - Refresh token document ID
+ * @param {string} tokenHash - Hash of the presented refresh token
+ * @param {string} replacementToken - Hash of the newly persisted successor
+ * @param {Date} now - Current time, injectable for deterministic callers/tests
+ * @returns {Promise<Object|null>} The claimed token, or null if another request won
+ */
+refreshTokenSchema.statics.claimForRotation = function (
+  tokenId,
+  tokenHash,
+  replacementToken,
+  now = new Date(),
+) {
+  return this.findOneAndUpdate(
+    {
+      _id: tokenId,
+      token: tokenHash,
+      revokedAt: null,
+      expiresAt: { $gt: now },
+    },
+    {
+      $set: {
+        revokedAt: now,
+        replacedByToken: replacementToken,
+      },
+    },
+    { new: true, runValidators: true },
   );
 };
 

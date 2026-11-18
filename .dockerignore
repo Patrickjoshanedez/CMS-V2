@@ -1,17 +1,29 @@
 .git
 .gitignore
+.github
+.agents
+.claude
+.idea
+.vscode
+.antigravity
+.devcontainer
+.husky
+.localstack
+.playwright-mcp
+.pytest_cache
+.serena
+.sixth
+.superpowers
 node_modules
 **/node_modules
 **/dist
 **/coverage
 **/.pytest_cache
 **/__pycache__
+**/*.pyc
 **/.env
-**/.env.prod
-**/.env.prod.*
-.env.prod
-.env.prod.*
-.env.deploy
+**/.env.*
+.env*
 **/.DS_Store
 cookies.txt
 server/test-*.json
@@ -20,6 +32,7 @@ server/sprint*-output.txt
 server/sprint*-results.json
 /*.txt
 /*.log
+/*.xlsx
 api_logs.txt
 build_logs.txt
 docker_ps.txt
@@ -34,23 +47,39 @@ update_logs.txt
 validation_final_run.txt
 vitest_output3.txt
 
-# Large docs, reports, and generated artifacts not required for runtime builds
+# Large non-runtime directories, Python engines, docs, tests, and local uploads
 docs/
 documentation/
 diagnostics/
 test-results/
 tests/
+**/tests/
+**/*.test.*
+**/*.spec.*
 references/
 reference/
 memories/
 context/
 staging/
+scratch/
+reports/
 uploads/
-
-# Editor/runtime metadata
-.vscode/
-.idea/
+chroma_store/
+Sample papers/
+cmsv2-showcase/
+examples/
+tools/
+infra/
+orchestrator/
+plagiarism_engine/
+ocr_engine/
+docker/*
+!docker/nginx.prod.conf
+docker-compose*.yml
+Dockerfile*
+*.ps1
 
 # Python virtual environments
 .venv/
 venv/
+**/.venv/

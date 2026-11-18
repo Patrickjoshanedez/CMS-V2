@@ -24,6 +24,14 @@ To eliminate cognitive bloat and prevent monolithic rule-limit exhaustion, detai
 
 ## 2. THE TWO-PILE INSTRUCTION ARCHITECTURE
 
+Academic writing: [chapter-five-iso](../skills/chapter-five-iso/SKILL.md) provides
+evidence-based Chapter 5 drafting, ISO edition checks, conclusions, and recommendations.
+For earlier chapters use [Chapter 1](../skills/chapter-one-iso/SKILL.md),
+[Chapter 2](../skills/chapter-two-iso/SKILL.md),
+[Chapter 3](../skills/chapter-three-iso/SKILL.md), and
+[Chapter 4](../skills/chapter-four-iso/SKILL.md), with the
+[shared evidence and phrasing contract](../skills/chapter-one-four-common.md).
+
 Every agent operates under a strict **Two-Pile Governance Model**:
 
 ### Pile A: Soft Steering Guidelines (Subject to Contextual Tuning)

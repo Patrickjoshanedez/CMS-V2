@@ -18,7 +18,9 @@ const allowedHosts = [
   '127.0.0.1',
   'client',
   'cms-client',
-  ...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',').map((h) => h.trim()) : []),
+  ...(process.env.VITE_ALLOWED_HOSTS
+    ? process.env.VITE_ALLOWED_HOSTS.split(',').map((h) => h.trim())
+    : []),
   '.ngrok-free.dev',
   '.ngrok.io',
   '.ngrok.app',
@@ -201,52 +203,6 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       target: 'esnext',
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            const normalizedId = id.replace(/\\/g, '/');
-            if (normalizedId.includes('node_modules')) {
-              if (
-                normalizedId.includes('/react/') ||
-                normalizedId.includes('/react-dom/') ||
-                normalizedId.includes('/react-router-dom/')
-              ) {
-                return 'react-vendor';
-              }
-              if (
-                normalizedId.includes('/@tanstack/react-query/') ||
-                normalizedId.includes('/zustand/') ||
-                normalizedId.includes('/axios/')
-              ) {
-                return 'query-vendor';
-              }
-              if (normalizedId.includes('/recharts/') || normalizedId.includes('/d3-')) {
-                return 'engine-charts';
-              }
-              if (normalizedId.includes('/docx-preview/') || normalizedId.includes('/jszip/')) {
-                return 'engine-docx';
-              }
-              if (normalizedId.includes('/pptxgenjs/')) {
-                return 'engine-pptx';
-              }
-              if (
-                normalizedId.includes('/pdfjs-dist/') ||
-                normalizedId.includes('/react-pdf-highlighter-plus/')
-              ) {
-                return 'engine-pdf';
-              }
-              if (
-                normalizedId.includes('/lucide-react/') ||
-                normalizedId.includes('/sonner/') ||
-                normalizedId.includes('/clsx/') ||
-                normalizedId.includes('/tailwind-merge/')
-              ) {
-                return 'ui-vendor';
-              }
-            }
-          },
-        },
-      },
     },
     test: {
       globals: true,

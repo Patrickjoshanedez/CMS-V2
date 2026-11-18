@@ -11,8 +11,9 @@ const DialogClose = DialogPrimitive.Close;
 const DialogOverlay = forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
+    data-radix-dialog-overlay="true"
     className={cn(
-      'fixed inset-0 z-50 bg-overlay/60 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-50 bg-overlay/60 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 print:hidden',
       className,
     )}
     {...props}
@@ -33,17 +34,18 @@ const DialogContent = ({
     <>
       <DialogOverlay />
       <DialogPrimitive.Content
+        data-radix-dialog-content="true"
         className={cn(
           fullscreen
-            ? 'dialog-fullscreen fixed inset-0 z-50 grid h-dvh w-screen max-h-none max-w-none grid-cols-1 min-w-0 gap-0 overflow-hidden rounded-none border-0 bg-background p-0 text-foreground shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95'
-            : 'dialog-centered fixed left-1/2 top-1/2 z-50 grid grid-cols-1 max-h-[min(90vh,48rem)] w-[calc(100vw_-_2rem)] min-w-0 max-w-lg gap-4 overflow-y-auto rounded-lg border border-border bg-background p-6 text-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full',
+            ? 'dialog-fullscreen fixed inset-0 z-50 grid h-dvh w-screen max-h-none max-w-none grid-cols-1 min-w-0 gap-0 overflow-hidden rounded-none border-0 bg-background p-0 text-foreground shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 print:static print:h-auto print:w-full print:overflow-visible'
+            : 'dialog-centered fixed left-1/2 top-1/2 z-50 grid grid-cols-1 max-h-[min(90vh,48rem)] w-[calc(100vw_-_2rem)] min-w-0 max-w-lg gap-4 overflow-y-auto rounded-lg border border-border bg-background p-6 text-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full print:static print:transform-none print:max-h-none print:max-w-none print:w-full print:overflow-visible print:shadow-none print:border-0',
           className,
         )}
         {...props}
       >
         {children}
         {showClose && (
-          <DialogPrimitive.Close className="absolute right-4 top-4 inline-flex size-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none data-[state=open]:bg-accent sm:min-h-9 sm:min-w-9">
+          <DialogPrimitive.Close className="print:hidden absolute right-4 top-4 inline-flex size-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none data-[state=open]:bg-accent sm:min-h-9 sm:min-w-9">
             <X className="size-4" aria-hidden="true" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

@@ -144,11 +144,50 @@ describe('Plagiarism Scan Coverage & Report Integrity', () => {
       }).toThrowError(/still in progress/i);
     });
 
+    it('rejects completed results with missing scan coverage', () => {
+      const unverifiedSubmission = {
+        plagiarismResult: {
+          status: 'completed',
+          originalityScore: 100,
+        },
+      };
+
+      expect(() =>
+        projectTitleService._assertPlagiarismCleared(unverifiedSubmission, 'Academic Paper', 75),
+      ).toThrowError(/no verified text coverage/i);
+    });
+
+    it('rejects insufficient-text and simulated results even when they report 100% originality', () => {
+      const insufficientSubmission = {
+        plagiarismResult: {
+          status: 'completed',
+          originalityScore: 100,
+          scanCoverage: 'insufficient_text',
+        },
+      };
+      const mockSubmission = {
+        plagiarismResult: {
+          status: 'completed',
+          originalityScore: 100,
+          scanCoverage: 'full',
+          rawData: { mode: 'mock' },
+        },
+      };
+
+      expect(() =>
+        projectTitleService._assertPlagiarismCleared(insufficientSubmission, 'Academic Paper', 75),
+      ).toThrowError(/correcting the document/i);
+      expect(() =>
+        projectTitleService._assertPlagiarismCleared(mockSubmission, 'Academic Paper', 75),
+      ).toThrowError(/simulated plagiarism results cannot clear/i);
+    });
+
     it('approves full coverage scan meeting institutional originality threshold', () => {
       const validSubmission = {
         plagiarismResult: {
           status: 'completed',
           originalityScore: 85,
+          similarityPercentage: 15,
           scanCoverage: 'full',
           semanticStatus: 'completed',
           fullReport: {
@@ -168,6 +207,7 @@ describe('Plagiarism Scan Coverage & Report Integrity', () => {
         plagiarismResult: {
           status: 'completed',
           originalityScore: 65, // Below 75% threshold
+          similarityPercentage: 35,
           scanCoverage: 'full',
           semanticStatus: 'completed',
           fullReport: {

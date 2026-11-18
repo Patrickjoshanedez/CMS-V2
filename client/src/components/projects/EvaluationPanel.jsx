@@ -61,6 +61,7 @@ import {
   Unlock,
   ClipboardList,
   Download,
+  Printer,
   Lock,
   Clock,
 } from 'lucide-react';
@@ -255,18 +256,31 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
   const activeCriteria = criteria ?? evaluation.criteria;
 
   return (
-    <Card>
+    <Card className="evaluation-panel-printable">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <ClipboardList className="h-5 w-5" />
           Your Evaluation
         </CardTitle>
-        <StatusBadge status={evaluation.status} />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => window.print()}
+            className="no-print print:hidden"
+            data-testid="print-evaluation-scoresheet-btn"
+          >
+            <Printer className="mr-1.5 h-3.5 w-3.5" />
+            Print Scoresheet
+          </Button>
+          <StatusBadge status={evaluation.status} />
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
         {/* Criteria Table */}
-        <div className="hidden rounded-md border sm:block">
+        <div className="hidden rounded-md border sm:block overflow-x-auto">
           <Table className="min-w-[38rem]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -546,7 +560,7 @@ function PanelistSection({ evaluation, role }) {
 
       <CollapsibleContent>
         <div className="border-t px-4 py-4 space-y-4">
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table className="min-w-[38rem]">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -737,18 +751,30 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       )}
 
       {/* Summary Card */}
-      <Card>
+      <Card className="evaluation-panel-printable">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
             Evaluation Summary
           </CardTitle>
-          {!isStudent && (
-            <Button size="sm" variant="outline" onClick={handleDownloadReport}>
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-              Defense Report
+          <div className="flex items-center gap-2 no-print print:hidden">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              data-testid="print-evaluation-summary-btn"
+            >
+              <Printer className="mr-1.5 h-3.5 w-3.5" />
+              Print Scoresheet
             </Button>
-          )}
+            {!isStudent && (
+              <Button size="sm" variant="outline" onClick={handleDownloadReport}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Defense Report
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

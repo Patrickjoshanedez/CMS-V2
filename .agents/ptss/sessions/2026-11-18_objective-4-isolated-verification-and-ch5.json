@@ -1,0 +1,64 @@
+{
+  "session_id": "2026-11-18_objective-4-isolated-verification-and-ch5",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Completed Objective 4 isolated multi-container verification (cms_obj4_iso): 24/24 live acceptance cases passed, authenticated hybrid plagiarism benchmark (PAN n=10 PlagDet=0.7153, synthetic48 Recall=100%/F1=88.89%, 4/4 HTTP 401 auth & 3/3 validator negative checks), 3 live plagiarism_api outage/recovery cycles + 24+6 sustained burst, 8 live bugs fixed and verified across 94/94 post-edit focused server unit assertions (15 suites) + 229/209 endpoint parity, and updated thesis Google Doc Chapters 1, 3, 4, 5 & Appendix B with PDF visual inspection.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "evidence_artifacts": [
+    "docs/benchmarks/objective-4-isolated-verification-2026-11-18.json",
+    "docs/benchmarks/objective-4-isolated-verification-2026-11-18.md",
+    "scratch/obj4_acceptance_24_results.json",
+    "scratch/obj4_hybrid_benchmark_results.json",
+    "scratch/iso_eval_reports/metrics.json",
+    "scratch/obj4_recovery_results.json"
+  ],
+  "verified": {
+    "acceptance_24_cases": "24/24 passed (TC-1.1 through TC-5.4) plus 3 Playwright UI screenshots visually inspected",
+    "hybrid_benchmark": {
+      "runtime_model": "all-MiniLM-L6-v2 (384-dim CPU)",
+      "auth_negative_401": "4/4",
+      "validator_negative": "3/3",
+      "pan_n10": {
+        "precision": 1.0,
+        "recall": 0.5951,
+        "f1": 0.7153,
+        "granularity": 1.0,
+        "plagdet": 0.7153
+      },
+      "synthetic_48_direct_api": {
+        "tp": 32,
+        "fp": 8,
+        "tn": 8,
+        "fn": 0,
+        "precision": 0.8,
+        "recall": 1.0,
+        "specificity": 0.5,
+        "f1": 0.8889,
+        "accuracy": 0.8333,
+        "manual_paraphrase_tp": "8/8"
+      }
+    },
+    "outage_recovery": "3/3 cycles degraded (400 PLAGIARISM_SCAN_DEGRADED) -> recovered full (200) + 24/24 concurrent /check-sync + 6/6 BullMQ full rescans",
+    "post_edit_server_unit_tests": "94/94 passed across 15 focused files (Batch A 53/53 in 6 files + Batch B 41/41 in 9 files)",
+    "endpoint_parity": "229 server / 209 client / 0 unmatched",
+    "gdocs_pdf_pages_inspected": [
+      6, 7, 22, 129, 130, 144, 145, 146, 147, 151, 152, 153, 189, 190, 192, 193, 194, 195, 210, 211
+    ]
+  },
+  "defects_fixed": [
+    "server/modules/submissions/submission.validation.js (retain expectedUpdatedAt)",
+    "server/jobs/plagiarism.job.js & server/modules/plagiarism/plagiarism.controller.js (ChromaDB sync + lexical fallback)",
+    "plagiarism_engine/plagiarism_engine/database.py & hst_pipeline.py (exclude_project_id filtering)",
+    "server/services/plagiarism.service.js & fingerprintIndex.service.js (same-project & rejected-draft corpus exclusion)",
+    "server/modules/notifications/notification.model.js (8 missing NOTIFICATION_TYPES enums)",
+    "server/modules/submissions/defenseMinutes.service.js (midterm/paper ADM milestone map + scoped secretary reset)",
+    "server/modules/projects/services/projectTitle.service.js (similarityPercentage normalization before clearance check)",
+    "server/jobs/queue.js (clear terminal completed/failed BullMQ plagiarism jobs before re-scan)"
+  ],
+  "boundaries": [
+    "Isolated multi-container verification (cms_obj4_iso) does not constitute third-party ISO/IEC 25010 or ISO/IEC/IEEE 29119-3 certification.",
+    "Runtime embedding model in plagiarism_api was all-MiniLM-L6-v2 (384-dim CPU) rather than configured 1024-dim BAAI/bge-m3 GPU.",
+    "Direct FastAPI /check-sync calls bypass Node applyExclusions quote stripping, flagging quoted_control (8/8 FP) unless routed through Node.",
+    "One unrelated pre-existing test in server/tests/unit/chapterUploadCleanup.test.js fails due to structured logger migration vs console.error spy and was left out of scope."
+  ]
+}

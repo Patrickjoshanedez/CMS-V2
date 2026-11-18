@@ -72,9 +72,16 @@ async function extractFromPdf(buffer) {
 
   try {
     const { ocrExtractionService } = await import('../services/ocrExtraction.service.js');
-    const parsed = await ocrExtractionService.parseDocument(buffer, 'application/pdf');
+    const parsed = await ocrExtractionService.parseDocument(
+      buffer,
+      'application/pdf',
+      'document.pdf',
+      {
+        mode: 'metadata',
+      },
+    );
     if (parsed?.fullText && parsed.fullText.trim().length > 0) {
-      return parsed.fullText;
+      return parsed.fullText.replace(/<!--[\s\S]*?-->/g, '').trim();
     }
   } catch (err) {
     console.warn(`[extractText] OCR extraction service error: ${err.message}. Using local parser.`);

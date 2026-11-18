@@ -1,0 +1,54 @@
+{
+  "session_id": "2026-11-18_archive-50-sample-papers-browser-skill",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Archived all 45 unique canonical sample capstone papers (43 PDF, 2 DOCX; 24 BSIT, 21 BSEMC) from Sample papers/ground_truth_manifest.json through the live CMS-V2 browser UI (/archive/upload/capstone), fixed 8 real full-stack/AI/UI defects discovered along the way (50MB archive limit separation, Multer fields:50, DOCX extraction pipeline, OCR metadata mode & HTML comment stripping, ChromaDB in-process IndexRequest + 512-token transformer positional clamp, synthetic archive-document/file 400 + PropType fix, #courseId wrap sizing, and historical academicYear options), created and validated the archive-browser-batch-ingestion skill, and verified end-to-end live search/filtering/rendering with the /browser subagent.",
+  "artifacts_modified": [
+    "server/config/env.js",
+    "server/middleware/fileValidation.js",
+    "server/middleware/errorHandler.js",
+    "server/middleware/upload.js",
+    "server/modules/documents/document.routes.js",
+    "server/modules/documents/document.controller.js",
+    "server/services/ocrExtraction.service.js",
+    "server/services/metadataExtraction.service.js",
+    "server/utils/pdfMetadataExtractor.js",
+    "server/utils/extractText.js",
+    "server/modules/projects/services/projectArchive.service.js",
+    "server/tests/integration/projects.test.js",
+    "ocr_engine/app.py",
+    "plagiarism_engine/plagiarism_engine/main.py",
+    "plagiarism_engine/plagiarism_engine/embeddings.py",
+    "plagiarism_engine/tests/test_inprocess_index.py",
+    "client/src/services/authService.js",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.jsx",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.test.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.test.jsx",
+    "client/src/components/submissions/PdfViewerWorkspace.jsx",
+    ".agents/skills/archive-browser-batch-ingestion/SKILL.md",
+    ".agents/skills/archive-browser-batch-ingestion/references/troubleshooting-matrix.md",
+    ".agents/skills/archive-browser-batch-ingestion/scripts/browser_batch_archive.mjs",
+    ".agents/skills/archive-browser-batch-ingestion/evals/evals.json"
+  ],
+  "skills_used": [
+    "skill-creator",
+    "modern-web-guidance",
+    "cms-ui-consistency-library",
+    "verification-loop",
+    "ptss",
+    "archive-browser-batch-ingestion"
+  ],
+  "verified": [
+    "All 45 unique canonical papers from Sample papers/ground_truth_manifest.json (43 PDF, 2 DOCX; legacy duplicate .doc gracefully rejected in UI toast) archived via Playwright interaction at http://localhost:43211/archive/upload/capstone (53 total DB entries: 7 seeded + 45 unique + 1 early timed-out GS-PI retry; 31 BSIT, 22 BSEMC); ChromaDB cms_documents_v2 verified with 771 chunks across 45 unique projects",
+    "Targeted client Vitest: 6 files (59 tests passed across archive/ and authService.test.js) + SophisticatedDocumentViewer.test.jsx (17/17 passed); client Vite build passed (24.50s); scoped ESLint across 18 JS/JSX files: 0 errors",
+    "Targeted server Vitest: 4 unit files (21/21 passed), projects.test.js -t 'archived capstone bundle upload' (8/8 passed, 66 skipped), comprehensive-all-workflows.test.js (13/13 passed)",
+    "Python syntax compile across ocr_engine/plagiarism_engine + test_inprocess_index.py in cms-plagiarism-api (1/1 OK)",
+    "Live /browser subagent (flash) verified /archive pagination, BSIT (31) & BSEMC (22) filters, search, DOCX (docx-preview) & PDF (PdfViewerWorkspace canvas) rendering with 0 console/network errors, and #courseId/#academicYear UI",
+    "Governance & Skill validation: quick_validate.py ('Skill is valid!'), check:endpoints (229 server / 209 client / 0 unmatched), validate:agentic (62/62 passed), validate:governance (0 errors), workspace_guardrail.py (pristine)"
+  ],
+  "lessons_learned": [
+    "Lesson learned: Browser-driven archival exposed silent backend/AI failures invisible to API-seeded scripts: Multer default fields=10 blocking 12+ metadata fields, shared 25MB limit blocking 37-40MB PDFs, extractText invoking full-table OCR without mode='metadata', _run_inprocess_index passing raw kwargs instead of IndexRequest(...), embeddings.py overwriting SentenceTransformer.max_seq_length=8192 on 512-token all-MiniLM-L6-v2, GET /archive/search rejecting limit>50 during dedup, and SophisticatedDocumentViewer fetching /submissions/archive-document/file on in-memory DOCX blobs.",
+    "Prevention runbook/checklist: Follow .agents/skills/archive-browser-batch-ingestion/SKILL.md: keep MAX_ARCHIVE_UPLOAD_SIZE_MB=50 separate from MAX_UPLOAD_SIZE_MB=25, cap SentenceTransformer max_seq_length to model max_position_embeddings, paginate dedup searches with limit<=50, run sequential 5-paper Playwright slices using domcontentloaded, and verify ChromaDB + live /browser document viewers."
+  ]
+}

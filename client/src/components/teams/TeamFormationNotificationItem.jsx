@@ -223,7 +223,7 @@ export function TeamFormationNotificationItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-1.5 text-xs"
+                    className="min-h-[44px] sm:min-h-0 sm:h-8 gap-1.5 text-xs"
                     onClick={handleAssign}
                   >
                     <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -232,7 +232,7 @@ export function TeamFormationNotificationItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs"
+                    className="min-h-[44px] sm:min-h-0 sm:h-8 text-xs"
                     onClick={handleInspect}
                   >
                     Inspect Roster
@@ -243,12 +243,16 @@ export function TeamFormationNotificationItem({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs"
+                    className="min-h-[44px] sm:min-h-0 sm:h-8 text-xs"
                     onClick={handleInspect}
                   >
                     Inspect Roster
                   </Button>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleAssign}>
+                  <Button
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-0 sm:h-8 gap-1.5 text-xs"
+                    onClick={handleAssign}
+                  >
                     <UserCheck className="h-3.5 w-3.5" />
                     Assign Committee
                   </Button>
@@ -258,7 +262,7 @@ export function TeamFormationNotificationItem({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground"
                   title="Mark as read"
                   aria-label="Mark as read"
                   onClick={handleMarkAsRead}
@@ -269,7 +273,7 @@ export function TeamFormationNotificationItem({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
                 title="Delete notification"
                 aria-label="Delete notification"
                 onClick={handleDelete}

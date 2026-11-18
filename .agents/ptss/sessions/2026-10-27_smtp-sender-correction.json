@@ -1,0 +1,13 @@
+{
+  "session_id": "2026-10-27_smtp-sender-correction",
+  "date": "2026-10-27",
+  "task_category": "smtp_configuration",
+  "task_summary": "Applied the user's latest corrected Gmail sender to SMTP_USER and EMAIL_FROM, preserved the existing app password and restarted backend.",
+  "verification": {
+    "smtp_status": "degraded",
+    "provider_code": "535-5.7.8",
+    "test_email_sent": false
+  },
+  "remaining": "A valid App Password generated under the corrected sending account is required. Previous successful authentication belonged to the superseded account.",
+  "credential_handling": "No credential values archived; server/.env remains Git-ignored."
+}

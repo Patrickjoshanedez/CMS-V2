@@ -300,4 +300,43 @@ describe('NotificationsPage behavior', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
     view.unmount();
   });
+
+  it('deep-links ADM baton notifications directly to the ADM tab for faculty and students', () => {
+    mockUseAuthStore.mockReturnValue({
+      user: { _id: 'fac-1', role: ROLES.FACULTY, firstName: 'Adv', lastName: 'User' },
+      fetchUser: vi.fn(),
+    });
+    mockUseNotifications.mockReturnValue({
+      data: {
+        notifications: [
+          {
+            _id: 'n-adm',
+            type: 'adm_endorsed',
+            title: 'ADM Ready for Tier 1 Sign-Off',
+            message: 'Committee Secretary endorsed the ADM.',
+            isRead: false,
+            createdAt: '2026-11-18T00:00:00.000Z',
+            metadata: { projectId: 'proj-999', tab: 'adm' },
+          },
+        ],
+        unreadCount: 1,
+        pagination: { totalPages: 1 },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const view = renderPage();
+    const admTitle = Array.from(view.container.querySelectorAll('h3, p, button')).find((el) =>
+      el.textContent?.includes('ADM Ready for Tier 1 Sign-Off'),
+    );
+    expect(admTitle).toBeTruthy();
+
+    act(() => {
+      admTitle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/projects/proj-999?tab=adm');
+    view.unmount();
+  });
 });

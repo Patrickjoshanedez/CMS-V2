@@ -175,6 +175,7 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
     it('rejects non-existent panelist ID with INVALID_PANELIST', async () => {
       const mockTeam = {
         _id: 'team-1',
+        leaderId: { _id: 'leader-1', instructorId: 'inst-1' },
         save: vi.fn().mockResolvedValue(true),
       };
       Team.findById.mockResolvedValue(mockTeam);
@@ -202,6 +203,7 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
     it('rejects course instructor appointed as panelist with INVALID_COMMITTEE_ROLE', async () => {
       const mockTeam = {
         _id: 'team-2',
+        leaderId: { _id: 'leader-2', instructorId: 'inst-1' },
         save: vi.fn().mockResolvedValue(true),
       };
       Team.findById.mockResolvedValue(mockTeam);
@@ -230,7 +232,10 @@ describe('Institutional Workflow Enforcement & Reliability Gates', () => {
     });
 
     it('rejects duplicate panelists with DUPLICATE_PANELISTS', async () => {
-      const mockTeam = { _id: 'team-3' };
+      const mockTeam = {
+        _id: 'team-3',
+        leaderId: { _id: 'leader-3', instructorId: 'inst-1' },
+      };
       Team.findById.mockResolvedValue(mockTeam);
 
       const duplicatePanelistIds = ['panelist-1', 'panelist-1'];

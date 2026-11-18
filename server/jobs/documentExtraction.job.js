@@ -127,7 +127,8 @@ export async function processDocumentExtractionJob(job) {
     console.error(`[DocumentExtraction Worker] Job ${job.id} failed:`, error.message);
 
     const maxAttempts = job?.opts?.attempts || 1;
-    const isLastAttempt = (job?.attemptsMade || 1) >= maxAttempts;
+    const currentAttempt = (job?.attemptsMade ?? 0) + 1;
+    const isLastAttempt = currentAttempt >= maxAttempts;
     const isTempFile = typeof storageKey === 'string' && storageKey.includes('temp-extractions');
 
     const redis = getRedisClient();
@@ -141,6 +142,7 @@ export async function processDocumentExtractionJob(job) {
             progress: 0,
             error: error.message,
             jobId: job.id,
+            userId: userId || null,
           }),
         );
       } catch {

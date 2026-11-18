@@ -13,21 +13,20 @@ ENV PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=2 \
     MKL_NUM_THREADS=2
 
-# Install system dependencies for OpenCV/Paddle/PyMuPDF
+# Install only minimal runtime utilities needed for container healthchecks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libgl1 \
-    libglib2.0-0 \
-    libgomp1 \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system appuser && useradd --system --gid appuser --create-home appuser
 
 COPY requirements.txt .
 
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY --chown=appuser:appuser . .
+
+USER appuser
 
 EXPOSE 8000
 

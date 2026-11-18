@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
@@ -24,7 +25,8 @@ import PrototypeShowcaseAndDemo from '@/components/projects/PrototypeShowcaseAnd
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ActionDoneMatrixSection from '@/components/projects/ActionDoneMatrixSection';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
-import { useMyProject, useProject } from '@/hooks/useProjects';
+import { useMyProject, useProject, useApprovalSheetUrl } from '@/hooks/useProjects';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useProjectMilestoneDeadlines } from '@/hooks/useProjectMilestoneDeadlines';
 import { resolveProjectSubmissionDeadlines } from '@/utils/milestoneDeadlines';
@@ -39,6 +41,8 @@ import {
   FileSpreadsheet,
   Lock,
   X,
+  Eye,
+  Download,
 } from 'lucide-react';
 
 /* ────────── Progress Bar ────────── */
@@ -245,6 +249,11 @@ export default function ProjectSubmissionsPage() {
   );
 
   const submissions = submissionsData?.submissions || [];
+  const [approvalPreviewOpen, setApprovalPreviewOpen] = useState(false);
+  const { data: approvalSheetData } = useApprovalSheetUrl(activeProject?._id, {
+    enabled: Boolean(activeProject?._id && Number(activeProject?.capstonePhase || 1) >= 3),
+  });
+  const approvalSheetUrl = approvalSheetData?.url ?? null;
   const isLoading = (isReadOnlyMode ? targetProjectLoading : projectLoading) || subsLoading;
   const error = (isReadOnlyMode ? targetProjectError : projectError) || subsError;
 
@@ -446,66 +455,69 @@ export default function ProjectSubmissionsPage() {
   /* ────── Main Render ────── */
   return (
     <DashboardLayout>
-      <div className="min-w-0 space-y-6 lg:space-y-8 [&_button]:min-h-[45px]">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Document submissions for&nbsp;
-              <span className="break-words font-medium [overflow-wrap:anywhere]">
+      <div className="min-w-0 space-y-6">
+        <PageHeader
+          eyebrow={isReadOnlyMode ? 'Faculty Review' : 'Student Workspace'}
+          title="Submissions"
+          description={
+            <>
+              Document submissions for{' '}
+              <span className="break-words font-medium text-foreground [overflow-wrap:anywhere]">
                 {activeProject.title}
               </span>
-            </p>
-            {isReadOnlyMode && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Faculty review mode — click any chapter to view submission details and leave
-                feedback.
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setOpenAdmMilestone(activeAdmMilestone)}
-              className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
-              data-testid="toolbar-open-adm-btn"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-primary" />
-              <span>Action Done Matrix</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowGanttModal(true)}
-              className="gap-1.5 text-xs border-border/60 hover:bg-muted"
-            >
-              <LineChart className="h-4 w-4 text-primary" />
-              <span>Academic Gantt</span>
-            </Button>
-            {isStudent && !isArchivedReadOnly && (
-              <>
-                {canCompileProposal && (
-                  <Button size="sm" onClick={() => navigate('/project/proposal')}>
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Compile Proposal
-                  </Button>
-                )}
-                {canUpload && (
-                  <Button
-                    size="sm"
-                    variant={canCompileProposal ? 'outline' : 'default'}
-                    onClick={handleGeneralUpload}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Chapter
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+              {isReadOnlyMode &&
+                ' — Faculty review mode: click any chapter to view details and leave feedback.'}
+            </>
+          }
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenAdmMilestone(activeAdmMilestone)}
+                className="min-h-10 gap-1.5 text-xs sm:min-h-9"
+                data-testid="toolbar-open-adm-btn"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-primary" />
+                <span>Action Done Matrix</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGanttModal(true)}
+                className="min-h-10 gap-1.5 text-xs sm:min-h-9"
+              >
+                <LineChart className="h-4 w-4 text-primary" />
+                <span>Academic Gantt</span>
+              </Button>
+              {isStudent && !isArchivedReadOnly && (
+                <>
+                  {canCompileProposal && (
+                    <Button
+                      size="sm"
+                      onClick={() => navigate('/project/proposal')}
+                      className="min-h-10 sm:min-h-9"
+                    >
+                      <BookOpen className="mr-1.5 h-4 w-4" />
+                      Compile Proposal
+                    </Button>
+                  )}
+                  {canUpload && (
+                    <Button
+                      size="sm"
+                      variant={canCompileProposal ? 'outline' : 'default'}
+                      onClick={handleGeneralUpload}
+                      className="min-h-10 sm:min-h-9"
+                    >
+                      <Upload className="mr-1.5 h-4 w-4" />
+                      Upload Chapter
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          }
+        />
 
         {isProjectArchived && (
           <Alert className="border-border/70 bg-muted/40" data-testid="archived-project-readonly">
@@ -529,13 +541,70 @@ export default function ProjectSubmissionsPage() {
         {/* Progress bar */}
         <ChapterProgress latestChapterSubmissions={latestChapterSubmissions} />
 
+        {/* Phase Quick-Jump & Upload Guide Bar */}
+        <div
+          data-testid="submissions-phase-guide-bar"
+          className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xs no-print"
+        >
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              File Organization &amp; Submission Guide
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Upload PDF or DOCX (&le; 25 MB) sequentially per chapter; maintain &le; 15% warning
+              (&lt; 25% max) similarity to clear Adviser review and unlock proposal compilation.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: 'phase-2-capstone-1', label: 'Phase 2: Ch. 1–3' },
+              { id: 'phase-3-capstone-2', label: 'Phase 3: System & Gantt' },
+              { id: 'phase-4-capstone-3', label: 'Phase 4: Final Defense' },
+            ].map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  document
+                    .getElementById(item.id)
+                    ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+                }
+                className="min-h-11 sm:min-h-9 text-xs"
+              >
+                {item.label}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                navigate(
+                  activeProject?._id
+                    ? `/documents/manuscripts?projectId=${activeProject._id}`
+                    : '/documents/manuscripts',
+                )
+              }
+              className="min-h-11 sm:min-h-9 gap-1.5 text-xs"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Cloud Manuscript Sync</span>
+            </Button>
+          </div>
+        </div>
+
         {/* Empty state — shown when no submissions exist yet */}
         {submissions.length === 0 && (
           <EmptySubmissionsState canUpload={canUpload} canCompileProposal={canCompileProposal} />
         )}
 
         {/* Phase 2: Capstone 1 — Proposal & Manuscript Chapters 1–3 */}
-        <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+        <div
+          id="phase-2-capstone-1"
+          className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs scroll-mt-20"
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
@@ -611,10 +680,53 @@ export default function ProjectSubmissionsPage() {
               refetchSubs?.();
             }}
           />
+          {approvalSheetUrl && (
+            <Card className="border-border/70">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Final Approval Sheet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Official BukSU Phase 4 signed Approval Sheet PDF
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-0"
+                    onClick={() => setApprovalPreviewOpen(true)}
+                    data-testid="submissions-preview-approval-sheet-btn"
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Preview
+                  </Button>
+                  <a
+                    href={approvalSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex min-h-[44px] sm:min-h-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90"
+                    data-testid="submissions-download-approval-sheet-link"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download PDF
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Phase 3: Capstone 2 — System Development, Gantt & Prototype Defense */}
-        <div className="space-y-5 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+        <div
+          id="phase-3-capstone-2"
+          className="space-y-5 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs scroll-mt-20"
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
@@ -723,10 +835,53 @@ export default function ProjectSubmissionsPage() {
               refetchSubs?.();
             }}
           />
+          {approvalSheetUrl && (
+            <Card className="border-border/70">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Final Approval Sheet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Official BukSU Phase 4 signed Approval Sheet PDF
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-0"
+                    onClick={() => setApprovalPreviewOpen(true)}
+                    data-testid="submissions-preview-approval-sheet-btn"
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Preview
+                  </Button>
+                  <a
+                    href={approvalSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex min-h-[44px] sm:min-h-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90"
+                    data-testid="submissions-download-approval-sheet-link"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download PDF
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Phase 4: Capstone 3 — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
-        <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+        <div
+          id="phase-4-capstone-3"
+          className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs scroll-mt-20"
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
@@ -780,6 +935,46 @@ export default function ProjectSubmissionsPage() {
               refetchSubs?.();
             }}
           />
+          {approvalSheetUrl && (
+            <Card className="border-border/70">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Final Approval Sheet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Official BukSU Phase 4 signed Approval Sheet PDF
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-0"
+                    onClick={() => setApprovalPreviewOpen(true)}
+                    data-testid="submissions-preview-approval-sheet-btn"
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Preview
+                  </Button>
+                  <a
+                    href={approvalSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex min-h-[44px] sm:min-h-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90"
+                    data-testid="submissions-download-approval-sheet-link"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download PDF
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Full Interactive Academic Gantt Chart Dialog */}
@@ -843,6 +1038,19 @@ export default function ProjectSubmissionsPage() {
             refetchProject?.();
           }}
         />
+        {approvalPreviewOpen && approvalSheetUrl && (
+          <SophisticatedDocumentViewer
+            open={approvalPreviewOpen}
+            onOpenChange={setApprovalPreviewOpen}
+            fileUrl={approvalSheetUrl}
+            submission={{
+              title: 'Final Approval Sheet',
+              fileName: 'Final_Approval_Sheet.pdf',
+              fileType: 'application/pdf',
+              chapter: 'Approval Sheet',
+            }}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

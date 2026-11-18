@@ -102,24 +102,26 @@ function setCachedDoiMetadata(doi, value) {
 async function parsePdf(pdfBuffer) {
   try {
     const { ocrExtractionService } = await import('../services/ocrExtraction.service.js');
-    const parsed = await ocrExtractionService.parseDocument(pdfBuffer, 'application/pdf');
-    if (
-      parsed &&
-      parsed.ocrStatus !== 'degraded' &&
-      parsed?.fullText &&
-      parsed.fullText.trim().length > 0
-    ) {
+    const parsed = await ocrExtractionService.parseDocument(
+      pdfBuffer,
+      'application/pdf',
+      'document.pdf',
+      { mode: 'metadata' },
+    );
+    if (parsed && parsed?.fullText && parsed.fullText.trim().length > 0) {
+      const stripHtmlComments = (val) =>
+        typeof val === 'string' ? val.replace(/<!--[\s\S]*?-->/g, '').trim() : val;
       return {
-        text: parsed.fullText,
+        text: stripHtmlComments(parsed.fullText),
         numpages: parsed.metadata?.page_count || 1,
-        ocrStatus: parsed.ocrStatus || 'complete',
+        ocrStatus: parsed.ocrStatus || 'degraded',
         info: {
-          ocrStatus: parsed.ocrStatus || 'complete',
-          Title: parsed.metadata?.title || null,
+          ocrStatus: parsed.ocrStatus || 'degraded',
+          Title: stripHtmlComments(parsed.metadata?.title) || null,
           Author: Array.isArray(parsed.metadata?.authors)
             ? parsed.metadata.authors.join(', ')
             : null,
-          Abstract: parsed.metadata?.abstract || null,
+          Abstract: stripHtmlComments(parsed.metadata?.abstract) || null,
           Year: parsed.metadata?.year || null,
           Journal:
             parsed.metadata?.journal ||
@@ -778,14 +780,70 @@ export async function extractPdfMetadata(pdfBuffer) {
 
   logger.info({ textLength: text.length, pages: data.numpages }, 'Extracting metadata from PDF');
 
-  const title = extractTitle(text, data.info);
-  const abstract = extractAbstract(text, data.info);
-  const publicationYear = extractPublicationYear(text, data.info);
-  const authors = extractAuthors(text, data.info, title.value);
-  const keywords = extractKeywords(text);
-  const publicationVenue = extractPublicationVenue(text, data.info);
-  const heuristicDoi = normalizeDoi(extractDoi(text));
+  const finalized = await extractMetadataFromText(text, data.info, {
+    ocrStatus: data.ocrStatus,
+  });
+  await setCachedExtraction(cacheKey, finalized);
+  return finalized;
+}
 
+/**
+ * Extract structured academic metadata from plain text and optional layout metadata.
+ * Shared across PDF (PyMuPDF/pdf-parse) and DOCX (mammoth) extraction pipelines.
+ *
+ * @param {string} text - Extracted manuscript text
+ * @param {Object} [info={}] - Optional PDF/OCR layout metadata
+ * @param {Object} [options={}] - Extraction options ({ ocrStatus, extractionProvider })
+ * @returns {Promise<Object>}
+ */
+export async function extractMetadataFromText(text, info = {}, options = {}) {
+  const safeText = String(text || '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .trim();
+  if (!safeText.trim()) {
+    return {
+      title: '',
+      abstract: '',
+      publicationYear: null,
+      authors: [],
+      keywords: [],
+      doi: '',
+      publicationVenue: '',
+      confidence: {
+        title: 0,
+        abstract: 0,
+        publicationYear: 0,
+        authors: 0,
+        keywords: 0,
+        doi: 0,
+        publicationVenue: 0,
+      },
+      extractionProvider: options.extractionProvider || 'heuristic',
+      fieldSources: {
+        title: 'none',
+        abstract: 'none',
+        publicationYear: 'none',
+        authors: 'none',
+        keywords: 'none',
+        doi: 'none',
+        publicationVenue: 'none',
+      },
+      review: {
+        required: Boolean(env.PDF_METADATA_REVIEW_GATE_ENABLED),
+        reasons: ['no_extractable_text'],
+      },
+    };
+  }
+
+  const title = extractTitle(safeText, info);
+  const abstract = extractAbstract(safeText, info);
+  const publicationYear = extractPublicationYear(safeText, info);
+  const authors = extractAuthors(safeText, info, title.value);
+  const keywords = extractKeywords(safeText);
+  const publicationVenue = extractPublicationVenue(safeText, info);
+  const heuristicDoi = normalizeDoi(extractDoi(safeText));
+
+  const provider = options.extractionProvider || 'heuristic';
   const baseResult = {
     title: title.value,
     abstract: abstract.value,
@@ -803,31 +861,29 @@ export async function extractPdfMetadata(pdfBuffer) {
       doi: heuristicDoi ? 0.85 : 0,
       publicationVenue: publicationVenue.confidence,
     },
-    extractionProvider: 'heuristic',
+    extractionProvider: provider,
     fieldSources: {
-      title: 'heuristic',
-      abstract: 'heuristic',
-      publicationYear: 'heuristic',
-      authors: 'heuristic',
-      keywords: 'heuristic',
-      doi: heuristicDoi ? 'heuristic' : 'none',
-      publicationVenue: publicationVenue.value ? 'heuristic' : 'none',
+      title: provider,
+      abstract: provider,
+      publicationYear: provider,
+      authors: provider,
+      keywords: provider,
+      doi: heuristicDoi ? provider : 'none',
+      publicationVenue: publicationVenue.value ? provider : 'none',
     },
   };
 
-  const isOcrComplete = data.ocrStatus === 'complete';
+  const isOcrComplete = (options.ocrStatus || info?.ocrStatus) === 'complete';
   if (isOcrComplete) {
     baseResult.extractionProvider = 'paddleocr-vl';
-    if (data.info?.Title) baseResult.fieldSources.title = 'paddleocr-vl';
-    if (data.info?.Abstract) baseResult.fieldSources.abstract = 'paddleocr-vl';
-    if (data.info?.Year) baseResult.fieldSources.publicationYear = 'paddleocr-vl';
-    if (data.info?.Author) baseResult.fieldSources.authors = 'paddleocr-vl';
+    if (info?.Title) baseResult.fieldSources.title = 'paddleocr-vl';
+    if (info?.Abstract) baseResult.fieldSources.abstract = 'paddleocr-vl';
+    if (info?.Year) baseResult.fieldSources.publicationYear = 'paddleocr-vl';
+    if (info?.Author) baseResult.fieldSources.authors = 'paddleocr-vl';
   }
 
-  const doiEnriched = await enrichWithDoiMetadata(baseResult, text);
-  const finalized = withReviewGate(doiEnriched);
-  await setCachedExtraction(cacheKey, finalized);
-  return finalized;
+  const doiEnriched = await enrichWithDoiMetadata(baseResult, safeText);
+  return withReviewGate(doiEnriched);
 }
 
 /**

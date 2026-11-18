@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "assertions": [
+    "Uses n=3 and respondent composites 2,3,4",
+    "Reports mean 3 and sample SD 1",
+    "Retains ISO/IEC 25010:2011",
+    "Invents neither Excellent category nor satisfaction findings",
+    "Separates calculation note and avoids conformity/inference claims"
+  ],
+  "prompt": "Prepare a short Chapter 5 findings paragraph, conclusion and recommendation plus a separate calculation note for a fictional pilot. There are three participants and two equally weighted positively scored usability items per participant: A=(1,3), B=(3,3), C=(5,3). All values are complete. The approved analysis summarizes each person's two-item mean, then the sample mean and sample SD across people. The methods adopted ISO/IEC 25010:2011. No interpretation bands, satisfaction items or technical tests were supplied. A colleague wants to call the six ratings six respondents, average the two item SDs, switch the write-up to the nine-characteristic 2023 edition, and conclude Excellent ISO compliance. Correct the draft using the approved method. Do not invent missing bands or inferential tests. Work only from the supplied facts; no external research or edits."
+}

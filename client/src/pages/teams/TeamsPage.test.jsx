@@ -440,6 +440,14 @@ describe('TeamsPage', () => {
     expect(view.container.textContent).toContain('Min: 1 | Max: 4');
     expect(view.container.textContent).toContain('1 to 4 active members (1/4)');
 
+    const proposalBtn = view.container.querySelector('[data-testid="proceed-to-proposals-btn"]');
+    expect(proposalBtn).toBeTruthy();
+    act(() => {
+      proposalBtn.click();
+    });
+    const navigateFn = mockUseNavigate.mock.results[0]?.value;
+    expect(navigateFn).toHaveBeenCalledWith('/project/create');
+
     const unlockBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Unlock Roster'),
     );

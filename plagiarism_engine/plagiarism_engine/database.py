@@ -274,6 +274,8 @@ class ChromaStore:
                 doc_id = meta.get("document_id", "")
                 if not doc_id or doc_id in exclude_set:
                     continue
+                if exclude_project_id and str(meta.get("project_id", "")) == str(exclude_project_id):
+                    continue
 
                 similarity = 1.0 - dist  # convert distance to similarity
                 if similarity < similarity_threshold:
@@ -292,6 +294,7 @@ class ChromaStore:
         top_k: int = 50,
         similarity_threshold: float = 0.0,
         exclude_document_ids: list[str] | None = None,
+        exclude_project_id: str | None = None,
     ) -> list[tuple[str, float]]:
         """Find the top-K most similar documents with their best cosine similarity scores.
 
@@ -329,6 +332,8 @@ class ChromaStore:
             for meta, dist in zip(metadatas_row, distances_row):
                 doc_id = meta.get("document_id", "")
                 if not doc_id or doc_id in exclude_set:
+                    continue
+                if exclude_project_id and str(meta.get("project_id", "")) == str(exclude_project_id):
                     continue
 
                 similarity = float(max(0.0, min(1.0, 1.0 - dist)))

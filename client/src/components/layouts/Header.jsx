@@ -228,7 +228,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   return (
     <header
       className={[
-        'relative z-30 flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-card px-2 py-2 sm:px-6',
+        'relative z-30 flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border/80 bg-card/95 backdrop-blur-sm px-3 py-2 sm:px-6 lg:px-8',
         'transition-transform duration-300 ease-in-out',
         hidden ? '-translate-y-full' : 'translate-y-0',
       ].join(' ')}
@@ -260,12 +260,25 @@ export default function Header({ sidebarOpen, onMenuClick }) {
           </Button>
         )}
 
-        <h2
-          className="min-w-0 truncate text-sm font-semibold text-foreground sm:text-lg"
-          title={pageTitle}
-        >
-          {pageTitle}
-        </h2>
+        <nav aria-label="Breadcrumbs" className="min-w-0">
+          <ol className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
+            {roleLabel && (
+              <li className="hidden shrink-0 items-center gap-2 text-muted-foreground sm:inline-flex">
+                <span>{roleLabel}</span>
+                <span className="text-muted-foreground/45" aria-hidden="true">
+                  /
+                </span>
+              </li>
+            )}
+            <li
+              data-testid="header-page-title"
+              aria-current="page"
+              className="min-w-0 break-normal [overflow-wrap:normal] font-medium text-foreground"
+            >
+              {pageTitle}
+            </li>
+          </ol>
+        </nav>
       </div>
 
       {/* Right side: notifications popover, theme toggle, text scale dropdown, user avatar */}

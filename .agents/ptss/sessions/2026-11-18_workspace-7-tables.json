@@ -1,0 +1,16 @@
+{
+  "session_id": "2026-11-18_workspace-7-tables",
+  "date": "2026-11-18",
+  "task_summary": "Formatted 34 native data tables in the linked manuscript: 432pt widths, 10pt text (9pt seven-column matrix), consistent borders/padding/header shading, numeric alignment, exactly one repeating header. Approval signature table preserved.",
+  "verification_status": "passed",
+  "verification": [
+    "Native full text and inline image identities unchanged after main batch",
+    "35 native tables retained",
+    "34 data tables have exactly one pinned header",
+    "PDF pages 32,46,47,114,125,141 visually checked"
+  ],
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "lessons_learned": [
+    "Lesson learned: use tableColumnProperties in column formatting requests; prevention runbook/checklist: count pinned rows and inspect PDF continuations."
+  ]
+}

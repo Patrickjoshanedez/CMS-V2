@@ -168,11 +168,13 @@ class HybridSourceTracker:
             exclude_list.append(doc_id)
 
         top_k = self.cfg.HST_COARSE_TOP_K
+        exclude_project = str(meta.get("project_id") or meta.get("projectId") or "").strip() or None
         candidates_with_scores = self.store.query_candidates_with_scores(
             query_embeddings=dense_vectors,
             top_k=top_k,
             similarity_threshold=self.cfg.SEMANTIC_SIMILARITY_THRESHOLD,
             exclude_document_ids=exclude_list,
+            exclude_project_id=exclude_project,
         )
 
         logger.info(

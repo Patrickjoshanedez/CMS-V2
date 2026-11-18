@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "description": "CMS-V2 Authoritative Document and Artifact Classification Manifest",
-  "last_updated": "2026-10-25",
+  "last_updated": "2026-11-18",
   "authority_order": [
     "1. Approved institutional requirements and role boundaries",
     "2. Approved API contracts and intended user behavior",
@@ -22,6 +22,326 @@
   ],
   "statuses": ["current", "needs-review", "superseded", "historical", "generated"],
   "artifacts": [
+    {
+      "path": "docs/specs/system-performance-masterplan.md",
+      "category": "architecture-specification",
+      "status": "current",
+      "governing_requirement_or_replacement": "CMS-V2 project request for a performance improvement masterplan; level 5 supporting guidance",
+      "verification_evidence": "Entry HTML asset references and gzip estimates checked against the existing local production build. Source paths and retained isolated engine benchmark reviewed. Proposed budgets require a new journey baseline.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_objective-4-isolated-verification-and-ch5.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "docs/benchmarks/objective-4-isolated-verification-2026-11-18.md",
+      "verification_evidence": "24/24 live acceptance, authenticated hybrid benchmark (PAN PlagDet=0.7153, synthetic48 F1=88.89%), 3 outage/recovery cycles + 24+6 burst, 8 live bugs fixed, 94/94 focused unit checks, and Google Doc Ch1/3/4/5/AppB PDF inspection",
+      "retirement_or_quarantine_reason": "Completed session provenance; see docs/benchmarks/objective-4-isolated-verification-2026-11-18.md for active technical evidence"
+    },
+    {
+      "path": "docs/benchmarks/objective-4-isolated-verification-2026-11-18.md",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Objective 4 end-to-end acceptance, authenticated hybrid plagiarism benchmark, outage recovery, and post-edit verification on isolated stack cms_obj4_iso; authority level 4/5",
+      "verification_evidence": "24/24 live acceptance cases passed, 4/4 HTTP 401 auth checks, 3/3 validator checks, PAN n=10 PlagDet=0.7153, synthetic48 F1=88.89%/Recall=100%, 3 outage/recovery cycles + 24+6 burst, and 94/94 post-edit focused server unit checks",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/objective-4-isolated-verification-2026-11-18.json",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Machine-readable evidence bundle for docs/benchmarks/objective-4-isolated-verification-2026-11-18.md; authority level 4/5",
+      "verification_evidence": "Directly consolidates scratch/obj4_acceptance_24_results.json, scratch/obj4_hybrid_benchmark_results.json, scratch/iso_eval_reports/metrics.json, scratch/obj4_recovery_results.json, and post-edit vitest/parity runs",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/benchmarks/manuscript-evidence-ledger-2026-11-18.md",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "User-directed workspace search supporting manuscript technical claims; authority level 5",
+      "verification_evidence": "Raw component reports16+16 passed; lexical TP24/FP0/TN16/FN8 recomputed; dated regression counts and source scope checked",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_workspace-research-evidence.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Workspace evidence search and manuscript correction provenance, authority level6",
+      "verification_evidence": "Native manuscript revision and regenerated pagination; retained record checks",
+      "retirement_or_quarantine_reason": "Editing provenance only; not certification"
+    },
+    {
+      "path": "docs/diagrams/manuscript-review-2026-11-18/",
+      "category": "academic-manuscript-and-slides",
+      "status": "current",
+      "governing_requirement_or_replacement": "User-authorized manuscript repair; editable sources for twelve replacement image instances",
+      "verification_evidence": "Six SVG/PNG source pairs rendered; native insertion and selected final PDF pages inspected",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_manuscript-comprehensive-repair.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Comprehensive manuscript repair authorized after whole-document audit; authority level 6",
+      "verification_evidence": "Native structure, preserved statistical tables, image identities, index/page checks and selected PDF visual inspection",
+      "retirement_or_quarantine_reason": "Editing provenance only; not a technical test certificate"
+    },
+    {
+      "path": "docs/specs/manuscript-consistency-audit-2026-11-18.md",
+      "category": "academic-manuscript-and-slides",
+      "status": "needs-review",
+      "governing_requirement_or_replacement": "User-requested whole manuscript audit using statistician-verified Result-Stat.docx; editorial guidance",
+      "verification_evidence": "Native manuscript and supplied statistical summary compared; 29 findings; no live mutation or full-image review",
+      "retirement_or_quarantine_reason": "Repair findings, not empirical research evidence"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_full-manuscript-consistency-audit.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Whole manuscript audit provenance, authority level 6",
+      "verification_evidence": "All chapters read; item means/SDs match supplied statistician summary; demographic split unsupported by that source",
+      "retirement_or_quarantine_reason": "Audit provenance only"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_database-schema-insertion.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User requested manuscript database schema table and subsequent numbering adjustment; authority level 6",
+      "verification_evidence": "20 cells matched readback; subsequent captions and references incremented; exported PDF page 56 visually inspected",
+      "retirement_or_quarantine_reason": "Editing provenance, not implementation or research evidence"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_expand-definition-of-terms.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User requested expansion of manuscript operational definitions; authority level 6",
+      "verification_evidence": "43 alphabetized terms; surrounding content and native equations preserved; exported PDF pages 34,37,38 inspected",
+      "retirement_or_quarantine_reason": "Editing provenance only, not research results"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-18_workspace-7-tables.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User requested formatting repairs in linked manuscript; authority level 6",
+      "verification_evidence": "34 data tables standardized, all document text and images preserved, PDF pages visually inspected",
+      "retirement_or_quarantine_reason": "Session provenance only"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-17_chapters-one-four-skills.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Chapter 1-4 skill creation provenance, authority level 6",
+      "verification_evidence": "Metadata validation and paired synthetic trials; human feedback pending",
+      "retirement_or_quarantine_reason": "Completed creation record; not research evidence"
+    },
+    {
+      "path": ".agents/skills/chapter-one-iso/",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Chapter 1 writing guidance, authority level 5",
+      "verification_evidence": "Metadata validator passed; paired revision fixtures",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-two-iso/",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Chapter 2 writing guidance, authority level 5",
+      "verification_evidence": "Metadata validator passed; paired revision fixtures",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-three-iso/",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Chapter 3 writing guidance, authority level 5",
+      "verification_evidence": "Metadata validator passed; paired revision fixtures",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-four-iso/",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Chapter 4 writing guidance, authority level 5",
+      "verification_evidence": "Metadata validator passed; paired revision fixtures",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-one-four-common.md",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Shared ISO evidence and phrasing policy, authority level 5",
+      "verification_evidence": "Official ISO catalogue scopes checked",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-one-four-workspace/",
+      "category": "testing-and-benchmarking",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Synthetic skill trials, not manuscript evidence",
+      "verification_evidence": "Paired outputs and review viewer",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/skills/chapter-five-iso-workspace/",
+      "category": "testing-and-benchmarking",
+      "status": "generated",
+      "governing_requirement_or_replacement": "Skill-creator comparison fixtures and review page; not research evidence",
+      "verification_evidence": "Skill metadata validation passed; independent comparison pending due to runner usage limit",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-17_chapter-five-skill-evaluation.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Chapter Five skill v1.1 provenance",
+      "verification_evidence": "Scoped metadata and evaluation fixture validation",
+      "retirement_or_quarantine_reason": "Session provenance; comparison remains pending"
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-17_edit-original-chapter-five.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-authorized Chapter 5 revision in original manuscript; authority level 6",
+      "verification_evidence": "Native readback and unchanged surrounding content; PDF export denied 403",
+      "retirement_or_quarantine_reason": "Completed editing session provenance, not independent research evidence"
+    },
+    {
+      "path": ".agents/skills/chapter-five-iso/",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "User requested Chapter 5 skill set following ISO patterns; supporting guidance, authority level 5",
+      "verification_evidence": "Official ISO catalogue scope checked; metadata and acceptance review recorded in the session",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-17_chapter-5-skill-set.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Chapter 5 skill creation provenance, authority level 6",
+      "verification_evidence": "Session records scoped checks and limitations",
+      "retirement_or_quarantine_reason": "Completed skill creation provenance; not current research evidence"
+    },
+    {
+      "verification_evidence": "43 image sources and original placement verified",
+      "retirement_or_quarantine_reason": "Manuscript restored at user request",
+      "path": "docs/Editable workflow figures.zip",
+      "category": "academic-manuscript-and-slides",
+      "governing_requirement_or_replacement": "User requested original manuscript workflow diagrams excluding methodology figures",
+      "status": "superseded"
+    },
+    {
+      "path": ".agents/skills/diagram-maker/SKILL.md",
+      "category": "agent-governance-and-memory",
+      "status": "current",
+      "governing_requirement_or_replacement": "Reusable research and software diagram authoring",
+      "verification_evidence": "Skill metadata, linked notation guide and representative cases checked.",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-17_restore-methodology-figures.json",
+      "verification_evidence": "Native source URI readback",
+      "retirement_or_quarantine_reason": "Historical rollback provenance; later manuscript edits require their own authorization and verification",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User requested rollback of Figure 2 and Figure 2.1"
+    },
+    {
+      "governing_requirement_or_replacement": "Requested manuscript workflow figure revision",
+      "retirement_or_quarantine_reason": "Manuscript restored at user request",
+      "category": "academic-manuscript-and-slides",
+      "path": "docs/figures/workflow-2026-11-17",
+      "verification_evidence": "Native image writes and exported PDF spot checks",
+      "status": "superseded"
+    },
+    {
+      "category": "agent-governance-and-memory",
+      "verification_evidence": "Native readback and PDF spot checks",
+      "retirement_or_quarantine_reason": "Historical editing provenance; November 17 revision was reverted at the user's request",
+      "path": ".agents/ptss/sessions/2026-11-17_full-paper-refinement.json",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Whole-paper refinement"
+    },
+    {
+      "path": "docs/deployment/FREE_HOSTING.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "User request for free CMS-V2 hosting platforms and instructions.",
+      "verification_evidence": "Production Compose resolved six services with the documented port and upload overrides. Provider limits checked on 2026-11-16.",
+      "retirement_or_quarantine_reason": ""
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-11-16_free-deployment-guide.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "Free hosting guidance for the current production Compose stack.",
+      "verification_evidence": "Session records the configuration checks and the limits of deployment verification.",
+      "retirement_or_quarantine_reason": "Historical verification record."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-30_project-workspace-abstract.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-supplied abstract rubric; source manuscript method and revised Chapter 4 findings.",
+      "verification_evidence": "Native source read, independent editorial review, approximately 202-word abstract, and five relevant keywords. Existing component, lexical and survey measurements retain their original scopes.",
+      "retirement_or_quarantine_reason": "Research drafting history; no new empirical or release evidence."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-27_chapter-four-revision.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-provided major-revision verdict; source manuscript, current source inspection, measured component/lexical evidence, and the student survey.",
+      "verification_evidence": "Links the revised external Google Doc; 32 selected component cases pass, retained lexical source hashes match, 71-student survey table is preserved, and six native figures/five tables are read back. This local record replaces the unsupported external-URL path entry in the manifest.",
+      "retirement_or_quarantine_reason": "Research revision history, not a complete end-to-end or semantic-service acceptance claim."
+    },
+    {
+      "path": "docs/benchmarks/chapter-four-revision-evidence-2026-10-27.json",
+      "category": "testing-and-benchmarking",
+      "status": "current",
+      "governing_requirement_or_replacement": "Support the Chapter 4 component verification and controlled Node lexical experiment with raw cases, labels, timings, environment, and source hashes.",
+      "verification_evidence": "32/32 isolated component cases across seven suites; retained 48-text synthetic lexical experiment (TP24, FP0, TN16, FN8) and three 30-trial timing groups. Source hash checks match the retained lexical run.",
+      "retirement_or_quarantine_reason": "Narrow experiment scope: not fourteen role-based acceptance scenarios, BGE-M3 performance, or general release acceptance."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-27_chapter-five-minor-revision.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User minor-revision feedback; empirical claims remain bounded by actual survey data and confirmed illustrative technical figures.",
+      "verification_evidence": "Six native paragraph edits, exact readback, retained three main sections and numbering; three PDF pages inspected. Research prose revision only.",
+      "retirement_or_quarantine_reason": "Completed research-session history; not a software verification contract."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-27_chapter-five-revision.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User-requested Chapter 5 revision; user confirmed technical tables are illustrative, not measured results.",
+      "verification_evidence": "Three-section revision; complete native text readback; respondent-level sample SDs computed from 71 complete questionnaires; all three rendered PDF pages inspected. Replaces the earlier seven-page draft at the same output URL. No application changes or source-document edits.",
+      "retirement_or_quarantine_reason": "Completed research-session record retained for traceability; not software validation or an institutional contract."
+    },
+    {
+      "path": ".agents/ptss/sessions/2026-10-27_chapter-five-survey.json",
+      "category": "agent-governance-and-memory",
+      "status": "historical",
+      "governing_requirement_or_replacement": "User request for separate Chapter 5 draft; supplied manuscript and survey are study evidence; ISO official public sources guide interpretation.",
+      "verification_evidence": "71 complete student response records; section totals 3217/710 and 3184/710; native Google Docs content readback and PDF page review. Study draft, not institutional requirements or software-release evidence.",
+      "retirement_or_quarantine_reason": "Completed research-session history retained for traceability; not an active product contract."
+    },
+    {
+      "path": "docs/specs/luna-mongo-websocket-recovery.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md runtime isolation and bounded verification; Socket.IO authenticated lifecycle; official MongoMemoryServer configuration",
+      "verification_evidence": "27 October paired probes: restricted HTTP loopback EACCES and mongod assertion; approved HTTP/WebSocket success and MongoDB 8.2.6 readiness in 4813ms. Approved socket suite 5/5 and document API suite 6/6 passed. Live backend/Vite WebSocket opening and expected missing-token rejection verified. Luna directions identify remaining client expiry/reconnect gap and unverified authenticated browser/tunnel flows.",
+      "retirement_or_quarantine_reason": null
+    },
+    {
+      "path": "docs/specs/system-flaw-audit-luna-medium.md",
+      "category": "operational-runbook",
+      "status": "current",
+      "governing_requirement_or_replacement": "AGENTS.md institutional workflow and role boundaries; canonical API/document authorization contracts",
+      "verification_evidence": "27 October 2026 audit and repair checkpoint: all 13 code/test-fixture repairs implemented. Focused authorization/committee suites 22/22, plagiarism clearance/worker 23/23, refresh/OCR retry/fallback 12/12, password-reset/registration 17/17, and account invalidation 5/5 passed. Socket tests fail to establish localhost WebSockets; MongoMemoryServer-backed approval/evaluation/document API tests time out in setup before assertions. Endpoint parity 229/209/0 unmatched, agentic/governance 62/62, workspace guardrail, and evidence validation 34/34 passed. Full release acceptance and deployed configuration remain unverified.",
+      "retirement_or_quarantine_reason": null
+    },
     {
       "path": "docs/specs/shadcn-full-ui-refactor-luna-6-plan.md",
       "category": "architecture-specification",
@@ -2074,7 +2394,8 @@
       "retirement_or_quarantine_reason": null,
       "live_visual_checkpoint": "Live Vite checkpoint: eight bounded batches captured 192 states across 48 route inputs. Six batches passed automated checks; batches 4 and 6 remain flagged for Socket.IO HTTP 400. Top contact sheets for batches 1-3 were inspected; desktop dashboard captures include loading skeletons, so body readiness cannot establish loaded-state acceptance. Batches 9-11, deterministic loaded-state readiness, realtime diagnosis and exhaustive interactions remain open. These fresh captures stay separate from the existing 536-file catalog. Exact performance baseline remains open at the user’s request.",
       "loaded_state_follow_up": "Loaded-state diagnostic follow-up: revised audit captures a fully loaded instructor dashboard (desktop light image inspected), but its batch remains flagged for Socket.IO Session ID unknown. Batch 11 passes all eight theme/viewport captures. Batches 9 and 10 terminate with 12 captures each; the document-editor diagnostic shows an empty synthetic API response leaves only the Back control, rather than a persistent skeleton. Batch 10 also records invalid PDF structure from a fixture response. Fix fixture contracts and verify document-reader contract before retrying. No product code changed; full test fingerprints remain valid. Exact baseline stays open.",
-      "fixture_repair_checkpoint": "25 October fixture repair: deterministic manuscript open-link responses and a valid generated one-page PDF replace empty/JSON document fixtures. PDF.js independently parses the PDF and its expected text. Batch 9 passes 24 captures; batch 10 completes 24 with only Socket.IO Session ID unknown remaining. A focused editor rerun passes all four theme/viewport modes after giving the synthetic iframe a white paper surface. Its dark-mobile image, batch 9 contact sheet and a submission-review image were inspected. Reader PDF completion/metadata fixture parity and canonical read-only Google-document presentation still need stronger verification. The local cms-server container is exited; the client proxy targets server:43210. No server restart or workflow writes occurred. Product sources remain unchanged; exact baseline remains open."
+      "fixture_repair_checkpoint": "25 October fixture repair: deterministic manuscript open-link responses and a valid generated one-page PDF replace empty/JSON document fixtures. PDF.js independently parses the PDF and its expected text. Batch 9 passes 24 captures; batch 10 completes 24 with only Socket.IO Session ID unknown remaining. A focused editor rerun passes all four theme/viewport modes after giving the synthetic iframe a white paper surface. Its dark-mobile image, batch 9 contact sheet and a submission-review image were inspected. Reader PDF completion/metadata fixture parity and canonical read-only Google-document presentation still need stronger verification. The local cms-server container is exited; the client proxy targets server:43210. No server restart or workflow writes occurred. Product sources remain unchanged; exact baseline remains open.",
+      "faculty_registration_verification": "Faculty registration correction: Student/Faculty selection, matching institutional domains, conditional Student ID and explicit safe API roles are implemented. Fourteen client tests and twelve server unit tests pass, as do eight theme/viewport browser cases, focused lint and the 4,859-module production build. The database-backed auth test stalled in setup and is not counted. API health is currently 200; SMTP authentication fails, so real OTP delivery needs valid owner-provided configuration. Previous full-suite fingerprints precede this source change; broad refactor acceptance and the retained exact performance baseline remain open. Evidence: scratch/qa-evidence/faculty-registration/verified-summary.json."
     },
     {
       "path": "scratch/loading_feedback_audit.mjs",

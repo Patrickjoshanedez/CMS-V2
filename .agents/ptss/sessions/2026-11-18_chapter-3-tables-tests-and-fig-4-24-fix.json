@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-11-18_chapter-3-tables-tests-and-fig-4-24-fix",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Completed Chapter 3 Table 3.10-3.13 spacing/caption/pinned-header/math-typography formatting, aligned Workflow 4 & Table 3.16 (24 ISO/IEC/IEEE 29119-3 cases), fixed Figure 4.24 Manuscript Review Workspace authorization/error-extraction/light-mode defects, verified 4-state Playwright captures, replaced Figure 4.24 in the Google Doc, and visually inspected exported PDF pages.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "files_modified": [
+    "server/modules/documents/document.service.js",
+    "server/modules/documents/document.routes.js",
+    "server/tests/integration/documents.test.js",
+    "server/tests/unit/document.service.auth.test.js",
+    "client/src/pages/documents/TemplateManagementPage.jsx",
+    "client/src/pages/documents/TemplateManagementPage.test.jsx"
+  ],
+  "verified": [
+    "Google Doc Tables 3.10-3.13 & 3.16: pinnedHeaderRowsCount=1, centered keepWithNext captions, native Arial Narrow italic/sub/superscripts, Workflow 4 equations formatted",
+    "Google Doc Figure 4.24 (kix.6rtxr1ymfxy7) safely replaced with crisp light-mode loaded Manuscript Review Workspace screenshot",
+    "Exported 210-page PDF pages 119-122, 130-135, 175-177 inspected via PyMuPDF PNG renders",
+    "Client targeted tests (src/pages/documents/): 2 files, 8/8 tests passed",
+    "Server unit tests (tests/unit/document.service.auth.test.js): 4/4 tests passed",
+    "Server integration tests (MONGOMS_VERSION=7.0.24 tests/integration/documents.test.js): 8/8 tests passed",
+    "Client production build (vite build) succeeded in 13.22s",
+    "Playwright 4-state visual audit (1440x900 light/dark, 390x844 light/dark): zero Vite errors, zero destructive alerts, zero horizontal scroll, zero pageErrors"
+  ],
+  "lessons_learned": [
+    "Lesson learned: project committee authorization checks must read secretaryId and structured panelists[] alongside legacy adviserId/panelistIds; client error handlers must read error.response.data.error.message before falling back; Playwright theme switches must write cms-accessibility-settings in addInitScript before React mounts to avoid mid-transition dark cards on light pages; on Windows hosts with corrupted cached mongod 8.2.6 binaries, MONGOMS_VERSION=7.0.24 avoids MongoMemoryServer startup stalls."
+  ]
+}

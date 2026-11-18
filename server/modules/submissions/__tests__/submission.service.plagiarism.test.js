@@ -149,7 +149,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
           status: SUBMISSION_STATUSES.APPROVED,
           reviewNote: 'Looks good',
         }),
-      ).rejects.toThrow('Plagiarism check must be completed');
+      ).rejects.toThrow('A completed plagiarism scan is required');
     });
 
     it('should block approval if plagiarism check still pending', async () => {
@@ -164,7 +164,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionService.reviewSubmission(submission._id, adviserUser._id, {
           status: SUBMISSION_STATUSES.APPROVED,
         }),
-      ).rejects.toThrow('Plagiarism check must be completed');
+      ).rejects.toThrow('A completed plagiarism scan is required');
     });
 
     it('should block approval if plagiarism check failed', async () => {
@@ -180,7 +180,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionService.reviewSubmission(submission._id, adviserUser._id, {
           status: SUBMISSION_STATUSES.APPROVED,
         }),
-      ).rejects.toThrow('Plagiarism check must be completed');
+      ).rejects.toThrow('A completed plagiarism scan is required');
     });
 
     it('should block approval if similarity exceeds threshold', async () => {
@@ -191,6 +191,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 65.0,
         textMatches: [
           {
@@ -219,6 +220,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 30.0,
         textMatches: [
           {
@@ -250,6 +252,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 50.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -269,6 +272,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-zero',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 30.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -292,6 +296,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 65.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -321,6 +326,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission2._id,
         taskId: 'test-task-456',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 75.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -364,6 +370,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 20.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -417,19 +424,22 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-proposal',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 15.0,
         checkedAt: new Date(),
         completedAt: new Date(),
       });
     });
 
-    it('should transition project status when proposal approved by course instructor', async () => {
-      await submissionService.reviewSubmission(submission._id, instructorUser._id, {
-        status: SUBMISSION_STATUSES.APPROVED,
+    it('should reject course instructor from endorsing proposal with 403 ENDORSEMENT_FORBIDDEN_ROLE', async () => {
+      await expect(
+        submissionService.reviewSubmission(submission._id, instructorUser._id, {
+          status: SUBMISSION_STATUSES.APPROVED,
+        }),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        code: 'ENDORSEMENT_FORBIDDEN_ROLE',
       });
-
-      const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
 
     it('should reject panelist from endorsing proposal with 403 ENDORSEMENT_FORBIDDEN_ROLE', async () => {
@@ -471,6 +481,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: chapterSubmission._id,
         taskId: 'test-task-chapter',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 10.0,
         checkedAt: new Date(),
         completedAt: new Date(),
@@ -492,6 +503,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionId: submission._id,
         taskId: 'test-task-123',
         status: PLAGIARISM_STATUSES.COMPLETED,
+        scanCoverage: 'full',
         similarityPercentage: 25.0,
         checkedAt: new Date(),
         completedAt: new Date(),

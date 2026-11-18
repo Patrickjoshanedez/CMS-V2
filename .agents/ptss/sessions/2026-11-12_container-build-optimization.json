@@ -1,0 +1,63 @@
+{
+  "session_id": "2026-11-12_container-build-optimization",
+  "date": "2026-11-12",
+  "task_summary": "Pruned Docker Compose stack and dev scripts to the strictly necessary 6 runtime containers (mongodb, redis, cms-ocr-engine, plagiarism_api, server, client), eliminated bloat/incompatibilities (PyMuPDF 2.x ONNX hang -> pymupdf<2.0.0, DeleteResponse/ResultResponse Pydantic v2 field mismatches, FlagEmbedding/NumPy 1.26.4 conflict, node:20->22-alpine, .dockerignore unignoring docker/nginx.prod.conf, empty-URL guards for removed Ollama/Gotenberg), and verified all 6 containers healthy and passing live smoke checks.",
+  "task_category": "infrastructure_and_runtime_compatibility",
+  "files_modified": [
+    ".dockerignore",
+    "Dockerfile",
+    "Dockerfile.server.prod",
+    "Dockerfile.client.prod",
+    "docker/nginx.prod.conf",
+    "docker-compose.yml",
+    "docker-compose.fast.yml",
+    "docker-compose.hybrid.yml",
+    "docker-compose.prod.yml",
+    "docker-compose-v2.yml",
+    "package.json",
+    "start-local-dev.ps1",
+    "ocr_engine/.dockerignore",
+    "ocr_engine/Dockerfile",
+    "ocr_engine/requirements.txt",
+    "ocr_engine/app.py",
+    "plagiarism_engine/.dockerignore",
+    "plagiarism_engine/Dockerfile",
+    "plagiarism_engine/docker-compose.yml",
+    "plagiarism_engine/requirements.txt",
+    "plagiarism_engine/plagiarism_engine/embeddings.py",
+    "plagiarism_engine/plagiarism_engine/main.py",
+    "server/services/documentConversion.service.js",
+    "server/modules/submissions/submission.service.js",
+    "server/modules/submissions/secretary.controller.js",
+    "server/services/archivePlagiarismScan.service.js",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/index.jsonl",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_triggered": [
+    "docker-compose-production",
+    "devops-iac-engineer",
+    "verification-loop",
+    "ptss"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "key_decisions": [
+    "Keep only 6 necessary runtime containers (mongodb, redis, cms-ocr-engine, plagiarism_api, server, client); remove ollama, gotenberg, minio, minio-init, plagiarism_redis, plagiarism_worker, ngrok, plagiarism_ngrok, chromadb, localstack, localstack-ngrok from compose/startup flows while leaving protected AGENTS.md files (deploy.ps1, lan-deploy.ps1, .env*, seeders) untouched.",
+    "Use in-process FastAPI BackgroundTasks async mode (PLAGIARISM_ASYNC_BACKEND=inprocess) and SentenceTransformer all-MiniLM-L6-v2 (384-dim) in plagiarism_api so Celery/dedicated Redis/Ollama/FlagEmbedding/pyarrow-NumPy2 conflicts are eliminated.",
+    "Pin pymupdf>=1.24.0,<2.0.0 (1.28.2) + psutil>=5.9.0 in ocr_engine/requirements.txt because unpinned pymupdf>=1.24.0 pulled pymupdf 2.1 -> pymupdf_layout + onnxruntime, causing 10-46s CPU stalls on find_tables() and triggering Node's 15s OCR timeout.",
+    "Fix plagiarism_engine DeleteResponse(segments_removed=...) and ResultResponse(..., report=...) mismatches caught by live Pydantic v2 smoke tests.",
+    "Upgrade Node images to node:22-alpine (resolving EBADENGINE for file-type@22, opossum@10, puppeteer-core@25) and keep !docker/nginx.prod.conf un-ignored in .dockerignore so Dockerfile.client.prod builds cleanly."
+  ],
+  "lessons_learned": [
+    "Lesson learned: unpinned PyMuPDF>=1.24.0 installs PyMuPDF 2.x with pymupdf_layout + onnxruntime, causing 10-46s table-detection CPU stalls inside 1-CPU/512m containers and exhausting Node OcrExtractionService 15s timeouts; pinning pymupdf>=1.24.0,<2.0.0 restores ~20ms fast-path parsing and drops OCR image size to 530MB.",
+    "Lesson learned: live smoke tests of every REST endpoint catch Pydantic v2 silent extra-kwarg drops (ResultResponse(result=...) leaving report=null) and required-field 500s (DeleteResponse(deleted_segments=...)) that static unit mocks miss.",
+    "Prevention checklist: whenever adding directory ignores like docker/ in .dockerignore, verify Dockerfile.client.prod and Dockerfile.server.prod COPY sources build cleanly; always test production Dockerfiles with docker build after .dockerignore changes."
+  ],
+  "open_threads": [
+    "Pre-existing unrelated unit test failure noted in server/tests/unit/chapterUploadCleanup.test.js (console.error spy vs pino logger.error); targeted serial compatibility tests passed 4/4 files (19/19 tests).",
+    "Protected deployment scripts (docker-compose.deploy.yml, deploy.ps1) were left untouched per AGENTS.md boundary rules."
+  ],
+  "verification_status": "passed",
+  "verification_notes": "All 6 compose containers healthy; live OCR parse-document 200 OK in ~20.36ms processing_time_ms; plagiarism sync & async /check->/result 73.79 & DELETE /index/ 200 OK (collection_count=0); server->mongo/redis/ocr/plagiarism mesh 200 OK & gotenbergAvailable=false; headless Chromium /login 200 with 0 vite-error-overlay & 0 pageErrors; Dockerfile.server.prod and Dockerfile.client.prod + nginx -t succeeded; targeted serial server unit tests 19/19 passed; endpoint parity (229/209, UNMATCHED_COUNT=0), validate:agentic (62/62), and workspace_guardrail passed."
+}

@@ -1,0 +1,42 @@
+{
+  "session_id": "2026-11-18_role-user-stories-pain-points-ui-consistency",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Grounded BukSU CMS-V2 UI workflows in capstone manuscript Chapters 3-5 and Appendix C: created the reusable role-user-stories-and-pain-points skill (.agents/skills/role-user-stories-and-pain-points/), added role quick-actions/guidance banners across Student, Faculty, Instructor, Capstone 1, Submissions, and Document Management pages, conducted real-person multi-role browser navigation, and resolved 6 live defects (flex shrink-0 text-squeeze/clipping, Capstone 1 submissions object/chapter key mismatch, 15%/25% similarity copy alignment, faculty cross-view RBAC 403s + stale revision deduplication + duplicate faculty workload rows, student directory redirect button, and Router-safe SPA links).",
+  "artifacts_modified": [
+    ".agents/skills/role-user-stories-and-pain-points/SKILL.md",
+    ".agents/skills/role-user-stories-and-pain-points/references/manuscript-user-stories-and-pain-points.md",
+    ".agents/skills/role-user-stories-and-pain-points/evals/evals.json",
+    "client/src/pages/projects/MyProjectPage.jsx",
+    "client/src/pages/projects/MyProjectPage.test.jsx",
+    "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+    "client/src/pages/dashboard/DashboardPage.jsx",
+    "client/src/components/dashboards/FacultyDashboard.jsx",
+    "client/src/components/dashboards/InstructorDashboard.jsx",
+    "client/src/pages/documents/TemplateManagementPage.jsx",
+    "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+    "server/modules/dashboard/dashboard.routes.js",
+    "server/modules/dashboard/dashboard.service.js"
+  ],
+  "skills_used": [
+    "skill-creator",
+    "role-user-stories-and-pain-points",
+    "cms-ui-consistency-library",
+    "capstone-lifecycle-orchestrator",
+    "frontend-patterns",
+    "senior-backend",
+    "verification-loop",
+    "ptss",
+    "skill-write-or-patch"
+  ],
+  "verified": [
+    "Targeted client Vitest suites: 7 files, 49/49 tests passed (Capstone1CollapsibleSections, MyProjectPage, StudentDashboard, FacultyDashboard, InstructorDashboard, TemplateManagementPage, ProjectSubmissionsPage)",
+    "Targeted server integration suite tests/integration/dashboard.test.js: 15/15 tests passed",
+    "Scoped ESLint across 10 modified JS/JSX files: 0 errors (1 pre-existing warning in dashboard.service.js:127); Vite build: 4865 modules built in 34.60s",
+    "Live multi-role browser walkthrough (student, adviser/panelist, instructor on http://localhost:43211) + Playwright 4-viewport Light/Dark audit (Desktop 1440x900 & Mobile 390x844): zero horizontal overflow, zero clipped buttons, zero Vite overlays"
+  ],
+  "lessons_learned": [
+    "Lesson learned: Pairing sm:flex-row/lg:flex-row with shrink-0 on multi-button shortcut strips inside DashboardLayout (~874px content column) crushes left-hand prose to 1 char per line and clips right buttons; useProjectSubmissions also returns { submissions, pagination } with numeric chapter in production whereas mocks returned arrays with chapterNumber; historical submission versions remain in adviser review queues unless deduplicated per (projectId, type, chapter).",
+    "Prevention runbook/checklist: Stack multi-button guide banners vertically (flex flex-col gap-3) above wrapping flex-wrap button rows without shrink-0, unwrap both array and { submissions } API shapes with s.chapter ?? s.chapterNumber, deduplicate latest submission versions before status filtering, and run real-person live browser walkthroughs after unit tests."
+  ]
+}

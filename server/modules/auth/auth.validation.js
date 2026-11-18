@@ -1,52 +1,68 @@
 import { z } from 'zod';
-import { STRICT_EMAIL_REGEX, isBuksuStudentEmail } from '@cms/shared';
+import { STRICT_EMAIL_REGEX, isBuksuStudentEmail, isBuksuInstitutionalEmail } from '@cms/shared';
 
 /**
  * Zod validation schemas for all auth endpoints.
  * Used with the validate() middleware.
  */
 
-export const registerSchema = z.object({
-  firstName: z
-    .string({ required_error: 'First name is required' })
-    .trim()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name must not exceed 50 characters'),
-  middleName: z
-    .string()
-    .trim()
-    .max(50, 'Middle name must not exceed 50 characters')
-    .optional()
-    .default(''),
-  lastName: z
-    .string({ required_error: 'Last name is required' })
-    .trim()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name must not exceed 50 characters'),
-  studentId: z
-    .string()
-    .trim()
-    .max(32, 'Student ID must not exceed 32 characters')
-    .optional()
-    .default(''),
-  email: z
-    .string({ required_error: 'Email is required' })
-    .trim()
-    .email('Please provide a valid email address')
-    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
-    .refine((email) => process.env.NODE_ENV === 'test' || isBuksuStudentEmail(email), {
-      message: 'Student registration requires a @student.buksu.edu.ph email address.',
-    })
-    .toLowerCase(),
-  password: z
-    .string({ required_error: 'Password is required' })
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password must not exceed 128 characters')
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-    ),
-});
+export const registerSchema = z
+  .object({
+    role: z.enum(['student', 'faculty']).default('student'),
+    firstName: z
+      .string({ required_error: 'First name is required' })
+      .trim()
+      .min(2, 'First name must be at least 2 characters')
+      .max(50, 'First name must not exceed 50 characters'),
+    middleName: z
+      .string()
+      .trim()
+      .max(50, 'Middle name must not exceed 50 characters')
+      .optional()
+      .default(''),
+    lastName: z
+      .string({ required_error: 'Last name is required' })
+      .trim()
+      .min(2, 'Last name must be at least 2 characters')
+      .max(50, 'Last name must not exceed 50 characters'),
+    studentId: z
+      .string()
+      .trim()
+      .max(32, 'Student ID must not exceed 32 characters')
+      .optional()
+      .default(''),
+    email: z
+      .string({ required_error: 'Email is required' })
+      .trim()
+      .email('Please provide a valid email address')
+      .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
+      .toLowerCase(),
+    password: z
+      .string({ required_error: 'Password is required' })
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password must not exceed 128 characters')
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+      ),
+  })
+  .superRefine((data, ctx) => {
+    if (process.env.NODE_ENV === 'test') return;
+    const student = data.role === 'student';
+    if (
+      student
+        ? !isBuksuStudentEmail(data.email)
+        : !isBuksuInstitutionalEmail(data.email) || isBuksuStudentEmail(data.email)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: student
+          ? 'Student registration requires a @student.buksu.edu.ph email address.'
+          : 'Faculty registration requires a @buksu.edu.ph email address.',
+      });
+    }
+  });
 
 export const loginSchema = z.object({
   email: z
@@ -113,8 +129,7 @@ export const resetPasswordSchema = z.object({
     .string()
     .trim()
     .length(6, 'OTP must be exactly 6 digits')
-    .regex(/^\d{6}$/, 'OTP must contain only digits')
-    .optional(),
+    .regex(/^\d{6}$/, 'OTP must contain only digits'),
   newPassword: z
     .string({ required_error: 'New password is required' })
     .min(8, 'Password must be at least 8 characters')

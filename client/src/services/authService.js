@@ -150,19 +150,38 @@ export const projectService = {
     const formData = payload instanceof FormData ? payload : new FormData();
 
     if (!(payload instanceof FormData)) {
-      formData.append('title', payload.title);
-      if (payload.abstract) formData.append('abstract', payload.abstract);
-      if (payload.keywords) formData.append('keywords', payload.keywords);
+      formData.append('title', String(payload.title || '').slice(0, 300));
+      if (payload.abstract) formData.append('abstract', String(payload.abstract).slice(0, 5000));
+      if (payload.keywords) {
+        const cappedKeywords = String(payload.keywords)
+          .split(',')
+          .map((k) => k.trim())
+          .filter(Boolean)
+          .slice(0, 10)
+          .join(', ');
+        if (cappedKeywords) formData.append('keywords', cappedKeywords);
+      }
       if (Array.isArray(payload.authors)) {
-        payload.authors.forEach((author) => formData.append('authors', author));
+        payload.authors.slice(0, 20).forEach((author) => formData.append('authors', author));
       } else if (payload.authors) {
-        formData.append('authors', payload.authors);
+        const cappedAuthors = String(payload.authors)
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean)
+          .slice(0, 20)
+          .join(', ');
+        if (cappedAuthors) formData.append('authors', cappedAuthors);
       }
       if (payload.publicationYear !== null && payload.publicationYear !== undefined) {
         formData.append('publicationYear', String(payload.publicationYear));
       }
-      if (payload.doi) formData.append('doi', payload.doi);
-      if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
+      if (payload.doi) formData.append('doi', String(payload.doi).slice(0, 255));
+      if (payload.publicationVenue) {
+        formData.append('publicationVenue', String(payload.publicationVenue).slice(0, 255));
+      }
+      if (payload.courseId) {
+        formData.append('courseId', String(payload.courseId));
+      }
       if (payload.academicYear) {
         formData.append('academicYear', payload.academicYear);
       } else if (payload.publicationYear) {
@@ -237,7 +256,8 @@ export const projectService = {
   // Link-based asset updates
   updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
   updateGanttPlan: (id, data) => api.patch(`/projects/${id}/gantt-plan`, data),
-  updateSystemDefenseApproval: (id, data) => api.patch(`/projects/${id}/system-defense-clearance`, data),
+  updateSystemDefenseApproval: (id, data) =>
+    api.patch(`/projects/${id}/system-defense-clearance`, data),
   getApprovalSheetUrl: (id) => api.get(`/projects/${id}/approval-sheet`),
   updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
   updateGithubRepoUrl: (id, data) => api.patch(`/projects/${id}/github-repo`, data),

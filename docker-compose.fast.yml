@@ -5,14 +5,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     command: npm run dev:docker --workspace=server
     environment:
       PLAGIARISM_ENGINE_URL: ${PLAGIARISM_ENGINE_URL:-http://host.docker.internal:8001}
       PLAGIARISM_ENGINE_API_TOKEN: ${PLAGIARISM_ENGINE_API_TOKEN:-}
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
-      GOTENBERG_URL: ${GOTENBERG_URL:-http://host.docker.internal:3000}
+      OCR_ENGINE_URL: ${OCR_ENGINE_URL:-http://cms-ocr-engine:8000}
+      OLLAMA_HOST: ""
+      GOTENBERG_URL: ""
     volumes: !override
       - ./uploads:/app/uploads
     develop:

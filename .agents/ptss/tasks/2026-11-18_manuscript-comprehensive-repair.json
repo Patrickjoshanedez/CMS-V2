@@ -1,0 +1,19 @@
+{
+  "active_scenario_id": "manuscript-comprehensive-repair",
+  "completed_subgoals": [
+    "Source reconciliation",
+    "Prose and hierarchy repair",
+    "Technical consistency",
+    "Figure replacement",
+    "Index regeneration",
+    "Structural and statistical verification",
+    "Selected PDF visual review"
+  ],
+  "remaining_subgoals": [
+    "External issued technical report/certificate",
+    "External unprovided recruitment/interview/permission records"
+  ],
+  "last_action_result": "Authorized editorial changes verified; external evidence clearly described as pending",
+  "progress_delta": 7,
+  "loop_count": 0
+}

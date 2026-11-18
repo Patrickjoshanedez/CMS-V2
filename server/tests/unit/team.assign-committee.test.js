@@ -34,6 +34,10 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
     mockTeam = {
       _id: teamId,
       name: 'Team Alpha',
+      leaderId: {
+        _id: '65e000000000000000000003',
+        instructorId,
+      },
       members: ['65e000000000000000000003'],
       academicYear: '2025-2026',
       adviserId: null,
@@ -66,6 +70,7 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
   it('rejects member-role changes for an archived project before saving the team', async () => {
     const leaderId = '65e000000000000000000015';
     mockTeam.leaderId = { _id: leaderId };
+    mockTeam.members = [leaderId, '65e000000000000000000016'];
     vi.spyOn(Project, 'findOne').mockImplementation(() => createQueryMock({ isArchived: true }));
 
     await expect(
@@ -119,6 +124,19 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
 
     await expect(teamService.assignCommittee(teamId, instructorId, {})).rejects.toMatchObject({
       code: 'PROJECT_ARCHIVED',
+    });
+    expect(mockTeam.save).not.toHaveBeenCalled();
+    expect(Notification.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an instructor outside the team assignment before committee changes', async () => {
+    const foreignInstructorId = '65e000000000000000000099';
+    vi.spyOn(User, 'findById').mockImplementation(() => createQueryMock(instructorUser));
+
+    await expect(
+      teamService.assignCommittee(teamId, foreignInstructorId, {}),
+    ).rejects.toMatchObject({
+      code: 'NOT_ASSIGNED_INSTRUCTOR',
     });
     expect(mockTeam.save).not.toHaveBeenCalled();
     expect(Notification.create).not.toHaveBeenCalled();
@@ -211,7 +229,7 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
     ).rejects.toThrow(/Students cannot serve on the faculty committee/);
   });
 
-  it('marks notifications as read and completed when committee is fully assigned (1 adviser, 1 secretary, >=3 panelists)', async () => {
+  it('marks notifications complete only for one adviser, one secretary, and exactly 3 panelists', async () => {
     const adviserId = '65e000000000000000000010';
     const secretaryId = '65e000000000000000000011';
     const panelistIds = [
@@ -313,5 +331,48 @@ describe('teamService.assignCommittee - Role Guards & Notification Resolution', 
 
     expect(result.isFullyAssigned).toBe(false);
     expect(Notification.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('validates partial updates against the stored committee before writing', async () => {
+    const existingPanelistId = '65e000000000000000000012';
+    mockTeam.panelistIds = [existingPanelistId];
+    vi.spyOn(User, 'findById').mockImplementation(() => createQueryMock(instructorUser));
+
+    await expect(
+      teamService.assignCommittee(teamId, instructorId, { adviserId: existingPanelistId }),
+    ).rejects.toMatchObject({ code: 'ROLE_CONFLICT' });
+
+    expect(mockTeam.save).not.toHaveBeenCalled();
+    expect(Project.findOne).not.toHaveBeenCalled();
+    expect(Notification.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects 4 or 5 panelists before writes and keeps a 2-person staged committee incomplete', async () => {
+    vi.spyOn(User, 'findById').mockImplementation(() => createQueryMock(instructorUser));
+    const fourPanelists = Array.from(
+      { length: 4 },
+      (_, index) => `65e0000000000000000000${20 + index}`,
+    );
+
+    for (const panelistIds of [fourPanelists, [...fourPanelists, '65e000000000000000000024']]) {
+      await expect(
+        teamService.assignCommittee(teamId, instructorId, { panelistIds }),
+      ).rejects.toMatchObject({ code: 'MAX_PANELISTS_EXCEEDED' });
+    }
+
+    expect(mockTeam.save).not.toHaveBeenCalled();
+    expect(Notification.create).not.toHaveBeenCalled();
+  });
+
+  it('supports explicitly clearing panelists while keeping omitted roles unchanged', async () => {
+    mockTeam.panelistIds = ['65e000000000000000000012'];
+    vi.spyOn(User, 'findById').mockImplementation(() => createQueryMock(instructorUser));
+
+    const result = await teamService.assignCommittee(teamId, instructorId, { panelistIds: [] });
+
+    expect(mockTeam.panelistIds).toEqual([]);
+    expect(mockTeam.adviserId).toBeNull();
+    expect(mockTeam.secretaryId).toBeNull();
+    expect(result.isFullyAssigned).toBe(false);
   });
 });

@@ -1,0 +1,17 @@
+{
+  "skill_name": "chapter-two-iso",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Expand Chapter 2 using only these supplied summaries: Study A used interviews with 12 advisers and identified fragmented feedback; Study B surveyed 40 students and reported favorable navigation ratings. Neither measured processing time. Draft a thematic synthesis and identify what is lacking. Do not browse or invent bibliographic details; use the source labels provided.",
+      "expected_output": "Compares distinct methods and stakeholder perspectives, avoids invented time-saving results or citations, connects evidence to workflow and usability needs, and separates missing bibliographic information from manuscript prose.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Improve this Chapter 2 claim: 'After reading three abstracts, our systematic review proves no capstone system has plagiarism detection and ours is the first ISO-certified system.' No review protocol, full texts, or certification records are available. Give replacement prose, restrictions, and a concrete expansion plan.",
+      "expected_output": "Removes unsupported systematic-review, novelty, and certification claims; offers bounded prose and source verification/synthesis steps without fabricated studies or search counts.",
+      "files": []
+    }
+  ]
+}

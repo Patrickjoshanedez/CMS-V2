@@ -64,14 +64,18 @@ const detectDocumentMime = async (buffer, originalname) => {
   return EXTENSION_FALLBACK_TYPES[ext] || null;
 };
 
-const assertValidDocumentFile = async (file, fieldLabel = 'File') => {
+const assertValidDocumentFile = async (
+  file,
+  fieldLabel = 'File',
+  maxUploadSizeMb = env.MAX_UPLOAD_SIZE_MB,
+) => {
   const { buffer, originalname, size } = file;
 
   // --- Size check ---
-  const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+  const maxBytes = maxUploadSizeMb * 1024 * 1024;
   if (size > maxBytes) {
     throw new AppError(
-      `${fieldLabel} size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the ${env.MAX_UPLOAD_SIZE_MB}MB limit.`,
+      `${fieldLabel} size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the ${maxUploadSizeMb}MB limit.`,
       413,
       'FILE_TOO_LARGE',
     );
@@ -192,6 +196,7 @@ const validateDualArchiveFiles = async (req, _res, next) => {
       academicPaperFile.validatedMime = await assertValidDocumentFile(
         academicPaperFile,
         'Academic Paper',
+        env.MAX_ARCHIVE_UPLOAD_SIZE_MB,
       );
     }
 
@@ -199,9 +204,31 @@ const validateDualArchiveFiles = async (req, _res, next) => {
       academicJournalFile.validatedMime = await assertValidDocumentFile(
         academicJournalFile,
         'Academic Journal',
+        env.MAX_ARCHIVE_UPLOAD_SIZE_MB,
       );
     }
 
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Validate a single document uploaded for OCR metadata extraction.
+ * Allows PDF and DOCX up to MAX_ARCHIVE_UPLOAD_SIZE_MB (default 50MB).
+ */
+export const validateMetadataFile = async (req, _res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+    }
+
+    req.file.validatedMime = await assertValidDocumentFile(
+      req.file,
+      'Document',
+      env.MAX_ARCHIVE_UPLOAD_SIZE_MB,
+    );
     next();
   } catch (error) {
     next(error);

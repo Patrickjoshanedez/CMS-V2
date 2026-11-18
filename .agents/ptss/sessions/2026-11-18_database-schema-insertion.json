@@ -1,0 +1,15 @@
+{
+  "session_id": "2026-11-18_database-schema-insertion",
+  "date": "2026-11-18",
+  "task_summary": "Inserted native Table 3.9 Core MongoDB Collection Schema at Chapter 3 database design paragraph; renumbered previous Tables 3.9–3.18 and references to 3.10–3.19.",
+  "verification_status": "passed",
+  "verification": [
+    "Native 5×4 table readback matches all 20 planned cells",
+    "Schema fields and references checked against User, Project, Submission, Comment models",
+    "Final exported PDF page 56 inspected; entire table fits on one page"
+  ],
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "lessons_learned": [
+    "Lesson learned: a table inserted before an existing figure may split its first data row across pages. Prevention runbook/checklist: export PDF, inspect, and apply pageBreakBefore to caption when the whole table fits on a fresh page."
+  ]
+}

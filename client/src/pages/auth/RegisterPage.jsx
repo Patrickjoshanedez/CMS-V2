@@ -11,6 +11,8 @@ import { FloatingInput } from '@/components/ui/FloatingInput';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { Button } from '@/components/ui/Button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
+import { Label } from '@/components/ui/Label';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
@@ -71,7 +73,7 @@ function PasswordStrengthMeter({ password }) {
 }
 
 /**
- * RegisterPage — student self-registration with floating inputs,
+ * RegisterPage — student and faculty self-registration with floating inputs,
  * password strength meter, gradient button, and stagger animations.
  */
 export default function RegisterPage() {
@@ -104,6 +106,7 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     shouldUnregister: false,
     defaultValues: {
+      role: 'student',
       firstName: '',
       middleName: '',
       lastName: '',
@@ -134,6 +137,7 @@ export default function RegisterPage() {
     name: 'password',
     defaultValue: '',
   });
+  const accountRole = useWatch({ control, name: 'role', defaultValue: 'student' });
 
   /* ─── Google OAuth Handlers ─── */
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -179,10 +183,11 @@ export default function RegisterPage() {
         }
 
         await registerUser({
+          role: data.role,
           firstName: data.firstName,
           middleName: data.middleName,
           lastName: data.lastName,
-          studentId: data.studentId?.trim(),
+          ...(data.role === 'student' ? { studentId: data.studentId?.trim() } : {}),
           email: data.email,
           password: data.password,
           ...(isRecaptchaEnabled ? { captchaToken } : {}),
@@ -218,6 +223,37 @@ export default function RegisterPage() {
       <AuthStatusAlert message={error} />
 
       <form onSubmit={handleFormSubmit} noValidate>
+        <div className="mb-5 space-y-2">
+          <Label id="registration-role-label">Register as</Label>
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <RadioGroup
+                aria-labelledby="registration-role-label"
+                value={field.value}
+                onValueChange={field.onChange}
+                className="grid grid-cols-2 gap-3"
+              >
+                {['student', 'faculty'].map((role) => (
+                  <Label
+                    key={role}
+                    htmlFor={`register-${role}`}
+                    className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <RadioGroupItem id={`register-${role}`} value={role} />
+                    {role === 'student' ? 'Student' : 'Faculty'}
+                  </Label>
+                ))}
+              </RadioGroup>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            {accountRole === 'student'
+              ? 'Use your @student.buksu.edu.ph email and Student ID.'
+              : 'Use your @buksu.edu.ph faculty email. Committee appointments are assigned separately.'}
+          </p>
+        </div>
         <div
           className="mb-4 flex items-center justify-between text-xs text-muted-foreground"
           aria-live="polite"
@@ -320,23 +356,25 @@ export default function RegisterPage() {
             </div>
 
             {/* Student ID no. */}
-            <div className="auth-item mb-4">
-              <Controller
-                name="studentId"
-                control={control}
-                render={({ field }) => (
-                  <FloatingInput
-                    {...field}
-                    id="studentId"
-                    label="Student ID no. *"
-                    autoComplete="off"
-                    maxLength={32}
-                    aria-required="true"
-                    error={errors.studentId?.message}
-                  />
-                )}
-              />
-            </div>
+            {accountRole === 'student' && (
+              <div className="auth-item mb-4">
+                <Controller
+                  name="studentId"
+                  control={control}
+                  render={({ field }) => (
+                    <FloatingInput
+                      {...field}
+                      id="studentId"
+                      label="Student ID no. *"
+                      autoComplete="off"
+                      maxLength={32}
+                      aria-required="true"
+                      error={errors.studentId?.message}
+                    />
+                  )}
+                />
+              </div>
+            )}
 
             {/* Password + strength meter */}
             <div className="auth-item mb-4">

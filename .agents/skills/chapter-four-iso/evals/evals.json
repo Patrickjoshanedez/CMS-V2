@@ -1,0 +1,17 @@
+{
+  "skill_name": "chapter-four-iso",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Expand our Chapter 4 discussion. Supplied summary: 77 respondents, usability mean 4.53 SD 0.30, satisfaction mean 4.48 SD 0.34; study bands 4.21–5.00 Excellent. Raw responses unavailable. Method uses ISO/IEC 25010:2011. A 200 ms benchmark is illustrative, without execution logs. Draft useful findings now and list remaining gaps separately; do not claim ISO certification.",
+      "expected_output": "Uses supplied aggregates with attribution and limits, retains 2011, excludes illustrative timing from measured results, separates perceptions from technical quality, and delivers substantive discussion without waiting for raw data.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Audit and rewrite: 'The upload screenshot proves security. A 95% similarity score means our detector is 95% accurate. Twenty respondents answered ten questions so n=200. All ISO characteristics passed.' We only have the screenshot, one similarity report, and a survey of 20 people. Explain what is lacking and expand the supported Chapter 4 discussion.",
+      "expected_output": "Rejects screenshot-based security proof and similarity-as-accuracy, keeps n=20, avoids blanket ISO coverage, supplies bounded findings and concrete evidence gaps.",
+      "files": []
+    }
+  ]
+}

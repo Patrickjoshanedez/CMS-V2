@@ -135,7 +135,7 @@ export default function PrototypeGalleryModal({
                     size="sm"
                     variant="outline"
                     onClick={handleCopyGithub}
-                    className="h-8 text-xs gap-1.5"
+                    className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 text-xs gap-1.5"
                   >
                     {copied ? (
                       <Check className="size-3.5 text-success" aria-hidden="true" />
@@ -144,7 +144,11 @@ export default function PrototypeGalleryModal({
                     )}
                     {copied ? 'Copied' : 'Copy'}
                   </Button>
-                  <Button size="sm" asChild className="h-8 text-xs gap-1.5">
+                  <Button
+                    size="sm"
+                    asChild
+                    className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 text-xs gap-1.5"
+                  >
                     <a href={githubUrl} target="_blank" rel="noopener noreferrer">
                       <span>Open Code</span>
                       <ExternalLink className="size-3.5" aria-hidden="true" />

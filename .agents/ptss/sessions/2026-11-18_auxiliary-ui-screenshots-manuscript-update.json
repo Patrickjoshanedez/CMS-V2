@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-11-18_auxiliary-ui-screenshots-manuscript-update",
+  "date": "2026-11-18",
+  "status": "completed",
+  "task_summary": "Captured 8 uncaptured auxiliary/utility application UI screens in Light Mode (1440x900) via Playwright without mutating the database, added Section 4.2.5.5 and Figures 4.35–4.42 (468.0x293.0 pt centered, bold Fig prefixes, explicit zero first-line indent) to Google Doc 19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw, updated cross-references (34 -> 42 figures across Sections 4.1.2, 4.1.3, 4.2.5, 5.1), appended TOC 4.2.5.5 + List of Figures rows (Figs 4.34–4.42 exact printed pages 174–182), updated shifted TOC pages (5 SUMMARY..Appendix C), and visually inspected all exported PDF pages.",
+  "output_url": "https://docs.google.com/document/d/19isUvaVR4WcRnkHi2piN_FeadsEGzquBw_cuQbmggCw/edit",
+  "verified": {
+    "aux_screenshots_captured_and_inspected": [
+      "scratch/aux_screenshots/fig435_verify_otp.png (/verify-otp)",
+      "scratch/aux_screenshots/fig436_forgot_password.png (/forgot-password)",
+      "scratch/aux_screenshots/fig437_reset_password.png (/reset-password)",
+      "scratch/aux_screenshots/fig438_create_project.png (/project/create)",
+      "scratch/aux_screenshots/fig439_proposal_compilation.png (/project/proposal)",
+      "scratch/aux_screenshots/fig440_document_editor.png (/projects/:projectId/documents/:docIdOrType)",
+      "scratch/aux_screenshots/fig441_forbidden.png (/forbidden)",
+      "scratch/aux_screenshots/fig442_not_found.png (/* 404)"
+    ],
+    "redirect_aliases_documented": [
+      "/archive/upload/academic-paper -> <Navigate to='/archive/upload/capstone' replace /> (Figure 4.31)",
+      "/archive/upload/academic-journal -> <Navigate to='/archive/upload/capstone' replace /> (Figure 4.31)"
+    ],
+    "gdocs_pdf_pages_inspected": [
+      7, 12, 13, 143, 144, 154, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197
+    ]
+  },
+  "lessons_learned": [
+    "Always pass batch raw updateParagraphStyle with indentFirstLine=0 PT, indentStart=0 PT, indentEnd=0 PT when inserting paragraphs after headings in docs whose NORMAL_TEXT named style defaults to 36 PT first-line indent, otherwise 468pt centered screenshots shift right by 36pt and clip the right page edge.",
+    "Never pass literal newline characters inside command-line arguments to gdocs.CMD on Windows; always use file-based -f JSON batch/sed operations.",
+    "Set alignment=START on figure discussions containing long unbroken route strings like (/projects/:projectId/documents/:docIdOrType) to avoid extreme word spacing under JUSTIFIED alignment."
+  ]
+}

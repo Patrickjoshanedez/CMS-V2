@@ -12,11 +12,12 @@ The workspace houses **65 verified cognitive skills** under `.agents/skills/`. T
 
 ```
 ├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor, capstone-lifecycle-orchestrator]
-├── Frontend Excellence:     [frontend-patterns, frontend-specialist, zustand, web-design-guidelines]
+├── Frontend Excellence:     [frontend-patterns, frontend-specialist, zustand, web-design-guidelines, modern-web-guidance, cms-ui-consistency-library]
 ├── Design Polish Suite:     [i-frontend-design, ui-design-principles, i-polish, i-typeset, i-colorize, i-arrange, i-delight, i-harden, i-animate]
 ├── Plagiarism & AI Engine:  [scikit-learn, huggingface-tokenizers, content-analysis]
 ├── Reliability & Infra:     [sre-engineer, sre-reliability-engineering, devops-iac-engineer, docker-compose-production]
 ├── Data & Schemas:          [mongoose-mongodb, xlsx, pdf, algorithmic-art]
+├── Academic Writing:        [chapter-one-iso, chapter-two-iso, chapter-three-iso, chapter-four-iso, chapter-five-iso, gdocs-academic-editor, diagram-maker]
 └── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator,
                               skill-write-or-patch, ptss, hermes-curator, anti-regression-and-ci-governance,
                               context-gathering-and-ast-triage]

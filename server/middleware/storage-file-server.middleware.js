@@ -22,6 +22,49 @@ const router = express.Router();
 const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uploads');
 
 /**
+ * Check project-level access before serving a locally stored manuscript.
+ * Keep this boundary aligned with DocumentService._assertCanView.
+ *
+ * @param {Object} user - Authenticated request user
+ * @param {string} projectId - Project ID parsed from the storage key
+ * @returns {Promise<boolean>}
+ */
+export async function canAccessProjectStorageFile(user, projectId) {
+  if (!user?._id || !projectId) return false;
+
+  const Project = (await import('../modules/projects/project.model.js')).default;
+  const Team = (await import('../modules/teams/team.model.js')).default;
+  const project = await Project.findById(projectId)
+    .select('teamId memberRoleAssignments adviserId panelistIds')
+    .lean();
+
+  if (!project) return false;
+  if (user.role === 'instructor') return true;
+
+  const userId = String(user._id);
+  const teamIdMatches = user.teamId && String(user.teamId) === String(project.teamId);
+  const isAssignedAdviser = project.adviserId && String(project.adviserId) === userId;
+  const isAssignedPanelist = (project.panelistIds || []).some((id) => String(id) === userId);
+
+  if (
+    teamIdMatches ||
+    isAssignedAdviser ||
+    isAssignedPanelist ||
+    project.memberRoleAssignments?.some((member) => String(member.userId) === userId)
+  ) {
+    return true;
+  }
+
+  if (user.role !== 'student' || !project.teamId) return false;
+
+  const team = await Team.findById(project.teamId).select('members leaderId').lean();
+  return Boolean(
+    team?.members?.some((member) => String(member?._id || member) === userId) ||
+    String(team?.leaderId?._id || team?.leaderId || '') === userId,
+  );
+}
+
+/**
  * Serve file from filesystem storage
  * GET /storage/archives/projects/{projectId}/chapters/1/v1/file.pdf
  */
@@ -54,30 +97,10 @@ router.get(/.*/, async (req, res, _next) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Enforce cross-tenant project boundary for students accessing project files
+    // Enforce the same project access boundary for every role that reads documents.
     const projectMatch = requestedPath.match(/(?:^|\/)projects\/([a-f\d]{24})(?:\/|$)/i);
-    if (projectMatch && req.user?.role === 'student') {
-      const targetProjectId = projectMatch[1];
-      const Project = (await import('../modules/projects/project.model.js')).default;
-      const Team = (await import('../modules/teams/team.model.js')).default;
-      const project = await Project.findById(targetProjectId)
-        .select('teamId memberRoleAssignments isArchived projectStatus')
-        .lean();
-
-      if (project && !project.isArchived && project.projectStatus !== 'archived') {
-        const userIdStr = String(req.user._id || req.user.id || '');
-        const team = project.teamId
-          ? await Team.findById(project.teamId).select('members leaderId').lean()
-          : null;
-        const isMember =
-          project.memberRoleAssignments?.some((m) => String(m.userId) === userIdStr) ||
-          team?.members?.some((m) => String(m?._id || m) === userIdStr) ||
-          String(team?.leaderId?._id || team?.leaderId || '') === userIdStr;
-
-        if (!isMember) {
-          return res.status(403).json({ error: 'Access denied to another team project files' });
-        }
-      }
+    if (projectMatch && !(await canAccessProjectStorageFile(req.user, projectMatch[1]))) {
+      return res.status(403).json({ error: 'Access denied to project files' });
     }
 
     // Try to read sidecar meta file for content type

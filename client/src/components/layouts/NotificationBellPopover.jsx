@@ -68,9 +68,26 @@ function formatTimeAgo(dateString) {
 function resolveNotificationTarget(notification, role) {
   const metadata = notification?.metadata || {};
   const projectId = metadata.projectId || metadata.project?._id;
+  const requestedTab = metadata.tab;
+
+  if (
+    notification.type === 'adm_endorsed' ||
+    notification.type === 'adm_submitted_for_review' ||
+    requestedTab === 'adm'
+  ) {
+    return role !== ROLES.STUDENT && projectId
+      ? `/projects/${encodeURIComponent(projectId)}?tab=adm`
+      : '/project?tab=adm';
+  }
+
+  if (requestedTab && projectId) {
+    return role !== ROLES.STUDENT
+      ? `/projects/${encodeURIComponent(projectId)}?tab=${encodeURIComponent(requestedTab)}`
+      : `/project?tab=${encodeURIComponent(requestedTab)}`;
+  }
 
   if (role !== ROLES.STUDENT && projectId) {
-    return `/projects?projectId=${encodeURIComponent(projectId)}`;
+    return `/projects/${encodeURIComponent(projectId)}`;
   }
 
   if (notification.type === 'team_invite') {
@@ -98,7 +115,10 @@ export default function NotificationBellPopover() {
   const user = useAuthStore((state) => state.user);
 
   const { data: unreadCount = 0 } = useUnreadCount();
-  const { data: notifData, isLoading } = useNotifications({ page: 1, limit: 10 });
+  const { data: notifData, isLoading } = useNotifications(
+    { page: 1, limit: 10 },
+    { enabled: isOpen },
+  );
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 

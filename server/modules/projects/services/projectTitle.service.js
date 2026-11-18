@@ -2,6 +2,7 @@ import Project from '../project.model.js';
 import User from '../../users/user.model.js';
 import Evaluation from '../../evaluations/evaluation.model.js';
 import AppError from '../../../utils/AppError.js';
+import { assertPlagiarismScanCanClear } from '../../plagiarism/plagiarismClearance.js';
 import { findSimilarProjects } from '../../../utils/titleSimilarity.js';
 import settingsService from '../../settings/settings.service.js';
 import { emitToRoom, emitToAll } from '../../../services/socket.service.js';
@@ -194,6 +195,20 @@ class ProjectTitleService {
         'PLAGIARISM_CHECK_FAILED',
       );
     }
+
+    const rawPlagResult =
+      typeof plagResult.toObject === 'function' ? plagResult.toObject() : { ...plagResult };
+    const rawScore = plagResult.originalityScore ?? submission.originalityScore;
+    const resolvedSimilarityPercentage =
+      plagResult.similarityPercentage ??
+      plagResult.overallScore ??
+      (rawScore !== null && rawScore !== undefined && Number.isFinite(Number(rawScore))
+        ? 100 - Number(rawScore)
+        : undefined);
+    assertPlagiarismScanCanClear(
+      { ...rawPlagResult, similarityPercentage: resolvedSimilarityPercentage },
+      `final ${label} version`,
+    );
 
     // plagResult.status === COMPLETED — verify non-degraded coverage and score threshold
     const fullReport = plagResult.fullReport || plagResult.rawData || null;
@@ -493,6 +508,57 @@ class ProjectTitleService {
       }
     }
 
+    // Optional atomic inline title hearing scheduling during single-step Instructor approval
+    let scheduledHearingMeta = null;
+    if (data?.hearingSchedule?.date) {
+      if (user?.role !== ROLES.INSTRUCTOR) {
+        throw new AppError(
+          'Only course instructors can schedule a title proposal hearing.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+      const parsedDate = new Date(data.hearingSchedule.date);
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new AppError('Invalid title hearing date provided.', 400, 'INVALID_HEARING_DATE');
+      }
+      const Team = (await import('../../teams/team.model.js')).default;
+      const team = await Team.findById(project.teamId);
+      if (!team?.isLocked) {
+        throw new AppError(
+          'The team roster must be locked before scheduling its title hearing.',
+          400,
+          'TEAM_ROSTER_NOT_LOCKED',
+        );
+      }
+
+      const panelistIds = (project.panelistIds || []).map((id) => String(id?._id || id));
+      const committeeIds = [
+        project.adviserId?._id || project.adviserId,
+        project.secretaryId?._id || project.secretaryId,
+        ...panelistIds,
+      ]
+        .filter(Boolean)
+        .map(String);
+      if (
+        !project.secretaryId ||
+        panelistIds.length !== 3 ||
+        new Set(panelistIds).size !== 3 ||
+        new Set(committeeIds).size !== committeeIds.length
+      ) {
+        throw new AppError(
+          'A complete title hearing committee requires one secretary and three distinct panelists (adviser is appointed after title approval based on the capstone field).',
+          400,
+          'TITLE_HEARING_COMMITTEE_INCOMPLETE',
+        );
+      }
+      scheduledHearingMeta = {
+        date: parsedDate,
+        time: data.hearingSchedule.time?.trim() || '09:00 AM - 09:30 AM',
+        venue: data.hearingSchedule.venue?.trim() || 'COT Conference Room',
+      };
+    }
+
     const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
     const metadataEntries = Array.isArray(project.titleProposalMetadata)
       ? project.titleProposalMetadata
@@ -675,6 +741,15 @@ class ProjectTitleService {
     await project.save();
     await this._invalidateProjectCache(project._id);
     this._broadcastProjectUpdate(project, { action: 'title_approved' });
+
+    if (scheduledHearingMeta) {
+      await this._notifyTeamMembers(project.teamId, {
+        type: 'title_hearing_scheduled',
+        title: 'Title Proposal Hearing Recorded',
+        message: `Title proposal hearing for "${project.title}" was recorded on ${scheduledHearingMeta.date.toLocaleDateString()} at ${scheduledHearingMeta.time} (${scheduledHearingMeta.venue}).`,
+        metadata: { projectId: project._id, hearingSchedule: scheduledHearingMeta },
+      });
+    }
 
     // Notify team members
     const notifMessage = approveWithRevision

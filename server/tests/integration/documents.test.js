@@ -320,4 +320,51 @@ describe('Documents API — /api/documents', () => {
     });
     expect(res.body.data.commentsLastSyncedAt).toBeTruthy();
   });
+
+  it('allows assigned secretary and structured panelists[] faculty members to list manuscripts and rejects unassigned faculty', async () => {
+    const { studentAgent, projectId } = await createDocumentFixture();
+    const { user: secretaryUser, agent: secretaryAgent } = await createAuthenticatedUserWithRole(
+      'faculty',
+      {
+        email: 'documents-secretary@test.com',
+      },
+    );
+    const { user: structuredPanelist, agent: structuredPanelistAgent } =
+      await createAuthenticatedUserWithRole('faculty', {
+        email: 'documents-structured-panelist@test.com',
+      });
+    const { agent: unassignedFacultyAgent } = await createAuthenticatedUserWithRole('faculty', {
+      email: 'documents-unassigned-faculty@test.com',
+    });
+
+    await Project.findByIdAndUpdate(projectId, {
+      secretaryId: secretaryUser._id,
+      panelists: [{ userId: structuredPanelist._id, role: 'chair' }],
+    });
+
+    await studentAgent.post(`/api/documents/projects/${projectId}/manuscripts`).send({
+      documentType: DOCUMENT_TYPES.CHAPTER_1,
+      title: 'Chapter 1 - Introduction',
+      externalDocUrl: 'https://docs.google.com/document/d/mock-sec-view/edit?embedded=true',
+      externalDocProvider: 'google_docs',
+    });
+
+    const secListRes = await secretaryAgent.get(`/api/documents/projects/${projectId}/manuscripts`);
+    expect(secListRes.status).toBe(200);
+    expect(secListRes.body.data.manuscripts).toHaveLength(1);
+    expect(secListRes.body.data.manuscripts[0].openLink).toContain('/preview');
+
+    const panListRes = await structuredPanelistAgent.get(
+      `/api/documents/projects/${projectId}/manuscripts`,
+    );
+    expect(panListRes.status).toBe(200);
+    expect(panListRes.body.data.manuscripts).toHaveLength(1);
+    expect(panListRes.body.data.manuscripts[0].openLink).toContain('/preview');
+
+    const deniedRes = await unassignedFacultyAgent.get(
+      `/api/documents/projects/${projectId}/manuscripts`,
+    );
+    expect(deniedRes.status).toBe(403);
+    expect(deniedRes.body.error.message).toBe('You are not allowed to access this manuscript.');
+  });
 });

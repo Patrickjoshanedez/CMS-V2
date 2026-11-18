@@ -1,77 +1,90 @@
-# Project: BukSU Capstone Management System V2 (CMS-V2) System-Wide Remediation
+# Project: BukSU Capstone Management System V2 (CMS-V2) System-Wide UI Redesign, Workflow Integrity & Testing
 
 ## Architecture
 - **Frontend SPA**: React 18, Vite, Tailwind CSS, Zustand Store, TanStack React Query (`client/src/`).
-- **Design Tokens**: Institutional BukSU Gold (`#F5C253`) and BukSU Navy Blue (`#1A448A`), Tailwind semantic CSS variables (`bg-background`, `text-foreground`, `border-border/60`).
-- **Document Viewing**: Canonical `SophisticatedDocumentViewer.jsx` format supporting both embedded inline (`embedded={true}`) and modal dialog presentations (`open={true}`), full OOXML and PDF streaming.
-- **Accessibility Standards**: WCAG 2.1 AA/AAA compliance: minimum 44x44px interactive touch targets (`min-h-[44px] min-w-[44px]`), accessible names (`aria-label`), state announcements (`aria-expanded`, `aria-busy`, `role="status"`).
+- **Backend REST API**: Express.js 5 + Mongoose 9 ODM + Redis + BullMQ (`server/`).
+- **Plagiarism & Similarity**: FastAPI + Celery + ChromaDB (BAAI/bge-m3 dense + sparse vector core) + Winnowing (`plagiarism_engine/`).
+- **Design Tokens & Shell**: Institutional BukSU Gold (`#F5C253`) and Navy Blue (`#1A448A`), Tailwind CSS variable tokens (`bg-background`, `text-foreground`, `border-border/60`), canonical `DashboardLayout` (`max-w-7xl`).
+- **Unified Document Viewer**: Canonical `SophisticatedDocumentViewer.jsx` format supporting inline (`embedded={true}`) and modal (`open={true}`) presentations with full OOXML and PDF streaming.
+- **Printing Architecture**: `@media print` unrolling, removing overflow clipping, hiding interactive chrome (`print:hidden`), paper margins (`@page { margin: 1in; size: letter portrait; }`), and high-contrast black-on-white text for official paper deliverables.
+- **Institutional Roles & Committees**: Primary roles (`student`, `instructor`, `faculty`). Faculty appointments (`adviser`, `secretary`, `panelist`, `chair`). Complete exclusion of Instructors from defense committees. Secretary Compliance Gate prerequisite before Tier 1–3 ADM digital signatures.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Prune PaginatedDocumentViewer | Delete obsolete `PaginatedDocumentViewer.jsx` and its test `PaginatedDocumentViewer.test.jsx` | M1 | Survey 1 |
-| 2 | Prune ReadonlyPDFViewer | Delete obsolete `ReadonlyPDFViewer.jsx` | M1 | Survey 1 |
-| 3 | Clean Test Mocks | Remove dead mocks in `PlagiarismReportPage.test.jsx:37-39` and `ProjectDetailPage.back-nav.test.jsx:81` | M1 | Survey 1 |
-| 4 | Canonical Viewer Validation | Verify `SophisticatedDocumentViewer.jsx` is the sole document viewer and satisfies the unified contract | M1 | Survey 1 |
-| 5 | Clean Auth Inline Color Styles | Remove 11 redundant inline `style={{ color }}` tags in `BukSULoginSidePanel.jsx` | M1 | Survey 1 |
-| 6 | GoogleScholarSidebar Touch Targets | Normalize touch targets >= 44x44px for reset button, preset dates, year inputs, and apply button | M2 | Survey 1 |
-| 7 | GoogleScholar Mobile Drawer Dismiss | Normalize touch target >= 44x44px for mobile filter slide-out close button | M2 | Survey 1 |
-| 8 | PrototypeGallery Controls | Normalize touch targets >= 44x44px for delete button, modal close button, and mode toggle buttons | M2 | Survey 1 |
-| 9 | PrototypeGallery Touch Visibility | Ensure prototype card delete button is visible on touch screens (`opacity-100 sm:opacity-0 sm:group-hover:opacity-100`) | M2 | Survey 1 |
-| 10 | TeamCommitteeAssignments Touch Targets | Normalize touch targets >= 44x44px for Clear Adviser, Clear Secretary, and Remove Panelist buttons | M2 | Survey 1 |
-| 11 | TeamCommittee Accordion Touch Target | Normalize touch target >= 44x44px for Milestones & Deadlines Accordion Chevron Trigger | M2 | Survey 1 |
-| 12 | Accordion Accessible Semantics | Add `aria-label`, dynamic `aria-expanded`, and `aria-controls` to Deadlines Accordion Chevron in `TeamCommitteeAssignmentsView.jsx` | M3 | Survey 2 |
-| 13 | Committee Icon Buttons Accessible Names | Add explicit `aria-label` to Clear Adviser, Clear Secretary, and Remove Panelist buttons in `TeamCommitteeAssignmentsView.jsx` | M3 | Survey 2 |
-| 14 | Optimizer Live Status Announcements | Add `aria-busy={loading}` and live region announcements (`role="status"`, `aria-live="polite"`) in `OptimizationEngine.jsx` | M3 | Survey 2 |
-| 15 | Administrative Route Redirects | Implement client-side `<Route>` redirects in `App.jsx` for `/committee` -> `/committee-assignments` and `/scheduling` -> `/scheduling-center` | M3 | Survey 2 |
-| 16 | BukSULoginSidePanel Typography De-Slop | Remove gradient heading `bg-gradient-to-r from-[#F5C253] via-[#E5A823] to-[#C68A1B]` and replace with solid BukSU Gold `text-[#F5C253] font-bold` | M4 | Survey 2 |
-| 17 | LandingPage Typography De-Slop | Remove multi-stop gradient heading fill `bg-gradient-to-r from-[#1A448A] to-[#2563EB]...` and replace with solid BukSU Blue / Gold `text-[#1A448A] dark:text-[#F5C253]` | M4 | Survey 2 |
-| 18 | ProjectCohortCard Border De-Slop | Replace asymmetric `border-l-4 border-l-amber-500` with balanced border `border-amber-500/40 dark:border-amber-400/40` and an indicator pill | M4 | Survey 2 |
-| 19 | DefenseSchedulingPage Border De-Slop | Replace asymmetric `border-l-4 border-l-blue-600` on calendar cards with balanced border `border border-blue-500/40 dark:border-blue-400/40` | M4 | Survey 2 |
-| 20 | ProjectCohortCard Test Suite Fix | Add `QueryClientProvider` wrapper in `ProjectCohortCard.test.jsx` so `usePrefetchProject` passes without error | M4 | Survey 2/3 |
-| 21 | Google OAuth Locale Enforcement | Enforce `locale="en"` / `hl="en"` on `<GoogleOAuthProvider>` in `client/src/main.jsx` and `<LoginPage>` | M4 | Survey 2 |
-| 22 | InstructorDashboard Progressive Skeletons | Decouple monolithic `PageSkeleton` into widget-level loading skeletons (`KPICardsSkeleton`, `WorkloadHeatmapSkeleton`, header shimmers) | M5 | Survey 3 |
-| 23 | Milestone Progression Timeline | Convert static 2x2 grid in `BukSULoginSidePanel.jsx` into sequential 5-step vertical connected milestone progression timeline | M5 | Survey 3 |
-| 24 | Final Quality Battery Verification | Full client test suite, API route parity, agentic governance audit, and Playwright visual verification | M6 | Survey 3 |
+| 1 | Expose Final Approval Sheet in UI | Connect uncalled backend endpoint `GET /api/projects/:id/approval-sheet` to `CertificatePage.jsx`, `ActionDoneMatrixTab.jsx`, and `ProjectSubmissionsPage.jsx` | M1 | Survey 1 |
+| 2 | Document Reader Print Handling | Add Print button and unrolled `@media print` styling to `SophisticatedDocumentViewer.jsx` (remove overflow scroll & zoom clipping on print) | M1 | Survey 1 |
+| 3 | Plagiarism Report Print Stylesheet | Add `@media print` styles and `print:hidden` utility classes to `PlagiarismReportPage.jsx` to eliminate active UI controls and scroll clipping | M1 | Survey 1 |
+| 4 | Radix Dialog Print Unrolling | Add global print unrolling in `index.css` for `[role="dialog"]` and `LiveDefenseMinutesModal.jsx` to prevent 90vh clipping and dark backdrop bleed | M1 | Survey 1 |
+| 5 | Printable Evaluation Scoresheet | Implement printable evaluation rubric scoresheet format in `EvaluationPanel.jsx` for defense panel scoring records | M1 | Survey 1 |
+| 6 | Global Print Stylesheet Polish | Unroll `.docx-outer-container` in `index.css`, establish clean paper margins, and force high-contrast print typography | M1 | Survey 1 |
+| 7 | Mobile Touch Target Normalization | Enforce min 44x44px touch targets on mobile viewports (`min-h-[44px] sm:min-h-0 sm:h-8`) across `ActionDoneMatrixTab.jsx`, `PrototypeGalleryModal.jsx`, `ManuscriptTemplateWidget.jsx`, `TeamFormationNotificationItem.jsx`, and `SubmissionReviewPage.jsx` | M2 | Survey 1 |
+| 8 | Layout Width Shell Continuity | Remove hardcoded `max-w-5xl` clamping in `CanonicalDocumentViewer.jsx` and optimize oversized `max-w-6xl` containers to align with `DashboardLayout` `max-w-7xl` | M2 | Survey 1 |
+| 9 | Heading Hierarchy Correction | Demote duplicate `<h1>` in `CanonicalDocumentViewer.jsx:1275` to semantic `<h2>` | M2 | Survey 1 |
+| 10 | Form Chunking (Cowan 4-Chunking) | Refactor dense forms (>5 inputs) with semantic `<fieldset>` and `<legend>` across `UsersPage.jsx`, `ExistingCapstoneUploadPage.jsx`, `ProfilePage.jsx`, `ScheduleDefenseModal.jsx`, and `MilestoneDeadlinesModal.jsx` | M2 | Survey 1 |
+| 11 | Responsive Table Overflow Wrappers | Add horizontal overflow wrappers (`overflow-x-auto`) to scoring tables in `EvaluationPanel.jsx`, diff tables in `VersionCompare.jsx`, and `SecretaryMinutesDocumentSheet.jsx` | M2 | Survey 1 |
+| 12 | CreateProjectPage Test Fixture Fix | Add `pitchDeck` fields to mock state in `CreateProjectPage.test.jsx:1071` to satisfy component validation guard and restore 20/20 passing tests | M3 | Survey 2 |
+| 13 | Role Navigation & Workflow Verification | Verify and test UI views and transitions for Student, Instructor, Adviser, Secretary, Panelist, Chair, and Dean without console errors or broken API calls | M3 | Survey 2 |
+| 14 | Secretary ADM Compliance Gate UI Verification | Verify Secretary minutes publishing and endorsement banner indicators in `ActionDoneMatrixTab.jsx` | M3 | Survey 2 |
+| 15 | Dedicated Seed Accounts Expansion | Update `server/seeders/seed-canonical-role-accounts.js` and `server/seeders/index.js` to seed 11 dedicated canonical accounts (Student Lead/Members, Instructor, Adviser, Secretary, Panelists 1–3, Dean) | M4 | Survey 3 |
+| 16 | Seed Account Authentication Invariants | Ensure seed accounts have verified status, valid bcrypt hashed passwords (`Password123!`), correct roles and faculty appointments, and satisfy committee composition rules | M4 | Survey 3 |
+| 17 | E2E Testing Infrastructure Setup | Establish opaque-box test runner, Playwright configurations, and 4-tier test case hierarchy (Tiers 1–4) derived from user requirements | E2E | Survey 3 |
+| 18 | Tier 1: Feature Coverage E2E Suite | Implement >=5 test cases per feature across UI, deliverables, and role actions | E2E | Survey 3 |
+| 19 | Tier 2: Boundary & Corner Case Suite | Implement boundary tests (empty inputs, role mismatches, unauthorized access, late justification flags) | E2E | Survey 3 |
+| 20 | Tier 3: Cross-Feature Combinations Suite | Implement pairwise cross-feature tests across student proposal, instructor approval, committee assignment, and ADM signatures | E2E | Survey 3 |
+| 21 | Tier 4: Real-World Application Scenarios | Implement end-to-end multi-role scenarios from team formation to archival and certificate issuance | E2E | Survey 3 |
+| 22 | Anti-Simulation Browser Verification Execution | Execute 14-scenario anti-simulation Playwright browser test sweep across all 11 seed accounts without simulated finishes | M5 | Survey 3 |
+| 23 | Adversarial Coverage Hardening (Tier 5) | Conduct white-box challenger analysis and patch any exposed edge cases | M5 | Strategy |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Document Viewer Consolidation & Dead Code Pruning | Features 1, 2, 3, 4, 5 | none | PLANNED |
-| M2 | Mobile Ergonomics & Touch Target Normalization | Features 6, 7, 8, 9, 10, 11 | M1 | PLANNED |
-| M3 | Accessible Semantics & Administrative Route Hardening | Features 12, 13, 14, 15 | M2 | PLANNED |
-| M4 | Institutional Typography & Anti-Patterns De-Slop Pass | Features 16, 17, 18, 19, 20, 21 | M3 | PLANNED |
-| M5 | Progressive Widget Loading & Layout Architecture | Features 22, 23 | M4 | PLANNED |
-| M6 | Final Verification & Quality Gate Battery | Feature 24 | M5 | PLANNED |
+| M1 | Paper Deliverables & Printing Format Integration | Features 1, 2, 3, 4, 5, 6 | none | PLANNED |
+| M2 | UI Sizing, Spacing & Cognitive Ergonomics Overhaul | Features 7, 8, 9, 10, 11 | none | PLANNED |
+| M3 | Workflow Integrity, Role Exclusions & Test Fixture Hardening | Features 12, 13, 14 | none | PLANNED |
+| M4 | Dedicated Seed Accounts & Seeder Expansion | Features 15, 16 | none | PLANNED |
+| M5 | Final Milestone: Pass 100% E2E Suite & Anti-Simulation Browser Verification | Features 22, 23 | M1, M2, M3, M4, E2E | PLANNED |
+| E2E | E2E Testing Track (Tiers 1–4 Test Suite & Infrastructure) | Features 17, 18, 19, 20, 21 | none | PLANNED |
 
 ## Interface Contracts
-### Document Viewer Contract
-- Canonical viewer: `SophisticatedDocumentViewer.jsx`
-- Props: `fileBlob`, `fileUrl`, `fileName`, `chapterTitle`, `embedded`, `open`, `onOpenChange`, `isPlagiarismReport`, etc.
-- No references to `PaginatedDocumentViewer` or `ReadonlyPDFViewer`.
+### Deliverables & Printing Contract (M1)
+- Endpoint: `GET /api/projects/:id/approval-sheet` returns binary `application/pdf` with attachment/inline content disposition.
+- Client consumption: `authService.getApprovalSheetUrl(projectId)` or direct blob download/view via `SophisticatedDocumentViewer`.
+- Print CSS: `.print-only` visible only under `@media print`; `.no-print` / `print:hidden` hidden on print; scroll wrappers (`overflow-auto`) reset to `overflow: visible; height: auto; max-height: none;` during print.
+- Radix Dialogs: `[role="dialog"]` positioned statically with zero overlay opacity under print.
 
-### Touch Target Normalization Contract
-- Minimum bounding box for interactive elements on mobile/touch: 44px x 44px (`min-h-[44px] min-w-[44px]`).
-- Desktop compactness preserved via responsive breakpoints (`sm:min-h-0 sm:min-w-0 sm:h-7 sm:w-7` or equivalent).
+### UI Sizing & Ergonomics Contract (M2)
+- Mobile touch target floor: `min-h-[44px] min-w-[44px]` for interactive controls on viewport width < 640px; desktop compactness preserved with `sm:min-h-0 sm:min-w-0 sm:h-8`.
+- Shell max-width: Standardized to `max-w-7xl` matching `DashboardLayout.jsx`.
+- Form chunking: Forms with >5 fields grouped into `<fieldset className="space-y-4 rounded-lg border border-border/60 p-4">` with `<legend className="text-sm font-semibold text-foreground px-2">`.
 
-### Accessibility & Route Semantics Contract
-- Accordion trigger must have `aria-label`, `aria-expanded={boolean}`, `aria-controls={id}`.
-- Icon-only buttons must have descriptive `aria-label`.
-- Workload optimizer must announce calculation status with `role="status"`, `aria-live="polite"`, `aria-busy={boolean}`.
-- Routes `/committee` and `/scheduling` must redirect via `<Navigate replace />` to `/committee-assignments` and `/scheduling-center`.
+### Role Boundaries & Workflow Contract (M3)
+- Course Instructor exclusion: `role: 'instructor'` strictly rejected from `adviser`, `secretary`, or `panelist` roles.
+- Secretary ADM Gate: `project.admSignatures.secretary.endorsed === true` required before Tier 1–3 digital signatures unlock.
+- Committee composition: Exactly 1 Adviser, 1 Secretary, 3 Panelists (Panelist 1 = Chair).
 
-### Institutional Visual Design & Typography Contract
-- Zero gradient text (`bg-clip-text`) on headings and metrics.
-- Zero asymmetric `border-l-4` card accents.
-- Google Identity Services configured with `locale="en"`.
-- BukSU milestone timeline displays all 5 canonical phases (Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Phase 4).
+### Dedicated Seed Accounts Contract (M4)
+- 11 canonical accounts:
+  1. `student@student.buksu.edu.ph` (Student Lead - Team Alpha)
+  2. `student2@student.buksu.edu.ph` (Student Member 2 - Team Alpha)
+  3. `student3@student.buksu.edu.ph` (Student Member 3 - Team Alpha)
+  4. `student4@student.buksu.edu.ph` (Student Member 4 - Team Alpha)
+  5. `instructor@student.buksu.edu.ph` (Course Instructor)
+  6. `adviser@student.buksu.edu.ph` (Capstone Adviser - Team Alpha)
+  7. `secretary@student.buksu.edu.ph` (Committee Secretary - Team Alpha)
+  8. `panelchair@student.buksu.edu.ph` (Defense Panel Chair - Team Alpha)
+  9. `panelist2@student.buksu.edu.ph` (Defense Panelist 2 - Team Alpha)
+  10. `panelist3@student.buksu.edu.ph` (Defense Panelist 3 - Team Alpha)
+  11. `dean@student.buksu.edu.ph` (College Dean)
+- Default credentials: password `Password123!`, `isVerified: true`, `isActive: true`.
 
 ## Code Layout
-- `client/src/components/documents/` — Canonical document viewers
-- `client/src/components/auth/` — Login side panel, auth widgets
-- `client/src/components/archive/` — Google scholar sidebar
-- `client/src/components/projects/` — Prototype gallery, project cohort card
-- `client/src/components/users/` — Team committee assignments view
-- `client/src/components/dashboards/` — Instructor dashboard, optimization engine
-- `client/src/pages/` — Page components (`LoginPage.jsx`, `LandingPage.jsx`, `DefenseSchedulingPage.jsx`)
-- `client/src/App.jsx` & `client/src/main.jsx` — Core routing and providers
+- `client/src/components/documents/` — Canonical document viewers (`SophisticatedDocumentViewer.jsx`)
+- `client/src/components/projects/` — Action Done Matrix, Evaluation Panel, Project cards
+- `client/src/components/ui/` — Design primitives (`Dialog.jsx`, `Button.jsx`, `Table.jsx`)
+- `client/src/pages/submissions/` — Plagiarism Report, Submission reviews
+- `client/src/pages/projects/` — Create Project, Project Details, Approval Sheet view
+- `client/src/index.css` — Global print stylesheets and CSS variables
+- `server/seeders/` — Canonical role account seeders
+- `server/modules/projects/` — Approval sheet generation, ADM controllers, archive service
+- `scratch/` — Playwright browser test verification scripts and visual audit harnesses

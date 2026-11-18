@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { MetricGrid, PageHeader, StatCard } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
@@ -845,177 +846,109 @@ export default function DefenseSchedulingPage() {
   return (
     <DashboardLayout>
       <div className="min-w-0 space-y-6 lg:space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between border-b border-border/60 pb-5">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
-                <CalendarClock className="h-5 w-5" />
+        <PageHeader
+          eyebrow="Course Instructor"
+          icon={CalendarClock}
+          title="Scheduling Center"
+          description="Schedule defenses, set submission deadlines, and review team readiness."
+          actions={
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsMilestoneModalOpen(true)}
+                className="gap-1.5"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" />
+                Set Milestone Deadlines
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  refetchProjects();
+                  refetchMilestones();
+                }}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Refresh Roster
+              </Button>
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                <Button
+                  variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-9 w-9 rounded-md"
+                  onClick={() => setViewMode('calendar')}
+                  title="Calendar View"
+                  aria-label="Calendar View"
+                >
+                  <Calendar className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-9 w-9 rounded-md"
+                  onClick={() => setViewMode('table')}
+                  title="Table View"
+                  aria-label="Table View"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-9 w-9 rounded-md"
+                  onClick={() => setViewMode('grid')}
+                  title="Grid View"
+                  aria-label="Grid View"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  Scheduling Center
-                </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Schedule defenses, set submission deadlines, and review team readiness.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 [&>button]:min-h-11">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsMilestoneModalOpen(true)}
-              className="gap-1.5 text-xs shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <CalendarPlus className="h-3.5 w-3.5" />+ Set Milestone Deadlines
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                refetchProjects();
-                refetchMilestones();
-              }}
-              className="gap-1.5 text-xs shadow-xs"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Refresh Roster
-            </Button>
-            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
-              <Button
-                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-11 w-11 rounded-md"
-                onClick={() => setViewMode('calendar')}
-                title="Calendar View"
-                aria-label="Calendar View"
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-11 w-11 rounded-md"
-                onClick={() => setViewMode('table')}
-                title="Table View"
-                aria-label="Table View"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-11 w-11 rounded-md"
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                aria-label="Grid View"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* KPI Executive Summary Ribbon */}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 sm:gap-4">
-          {/* Card 1: Total Teams */}
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${
-              activeTab === 'all' ? 'ring-2 ring-primary/40' : ''
-            }`}
+        <MetricGrid cols={4}>
+          <StatCard
+            label="Total Teams"
+            value={kpis.total}
+            hint="Enrolled capstone projects"
+            icon={Users}
+            tone="default"
+            active={activeTab === 'all'}
             onClick={() => setActiveTab('all')}
-          >
-            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Total Teams
-                </p>
-                <p className="text-2xl font-bold text-foreground mt-1">{kpis.total}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Enrolled capstone projects
-                </p>
-              </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <Users className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Ready for Scheduling */}
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md border-success/30 bg-success/10 ${
-              activeTab === 'pending_scheduling' ? 'ring-2 ring-success/50' : ''
-            }`}
+          />
+          <StatCard
+            label="Ready for Defense"
+            value={kpis.pending}
+            hint="Adviser endorsed & awaiting schedule"
+            icon={ShieldCheck}
+            tone="success"
+            active={activeTab === 'pending_scheduling'}
             onClick={() => setActiveTab('pending_scheduling')}
-          >
-            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-success flex items-center gap-1.5">
-                  Ready for Defense
-                  {kpis.pending > 0 && (
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
-                    </span>
-                  )}
-                </p>
-                <p className="text-2xl font-bold text-success mt-1">{kpis.pending}</p>
-                <p className="text-[11px] text-success/80 mt-0.5">
-                  Adviser endorsed &amp; awaiting schedule
-                </p>
-              </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-success/15 text-success">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Scheduled Hearings */}
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md border-primary/30 bg-primary/10 ${
-              activeTab === 'scheduled' ? 'ring-2 ring-primary/50' : ''
-            }`}
+          />
+          <StatCard
+            label="Scheduled Hearings"
+            value={kpis.scheduled}
+            hint="Timeslot & venue confirmed"
+            icon={Calendar}
+            tone="primary"
+            active={activeTab === 'scheduled'}
             onClick={() => setActiveTab('scheduled')}
-          >
-            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-                  Scheduled Hearings
-                </p>
-                <p className="text-2xl font-bold text-primary mt-1">{kpis.scheduled}</p>
-                <p className="text-[11px] text-primary/80 mt-0.5">Timeslot &amp; venue confirmed</p>
-              </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Calendar className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 4: In Progress / Drafting */}
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${
-              activeTab === 'in_progress' ? 'ring-2 ring-primary/40' : ''
-            }`}
+          />
+          <StatCard
+            label="In Progress"
+            value={kpis.inProgress}
+            hint="Drafting / adviser review"
+            icon={Clock}
+            tone="warning"
+            active={activeTab === 'in_progress'}
             onClick={() => setActiveTab('in_progress')}
-          >
-            <CardContent className="p-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  In Progress
-                </p>
-                <p className="text-2xl font-bold text-foreground mt-1">{kpis.inProgress}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Drafting / adviser review
-                </p>
-              </div>
-              <div className="hidden h-10 w-10 sm:flex items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <Clock className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          />
+        </MetricGrid>
 
         {/* Filter Controls & Search */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

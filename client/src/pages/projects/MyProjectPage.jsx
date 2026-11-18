@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsContent } from '@/components/ui/Tabs';
+import { PageHeader } from '@/components/common';
 import {
   AlertTriangle,
   Info,
@@ -20,6 +21,7 @@ import {
   BookMarked,
   ExternalLink,
   Send,
+  Upload,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -31,6 +33,7 @@ import TitleActionsSection from '@/components/projects/TitleWorkflowCards';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
+import PhaseGateChecklistCard from '@/components/projects/PhaseGateChecklistCard';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
@@ -48,6 +51,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { getSocket } from '@/services/socket';
 import { useMyProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
+import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { WORKFLOW_TABS, resolveActiveWorkflowTab } from './myProjectTabs';
 import {
   ROLES,
@@ -85,6 +89,7 @@ export default function MyProjectPage() {
   const [selectedProposalIndex, setSelectedProposalIndex] = useState(0);
   const { data: project, isLoading, error, refetch } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
+  const { data: projectSubmissionsData } = useProjectSubmissions(project?._id);
   const socket = useSocket();
 
   // Derived unlock conditions (memoized)
@@ -250,8 +255,11 @@ export default function MyProjectPage() {
     (tabName) => {
       toast.info(getLockedReason(tabName), {
         icon: <Lock className="h-4 w-4" />,
-        description: 'Complete the required prerequisites to unlock this section.',
+        description: 'Review the transition checklist below to complete remaining prerequisites.',
       });
+      document
+        .querySelector('[data-testid="phase-gate-checklist-card"]')
+        ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     },
     [getLockedReason],
   );
@@ -325,39 +333,38 @@ export default function MyProjectPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-3 no-print">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Capstone</h1>
-            <p className="text-muted-foreground">
-              Draft title proposals, track capstone phase progress, and view Action Done Matrix
-              (ADM) revisions.
-            </p>
-          </div>
-          {project && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsProjectDetailsOpen(true)}
-                className="gap-2 text-xs border-border/60 hover:bg-muted font-medium shadow-xs"
-              >
-                <BookOpen className="h-3.5 w-3.5 text-primary" />
-                Project Details &amp; Approval
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/project/approval')}
-                className="gap-2 text-xs border-border/60 hover:bg-muted font-medium shadow-xs"
-              >
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                {titleApproved
-                  ? 'View Title Proposals & Approval'
-                  : 'Title Proposals & Approval Studio'}
-              </Button>
-            </div>
-          )}
-        </div>
+        <PageHeader
+          eyebrow="Student Workspace"
+          title="My Capstone"
+          description="Draft title proposals, track capstone phase progress, and view Action Done Matrix (ADM) revisions."
+          className="no-print"
+          actions={
+            project ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsProjectDetailsOpen(true)}
+                  className="gap-2 text-xs"
+                >
+                  <BookOpen className="h-3.5 w-3.5 text-primary" />
+                  Project Details &amp; Approval
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/project/approval')}
+                  className="gap-2 text-xs"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  {titleApproved
+                    ? 'View Title Proposals & Approval'
+                    : 'Title Proposals & Approval Studio'}
+                </Button>
+              </>
+            ) : null
+          }
+        />
 
         {isLoading && <PageSkeleton />}
 
@@ -491,7 +498,7 @@ export default function MyProjectPage() {
           !error &&
           project.projectStatus !== PROJECT_STATUSES.REJECTED &&
           !isArchivedProject && (
-            <div className="max-w-[1600px] mx-auto space-y-6 mt-2">
+            <div className="space-y-6 mt-2">
               {/* Status & Deadline Alerts */}
               {project.deadlines && (
                 <div className="no-print">
@@ -513,6 +520,16 @@ export default function MyProjectPage() {
                 canManageArchive={false}
                 onRefresh={() => refetch()}
                 className="mb-2 no-print"
+              />
+
+              {/* Interactive Phase Transition Gate Checklist */}
+              <PhaseGateChecklistCard
+                project={project}
+                submissions={projectSubmissionsData}
+                isStudent
+                onTabChange={handleTabChange}
+                onNavigate={navigate}
+                className="no-print"
               />
 
               {/* Tabbed workflow */}
@@ -552,7 +569,58 @@ export default function MyProjectPage() {
                 </TabsContent>
 
                 {/* Tab 2: Capstone 1 — Chapters 1–3 and proposal defense */}
-                <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none">
+                <TabsContent
+                  value="capstone_1"
+                  className="mt-0 focus-visible:outline-none space-y-4"
+                >
+                  <div
+                    data-testid="capstone1-upload-directions-banner"
+                    className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4 shadow-xs"
+                  >
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                        <p className="text-sm font-semibold text-foreground">
+                          How to Upload &amp; Submit Capstone 1 Documents (Chapters 1–3 &amp;
+                          Proposal)
+                        </p>
+                      </div>
+                      <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <li>
+                          <strong className="text-foreground">1.</strong> Upload Chapters 1–3
+                          sequentially (.docx or .pdf, max 25 MB, &le; 15% warning / &lt; 25% max
+                          similarity).
+                        </li>
+                        <li>
+                          <strong className="text-foreground">2.</strong> Track Adviser annotations
+                          and approval in the Unified Document Reader.
+                        </li>
+                        <li>
+                          <strong className="text-foreground">3.</strong> Compile approved Chapters
+                          1–3 into your Proposal Packet for Defense &amp; ADM v1.
+                        </li>
+                      </ol>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => navigate('/project/submissions/upload')}
+                        className="min-h-11 sm:min-h-9 gap-1.5 text-xs font-medium"
+                      >
+                        <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Upload Chapter Now</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate('/project/submissions')}
+                        className="min-h-11 sm:min-h-9 gap-1.5 text-xs font-medium border-primary/40 hover:bg-primary/10"
+                      >
+                        <span>Open Submissions Workspace</span>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
                   <Capstone1CollapsibleSections
                     project={project}
                     isStudent

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -279,11 +280,13 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto w-full max-w-5xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Profile</h1>
-          <p className="text-muted-foreground">View and manage your account information.</p>
-        </div>
+      <div className="min-w-0 space-y-6 lg:space-y-8">
+        <PageHeader
+          eyebrow="Account"
+          icon={User}
+          title="Profile"
+          description="View and manage your account information."
+        />
 
         <div className="grid min-w-0 items-start gap-6 xl:grid-cols-3 xl:gap-8">
           {/* Profile summary card */}
@@ -327,7 +330,7 @@ export default function ProfilePage() {
                 />
               </div>
               {avatarError && <p className="mt-1 text-xs text-destructive">{avatarError}</p>}
-              <h4 className="mt-4 text-lg font-semibold">{user.fullName}</h4>
+              <h2 className="mt-4 text-lg font-semibold text-foreground">{user.fullName}</h2>
               <p className="max-w-full break-words text-center text-sm text-muted-foreground">
                 {user.email}
               </p>
@@ -343,91 +346,105 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="text-lg">Account Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="profile-firstName">
-                  <span className="flex items-center gap-2">
-                    <User className="h-3.5 w-3.5" />
-                    First Name
-                  </span>
-                </Label>
-                {isEditing ? (
-                  <Input
-                    id="profile-firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                  />
-                ) : (
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
-                    {user.firstName}
-                  </p>
-                )}
-              </div>
+            <CardContent className="space-y-5">
+              <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                <legend className="text-sm font-semibold text-foreground px-2">
+                  Personal Identity
+                </legend>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-firstName">
+                      <span className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        First Name
+                      </span>
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        id="profile-firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    ) : (
+                      <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                        {user.firstName}
+                      </p>
+                    )}
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profile-middleName">
-                  <span className="flex items-center gap-2">
-                    <User className="h-3.5 w-3.5" />
-                    Middle Name <span className="text-muted-foreground">(optional)</span>
-                  </span>
-                </Label>
-                {isEditing ? (
-                  <Input
-                    id="profile-middleName"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                  />
-                ) : (
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
-                    {user.middleName || '—'}
-                  </p>
-                )}
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-middleName">
+                      <span className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        Middle Name <span className="text-muted-foreground">(optional)</span>
+                      </span>
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        id="profile-middleName"
+                        value={middleName}
+                        onChange={(e) => setMiddleName(e.target.value)}
+                      />
+                    ) : (
+                      <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                        {user.middleName || '—'}
+                      </p>
+                    )}
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profile-lastName">
-                  <span className="flex items-center gap-2">
-                    <User className="h-3.5 w-3.5" />
-                    Last Name
-                  </span>
-                </Label>
-                {isEditing ? (
-                  <Input
-                    id="profile-lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
-                ) : (
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
-                    {user.lastName}
-                  </p>
-                )}
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-lastName">
+                      <span className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        Last Name
+                      </span>
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        id="profile-lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
+                    ) : (
+                      <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                        {user.lastName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </fieldset>
 
-              <div className="space-y-2">
-                <Label htmlFor="profile-email">
-                  <span className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5" />
-                    Email Address
-                  </span>
-                </Label>
-                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                  {user.email}
-                  <span className="ml-2 text-xs">(cannot be changed)</span>
-                </p>
-              </div>
+              <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                <legend className="text-sm font-semibold text-foreground px-2">
+                  Institutional Credentials
+                </legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-email">
+                      <span className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5" />
+                        Email Address
+                      </span>
+                    </Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      {user.email}
+                      <span className="ml-2 text-xs">(cannot be changed)</span>
+                    </p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>
-                  <span className="flex items-center gap-2">
-                    <Shield className="h-3.5 w-3.5" />
-                    Role
-                  </span>
-                </Label>
-                <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                  {roleLabel}
-                </p>
-              </div>
+                  <div className="space-y-2">
+                    <Label>
+                      <span className="flex items-center gap-2">
+                        <Shield className="h-3.5 w-3.5" />
+                        Role
+                      </span>
+                    </Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      {roleLabel}
+                    </p>
+                  </div>
+                </div>
+              </fieldset>
             </CardContent>
             <CardFooter className="flex-col items-start gap-3">
               {saveSuccess && (
@@ -514,259 +531,278 @@ export default function ProfilePage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="profile-student-id">Student ID *</Label>
-                <Input
-                  id="profile-student-id"
-                  value={studentId}
-                  onChange={(event) => setStudentId(event.target.value)}
-                  maxLength={32}
-                  autoComplete="off"
-                  disabled={isSavingAcademic}
-                  placeholder="Enter your institutional Student ID"
-                />
-              </div>
-
-              {/* Section */}
-              <div className="space-y-2">
-                <Label htmlFor="profile-section">Year and Section *</Label>
-                <Select
-                  value={sectionId}
-                  onValueChange={(nextId) => {
-                    setSectionId(nextId);
-                    const matchedSec = sections.find((s) => s._id === nextId);
-                    if (matchedSec?.academicTerm) {
-                      setAcademicTerm(matchedSec.academicTerm);
-                    }
-                  }}
-                  disabled={sectionsLoading || isSavingAcademic}
-                >
-                  <SelectTrigger id="profile-section" aria-invalid={Boolean(sectionsError)}>
-                    <SelectValue
-                      placeholder={
-                        sectionsLoading || sectionsFetching
-                          ? 'Loading...'
-                          : 'Select your year and section'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sections.map((s) => {
-                      const secMeta = resolveSectionCapstoneMeta(s);
-                      const termTag = secMeta?.courseTitle
-                        ? ` — ${secMeta.courseTitle} (${secMeta.curriculumLabel})`
-                        : s.academicTerm
-                          ? ` — ${s.academicTerm}`
-                          : '';
-                      return (
-                        <SelectItem key={s._id} value={s._id}>
-                          {formatSectionWithCode(s)}
-                          {termTag} {s.academicYear ? `(${s.academicYear})` : ''}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                {sectionsError && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertDescription className="flex items-center justify-between gap-3">
-                      <span>
-                        {getAcademicLookupErrorMessage(
-                          sectionsQueryError,
-                          'Failed to load sections.',
-                        )}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => refetchSections()}
-                        disabled={sectionsFetching || isSavingAcademic}
-                      >
-                        {sectionsFetching && <Spinner className="size-3.5" />}
-                        Retry
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {!sectionsError &&
-                  !sectionsLoading &&
-                  !sectionsFetching &&
-                  sections.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No active year and sections are available. Ask an instructor to create or
-                      activate a section.
-                    </p>
-                  )}
-              </div>
-
-              {/* Section Block vs Section Code (T-Code) */}
-              <div className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="space-y-5">
+              {/* Fieldset 1: Student Identification & Section */}
+              <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                <legend className="text-sm font-semibold text-foreground px-2">
+                  Student Identification &amp; Section
+                </legend>
                 <div className="space-y-2">
-                  <Label>Section Block</Label>
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
-                    {selectedSectionBlock || '—'}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Section Code (T-Code)</Label>
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-sm font-semibold text-primary">
-                    {selectedSectionTCode || '—'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Degree Program</Label>
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                    {selectedSection?.courseId?.name || selectedSection?.courseId?.code || '—'}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="profile-academic-term">Academic Term *</Label>
-                  <Select
-                    value={academicTerm}
-                    onValueChange={setAcademicTerm}
+                  <Label htmlFor="profile-student-id">Student ID *</Label>
+                  <Input
+                    id="profile-student-id"
+                    value={studentId}
+                    onChange={(event) => setStudentId(event.target.value)}
+                    maxLength={32}
+                    autoComplete="off"
                     disabled={isSavingAcademic}
+                    placeholder="Enter your institutional Student ID"
+                  />
+                </div>
+
+                {/* Section */}
+                <div className="space-y-2">
+                  <Label htmlFor="profile-section">Year and Section *</Label>
+                  <Select
+                    value={sectionId}
+                    onValueChange={(nextId) => {
+                      setSectionId(nextId);
+                      const matchedSec = sections.find((s) => s._id === nextId);
+                      if (matchedSec?.academicTerm) {
+                        setAcademicTerm(matchedSec.academicTerm);
+                      }
+                    }}
+                    disabled={sectionsLoading || isSavingAcademic}
                   >
-                    <SelectTrigger id="profile-academic-term">
-                      <SelectValue placeholder="Select your academic term" />
+                    <SelectTrigger id="profile-section" aria-invalid={Boolean(sectionsError)}>
+                      <SelectValue
+                        placeholder={
+                          sectionsLoading || sectionsFetching
+                            ? 'Loading...'
+                            : 'Select your year and section'
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(ACADEMIC_TERMS).map((term) => (
-                        <SelectItem key={term} value={term}>
-                          {term}
+                      {sections.map((s) => {
+                        const secMeta = resolveSectionCapstoneMeta(s);
+                        const termTag = secMeta?.courseTitle
+                          ? ` — ${secMeta.courseTitle} (${secMeta.curriculumLabel})`
+                          : s.academicTerm
+                            ? ` — ${s.academicTerm}`
+                            : '';
+                        return (
+                          <SelectItem key={s._id} value={s._id}>
+                            {formatSectionWithCode(s)}
+                            {termTag} {s.academicYear ? `(${s.academicYear})` : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {sectionsError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription className="flex items-center justify-between gap-3">
+                        <span>
+                          {getAcademicLookupErrorMessage(
+                            sectionsQueryError,
+                            'Failed to load sections.',
+                          )}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchSections()}
+                          disabled={sectionsFetching || isSavingAcademic}
+                        >
+                          {sectionsFetching && <Spinner className="size-3.5" />}
+                          Retry
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {!sectionsError &&
+                    !sectionsLoading &&
+                    !sectionsFetching &&
+                    sections.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No active year and sections are available. Ask an instructor to create or
+                        activate a section.
+                      </p>
+                    )}
+                </div>
+
+                {/* Section Block vs Section Code (T-Code) */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Section Block</Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                      {selectedSectionBlock || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Section Code (T-Code)</Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-sm font-semibold text-primary">
+                      {selectedSectionTCode || '—'}
+                    </p>
+                  </div>
+                </div>
+              </fieldset>
+
+              {/* Fieldset 2: Academic Term & Capstone Track */}
+              <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                <legend className="text-sm font-semibold text-foreground px-2">
+                  Academic Term &amp; Capstone Track
+                </legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Degree Program</Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      {selectedSection?.courseId?.name || selectedSection?.courseId?.code || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-academic-term">Academic Term *</Label>
+                    <Select
+                      value={academicTerm}
+                      onValueChange={setAcademicTerm}
+                      disabled={isSavingAcademic}
+                    >
+                      <SelectTrigger id="profile-academic-term">
+                        <SelectValue placeholder="Select your academic term" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(ACADEMIC_TERMS).map((term) => (
+                          <SelectItem key={term} value={term}>
+                            {term}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Academic Year</Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                      {selectedSection?.academicYear || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Active Capstone Track</Label>
+                    <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                      {selectedCapstoneMeta?.courseTitle
+                        ? `${selectedCapstoneMeta.courseTitle} (${selectedCapstoneMeta.curriculumLabel})`
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Multi-Semester Capstone 1–3 Progression Overview */}
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-foreground">
+                      BukSU Multi-Semester Capstone Progression
+                    </p>
+                    <span className="text-[11px] text-muted-foreground">
+                      Each Capstone course has its own Semester &amp; Section Code (e.g. T65)
+                    </span>
+                  </div>
+                  <div className="grid gap-2.5 sm:grid-cols-3">
+                    {[1, 2, 3].map((courseNum) => {
+                      const track = CAPSTONE_CURRICULUM_MAP[courseNum];
+                      const enrolled = teamEnrollments.find(
+                        (enr) => Number(enr.capstoneCourse) === courseNum,
+                      );
+                      const isActiveCourse =
+                        Number(selectedCapstoneMeta?.capstoneCourse) === courseNum;
+                      return (
+                        <div
+                          key={courseNum}
+                          className={`rounded-md border p-2.5 text-xs ${
+                            isActiveCourse
+                              ? 'border-primary/50 bg-primary/5'
+                              : 'border-border/60 bg-background'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-semibold text-foreground">
+                              {track.courseTitle}
+                            </span>
+                            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                              {enrolled?.sectionCode ||
+                                (isActiveCourse ? selectedSectionTCode || 'Active' : 'Upcoming')}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {track.curriculumLabel}
+                          </p>
+                          {(enrolled?.sectionName || (isActiveCourse && selectedSectionBlock)) && (
+                            <p className="mt-0.5 text-[11px] font-medium text-foreground/80">
+                              Block:{' '}
+                              {enrolled?.sectionName
+                                ? formatCanonicalSectionName(enrolled.sectionName)
+                                : selectedSectionBlock}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </fieldset>
+
+              {/* Fieldset 3: Instructional Supervision */}
+              <fieldset className="space-y-4 rounded-lg border border-border/60 p-4">
+                <legend className="text-sm font-semibold text-foreground px-2">
+                  Instructional Supervision
+                </legend>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-instructor">Instructor *</Label>
+                  <Select
+                    value={instructorId}
+                    onValueChange={setInstructorId}
+                    disabled={instructorsLoading || isSavingAcademic}
+                  >
+                    <SelectTrigger id="profile-instructor" aria-invalid={Boolean(instructorsError)}>
+                      <SelectValue
+                        placeholder={
+                          instructorsLoading || instructorsFetching
+                            ? 'Loading...'
+                            : 'Select your instructor'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {instructors.map((ins) => (
+                        <SelectItem key={ins._id} value={ins._id}>
+                          {[ins.firstName, ins.middleName, ins.lastName].filter(Boolean).join(' ')}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Academic Year</Label>
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                    {selectedSection?.academicYear || '—'}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Active Capstone Track</Label>
-                  <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
-                    {selectedCapstoneMeta?.courseTitle
-                      ? `${selectedCapstoneMeta.courseTitle} (${selectedCapstoneMeta.curriculumLabel})`
-                      : '—'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Multi-Semester Capstone 1–3 Progression Overview */}
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-foreground">
-                    BukSU Multi-Semester Capstone Progression
-                  </p>
-                  <span className="text-[11px] text-muted-foreground">
-                    Each Capstone course has its own Semester &amp; Section Code (e.g. T65)
-                  </span>
-                </div>
-                <div className="grid gap-2.5 sm:grid-cols-3">
-                  {[1, 2, 3].map((courseNum) => {
-                    const track = CAPSTONE_CURRICULUM_MAP[courseNum];
-                    const enrolled = teamEnrollments.find(
-                      (enr) => Number(enr.capstoneCourse) === courseNum,
-                    );
-                    const isActiveCourse =
-                      Number(selectedCapstoneMeta?.capstoneCourse) === courseNum;
-                    return (
-                      <div
-                        key={courseNum}
-                        className={`rounded-md border p-2.5 text-xs ${
-                          isActiveCourse
-                            ? 'border-primary/50 bg-primary/5'
-                            : 'border-border/60 bg-background'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-semibold text-foreground">{track.courseTitle}</span>
-                          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                            {enrolled?.sectionCode ||
-                              (isActiveCourse ? selectedSectionTCode || 'Active' : 'Upcoming')}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {track.curriculumLabel}
-                        </p>
-                        {(enrolled?.sectionName || (isActiveCourse && selectedSectionBlock)) && (
-                          <p className="mt-0.5 text-[11px] font-medium text-foreground/80">
-                            Block:{' '}
-                            {enrolled?.sectionName
-                              ? formatCanonicalSectionName(enrolled.sectionName)
-                              : selectedSectionBlock}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Instructor */}
-              <div className="space-y-2">
-                <Label htmlFor="profile-instructor">Instructor *</Label>
-                <Select
-                  value={instructorId}
-                  onValueChange={setInstructorId}
-                  disabled={instructorsLoading || isSavingAcademic}
-                >
-                  <SelectTrigger id="profile-instructor" aria-invalid={Boolean(instructorsError)}>
-                    <SelectValue
-                      placeholder={
-                        instructorsLoading || instructorsFetching
-                          ? 'Loading...'
-                          : 'Select your instructor'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {instructors.map((ins) => (
-                      <SelectItem key={ins._id} value={ins._id}>
-                        {[ins.firstName, ins.middleName, ins.lastName].filter(Boolean).join(' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {instructorsError && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertDescription className="flex items-center justify-between gap-3">
-                      <span>
-                        {getAcademicLookupErrorMessage(
-                          instructorsQueryError,
-                          'Failed to load instructors.',
-                        )}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => refetchInstructors()}
-                        disabled={instructorsFetching || isSavingAcademic}
-                      >
-                        {instructorsFetching && <Spinner className="size-3.5" />}
-                        Retry
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {!instructorsError &&
-                  !instructorsLoading &&
-                  !instructorsFetching &&
-                  instructors.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No active instructors are available. Ask your admin to activate at least one
-                      instructor account.
-                    </p>
+                  {instructorsError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription className="flex items-center justify-between gap-3">
+                        <span>
+                          {getAcademicLookupErrorMessage(
+                            instructorsQueryError,
+                            'Failed to load instructors.',
+                          )}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchInstructors()}
+                          disabled={instructorsFetching || isSavingAcademic}
+                        >
+                          {instructorsFetching && <Spinner className="size-3.5" />}
+                          Retry
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
                   )}
-              </div>
+                  {!instructorsError &&
+                    !instructorsLoading &&
+                    !instructorsFetching &&
+                    instructors.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No active instructors are available. Ask your admin to activate at least one
+                        instructor account.
+                      </p>
+                    )}
+                </div>
+              </fieldset>
             </CardContent>
             <CardFooter className="flex-col items-start gap-3">
               {academicSaveSuccess && (

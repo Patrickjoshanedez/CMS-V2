@@ -13,6 +13,7 @@ input::-webkit-credentials-auto-fill-button {
 
 @layer base {
   :root {
+    color-scheme: light;
     --font-size-multiplier: 1;
     /* Fixed BukSU proposal-slide palette; intentionally theme invariant for official deck fidelity. */
     --slide-brand-navy: 215.0562 80.1802% 21.7647%;
@@ -79,6 +80,7 @@ input::-webkit-credentials-auto-fill-button {
   }
 
   .dark {
+    color-scheme: dark;
     --background: 220 60% 5%;
     --foreground: 0 0% 100%;
     --overlay: 0 0% 0%;
@@ -194,6 +196,25 @@ input::-webkit-credentials-auto-fill-button {
     translate: none;
   }
 
+  /* Theme-invariant swatches for Appearance theme selector */
+  .theme-preview-light {
+    --background: 210 40% 96.1%;
+    --card: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --muted: 210 20% 92%;
+    --border: 214.3 31.8% 84%;
+    --primary: 221 83% 53%;
+  }
+
+  .theme-preview-dark {
+    --background: 220 60% 5%;
+    --card: 220 50% 9.5%;
+    --foreground: 0 0% 100%;
+    --muted: 220 35% 15%;
+    --border: 218 25% 24%;
+    --primary: 217 91% 60%;
+  }
+
   /* 60 FPS scrolling optimization with auto height retention to eliminate scrollbar jitter */
   .content-visibility-auto {
     content-visibility: auto;
@@ -264,11 +285,22 @@ html.dark[data-high-contrast='true'] {
   h1 {
     font-size: clamp(1.5rem, 1.25vw + 20px, 2.25rem);
   }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  img,
+  video {
+    max-inline-size: 100%;
+    block-size: auto;
+  }
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    overflow-wrap: break-word;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
@@ -919,6 +951,22 @@ html.dark[data-high-contrast='true'] {
 /* Print Stylesheet for Defense Binders & Physical Evaluation (@media print) */
 /* ══════════════════════════════════════════════════════════════════════ */
 @media print {
+  @page {
+    size: letter portrait;
+    margin: 0.75in;
+  }
+
+  /* Force light ink & clean white paper even when Dark Mode is active */
+  html,
+  html.dark,
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .highlight-faculty {
     background-color: transparent !important;
     border-bottom: 2px solid hsl(var(--info)) !important;
@@ -949,10 +997,65 @@ html.dark[data-high-contrast='true'] {
   nav,
   [role='navigation'],
   [role='status'],
-  [role='region'],
   [data-sonner-toaster],
   .toaster {
     display: none !important;
+  }
+
+  /* Keep Plagiarism Report sources aside visible when printing the report */
+  .plagiarism-report-container aside {
+    display: flex !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border-left: 0 !important;
+  }
+
+  /* Unroll Radix Dialog & SophisticatedDocumentViewer for multi-page print */
+  [data-radix-dialog-overlay='true'] {
+    display: none !important;
+  }
+  [data-radix-dialog-content='true'] {
+    position: static !important;
+    transform: none !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .docx-outer-container,
+  .docx-zoom-wrapper,
+  .docx-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+  .docx-wrapper > section.docx {
+    box-shadow: none !important;
+    margin: 0 auto 12pt auto !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  /* Evaluation Scoresheet print table hygiene */
+  .evaluation-panel-printable {
+    border: 1pt solid #cbd5e1 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .evaluation-panel-printable tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   /* Institutional Document Print Isolation (ADM & Secretary Minutes) */

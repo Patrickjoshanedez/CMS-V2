@@ -90,13 +90,13 @@ const plagiarismResultSchema = new mongoose.Schema(
     },
     scanCoverage: {
       type: String,
-      enum: ['full', 'lexical_only', 'degraded'],
-      default: 'full',
+      enum: ['full', 'lexical_only', 'degraded', 'insufficient_text'],
+      default: null,
     },
     semanticStatus: {
       type: String,
       enum: ['completed', 'skipped', 'failed', 'pending'],
-      default: 'completed',
+      default: null,
     },
     scanType: {
       type: String,

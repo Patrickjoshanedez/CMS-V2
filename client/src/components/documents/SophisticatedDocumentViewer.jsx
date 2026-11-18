@@ -8,6 +8,7 @@ import {
   ZoomOut,
   RotateCcw,
   Download,
+  Printer,
   FileText,
   BookOpen,
   Info,
@@ -244,6 +245,7 @@ export default function SophisticatedDocumentViewer({
     effectiveFile?.name ||
     'Manuscript Document';
   const effectiveSubmissionId = submission?._id || submission?.id || '';
+  const isSyntheticArchiveId = effectiveSubmissionId === 'archive-document';
   const isDocx = Boolean(
     fileName.toLowerCase().endsWith('.docx') ||
     fileName.toLowerCase().endsWith('.doc') ||
@@ -266,7 +268,9 @@ export default function SophisticatedDocumentViewer({
 
   const streamFileUrl =
     fallbackFileUrl ||
-    (effectiveSubmissionId ? `/api/submissions/${effectiveSubmissionId}/file` : null);
+    (effectiveSubmissionId && !isSyntheticArchiveId
+      ? `/api/submissions/${effectiveSubmissionId}/file`
+      : null);
   const rawChapter = submission?.chapter ?? submission?.chapterNumber ?? 1;
   const parsedNum =
     typeof rawChapter === 'string' ? parseInt(rawChapter.replace(/\D/g, ''), 10) : rawChapter;
@@ -353,6 +357,12 @@ export default function SophisticatedDocumentViewer({
       setIsConvertedPdf(false);
       setPdfError(null);
       setIframeLoading(false);
+      return undefined;
+    }
+
+    if (isDocx && effectiveFile && !submission?.convertedPdfKey) {
+      setIframeLoading(false);
+      setPdfError(null);
       return undefined;
     }
 
@@ -521,7 +531,7 @@ export default function SophisticatedDocumentViewer({
     <Sheet open={showMetadata} onOpenChange={setShowMetadata}>
       <div
         ref={modalRef}
-        className={`flex min-w-0 flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
+        className={`flex min-w-0 flex-col bg-card overflow-hidden print:overflow-visible print:h-auto print:max-h-none transition-all duration-200 overscroll-contain ${
           isFullscreen
             ? 'h-full w-full rounded-none border-0'
             : embedded
@@ -530,7 +540,7 @@ export default function SophisticatedDocumentViewer({
         }`}
       >
         {/* ── Top Control Bar ── */}
-        <header className="shrink-0 flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 min-h-[48px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
+        <header className="no-print print:hidden shrink-0 flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 min-h-[48px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] sm:[&_button]:min-h-0 sm:[&_button]:min-w-0">
           {/* Left: Document Identity (Shown only for submission tracking; hidden on archive/plagiarism checker) */}
           {shouldShowIdentity ? (
             <div className="flex basis-full items-center gap-2.5 sm:basis-auto sm:gap-3 min-w-0 shrink">
@@ -919,6 +929,18 @@ export default function SophisticatedDocumentViewer({
             </Button>
 
             <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 px-2.5 bg-background/50 hover:bg-background"
+              onClick={() => window.print()}
+              data-testid="document-viewer-print-btn"
+              title="Print Document"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Print</span>
+            </Button>
+
+            <Button
               type="button"
               variant="ghost"
               size="icon"
@@ -947,9 +969,9 @@ export default function SophisticatedDocumentViewer({
         </header>
 
         {/* ── Main Canvas Area ── */}
-        <div className="relative flex-1 flex overflow-hidden bg-muted/20">
+        <div className="relative flex-1 flex overflow-hidden print:overflow-visible print:block bg-muted/20">
           {/* Document Content Canvas */}
-          <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
+          <main className="min-w-0 flex-1 flex flex-col overflow-hidden print:overflow-visible print:block">
             {viewMode === 'diff' ? (
               <RevisionDiffViewer
                 diffData={diffData}
@@ -1012,7 +1034,7 @@ export default function SophisticatedDocumentViewer({
                 ) : (
                   <PdfViewerWorkspace
                     pdfData={pdfData}
-                    pdfUrl={pdfData || pdfBlobUrl || streamFileUrl}
+                    pdfUrl={pdfBlobUrl || streamFileUrl || ''}
                     highlights={highlights}
                     plagiarismMatches={plagiarismMatches}
                     activeHighlightId={activeHighlightId}
@@ -1034,7 +1056,7 @@ export default function SophisticatedDocumentViewer({
             ) : isDocx ? (
               /* ── DOCX: docx-preview OOXML renderer fallback when unconverted ── */
               <DocxPreviewRenderer
-                submissionId={effectiveSubmissionId}
+                submissionId={isSyntheticArchiveId ? '' : effectiveSubmissionId}
                 streamFileUrl={streamFileUrl}
                 file={effectiveFile}
                 zoom={zoom}
@@ -1724,9 +1746,9 @@ export function DocxPreviewRenderer({
       )}
 
       {/* docx-preview render target — scrollable canvas with zoom */}
-      <div className="flex-1 overflow-auto bg-muted">
+      <div className="flex-1 overflow-auto print:overflow-visible bg-muted print:bg-white">
         <div
-          className="docx-zoom-wrapper w-max min-w-full origin-top-left"
+          className="docx-zoom-wrapper w-max min-w-full origin-top-left print:w-full print:transform-none"
           style={{
             zoom: zoom / 100,
             width: 'max-content',

@@ -1,131 +1,68 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { CheckCircle2, Clock, Award, FileText, Layers, Activity, Archive } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { MetricGrid, StatCard } from '@/components/common';
 
 const KPICards = ({ kpis }) => {
   const totals = kpis?.totals || {};
   const performance = kpis?.performance || {};
   const pipeline = kpis?.pipeline || {};
 
-  const cards = [
-    {
-      label: 'Completion Rate',
-      value: `${performance.completionRatePercent || 0}%`,
-      hint: 'Archived projects over total',
-      icon: CheckCircle2,
-      accent: 'text-success bg-success/10 border-success/20',
-    },
-    {
-      label: 'Avg Review Turnaround',
-      value: `${performance.avgReviewTurnaroundHours || 0}h`,
-      hint: 'Submission to review latency',
-      icon: Clock,
-      accent: 'text-primary bg-primary/10 border-primary/20',
-    },
-    {
-      label: 'Avg Evaluation Score',
-      value: performance.avgEvaluationScore || 0,
-      hint: 'Across all active evaluations',
-      icon: Award,
-      accent: 'text-warning bg-warning/10 border-warning/20',
-    },
-    {
-      label: 'Pending Submissions',
-      value: pipeline.pendingSubmissions || 0,
-      hint: `${pipeline.underReview || 0} currently under review`,
-      icon: FileText,
-      accent: 'text-info-foreground bg-info/10 border-info/20',
-    },
-  ];
-
   return (
     <div className="space-y-4">
-      {/* 4 Primary Performance KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 items-stretch">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Card
-              key={card.label}
-              className="flex flex-col justify-between transition-colors hover:border-border"
-            >
-              <CardContent className="flex flex-col justify-between gap-3 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${card.accent}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                </div>
-                <div>
-                  <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                    {card.value}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground font-normal">{card.hint}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <MetricGrid cols={4}>
+        <StatCard
+          label="Completion Rate"
+          value={`${performance.completionRatePercent || 0}%`}
+          hint="Archived projects over total"
+          icon={CheckCircle2}
+          tone="success"
+        />
+        <StatCard
+          label="Avg Review Turnaround"
+          value={`${performance.avgReviewTurnaroundHours || 0}h`}
+          hint="Submission to review latency"
+          icon={Clock}
+          tone="primary"
+        />
+        <StatCard
+          label="Avg Evaluation Score"
+          value={performance.avgEvaluationScore || 0}
+          hint="Across all active evaluations"
+          icon={Award}
+          tone="warning"
+        />
+        <StatCard
+          label="Pending Submissions"
+          value={pipeline.pendingSubmissions || 0}
+          hint={`${pipeline.underReview || 0} currently under review`}
+          icon={FileText}
+          tone={(pipeline.pendingSubmissions || 0) > 0 ? 'warning' : 'default'}
+        />
+      </MetricGrid>
 
-      {/* Project Volume Breakdown - Balanced 3-Column Equal Grid */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4 items-stretch">
-        <Card className="flex flex-col justify-between transition-colors hover:border-border">
-          <CardContent className="flex flex-col justify-between gap-2 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-              <span className="text-xs font-medium text-muted-foreground">Total Projects</span>
-              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground border border-border/50">
-                <Layers className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div>
-              <p className="font-mono text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                {totals.totalProjects || 0}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Enrolled capstone teams</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col justify-between border-primary/25 bg-primary/5 transition-colors hover:border-primary/40">
-          <CardContent className="flex flex-col justify-between gap-2 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-              <span className="text-xs font-medium text-primary">Active Pipeline</span>
-              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-                <Activity className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div>
-              <p className="font-mono text-2xl font-bold tracking-tight text-primary tabular-nums">
-                {totals.activeProjects || 0}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                In manuscript &amp; development
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col justify-between border-success/25 bg-success/5 transition-colors hover:border-success/40">
-          <CardContent className="flex flex-col justify-between gap-2 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-              <span className="text-xs font-medium text-success">Completed</span>
-              <div className="hidden h-7 w-7 sm:flex items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
-                <Archive className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div>
-              <p className="font-mono text-2xl font-bold tracking-tight text-success tabular-nums">
-                {totals.completedProjects || 0}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Final defense certified</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <MetricGrid cols={3}>
+        <StatCard
+          label="Total Projects"
+          value={totals.totalProjects || 0}
+          hint="Enrolled capstone teams"
+          icon={Layers}
+        />
+        <StatCard
+          label="Active Pipeline"
+          value={totals.activeProjects || 0}
+          hint="In manuscript & development"
+          icon={Activity}
+          tone="primary"
+        />
+        <StatCard
+          label="Completed"
+          value={totals.completedProjects || 0}
+          hint="Final defense certified"
+          icon={Archive}
+          tone="success"
+        />
+      </MetricGrid>
     </div>
   );
 };

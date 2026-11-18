@@ -41,8 +41,9 @@ Before doing anything, answer these two questions:
 ```yaml
 ---
 name: <kebab-case-name>
-version: 1.0.0
-schema-version: 1
+metadata:
+  version: 1.0.0
+  schema-version: 1
 description: >
   <What this skill enables the agent to do. When to trigger it.
   Be slightly pushy — list concrete trigger phrases so the agent
@@ -74,9 +75,15 @@ Any workspace-specific paths, conventions, or integration points relevant to thi
 What to do if the workflow breaks at each major step.
 ```
 
+Store version fields under `metadata` so the skill-creator quick validator accepts the
+frontmatter. Validate with `python .agents/skills/skill-creator/scripts/quick_validate.py
+.agents/skills/<skill-name>` before registering a new skill.
+
 ### 4. Register in workspace-rules.md
 After creating the skill, add its name to the skill ecosystem map in
 `.agents/rules/workspace-rules.md` under the appropriate category bucket.
+If that file delegates its catalog to `02-skills-and-hermes-recipe.md`, register there
+and add a short discovery link in `workspace-rules.md`; do not invent a missing bucket.
 
 ---
 

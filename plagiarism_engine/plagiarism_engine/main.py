@@ -44,10 +44,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets as _secrets
+import threading
+import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
+from typing import Any
 
-from celery.result import AsyncResult
-from fastapi import FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -68,13 +71,78 @@ from .models import (
     SourceMetadata,
     TaskStatus,
 )
-from .tasks import celery_app, check_document_task, index_document_task
 
 import os as _os
 _cfg = get_settings()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+_ASYNC_BACKEND = _os.environ.get("PLAGIARISM_ASYNC_BACKEND", "inprocess").strip().lower()
+_INPROCESS_TASK_LIMIT = 500
+_INPROCESS_TASKS: OrderedDict[str, dict[str, Any]] = OrderedDict()
+_INPROCESS_LOCK = threading.Lock()
+
+
+def _set_task_state(
+    task_id: str,
+    *,
+    status_value: TaskStatus,
+    result: PlagiarismReport | None = None,
+    error: str | None = None,
+) -> None:
+    with _INPROCESS_LOCK:
+        _INPROCESS_TASKS[task_id] = {
+            "status": status_value,
+            "result": result,
+            "error": error,
+        }
+        _INPROCESS_TASKS.move_to_end(task_id)
+        while len(_INPROCESS_TASKS) > _INPROCESS_TASK_LIMIT:
+            _INPROCESS_TASKS.popitem(last=False)
+
+
+def _run_inprocess_check(
+    task_id: str,
+    document_id: str,
+    text: str,
+    metadata: dict[str, Any],
+) -> None:
+    _set_task_state(task_id, status_value=TaskStatus.PROCESSING)
+    try:
+        engine = PlagiarismEngine()
+        report = engine.check_document(
+            document_id=document_id,
+            text=text,
+            metadata=metadata,
+        )
+        validated = (
+            PlagiarismReport.model_validate(report)
+            if isinstance(report, dict)
+            else report
+        )
+        _set_task_state(task_id, status_value=TaskStatus.COMPLETED, result=validated)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("In-process check task %s failed for '%s'.", task_id, document_id)
+        _set_task_state(task_id, status_value=TaskStatus.FAILED, error=str(exc))
+
+
+def _run_inprocess_index(
+    document_id: str,
+    text: str,
+    metadata: dict[str, Any],
+) -> None:
+    try:
+        engine = PlagiarismEngine()
+        engine.index_document(
+            IndexRequest(
+                document_id=document_id,
+                text=text,
+                metadata=metadata,
+            )
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("In-process index task failed for '%s'.", document_id)
 
 # CORS origins read directly from env to bypass pydantic-settings v2 list-parsing
 _cors_raw = _os.environ.get(
@@ -183,7 +251,7 @@ async def require_service_token(request, call_next):
     summary="Submit a document for plagiarism checking (async)",
     tags=["Plagiarism Check"],
 )
-async def submit_check(body: CheckRequest) -> CheckResponse:
+async def submit_check(body: CheckRequest, background_tasks: BackgroundTasks) -> CheckResponse:
     """Queue an async plagiarism check and return a ``task_id``.
 
     The client should poll ``GET /result/{task_id}`` every few seconds until
@@ -210,16 +278,36 @@ async def submit_check(body: CheckRequest) -> CheckResponse:
             detail="Field 'text' is required and must not be empty.",
         )
 
-    task = check_document_task.delay(
-        document_id=body.document_id,
-        text=body.text,
-        metadata=body.metadata.model_dump() if body.metadata else {},
+    meta_dict = (
+        body.metadata
+        if isinstance(body.metadata, dict)
+        else (body.metadata.model_dump() if body.metadata else {})
     )
 
-    logger.info("Enqueued check task %s for document '%s'.", task.id, body.document_id)
+    if _ASYNC_BACKEND == "celery":
+        from .tasks import check_document_task
+
+        task = check_document_task.delay(
+            document_id=body.document_id,
+            text=body.text,
+            metadata=meta_dict,
+        )
+        task_id = task.id
+    else:
+        task_id = uuid.uuid4().hex
+        _set_task_state(task_id, status_value=TaskStatus.PENDING)
+        background_tasks.add_task(
+            _run_inprocess_check,
+            task_id,
+            body.document_id,
+            body.text,
+            meta_dict,
+        )
+
+    logger.info("Enqueued check task %s for document '%s' (backend=%s).", task_id, body.document_id, _ASYNC_BACKEND)
 
     return CheckResponse(
-        task_id=task.id,
+        task_id=task_id,
         document_id=body.document_id,
         status=TaskStatus.PENDING,
         message="Plagiarism check queued. Poll /result/{task_id} for the result.",
@@ -269,6 +357,27 @@ async def get_result(task_id: str) -> ResultResponse:
     - ``"completed"``  — result is available in the ``result`` field.
     - ``"failed"``     — an error occurred; ``error`` field contains the message.
     """
+    if _ASYNC_BACKEND != "celery":
+        with _INPROCESS_LOCK:
+            entry = _INPROCESS_TASKS.get(task_id)
+
+        if entry is None:
+            return ResultResponse(
+                task_id=task_id,
+                status=TaskStatus.FAILED,
+                error="Task not found or expired.",
+            )
+
+        return ResultResponse(
+            task_id=task_id,
+            status=entry["status"],
+            report=entry.get("result"),
+            error=entry.get("error"),
+        )
+
+    from celery.result import AsyncResult
+    from .tasks import celery_app
+
     async_result: AsyncResult = AsyncResult(task_id, app=celery_app)
 
     celery_state = async_result.state
@@ -285,7 +394,7 @@ async def get_result(task_id: str) -> ResultResponse:
             report = PlagiarismReport.model_validate(raw)
         else:
             report = raw  # Already a PlagiarismReport
-        return ResultResponse(task_id=task_id, status=TaskStatus.COMPLETED, result=report)
+        return ResultResponse(task_id=task_id, status=TaskStatus.COMPLETED, report=report)
 
     if celery_state == "FAILURE":
         err = async_result.result
@@ -307,7 +416,7 @@ async def get_result(task_id: str) -> ResultResponse:
     summary="Index a document into the corpus (async)",
     tags=["Corpus Index"],
 )
-async def index_document(body: IndexRequest) -> IndexResponse:
+async def index_document(body: IndexRequest, background_tasks: BackgroundTasks) -> IndexResponse:
     """Queue indexing of a source document into the ChromaDB corpus.
 
     Call this endpoint whenever an adviser approves a chapter or when the CMS
@@ -340,12 +449,27 @@ async def index_document(body: IndexRequest) -> IndexResponse:
             detail="Field 'text' is required and must not be empty.",
         )
 
-    meta_dict = body.metadata.model_dump() if body.metadata else {"document_id": body.document_id}
-    index_document_task.delay(
-        document_id=body.document_id,
-        text=body.text,
-        metadata=meta_dict,
+    meta_dict = (
+        body.metadata
+        if isinstance(body.metadata, dict)
+        else (body.metadata.model_dump() if body.metadata else {"document_id": body.document_id})
     )
+
+    if _ASYNC_BACKEND == "celery":
+        from .tasks import index_document_task
+
+        index_document_task.delay(
+            document_id=body.document_id,
+            text=body.text,
+            metadata=meta_dict,
+        )
+    else:
+        background_tasks.add_task(
+            _run_inprocess_index,
+            body.document_id,
+            body.text,
+            meta_dict,
+        )
 
     return IndexResponse(
         document_id=body.document_id,
@@ -387,8 +511,7 @@ async def delete_from_index(document_id: str) -> DeleteResponse:
     deleted_count = await asyncio.to_thread(engine.remove_document, document_id)
     return DeleteResponse(
         document_id=document_id,
-        deleted_segments=deleted_count,
-        success=True,
+        segments_removed=deleted_count,
     )
 
 

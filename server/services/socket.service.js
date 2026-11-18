@@ -15,6 +15,11 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { verifyAccessToken } from '../utils/generateToken.js';
 import { getRedisClient, getRedisSubClient, isRedisAvailable } from '../config/redis.js';
 import env from '../config/env.js';
+import User from '../modules/users/user.model.js';
+import Project from '../modules/projects/project.model.js';
+import Team from '../modules/teams/team.model.js';
+import Section from '../modules/academics/section.model.js';
+import { canJoinProjectRoom } from './projectRoomAuthorization.js';
 
 /** @type {Server|null} Singleton Socket.IO server instance. */
 let io = null;
@@ -47,8 +52,8 @@ export function initializeSocket(httpServer) {
 
   io = new Server(httpServer, serverOptions);
 
-  // ─────────── Stateless Authentication Middleware ───────────
-  io.use((socket, next) => {
+  // ─────────── Current-account Authentication Middleware ───────────
+  io.use(async (socket, next) => {
     try {
       // Try auth.token first, then fall back to cookie extraction
       let token = socket.handshake.auth?.token;
@@ -66,7 +71,6 @@ export function initializeSocket(httpServer) {
         return next(new Error('Authentication required: Missing token.'));
       }
 
-      // Stateless token verification: extracts claims directly from JWT without hitting MongoDB
       const decoded = verifyAccessToken(token);
       const resolvedUserId = (decoded.userId || decoded.id || decoded._id)?.toString();
 
@@ -74,15 +78,19 @@ export function initializeSocket(httpServer) {
         return next(new Error('Authentication failed: Missing userId in token claims.'));
       }
 
-      // Attach user identity and institutional roles directly to socket
+      const user = await User.findById(resolvedUserId).select('-password');
+      if (!user || !user.isActive || !user.isVerified) {
+        return next(new Error('Authentication failed: Account is unavailable.'));
+      }
+      if ((decoded.sessionVersion ?? -1) !== (user.sessionVersion ?? 0)) {
+        return next(new Error('Authentication failed: Session has been invalidated.'));
+      }
+
+      // Use current database roles so stale signed claims cannot retain old privileges.
       socket.userId = resolvedUserId;
-      socket.userRole = decoded.role;
-      socket.facultyRole = decoded.facultyRole || null;
-      socket.user = {
-        _id: socket.userId,
-        role: socket.userRole,
-        facultyRole: socket.facultyRole,
-      };
+      socket.user = user;
+      socket.userRole = user.role;
+      socket.tokenExpiresAt = decoded.exp * 1000;
 
       next();
     } catch (err) {
@@ -99,36 +107,97 @@ export function initializeSocket(httpServer) {
     // Join the user's private personal room
     socket.join(`user:${userId}`);
 
+    const expiryTimer = setTimeout(
+      () => socket.disconnect(true),
+      Math.max(0, socket.tokenExpiresAt - Date.now()),
+    );
+    expiryTimer.unref?.();
+    const accountCheck = setInterval(async () => {
+      try {
+        const current = await User.findById(userId)
+          .select('role isActive isVerified sessionVersion')
+          .lean();
+        if (
+          !current ||
+          !current.isActive ||
+          !current.isVerified ||
+          current.role !== socket.user.role ||
+          (current.sessionVersion ?? 0) !== (socket.user.sessionVersion ?? 0)
+        ) {
+          socket.disconnect(true);
+          return;
+        }
+        for (const room of socket.rooms) {
+          if (!room.startsWith('project:')) continue;
+          const projectId = room.slice('project:'.length);
+          const project = await Project.findById(projectId)
+            .select('teamId memberRoleAssignments adviserId secretaryId panelistIds sectionId')
+            .lean();
+          const team = project?.teamId
+            ? await Team.findById(project.teamId)
+                .select(
+                  'members leaderId adviserId secretaryId panelistIds instructorId sectionInstructorId sectionId',
+                )
+                .lean()
+            : null;
+          const leaderId = team?.leaderId?._id || team?.leaderId;
+          const leader = leaderId
+            ? await User.findById(leaderId).select('instructorId').lean()
+            : null;
+          const sectionId = project?.sectionId || team?.sectionId;
+          const section = sectionId
+            ? await Section.findById(sectionId).select('createdBy').lean()
+            : null;
+          if (!canJoinProjectRoom(current, project, team, leader, section)) socket.leave(room);
+        }
+      } catch (error) {
+        console.warn(`[Socket] Session revalidation failed for ${userId}: ${error.message}`);
+        socket.disconnect(true);
+      }
+    }, 30_000);
+    accountCheck.unref?.();
+
     // Handle explicit user room re-join
     socket.on('join', () => {
       socket.join(`user:${userId}`);
     });
 
-    // Handle capstone defense room subscriptions (enforcing team membership for students)
+    // Handle private project room subscriptions using canonical current assignments.
     socket.on('join:project', async (projectId) => {
-      if (!projectId || typeof projectId !== 'string' || !/^[a-f\d]{24}$/i.test(projectId)) return;
+      const deny = () => socket.emit('join:project:denied', { projectId });
+      if (!projectId || typeof projectId !== 'string' || !/^[a-f\d]{24}$/i.test(projectId)) {
+        deny();
+        return;
+      }
       try {
-        if (socket.userRole === 'student') {
-          const mongoose = (await import('mongoose')).default;
-          const Project = mongoose.model('Project');
-          const Team = mongoose.model('Team');
-          const project = await Project.findById(projectId)
-            .select('teamId memberRoleAssignments isArchived')
-            .lean();
-          if (!project) return;
-          const team = project.teamId
-            ? await Team.findById(project.teamId).select('members leaderId').lean()
-            : null;
-          const isMember =
-            project.memberRoleAssignments?.some((m) => m.userId?.toString() === userId) ||
-            team?.members?.some((m) => (m?._id || m)?.toString() === userId) ||
-            (team?.leaderId?._id || team?.leaderId)?.toString() === userId;
-          if (!isMember && !project.isArchived) {
-            console.warn(
-              `[Socket] Unauthorized student ${userId} attempted to join project:${projectId}`,
-            );
-            return;
-          }
+        const project = await Project.findById(projectId)
+          .select('teamId memberRoleAssignments adviserId secretaryId panelistIds sectionId')
+          .lean();
+        if (!project) {
+          deny();
+          return;
+        }
+        const team = project.teamId
+          ? await Team.findById(project.teamId)
+              .select(
+                'members leaderId adviserId secretaryId panelistIds instructorId sectionInstructorId',
+              )
+              .lean()
+          : null;
+        const leaderId = team?.leaderId?._id || team?.leaderId;
+        const leader = leaderId
+          ? await User.findById(leaderId).select('instructorId').lean()
+          : null;
+        const currentUser = await User.findById(userId)
+          .select('role facultyRole isActive isVerified')
+          .lean();
+        const sectionId = project.sectionId || team?.sectionId;
+        const section = sectionId
+          ? await Section.findById(sectionId).select('createdBy').lean()
+          : null;
+        if (!canJoinProjectRoom(currentUser, project, team, leader, section)) {
+          deny();
+          return;
         }
         const room = `project:${projectId}`;
         socket.join(room);
@@ -136,6 +205,7 @@ export function initializeSocket(httpServer) {
         console.log(`[Socket] User ${userId} joined ${room}`);
       } catch (err) {
         console.warn(`[Socket] Error authorizing join:project: ${err.message}`);
+        deny();
       }
     });
 
@@ -148,12 +218,20 @@ export function initializeSocket(httpServer) {
     });
 
     socket.on('disconnect', (reason) => {
+      clearTimeout(expiryTimer);
+      clearInterval(accountCheck);
       console.log(`[Socket] User ${userId} disconnected: ${reason}`);
     });
   });
 
   console.log('[Socket] Server initialized.');
   return io;
+}
+
+/** Revoke every live connection for an account across the Socket.IO adapter. */
+export function invalidateUserSockets(userId) {
+  if (!io || !userId) return;
+  io.in(`user:${userId.toString()}`).disconnectSockets(true);
 }
 
 /**
@@ -224,14 +302,11 @@ export function disconnectSockets() {
 /**
  * Reset the Socket.IO instance (used for testing cleanup).
  */
-export function resetSocket() {
+export async function resetSocket() {
   if (io) {
-    try {
-      io.close();
-    } catch {
-      // Ignore
-    }
+    const current = io;
     io = null;
+    await new Promise((resolve) => current.close(resolve));
   }
 }
 
@@ -243,5 +318,6 @@ export default {
   emitToProject,
   emitToAll,
   disconnectSockets,
+  invalidateUserSockets,
   resetSocket,
 };

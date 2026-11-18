@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { PageHeader } from '@/components/common';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -454,88 +455,81 @@ function PlagiarismReportPage({
   /* ── Main report view ──────────────────────────────────── */
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-[1800px] space-y-4">
-        {/* ── Top Header Toolbar ── */}
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (typeof onBack === 'function') onBack();
-                else if (typeof onReset === 'function') onReset();
-                else navigate(-1);
-              }}
-              className="gap-1.5"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-
-            <div className="h-4 w-px bg-border hidden sm:block" />
-
-            <div>
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                <h1 className="text-base font-bold text-foreground">
-                  Plagiarism & Similarity Intelligence Report
-                </h1>
-                <Badge variant={status.badgeVariant} className="text-xs">
-                  {status.statusText}
-                </Badge>
-                <Badge
-                  variant={coverageConfig.badgeVariant}
-                  className="text-xs"
-                  data-testid="scan-coverage-badge"
-                >
-                  {coverageConfig.label}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {submissionFileName} · Phase {submission?.capstonePhase ?? '1–4'}
-              </p>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRescan}
-              disabled={scanMutation.isPending}
-              className="gap-1.5"
-            >
-              {scanMutation.isPending ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                <RefreshCcw className="h-4 w-4" />
-              )}
-              {scanMutation.isPending ? 'Scanning...' : 'Re-scan Archive'}
-            </Button>
-
-            {(submission || viewerSubmission) && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setViewerOpen(true)}
-                className="gap-1.5 shadow-sm"
+      <div className="space-y-6 plagiarism-report-container">
+        <PageHeader
+          eyebrow="Originality Intelligence"
+          icon={FileText}
+          title="Plagiarism & Similarity Intelligence Report"
+          description={`${submissionFileName} · Phase ${submission?.capstonePhase ?? '1–4'}`}
+          meta={
+            <>
+              <Badge variant={status.badgeVariant} className="text-xs">
+                {status.statusText}
+              </Badge>
+              <Badge
+                variant={coverageConfig.badgeVariant}
+                className="text-xs"
+                data-testid="scan-coverage-badge"
               >
-                <BookOpen className="h-4 w-4" />
-                Inspect in Reader
+                {coverageConfig.label}
+              </Badge>
+            </>
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2 no-print print:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (typeof onBack === 'function') onBack();
+                  else if (typeof onReset === 'function') onReset();
+                  else navigate(-1);
+                }}
+                className="gap-1.5"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back
               </Button>
-            )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.print()}
-              title="Print / Export Report"
-            >
-              <Printer className="h-4 w-4" />
-            </Button>
-          </div>
-        </header>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRescan}
+                disabled={scanMutation.isPending}
+                className="gap-1.5"
+              >
+                {scanMutation.isPending ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+                )}
+                {scanMutation.isPending ? 'Scanning...' : 'Re-scan Archive'}
+              </Button>
+
+              {(submission || viewerSubmission) && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setViewerOpen(true)}
+                  className="gap-1.5 shadow-sm"
+                >
+                  <BookOpen className="h-4 w-4" aria-hidden="true" />
+                  Inspect in Reader
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                aria-label="Print or export report"
+                title="Print / Export Report"
+              >
+                <Printer className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          }
+        />
 
         {/* Coverage Alert Banners */}
         {scanCoverage === 'degraded' && (
@@ -664,13 +658,13 @@ function PlagiarismReportPage({
 
         {/* ── Main grid: document canvas + sidebar ── */}
         <div
-          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border/60 bg-card xl:grid-cols-[1fr_380px]"
+          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border/60 bg-card xl:grid-cols-[1fr_380px] print:block print:overflow-visible print:border-0 print:rounded-none"
           style={{ minHeight: '75vh' }}
         >
           {/* Document canvas (Turnitin "paper" look) */}
-          <div className="flex flex-col overflow-hidden bg-muted/20">
+          <div className="flex flex-col overflow-hidden bg-muted/20 print:overflow-visible print:bg-white">
             {/* Canvas Sub-Header Controls */}
-            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs sm:items-center">
+            <div className="no-print print:hidden flex flex-wrap items-start justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs sm:items-center">
               {/* Left: Document Mode Switcher & Highlights Toggle */}
               <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                 <div
@@ -916,7 +910,7 @@ function PlagiarismReportPage({
               <div
                 ref={canvasContainerRef}
                 onScroll={handleCanvasScroll}
-                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-muted/40"
+                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-muted/40 print:overflow-visible print:p-0 print:bg-white print:max-h-none"
                 style={{ maxHeight: '76vh', scrollBehavior: 'smooth' }}
                 tabIndex={0}
                 role="region"
@@ -1206,7 +1200,7 @@ function PlagiarismReportPage({
 
           {/* Sources sidebar */}
           <aside
-            className="flex flex-col border-l border-border/60 bg-card overflow-hidden"
+            className="flex flex-col border-l border-border/60 bg-card overflow-hidden print:block print:border-l-0 print:border-t print:mt-6 print:overflow-visible print:max-h-none"
             style={{ maxHeight: '78vh', minHeight: '300px' }}
           >
             {/* Sidebar header */}

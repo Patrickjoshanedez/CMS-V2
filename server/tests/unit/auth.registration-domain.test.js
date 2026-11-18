@@ -11,7 +11,7 @@ const registration = (email) => ({
   password: 'Password123',
 });
 
-describe('student registration domain enforcement', () => {
+describe('student and faculty registration domain enforcement', () => {
   beforeEach(() => {
     process.env.NODE_ENV = 'development';
   });
@@ -34,6 +34,30 @@ describe('student registration domain enforcement', () => {
 
   it('rejects non-institutional domains', () => {
     expect(registerSchema.safeParse(registration('alex@gmail.com')).success).toBe(false);
+  });
+
+  it('accepts faculty with a general BukSU address', () => {
+    const result = registerSchema.safeParse({
+      ...registration('Alex@BUKSU.EDU.PH'),
+      role: 'faculty',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.role).toBe('faculty');
+    expect(result.data.email).toBe('alex@buksu.edu.ph');
+  });
+
+  it('rejects faculty/student domain mismatches and privileged self-registration', () => {
+    expect(
+      registerSchema.safeParse({ ...registration('alex@student.buksu.edu.ph'), role: 'faculty' })
+        .success,
+    ).toBe(false);
+    expect(
+      registerSchema.safeParse({ ...registration('alex@buksu.edu.ph'), role: 'instructor' })
+        .success,
+    ).toBe(false);
+    expect(
+      registerSchema.safeParse({ ...registration('alex@buksu.edu.ph'), role: 'adviser' }).success,
+    ).toBe(false);
   });
 
   it('accepts and trims studentId when provided', () => {

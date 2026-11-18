@@ -4,6 +4,7 @@ import TeamInvite from './teamInvite.model.js';
 import User from '../users/user.model.js';
 import Project from '../projects/project.model.js';
 import { assertProjectWritable } from '../projects/services/projectMutationGuard.js';
+import { assertAssignedInstructorForTeam } from '../academics/instructorAuthorization.js';
 import Notification from '../notifications/notification.model.js';
 import Section from '../academics/section.model.js';
 import DocumentTemplate from './documentTemplate.model.js';
@@ -1910,10 +1911,31 @@ class TeamService {
       );
     }
 
-    const { adviserId, secretaryId, panelistIds = [] } = data;
+    if (instructor.role === ROLES.INSTRUCTOR) {
+      await assertAssignedInstructorForTeam(team, instructorId);
+    }
 
-    // Validate mutual exclusion between roles on the same team
-    if (adviserId && secretaryId && adviserId.toString() === secretaryId.toString()) {
+    const hasAdviserUpdate = Object.hasOwn(data, 'adviserId');
+    const hasSecretaryUpdate = Object.hasOwn(data, 'secretaryId');
+    const hasPanelistUpdate = Object.hasOwn(data, 'panelistIds');
+    const adviserId = hasAdviserUpdate ? data.adviserId : team.adviserId;
+    const secretaryId = hasSecretaryUpdate ? data.secretaryId : team.secretaryId;
+    const panelistIds = hasPanelistUpdate ? data.panelistIds : team.panelistIds || [];
+    const toId = (value) => String(value?._id || value || '');
+    const effectiveAdviserId = toId(adviserId);
+    const effectiveSecretaryId = toId(secretaryId);
+    const effectivePanelistIds = panelistIds.map(toId);
+
+    if (effectivePanelistIds.length > 3) {
+      throw new AppError(
+        'A defense committee must have exactly 3 panelists.',
+        400,
+        'MAX_PANELISTS_EXCEEDED',
+      );
+    }
+
+    // Validate role exclusions against the complete resulting committee.
+    if (effectiveAdviserId && effectiveAdviserId === effectiveSecretaryId) {
       throw new AppError(
         'The adviser and committee secretary cannot be the same faculty member on the same team.',
         400,
@@ -1921,11 +1943,7 @@ class TeamService {
       );
     }
 
-    if (
-      adviserId &&
-      Array.isArray(panelistIds) &&
-      panelistIds.some((p) => p.toString() === adviserId.toString())
-    ) {
+    if (effectiveAdviserId && effectivePanelistIds.includes(effectiveAdviserId)) {
       throw new AppError(
         'A faculty adviser cannot serve as a defense panelist on the same team.',
         400,
@@ -1933,11 +1951,7 @@ class TeamService {
       );
     }
 
-    if (
-      secretaryId &&
-      Array.isArray(panelistIds) &&
-      panelistIds.some((p) => p.toString() === secretaryId.toString())
-    ) {
+    if (effectiveSecretaryId && effectivePanelistIds.includes(effectiveSecretaryId)) {
       throw new AppError(
         'A committee secretary cannot serve as a defense panelist on the same team.',
         400,
@@ -1945,9 +1959,9 @@ class TeamService {
       );
     }
 
-    if (Array.isArray(panelistIds) && panelistIds.length > 0) {
-      const uniquePanelists = new Set(panelistIds.map((p) => p.toString()));
-      if (uniquePanelists.size !== panelistIds.length) {
+    if (effectivePanelistIds.length > 0) {
+      const uniquePanelists = new Set(effectivePanelistIds);
+      if (uniquePanelists.size !== effectivePanelistIds.length) {
         throw new AppError(
           'Defense panelists cannot contain duplicate faculty members.',
           400,
@@ -1958,7 +1972,7 @@ class TeamService {
 
     // Validate adviser if provided
     let adviser = null;
-    if (adviserId) {
+    if (hasAdviserUpdate && adviserId) {
       adviser = await User.findById(adviserId);
       if (!adviser) {
         throw new AppError('The specified adviser was not found.', 400, 'INVALID_ADVISER');
@@ -1977,12 +1991,12 @@ class TeamService {
           'INVALID_COMMITTEE_ROLE',
         );
       }
-      team.adviserId = adviser._id;
     }
+    if (hasAdviserUpdate) team.adviserId = adviser?._id || null;
 
     // Validate secretary if provided
     let secretary = null;
-    if (secretaryId) {
+    if (hasSecretaryUpdate && secretaryId) {
       secretary = await User.findById(secretaryId);
       if (!secretary) {
         throw new AppError(
@@ -2005,14 +2019,11 @@ class TeamService {
           'INVALID_COMMITTEE_ROLE',
         );
       }
-      team.secretaryId = secretary._id;
     }
+    if (hasSecretaryUpdate) team.secretaryId = secretary?._id || null;
 
     // Validate panelists if provided
-    if (Array.isArray(panelistIds) && panelistIds.length > 0) {
-      if (panelistIds.length > 5) {
-        throw new AppError('A team can have at most 5 panelists.', 400, 'MAX_PANELISTS_EXCEEDED');
-      }
+    if (hasPanelistUpdate && panelistIds.length > 0) {
       const panelists = await User.find({ _id: { $in: panelistIds } }).select(
         '_id firstName lastName role',
       );
@@ -2039,24 +2050,27 @@ class TeamService {
           );
         }
       }
-      team.panelistIds = panelistIds;
     }
+    if (hasPanelistUpdate) team.panelistIds = panelistIds;
 
     // Reconcile and sync with associated Project if one already exists
     const project = await this._getWritableProjectForTeam(team._id);
     await withOptionalTransaction(async (session) => {
       await team.save({ session: session || undefined });
       if (project) {
-        if (adviserId) project.adviserId = adviserId;
-        if (secretaryId) project.secretaryId = secretaryId;
-        if (Array.isArray(panelistIds) && panelistIds.length > 0) {
-          project.panelistIds = panelistIds;
-          const structuredPanelists = panelistIds.map((pId, idx) => ({
+        if (hasAdviserUpdate) project.adviserId = team.adviserId;
+        if (hasSecretaryUpdate) project.secretaryId = team.secretaryId;
+        if (hasPanelistUpdate || hasSecretaryUpdate) {
+          project.panelistIds = team.panelistIds || [];
+          const structuredPanelists = (team.panelistIds || []).map((pId, idx) => ({
             userId: pId,
             role: idx === 0 ? 'chair' : 'member',
           }));
-          if (secretaryId && !panelistIds.some((p) => p.toString() === secretaryId.toString())) {
-            structuredPanelists.push({ userId: secretaryId, role: 'secretary' });
+          if (
+            team.secretaryId &&
+            !(team.panelistIds || []).some((p) => toId(p) === toId(team.secretaryId))
+          ) {
+            structuredPanelists.push({ userId: team.secretaryId, role: 'secretary' });
           }
           project.panelists = structuredPanelists;
         }
@@ -2064,13 +2078,12 @@ class TeamService {
       }
     });
 
-    // Determine whether the committee is fully assigned (1 Adviser, 1 Secretary, and at least 3 Panelists)
-    const REQUIRED_PANEL_COUNT = 3;
+    // A complete committee has one adviser, one secretary, and exactly three panelists.
     const isFullyAssigned =
       Boolean(team.adviserId) &&
       Boolean(team.secretaryId) &&
       Array.isArray(team.panelistIds) &&
-      team.panelistIds.length >= REQUIRED_PANEL_COUNT;
+      team.panelistIds.length === 3;
 
     // If fully assigned, mark pending committee appointment notifications for this team as read and completed
     if (isFullyAssigned) {
@@ -2124,7 +2137,7 @@ class TeamService {
       }
 
       // 3. Notify Panelists
-      if (Array.isArray(panelistIds)) {
+      if (hasPanelistUpdate && Array.isArray(panelistIds)) {
         for (const panelistId of panelistIds) {
           const notif = await Notification.create({
             userId: panelistId,
